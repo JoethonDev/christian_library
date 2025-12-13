@@ -40,23 +40,15 @@ class MediaProcessingService:
                     content_type='video'
                 )
                 
-                # Save original file
-                original_path = f'original/videos/{content_item.id}_{file.name}'
+                # Save original file using FileField.save
                 video_meta = VideoMeta.objects.create(
                     content_item=content_item,
                     processing_status='uploading'
                 )
-                
-                # Save file to filesystem
-                full_path = os.path.join(self.media_root, original_path)
-                os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                
-                with open(full_path, 'wb+') as destination:
-                    for chunk in file.chunks():
-                        destination.write(chunk)
-                
-                video_meta.original_file = original_path
-                video_meta.save()
+                # Reset file pointer if needed
+                if hasattr(file, 'seek'):
+                    file.seek(0)
+                video_meta.original_file.save(f"{content_item.id}_{file.name}", file, save=True)
                 
                 # Process tags
                 if tags:
@@ -80,14 +72,12 @@ class MediaProcessingService:
         try:
             with transaction.atomic():
                 # Create content item
-                module = Module.objects.get(id=module_id) if module_id else None
                 content_item = ContentItem.objects.create(
                     title_ar=title_ar,
                     title_en=title_en,
                     description_ar=description_ar,
                     description_en=description_en,
                     content_type='audio',
-                    module=module
                 )
                 
                 # Process and compress audio
@@ -123,14 +113,12 @@ class MediaProcessingService:
         try:
             with transaction.atomic():
                 # Create content item
-                module = Module.objects.get(id=module_id) if module_id else None
                 content_item = ContentItem.objects.create(
                     title_ar=title_ar,
                     title_en=title_en,
                     description_ar=description_ar,
                     description_en=description_en,
                     content_type='pdf',
-                    module=module
                 )
                 
                 # Compress PDF
