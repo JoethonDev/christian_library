@@ -39,10 +39,43 @@
                 const hls = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
-                    backBufferLength: 90
+                    backBufferLength: 90,
+                    maxBufferLength: 300,
+                    maxMaxBufferLength: 600,
+                    manifestLoadingTimeOut: 20000,
+                    manifestLoadingMaxRetry: 3,
+                    manifestLoadingRetryDelay: 1000,
+                    levelLoadingTimeOut: 20000,
+                    levelLoadingMaxRetry: 3,
+                    levelLoadingRetryDelay: 1000,
+                    fragLoadingTimeOut: 20000,
+                    fragLoadingMaxRetry: 3,
+                    fragLoadingRetryDelay: 1000,
+                    startLevel: -1,
+                    abrEwmaDefaultEstimate: 500000
                 });
                 hls.loadSource(videoSrc.src);
                 hls.attachMedia(video);
+                
+                // Add error handling to prevent excessive retries
+                hls.on(Hls.Events.ERROR, function(event, data) {
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.warn('HLS network error, attempting recovery...');
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.warn('HLS media error, attempting recovery...');
+                                hls.recoverMediaError();
+                                break;
+                            default:
+                                console.error('HLS fatal error:', data);
+                                hls.destroy();
+                                break;
+                        }
+                    }
+                });
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = videoSrc.src;
             }
