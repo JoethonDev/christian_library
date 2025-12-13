@@ -5,11 +5,11 @@
         <video id="video-{{ video.id }}" controls preload="metadata"
                style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; border-radius:1rem;">
             {% if video.videometa.get_hls_master_playlist %}
-                <!-- HLS streaming source -->
-                <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.get_streaming_file %}" type="application/x-mpegURL">
+                <!-- HLS streaming source (correct MIME type) -->
+                <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.get_streaming_file %}" type="application/vnd.apple.mpegurl">
             {% endif %}
-            <!-- Fallback to original file -->
-            {% if video.videometa.original_file %}
+            {% if not video.videometa.get_hls_master_playlist and video.videometa.original_file %}
+                <!-- Fallback to original file only if HLS is not available -->
                 <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/mp4">
                 <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/webm">
             {% endif %}
@@ -19,7 +19,7 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video-{{ video.id }}');
-        const videoSrc = video.querySelector('source[type="application/x-mpegURL"]');
+        const videoSrc = video.querySelector('source[type="application/vnd.apple.mpegurl"]');
         if (videoSrc && typeof Hls !== 'undefined') {
             if (Hls.isSupported()) {
                 const hls = new Hls({
