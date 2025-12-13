@@ -3,41 +3,38 @@
 {% if video.videometa %}
     <div id="video-player-container">
         <!-- 
-            FIX 1: Use Bootstrap's ratio utility (e.g., ratio-16x9) to ensure the container 
-            maintains the correct aspect ratio and the video fills the space, eliminating black bars.
-            The `style` below is applied to the ratio container.
+            FIX 1: Use CSS aspect ratio hack instead of Bootstrap .ratio class for better compatibility.
+            This outer container enforces the 16:9 aspect ratio and prevents the black bars.
         -->
-        <div class="ratio ratio-16x9" style="position:relative; border-radius:1rem; overflow:hidden; background:#000;">
+        <div class="video-wrapper" style="position: relative; padding-bottom: 56.25%; height: 0; border-radius:1rem; overflow:hidden; background:#000;">
+            
             <!-- Quality Selector Overlay -->
             {% if available_qualities and available_qualities|length > 1 %}
                 <div style="position:absolute; top:10px; right:10px; z-index:1000;">
-                    <!-- 
-                        FIX 2: Removed the form and HTMX attributes. 
-                        Quality selection is now handled purely by client-side JavaScript 
-                        to prevent player reload and maintain playback state.
-                    -->
+                    <!-- Quality selector HTML is simplified to rely purely on JS/hls.js -->
                     <select id="quality-select" name="quality" class="form-select form-select-sm" 
                             style="background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 0.8rem; min-width: 70px; padding: 2px 6px;">
                         <!-- 'auto' corresponds to HLS ABR (Adaptive Bitrate) -->
                         <option value="auto" {% if selected_quality == 'auto' %}selected{% endif %}>{% trans "Auto" %}</option>
                         {% for q in available_qualities %}
-                            <!-- Quality is stored as resolution (e.g., 720P) -->
                             <option value="{{ q }}" {% if selected_quality == q %}selected{% endif %}>{{ q|upper }}</option>
                         {% endfor %}
                     </select>
                 </div>
             {% endif %}
             
+            <!-- 
+                FIX 2: Ensure video element fills the entire space of the aspect ratio container.
+                It needs position:absolute, top:0, left:0, and 100% height/width.
+            -->
             <video id="video-{{ video.id }}" controls preload="metadata" 
-                   <!-- FIX 1: Set height:100% to fill the ratio container -->
-                   style="width:100%; height:100%; max-width:100%; display:block; border-radius:1rem;"
+                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display:block;"
                    poster="{% if video.videometa.thumbnail %}{{ video.videometa.thumbnail.url }}{% endif %}">
                 {% if hls_playlist %}
-                    <!-- HLS streaming source (correct MIME type) -->
-                    <!-- The URL should contain the entire HLS manifest, which is handled by hls.js -->
+                    <!-- HLS streaming source -->
                     <source src="{% url 'core_utils:secure_stream' file_path=hls_playlist %}" type="application/vnd.apple.mpegurl">
                 {% elif video.videometa.original_file %}
-                    <!-- Fallback to original file only if HLS is not available -->
+                    <!-- Fallback -->
                     <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/mp4">
                     <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/webm">
                 {% endif %}
@@ -51,22 +48,18 @@
         const videoSrc = video.querySelector('source[type="application/vnd.apple.mpegurl"]');
         const qualitySelect = document.getElementById('quality-select');
         
-        let hlsInstance = null; // Store HLS instance
+        let hlsInstance = null;
         
-        // Debug logging
-        console.log('Video player loaded:', {
+        console.log('Video player loaded.', {
             selectedQuality: '{{ selected_quality }}',
-            availableQualities: {{ available_qualities|default:"[]"|safe }},
             hlsPlaylist: '{{ hls_playlist }}'
         });
         
         if (videoSrc && typeof Hls !== 'undefined') {
             if (Hls.isSupported()) {
-                // HLS.js configuration
                 const hls = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
-                    // Configuration parameters are kept mostly the same
                     backBufferLength: 90,
                     maxBufferLength: 300,
                     maxMaxBufferLength: 600,
@@ -79,23 +72,22 @@
                     fragLoadingTimeOut: 20000,
                     fragLoadingMaxRetry: 3,
                     fragLoadingRetryDelay: 1000,
-                    startLevel: -1, // Start in ABR mode
+                    startLevel: -1, 
                     abrEwmaDefaultEstimate: 500000
                 });
                 
-                hlsInstance = hls; // Assign instance
+                hlsInstance = hls;
                 
                 console.log('Loading HLS source:', videoSrc.src);
                 hls.loadSource(videoSrc.src);
                 hls.attachMedia(video);
                 
                 hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
-                    // Logs all available levels
                     console.log('HLS manifest loaded, levels:', data.levels.map(l => l.height + 'p'));
                     
-                    // Initial quality setting (if specified, usually 'auto')
                     if ('{{ selected_quality }}' !== 'auto' && hls.levels.length > 0) {
                         const initialQuality = '{{ selected_quality }}'.toUpperCase();
+                        // Search for the level index based on resolution, case insensitive
                         const targetLevel = hls.levels.findIndex(l => (l.height + 'P') === initialQuality);
                         if (targetLevel !== -1) {
                             hls.currentLevel = targetLevel;
@@ -104,22 +96,20 @@
                     }
                 });
 
-                // FIX 2: Handle quality change by manipulating the HLS instance directly
                 if (qualitySelect) {
                     qualitySelect.addEventListener('change', function(e) {
                         const selectedQuality = this.value;
                         console.log('Quality changed to:', selectedQuality);
 
                         if (selectedQuality === 'auto') {
-                            hls.currentLevel = -1; // -1 enables ABR
+                            hls.currentLevel = -1; // ABR
                             console.log('Switched to Automatic Quality (ABR)');
                         } else if (hls.levels && hls.levels.length > 0) {
-                            // Find the index of the selected quality level
                             const targetQuality = selectedQuality.toUpperCase();
                             const targetLevel = hls.levels.findIndex(l => (l.height + 'P') === targetQuality);
                             
                             if (targetLevel !== -1) {
-                                hls.currentLevel = targetLevel; // Manually set the level
+                                hls.currentLevel = targetLevel;
                                 console.log('Manually set HLS level to:', targetLevel, `(${targetQuality})`);
                             } else {
                                 console.error('Target quality level not found in HLS manifest:', selectedQuality);
@@ -128,9 +118,9 @@
                     });
                 }
                 
-                // Add error handling to prevent excessive retries
                 hls.on(Hls.Events.ERROR, function(event, data) {
                     console.error('HLS error:', data);
+                    // Check for fatal errors and attempt recovery
                     if (data.fatal) {
                         switch(data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
@@ -151,7 +141,6 @@
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 console.log('Using native HLS support');
                 video.src = videoSrc.src;
-                // Disable quality selector for native HLS as quality switching is not easily exposed
                 if (qualitySelect) {
                     qualitySelect.disabled = true;
                 }
