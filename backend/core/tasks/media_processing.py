@@ -21,16 +21,22 @@ def delete_files_task(paths):
     """
     import shutil
     deleted = []
+    logger.info(f"[delete_files_task] Starting deletion for {len(paths)} paths: {paths}")
     for path in paths:
         try:
             if os.path.isdir(path):
                 shutil.rmtree(path)
+                logger.info(f"[delete_files_task] Deleted directory: {path}")
                 deleted.append(path)
             elif os.path.isfile(path):
                 os.remove(path)
+                logger.info(f"[delete_files_task] Deleted file: {path}")
                 deleted.append(path)
+            else:
+                logger.info(f"[delete_files_task] Path does not exist: {path}")
         except Exception as e:
-            logger.warning(f"Failed to delete {path}: {e}")
+            logger.warning(f"[delete_files_task] Failed to delete {path}: {e}")
+    logger.info(f"[delete_files_task] Deletion complete. Deleted: {deleted}")
     return {'deleted': deleted, 'requested': paths}
 
 
