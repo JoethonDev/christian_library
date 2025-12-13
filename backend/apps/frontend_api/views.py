@@ -503,15 +503,6 @@ def video_player(request, video_uuid):
             hls_playlist = video.videometa.get_hls_playlist(quality)
             logger.info(f"Available qualities: {available_qualities}, HLS playlist: {hls_playlist}")
 
-        # Handle JSON requests (AJAX quality changes)
-        if request.headers.get('Accept') == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'video_id': str(video.id),
-                'selected_quality': quality,
-                'available_qualities': available_qualities,
-                'hls_playlist': hls_playlist,
-            })
-
         context = {
             'video': video,
             'selected_quality': quality,

@@ -105,60 +105,55 @@
                         const selectedQuality = this.value;
                         console.log('Quality changed to:', selectedQuality);
 
-                        // Make JSON request to backend for correct playlist URL
-                        const url = '{% url "frontend_api:video_player" video.id %}?quality=' + encodeURIComponent(selectedQuality);
+                        // Get current HLS URL and replace quality in the path
+                        const currentSrc = videoSrc.src;
+                        console.log('Current source:', currentSrc);
                         
-                        fetch(url, {
-                            headers: {
-                                'Accept': 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest'
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            console.log('Quality response:', data);
+                        // Extract the base URL pattern and replace quality
+                        // Pattern: .../hls/videos/{uuid}/{quality}/playlist.m3u8
+                        const urlPattern = /(.+\/hls\/videos\/[^\/]+\/)([^\/]+)(\/playlist\.m3u8)$/;
+                        const match = currentSrc.match(urlPattern);
+                        
+                        if (match) {
+                            const basePath = match[1];
+                            const filename = match[3];
+                            const newSrc = basePath + selectedQuality + filename;
                             
-                            if (data.hls_playlist) {
-                                const newSource = '{% url "core_utils:secure_stream" file_path="" %}' + data.hls_playlist;
-                                console.log('Loading new source:', newSource);
-                                
-                                // Destroy current HLS instance
-                                if (hlsInstance) {
-                                    hlsInstance.destroy();
-                                }
-                                
-                                // Create new HLS instance with new source
-                                const newHls = new Hls({
-                                    enableWorker: true,
-                                    lowLatencyMode: false,
-                                    backBufferLength: 90,
-                                    maxBufferLength: 300,
-                                    maxMaxBufferLength: 600,
-                                    manifestLoadingTimeOut: 20000,
-                                    manifestLoadingMaxRetry: 3,
-                                    manifestLoadingRetryDelay: 1000,
-                                    levelLoadingTimeOut: 20000,
-                                    levelLoadingMaxRetry: 3,
-                                    levelLoadingRetryDelay: 1000,
-                                    fragLoadingTimeOut: 20000,
-                                    fragLoadingMaxRetry: 3,
-                                    fragLoadingRetryDelay: 1000,
-                                    startLevel: -1,
-                                    abrEwmaDefaultEstimate: 500000
-                                });
-                                
-                                newHls.loadSource(newSource);
-                                newHls.attachMedia(video);
-                                hlsInstance = newHls;
-                                
-                                console.log('Successfully switched to quality:', selectedQuality);
-                            } else {
-                                console.error('No HLS playlist received from backend');
+                            console.log('New source URL:', newSrc);
+                            
+                            // Destroy current HLS instance
+                            if (hlsInstance) {
+                                hlsInstance.destroy();
                             }
-                        })
-                        .catch(error => {
-                            console.error('Error fetching quality:', error);
-                        });
+                            
+                            // Create new HLS instance with new source
+                            const newHls = new Hls({
+                                enableWorker: true,
+                                lowLatencyMode: false,
+                                backBufferLength: 90,
+                                maxBufferLength: 300,
+                                maxMaxBufferLength: 600,
+                                manifestLoadingTimeOut: 20000,
+                                manifestLoadingMaxRetry: 3,
+                                manifestLoadingRetryDelay: 1000,
+                                levelLoadingTimeOut: 20000,
+                                levelLoadingMaxRetry: 3,
+                                levelLoadingRetryDelay: 1000,
+                                fragLoadingTimeOut: 20000,
+                                fragLoadingMaxRetry: 3,
+                                fragLoadingRetryDelay: 1000,
+                                startLevel: -1,
+                                abrEwmaDefaultEstimate: 500000
+                            });
+                            
+                            newHls.loadSource(newSrc);
+                            newHls.attachMedia(video);
+                            hlsInstance = newHls;
+                            
+                            console.log('Successfully switched to quality:', selectedQuality);
+                        } else {
+                            console.error('Could not parse current video URL for quality replacement');
+                        }
                     });
                 }
                 
