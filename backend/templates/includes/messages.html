@@ -1,0 +1,53 @@
+<!-- templates/includes/messages.html -->
+{% if messages %}
+    <div class="alert-container position-fixed w-100" style="top: 70px; z-index: 1055; padding: 0 1rem;">
+        {% for message in messages %}
+            {% if message.tags == 'success' %}
+                <div class="alert alert-dismissible fade show mb-2 auto-dismiss" role="alert" style="background: linear-gradient(135deg, #28a745, #20c997); border: none; border-radius: 12px; color: white; box-shadow: 0 4px 20px rgba(40, 167, 69, 0.3); max-width: 500px; margin: 0 auto;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-check-circle-fill me-3 fs-5"></i>
+                        <div class="fw-medium">{{ message }}</div>
+                        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="alert" style="filter: brightness(0) invert(1);"></button>
+                    </div>
+                </div>
+            {% elif message.tags == 'error' or message.tags == 'danger' %}
+                <div class="alert alert-dismissible fade show mb-2 auto-dismiss" role="alert" style="background: linear-gradient(135deg, #dc3545, #e74c3c); border: none; border-radius: 12px; color: white; box-shadow: 0 4px 20px rgba(220, 53, 69, 0.3); max-width: 500px; margin: 0 auto;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill me-3 fs-5"></i>
+                        <div class="fw-medium">{{ message }}</div>
+                        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="alert" style="filter: brightness(0) invert(1);"></button>
+                    </div>
+                </div>
+            {% elif message.tags == 'warning' %}
+                <div class="alert alert-dismissible fade show mb-2 auto-dismiss" role="alert" style="background: linear-gradient(135deg, #ffc107, #ff8c00); border: none; border-radius: 12px; color: #212529; box-shadow: 0 4px 20px rgba(255, 193, 7, 0.3); max-width: 500px; margin: 0 auto;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-3 fs-5"></i>
+                        <div class="fw-medium">{{ message }}</div>
+                        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-dismissible fade show mb-2 auto-dismiss" role="alert" style="background: linear-gradient(135deg, #6f42c1, #8A2BE2); border: none; border-radius: 12px; color: white; box-shadow: 0 4px 20px rgba(111, 66, 193, 0.3); max-width: 500px; margin: 0 auto;">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-3 fs-5"></i>
+                        <div class="fw-medium">{{ message }}</div>
+                        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="alert" style="filter: brightness(0) invert(1);"></button>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-dismiss alerts after 2.5 seconds
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.auto-dismiss');
+            alerts.forEach(function(alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 2500);
+    });
+    </script>
+{% endif %}

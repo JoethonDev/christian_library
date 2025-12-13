@@ -1,0 +1,75 @@
+# Python
+**/__pycache__/
+**/__pycache__/**
+*.pyc
+*.pyo
+*.pyd
+.Python
+**/env/
+**/.venv/
+**/venv/
+**/env/**
+**/.venv/**
+**/venv/**
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Django
+*.log
+*.pot
+*.pyc
+*.mo
+*.db
+*.sqlite3
+**/media/
+**/staticfiles/
+**/logs/
+**/backups/
+**/media/
+**/staticfiles/**
+**/logs/**
+**/backups/**
+
+# Environment
+.env*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+
+# Documentation
+*.md
+README*
+docs/
+
+# Node
+node_modules/
+.cache/
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Misc
+*.bak
+*.backup
+temp/
+*.tmp
+*.temp
+*.zip
+*.tar.gz
+*.rar
+
+
+backend/staticfiles/  # Exclude all files in staticfiles directory
+backend/media/       # Exclude all files in media directory
+# Exclude only README.md
+!README.md

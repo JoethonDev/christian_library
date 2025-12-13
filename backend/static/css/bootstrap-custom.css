@@ -1,0 +1,197 @@
+/* Christian Library - Bootstrap 5 Custom Styles */
+
+/* Custom CSS Variables for Coptic Orthodox Theme */
+:root {
+  /* Color Palette */
+  --color-heavenly-cyan: #6ECFF6;
+  --color-royal-red: #8C1C13;
+  --color-soft-gold: #D9A441;
+  --color-marble-white: #F8F8F6;
+  --color-icon-gray: #A7A7A5;
+  --color-ink-black: #1A1A1A;
+  
+  /* Bootstrap Custom Properties */
+  --bs-primary: #8C1C13;
+  --bs-secondary: #A7A7A5;
+  --bs-info: #6ECFF6;
+  --bs-warning: #D9A441;
+  --bs-light: #F8F8F6;
+  --bs-dark: #1A1A1A;
+}
+
+/* Custom Font Families */
+.arabic-text {
+  font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+}
+
+.latin-text {
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Base HTML Styles */
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+[dir="rtl"] body {
+  font-family: 'Cairo', 'Tajawal', system-ui, sans-serif;
+}
+
+/* Bootstrap Component Customizations */
+.btn-primary {
+  background-color: var(--color-royal-red);
+  border-color: var(--color-royal-red);
+}
+
+.btn-primary:hover {
+  background-color: #731611;
+  border-color: #731611;
+}
+
+.btn-info {
+  background-color: var(--color-heavenly-cyan);
+  border-color: var(--color-heavenly-cyan);
+  color: var(--color-ink-black);
+}
+
+.btn-warning {
+  background-color: var(--color-soft-gold);
+  border-color: var(--color-soft-gold);
+  color: var(--color-ink-black);
+}
+
+.text-primary {
+  color: var(--color-royal-red) !important;
+}
+
+.text-info {
+  color: var(--color-heavenly-cyan) !important;
+}
+
+.text-warning {
+  color: var(--color-soft-gold) !important;
+}
+
+.bg-primary {
+  background-color: var(--color-royal-red) !important;
+}
+
+.bg-info {
+  background-color: var(--color-heavenly-cyan) !important;
+}
+
+.bg-warning {
+  background-color: var(--color-soft-gold) !important;
+}
+
+/* Hover Effects */
+.hover-text-primary:hover {
+  color: var(--color-royal-red) !important;
+  transition: color 0.3s ease;
+}
+
+.hover-text-info:hover {
+  color: var(--color-heavenly-cyan) !important;
+  transition: color 0.3s ease;
+}
+
+.hover-text-warning:hover {
+  color: var(--color-soft-gold) !important;
+  transition: color 0.3s ease;
+}
+
+.hover-shadow:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+  transition: box-shadow 0.3s ease;
+}
+
+/* RTL Support */
+[dir="rtl"] .me-2 {
+  margin-right: 0 !important;
+  margin-left: 0.5rem !important;
+}
+
+[dir="rtl"] .ms-2 {
+  margin-left: 0 !important;
+  margin-right: 0.5rem !important;
+}
+
+[dir="rtl"] .pe-4 {
+  padding-right: 0 !important;
+  padding-left: 1.5rem !important;
+}
+
+[dir="rtl"] .ps-4 {
+  padding-left: 0 !important;
+  padding-right: 1.5rem !important;
+}
+
+/* Custom Card Styles */
+.card {
+  border: 1px solid rgba(167, 167, 165, 0.2);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Audio Wave Animation */
+.audio-wave {
+  background: linear-gradient(45deg, var(--color-soft-gold), var(--color-heavenly-cyan));
+  opacity: 0.2;
+}
+
+/* Video Play Overlay */
+.play-overlay {
+  background: rgba(0, 0, 0, 0.7);
+  transition: opacity 0.3s ease;
+}
+
+.card:hover .play-overlay {
+  opacity: 1;
+}
+
+/* PDF Download Overlay */
+.download-overlay {
+  background: rgba(217, 164, 65, 0.1);
+  transition: opacity 0.3s ease;
+}
+
+.card:hover .download-overlay {
+  opacity: 1;
+}
+
+/* Sacred Shadow Effect */
+.sacred-shadow {
+  box-shadow: 0 4px 6px -1px rgba(140, 28, 19, 0.1), 0 2px 4px -1px rgba(140, 28, 19, 0.06);
+}
+
+/* Responsive Design Enhancements */
+@media (max-width: 768px) {
+  .arabic-text {
+    font-size: 0.95rem;
+  }
+  
+  .latin-text {
+    font-size: 0.9rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .card {
+    break-inside: avoid;
+  }
+}

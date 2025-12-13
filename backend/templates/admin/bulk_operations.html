@@ -1,0 +1,153 @@
+<!-- templates/admin/bulk_operations.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Header Section -->
+    <div class="mb-5">
+        <div class="d-flex align-items-center mb-3">
+            <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #B8860B, #8B0000); backdrop-filter: blur(10px);">
+                <i class="bi bi-gear" style="font-size: 2rem; color: white;"></i>
+            </div>
+            <div>
+                <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Bulk Operations" %}</h1>
+                <p class="text-muted mb-0">{% trans "Perform actions on multiple content items simultaneously" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Operations Card -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg" style="border-radius: 30px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+                <div class="card-body p-5">
+                    <!-- Warning Alert -->
+                    <div class="alert border-0 mb-5" style="background: rgba(255,193,7,0.1); border-radius: 15px;">
+                        <div class="d-flex align-items-center">
+                            <div class="p-2 rounded-circle me-3" style="background: rgba(255,193,7,0.2);">
+                                <i class="bi bi-exclamation-triangle" style="color: #ffc107; font-size: 1.5rem;"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1" style="color: #ffc107;">{% trans "Important Warning" %}</h6>
+                                <p class="mb-0 small">{% trans "These operations affect multiple items and cannot be easily undone. Please proceed with caution." %}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="bulkForm">
+                        {% csrf_token %}
+                        
+                        <!-- Operation Selection -->
+                        <div class="mb-5">
+                            <h5 class="fw-bold mb-4" style="color: var(--bs-primary);">
+                                <span class="badge rounded-pill me-2" style="background: #B8860B; color: white;">1</span>
+                                {% trans "Select Operation" %}
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <input type="radio" class="btn-check" name="operation" id="op_activate" value="activate">
+                                    <label class="btn btn-outline-success w-100 py-3" for="op_activate" style="border-radius: 15px; border: 2px solid;">
+                                        <i class="bi bi-check-circle d-block mb-2" style="font-size: 2rem;"></i>
+                                        <div class="fw-bold">{% trans "Activate" %}</div>
+                                        <small class="text-muted">{% trans "Make content visible" %}</small>
+                                    </label>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="radio" class="btn-check" name="operation" id="op_deactivate" value="deactivate">
+                                    <label class="btn btn-outline-warning w-100 py-3" for="op_deactivate" style="border-radius: 15px; border: 2px solid;">
+                                        <i class="bi bi-pause-circle d-block mb-2" style="font-size: 2rem;"></i>
+                                        <div class="fw-bold">{% trans "Deactivate" %}</div>
+                                        <small class="text-muted">{% trans "Hide from public" %}</small>
+                                    </label>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="radio" class="btn-check" name="operation" id="op_delete" value="delete">
+                                    <label class="btn btn-outline-danger w-100 py-3" for="op_delete" style="border-radius: 15px; border: 2px solid;">
+                                        <i class="bi bi-trash d-block mb-2" style="font-size: 2rem;"></i>
+                                        <div class="fw-bold">{% trans "Delete" %}</div>
+                                        <small class="text-muted">{% trans "Permanently remove" %}</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content IDs -->
+                        <div class="mb-5">
+                            <h5 class="fw-bold mb-4" style="color: var(--bs-primary);">
+                                <span class="badge rounded-pill me-2" style="background: #B8860B; color: white;">2</span>
+                                {% trans "Enter Content IDs" %}
+                            </h5>
+                            <div class="card border-0" style="background: rgba(184,134,11,0.05); border-radius: 15px;">
+                                <div class="card-body p-4">
+                                    <textarea name="content_ids[]" class="form-control form-control-lg font-monospace" rows="6" 
+                                              style="border-radius: 10px; border: 2px solid rgba(184,134,11,0.2); background: white;"
+                                              placeholder="101, 102, 103...&#10;or&#10;101&#10;102&#10;103" required></textarea>
+                                    <div class="mt-3">
+                                        <small class="text-muted">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            {% trans "Enter content IDs separated by commas or place each ID on a new line. You can find IDs in the content management table." %}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-lg px-5 py-3 fw-bold" 
+                                    style="border-radius: 25px; background: linear-gradient(135deg, #B8860B, #8B0000); border: none; color: white; box-shadow: 0 8px 32px rgba(184,134,11,0.3);"
+                                    onclick="return confirmBulkAction()">
+                                <i class="bi bi-lightning me-2"></i>{% trans "Execute Bulk Operation" %}
+                            </button>
+                            <p class="text-muted small mt-3 mb-0">{% trans "This action will be applied to all specified content items" %}</p>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmBulkAction() {
+    const selectedOperation = document.querySelector('input[name="operation"]:checked');
+    const contentIds = document.querySelector('textarea[name="content_ids[]"]').value;
+    
+    if (!selectedOperation) {
+        alert('{% trans "Please select an operation first." %}');
+        return false;
+    }
+    
+    if (!contentIds.trim()) {
+        alert('{% trans "Please enter at least one content ID." %}');
+        return false;
+    }
+    
+    const operationText = selectedOperation.nextElementSibling.querySelector('.fw-bold').textContent;
+    const idCount = contentIds.split(/[,\n]/).filter(id => id.trim()).length;
+    
+    return confirm(`{% trans "Are you sure you want to" %} ${operationText.toLowerCase()} ${idCount} {% trans "content item(s)?" %}\n\n{% trans "This action cannot be easily undone." %}`);
+}
+</script>
+
+<style>
+.btn-check:checked + .btn.btn-outline-success {
+    background: linear-gradient(135deg, var(--bs-success), #198754) !important;
+    border-color: var(--bs-success) !important;
+    color: white !important;
+}
+
+.btn-check:checked + .btn.btn-outline-warning {
+    background: linear-gradient(135deg, var(--bs-warning), #e0a800) !important;
+    border-color: var(--bs-warning) !important;
+    color: white !important;
+}
+
+.btn-check:checked + .btn.btn-outline-danger {
+    background: linear-gradient(135deg, var(--bs-danger), #bb2d3b) !important;
+    border-color: var(--bs-danger) !important;
+    color: white !important;
+}
+</style>
+{% endblock %}

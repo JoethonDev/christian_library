@@ -1,0 +1,24 @@
+<!-- templates/404.html -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}404 - {% trans "Page Not Found" %} | {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container text-center py-5 my-5">
+    <div class="display-1 fw-bold text-primary mb-4 opacity-50">404</div>
+    <h1 class="h2 mb-4">{% trans "Page Not Found" %}</h1>
+    <p class="lead text-muted col-md-8 mx-auto mb-5">
+        {% trans "The page you are looking for might have been removed, had its name changed, or is temporarily unavailable." %}
+    </p>
+    
+    <div class="d-flex justify-content-center gap-3">
+        <a href="{% url 'frontend_api:home' %}" class="btn btn-primary px-4">
+            <i class="bi bi-house-door me-2"></i>{% trans "Go Home" %}
+        </a>
+        <a href="{% url 'frontend_api:videos' %}" class="btn btn-outline-secondary px-4">
+            <i class="bi bi-search me-2"></i>{% trans "Browse Library" %}
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+<!-- templates/users/user_content.html -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-3">
+        <div class="list-group shadow-sm">
+            <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-person-gear me-2"></i> {% trans "Profile Settings" %}
+            </a>
+            <a href="#" class="list-group-item list-group-item-action active">
+                <i class="bi bi-collection-play me-2"></i> {% trans "My Library" %}
+            </a>
+        </div>
+    </div>
+
+    <div class="col-lg-9">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">{% trans "My Saved Content" %}</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info border-0 d-flex align-items-center">
+                    <i class="bi bi-info-circle me-2"></i>
+                    {% trans "Track your learning progress here." %}
+                </div>
+                <!-- Placeholder for user history -->
+                <p class="text-center text-muted py-5">{% trans "You haven't saved any content yet." %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+<!-- templates/layouts/admin_base.html -->
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="container-fluid px-2">
+    <div class="row g-3">
+        <!-- Admin Sidebar -->
+        <div class="col-lg-3 col-xl-2">
+            <div class="sticky-top" style="top: 20px; z-index: 1020;">
+                <div class="card border-0" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); border-radius: 16px; box-shadow: 0 4px 20px rgba(184, 134, 11, 0.1);">
+                    <div class="card-header py-3 text-center" style="background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border-radius: 16px 16px 0 0; border: none;">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <div class="d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px; backdrop-filter: blur(10px);">
+                                <i class="bi bi-shield-lock text-white fs-5"></i>
+                            </div>
+                        </div>
+                        <h6 class="mb-1 fw-bold text-white" style="font-family: 'Crimson Text', serif;">{% trans "Admin Panel" %}</h6>
+                        <small class="text-white-50">{% trans "Content Management" %}</small>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'frontend_api:admin_dashboard' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'dashboard' in request.path %}active{% endif %}" style="{% if 'dashboard' in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease;">                            <i class="bi bi-speedometer2 me-3"></i> {% trans "Dashboard" %}                        </a>
+                        <a href="{% url 'frontend_api:upload_content' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'upload' in request.path %}active{% endif %}" style="{% if 'upload' in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease;">                            <i class="bi bi-cloud-upload me-3"></i> {% trans "Upload Content" %}                        </a>
+                        
+                        <div class="px-3 py-1 mt-2 mb-1">
+                            <small class="fw-bold text-uppercase text-muted" style="color: #8B0000 !important; font-size: 0.7rem; letter-spacing: 0.5px;">{% trans "Content Management" %}</small>
+                        </div>
+                        <a href="{% url 'frontend_api:admin_content_list' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'content' in request.path and 'upload' not in request.path %}active{% endif %}" style="{% if 'content' in request.path and 'upload' not in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease;">                            <i class="bi bi-collection me-3"></i> {% trans "All Content" %}                        </a>
+                        <a href="{% url 'frontend_api:video_management' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'videos' in request.path %}active{% endif %}" style="{% if 'videos' in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease;">                            <i class="bi bi-camera-video me-3"></i> {% trans "Videos" %}                        </a>
+                        <a href="{% url 'frontend_api:audio_management' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'audios' in request.path %}active{% endif %}" style="{% if 'audios' in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease;">                            <i class="bi bi-mic me-3"></i> {% trans "Audio" %}                        </a>
+                        <a href="{% url 'frontend_api:pdf_management' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'pdfs' in request.path %}active{% endif %}" style="{% if 'pdfs' in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease;">                            <i class="bi bi-file-text me-3"></i> {% trans "PDFs" %}                        </a>
+
+                        <div class="px-3 py-2 mt-3">
+                            <small class="fw-bold text-uppercase text-muted" style="color: #8B0000 !important; font-size: 0.75rem; letter-spacing: 1px;">{% trans "System" %}</small>
+                        </div>
+                        <a href="{% url 'frontend_api:bulk_operations' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'bulk' in request.path %}active{% endif %}" style="{% if 'bulk' in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease;">                            <i class="bi bi-list-check me-3"></i> {% trans "Bulk Operations" %}                        </a>
+                        <a href="{% url 'frontend_api:system_monitor' %}" class="list-group-item list-group-item-action border-0 py-3 {% if 'system' in request.path %}active{% endif %}" style="{% if 'system' in request.path %}background: linear-gradient(135deg, rgba(184, 134, 11, 0.1), rgba(218, 165, 32, 0.1)); color: #B8860B; border-left: 4px solid #B8860B;{% else %}background: transparent; color: #4B0082;{% endif %} transition: all 0.3s ease; border-radius: 0 0 20px 20px;">                            <i class="bi bi-cpu me-3"></i> {% trans "System Monitor" %}                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Content Area -->
+        <div class="col-lg-9 col-xl-10">
+            <div class="card border-0 h-100" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(15px); border-radius: 16px; box-shadow: 0 4px 20px rgba(184, 134, 11, 0.1);">
+                <div class="card-body p-4">
+                    {% block admin_content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Additional Admin-specific Styles */
+.list-group-item:hover {
+    background: linear-gradient(135deg, rgba(184, 134, 11, 0.05), rgba(218, 165, 32, 0.05)) !important;
+    color: #B8860B !important;
+    transform: translateX(2px);
+}
+
+.list-group-item {
+    margin-bottom: 1px;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.9rem !important;
+}
+
+.list-group-item i {
+    margin-right: 0.5rem !important;
+}
+
+.list-group-item.active {
+    border-left-width: 3px !important;
+}
+
+.admin-section-header {
+    padding: 0.25rem 1rem !important;
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.25rem !important;
+}
+
+.admin-section-header small {
+    font-size: 0.7rem !important;
+    letter-spacing: 0.5px !important;
+}
+
+@media (max-width: 992px) {
+    .sticky-top {
+        position: relative !important;
+        top: auto !important;
+    }
+}
+</style>
+{% endblock %}

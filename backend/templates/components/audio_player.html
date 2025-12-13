@@ -1,0 +1,45 @@
+<!-- templates/components/audio_player.html -->
+{% load i18n %}
+<div class="modern-audio-player p-2 p-md-3 rounded-4" style="background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1);">
+    <div class="d-flex align-items-center mb-2 flex-wrap">
+        <div class="p-1 me-2 mb-2 mb-md-0" style="background: linear-gradient(135deg, #E6E6FA, #8B0000); border-radius: 12px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+            <i class="bi bi-music-note text-white" style="font-size: 1rem;"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h6 class="mb-0 fw-bold" style="color: #8B0000; font-size:1rem;">{{ audio.title_ar }}</h6>
+            {% if audio.tags.exists %}
+            <small class="text-muted">{% for tag in audio.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>
+            {% else %}
+            <small class="text-muted">{% trans "Uncategorized" %}</small>
+            {% endif %}
+        </div>
+        {% if audio.audiometa and audio.audiometa.get_playback_file %}
+            <div class="dropdown ms-auto">
+                <button class="btn btn-link text-muted p-1" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item small" href="{% url 'core_utils:secure_media' file_path=audio.audiometa.get_playback_file %}?download=true">
+                        <i class="bi bi-download me-2"></i>{% trans "Download" %}
+                    </a></li>
+                </ul>
+            </div>
+        {% endif %}
+    </div>
+    
+    {% if audio.audiometa and audio.audiometa.get_playback_file %}
+        <audio controls class="w-100" preload="metadata" style="border-radius: 10px; height: 44px; min-width:120px;">
+            <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/mpeg">
+            <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/wav">
+            <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/ogg">
+            {% trans "Your browser does not support the audio element." %}
+        </audio>
+    {% else %}
+        <div class="text-center py-2">
+            <div class="mb-2">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 1.1rem;"></i>
+            </div>
+            <small class="text-muted">{% trans "Audio file not available" %}</small>
+        </div>
+    {% endif %}
+</div>

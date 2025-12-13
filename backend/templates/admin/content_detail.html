@@ -1,0 +1,209 @@
+<!-- templates/admin/content_detail.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Header Section -->
+    <div class="mb-5">
+        <div class="d-flex align-items-center mb-3">
+            <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #F5DEB3, #B8860B); backdrop-filter: blur(10px);">
+                <i class="bi bi-gear" style="font-size: 2rem; color: white;"></i>
+            </div>
+            <div>
+                <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Content Details" %}</h1>
+                <p class="text-muted mb-0">{% trans "Edit and manage content metadata and settings" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Meta Information Form -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+                <div class="card-header bg-transparent border-0 py-4 px-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: var(--bs-primary);">
+                            <i class="bi bi-pencil-square me-3" style="color: #F5DEB3;"></i>
+                            {% trans "Edit Content Details" %}
+                        </h4>
+                        <span class="badge px-3 py-2 rounded-pill {% if content_item.is_active %}text-white{% else %}text-white{% endif %}" 
+                              style="background: {% if content_item.is_active %}linear-gradient(135deg, #198754, #20c997){% else %}linear-gradient(135deg, #ffc107, #fd7e14){% endif %}; font-size: 0.875rem;">
+                            {% if content_item.is_active %}{% trans "Published" %}{% else %}{% trans "Draft" %}{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Title Section -->
+                        <div class="mb-4">
+                            <h6 class="text-uppercase fw-bold mb-3" style="color: var(--bs-secondary); letter-spacing: 1px;">{% trans "Content Titles" %}</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold" style="color: var(--bs-primary);">{% trans "Arabic Title" %} <span class="text-danger">*</span></label>
+                                    <input type="text" name="title_ar" class="form-control border-0 shadow-sm" 
+                                           style="border-radius: 15px; background: rgba(135,206,235,0.1); padding: 12px 20px;" 
+                                           value="{{ content_item.title_ar }}" required dir="rtl">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold" style="color: var(--bs-primary);">{% trans "English Title" %}</label>
+                                    <input type="text" name="title_en" class="form-control border-0 shadow-sm" 
+                                           style="border-radius: 15px; background: rgba(230,230,250,0.1); padding: 12px 20px;" 
+                                           value="{{ content_item.title_en }}" dir="ltr">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description Section -->
+                        <div class="mb-4">
+                            <h6 class="text-uppercase fw-bold mb-3" style="color: var(--bs-secondary); letter-spacing: 1px;">{% trans "Content Descriptions" %}</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold" style="color: var(--bs-primary);">{% trans "Arabic Description" %}</label>
+                                    <textarea name="description_ar" class="form-control border-0 shadow-sm" rows="5" 
+                                              style="border-radius: 15px; background: rgba(135,206,235,0.1); padding: 15px 20px;" 
+                                              dir="rtl">{{ content_item.description_ar }}</textarea>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold" style="color: var(--bs-primary);">{% trans "English Description" %}</label>
+                                    <textarea name="description_en" class="form-control border-0 shadow-sm" rows="5" 
+                                              style="border-radius: 15px; background: rgba(230,230,250,0.1); padding: 15px 20px;" 
+                                              dir="ltr">{{ content_item.description_en }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Content Settings -->
+                        <div class="mb-4">
+                            <h6 class="text-uppercase fw-bold mb-3" style="color: var(--bs-secondary); letter-spacing: 1px;">{% trans "Content Settings" %}</h6>
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold" style="color: var(--bs-primary);">{% trans "Tags" %} <small class="text-muted">({% trans "Comma Separated" %})</small></label>
+                                    <input type="text" name="tags" class="form-control border-0 shadow-sm" 
+                                           style="border-radius: 15px; background: rgba(139,0,0,0.1); padding: 12px 20px;" 
+                                           value="{{ current_tags }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Publish Settings -->
+                        <div class="mb-4">
+                            <div class="card border-0" style="background: rgba(230,230,250,0.1); border-radius: 15px;">
+                                <div class="card-body p-4">
+                                    <div class="form-check form-switch d-flex align-items-center">
+                                        <input class="form-check-input me-3" type="checkbox" name="is_active" id="isActive" 
+                                               style="transform: scale(1.3);" {% if content_item.is_active %}checked{% endif %}>
+                                        <div>
+                                            <label class="form-check-label fw-bold mb-0" for="isActive" style="color: var(--bs-primary); cursor: pointer;">
+                                                {% trans "Content is Active and Visible" %}
+                                            </label>
+                                            <p class="text-muted small mb-0 mt-1">{% trans "Toggle to publish or unpublish this content for users" %}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-3 pt-3">
+                            <button type="submit" class="btn text-white px-4 py-3 rounded-pill fw-bold" 
+                                    style="background: linear-gradient(135deg, #B8860B, #F5DEB3); border: none; box-shadow: 0 4px 15px rgba(184,134,11,0.3);">
+                                <i class="bi bi-check-circle me-2"></i>
+                                {% trans "Save Changes" %}
+                            </button>
+                            <a href="{% url 'frontend_api:admin_content_list' %}" class="btn border-2 px-4 py-3 rounded-pill fw-bold" 
+                               style="color: var(--bs-secondary); border-color: rgba(108,117,125,0.3); background: rgba(248,249,250,0.8);">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                {% trans "Cancel" %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Metadata Sidebar -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-lg" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+                <div class="card-header bg-transparent border-0 py-4 px-4">
+                    <h5 class="mb-0 fw-bold d-flex align-items-center" style="color: var(--bs-primary);">
+                        <i class="bi bi-info-circle me-3" style="color: #87CEEB;"></i>
+                        {% trans "Technical Metadata" %}
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-4">
+                        <!-- Content ID -->
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: rgba(135,206,235,0.1);">
+                            <span class="fw-bold text-muted">{% trans "Content ID" %}</span>
+                            <code class="bg-transparent text-primary">{{ content_item.id }}</code>
+                        </div>
+
+                        <!-- Content Type -->
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: rgba(230,230,250,0.1);">
+                            <span class="fw-bold text-muted">{% trans "Content Type" %}</span>
+                            <span class="badge px-3 py-2 rounded-pill text-white" style="background: linear-gradient(135deg, #E6E6FA, #8B0000);">
+                                {{ content_item.get_content_type_display }}
+                            </span>
+                        </div>
+
+                        {% if meta_data %}
+                            <!-- Processing Status -->
+                            <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: rgba(245,222,179,0.1);">
+                                <span class="fw-bold text-muted">{% trans "Status" %}</span>
+                                <span class="badge px-3 py-2 rounded-pill text-white" style="background: linear-gradient(135deg, #F5DEB3, #B8860B);">
+                                    {{ meta_data.processing_status }}
+                                </span>
+                            </div>
+
+                            {% if content_item.content_type == 'video' or content_item.content_type == 'audio' %}
+                                <!-- Duration -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: rgba(139,0,0,0.1);">
+                                    <span class="fw-bold text-muted">{% trans "Duration" %}</span>
+                                    <span class="fw-bold" style="color: var(--bs-primary);">{{ meta_data.duration_seconds|default:"--" }} sec</span>
+                                </div>
+                            {% endif %}
+
+                            {% if content_item.content_type == 'pdf' %}
+                                <!-- Page Count -->
+                                <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: rgba(139,0,0,0.1);">
+                                    <span class="fw-bold text-muted">{% trans "Pages" %}</span>
+                                    <span class="fw-bold" style="color: var(--bs-primary);">{{ meta_data.page_count|default:"--" }}</span>
+                                </div>
+                            {% endif %}
+
+                            <!-- File Size -->
+                            <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: rgba(135,206,235,0.1);">
+                                <span class="fw-bold text-muted">{% trans "File Size" %}</span>
+                                <span class="fw-bold" style="color: var(--bs-primary);">
+                                    {% if meta_data.original_file and meta_data.original_file.name %}
+                                        {{ meta_data.original_file.size|filesizeformat }}
+                                    {% else %}
+                                        {% trans "Not available" %}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <hr class="my-4" style="border-color: rgba(108,117,125,0.2);">
+                    
+                    <!-- Danger Zone -->
+                    <div class="text-center">
+                        <h6 class="text-uppercase fw-bold mb-3" style="color: #dc3545; letter-spacing: 1px;">{% trans "Danger Zone" %}</h6>
+                        <a href="{% url 'frontend_api:content_delete_confirm' content_item.id %}" 
+                           class="btn text-white px-4 py-3 rounded-pill fw-bold w-100" 
+                           style="background: linear-gradient(135deg, #dc3545, #e55353); border: none; box-shadow: 0 4px 15px rgba(220,53,69,0.3);"
+                           onclick="return confirm('{% trans "Are you sure you want to delete this content?" %}')">
+                            <i class="bi bi-trash me-2"></i> 
+                            {% trans "Delete Content" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

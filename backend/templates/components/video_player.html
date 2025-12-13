@@ -1,0 +1,48 @@
+<!-- templates/components/video_player.html -->
+{% load i18n %}
+{% if video.videometa and video.videometa.get_streaming_file %}
+    <div style="position:relative; width:100%; padding-top:56.25%; background:#000; border-radius:1rem; overflow:hidden;">
+        <video id="video-{{ video.id }}" controls preload="metadata"
+               style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; border-radius:1rem;">
+            {% if video.videometa.get_hls_master_playlist %}
+                <!-- HLS streaming source -->
+                <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.get_streaming_file %}" type="application/x-mpegURL">
+            {% endif %}
+            <!-- Fallback to original file -->
+            {% if video.videometa.original_file %}
+                <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/mp4">
+                <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/webm">
+            {% endif %}
+            {% trans "Your browser does not support the video element." %}
+        </video>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const video = document.getElementById('video-{{ video.id }}');
+        const videoSrc = video.querySelector('source[type="application/x-mpegURL"]');
+        if (videoSrc && typeof Hls !== 'undefined') {
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: false,
+                    backBufferLength: 90
+                });
+                hls.loadSource(videoSrc.src);
+                hls.attachMedia(video);
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoSrc.src;
+            }
+        }
+    });
+    </script>
+{% else %}
+    <div class="ratio ratio-16x9 w-100 d-flex align-items-center justify-content-center" style="background: #f8f9fa; min-height:60vh;">
+        <div class="text-center w-100">
+            <div class="mb-3">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+            </div>
+            <h6 class="text-muted mb-2">{% trans "Video file not available" %}</h6>
+            <p class="text-muted small mb-0">{% trans "This video has not been uploaded yet" %}</p>
+        </div>
+    </div>
+{% endif %}

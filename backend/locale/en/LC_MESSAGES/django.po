@@ -1,0 +1,2383 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <georgezakhary@proton.me>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-13 00:00+0000\n"
+"PO-Revision-Date: 2025-12-13 00:00+0000\n"
+"Last-Translator: George Zakhary <georgezakhary@proton.me>\n"
+"Language-Team: Arabic <georgezakhary@proton.me>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: .\apps\core\views.py:274
+msgid "Bad Request"
+msgstr "Bad Request"
+
+#: .\apps\core\views.py:275
+msgid "The request could not be understood by the server."
+msgstr "The request could not be understood by the server."
+
+#: .\apps\core\views.py:296 .\templates\errors\403.html:5
+msgid "Permission Denied"
+msgstr "Permission Denied"
+
+#: .\apps\core\views.py:297
+msgid "You do not have permission to access this resource."
+msgstr "You do not have permission to access this resource."
+
+#: .\apps\core\views.py:319 .\templates\errors\404.html:5
+#: .\templates\errors\404.html:10
+msgid "Page Not Found"
+msgstr "Page Not Found"
+
+#: .\apps\core\views.py:320
+msgid "The page you are looking for could not be found."
+msgstr "The page you are looking for could not be found."
+
+#: .\apps\core\views.py:343
+msgid "Internal Server Error"
+msgstr "Internal Server Error"
+
+#: .\apps\core\views.py:344
+msgid "An internal server error occurred. Please try again later."
+msgstr "An internal server error occurred. Please try again later."
+
+#: .\apps\courses\admin.py:31 .\apps\courses\admin_new.py:31
+#: .\apps\courses\admin_refactored.py:31
+#: .\templates\admin\partials\content_list.html:126
+#: .\templates\frontend_api\home.html:161
+msgid "items"
+msgstr "items"
+
+#: .\apps\courses\admin.py:34 .\apps\courses\admin.py:107
+#: .\apps\courses\admin.py:240 .\apps\courses\admin_new.py:34
+#: .\apps\courses\admin_new.py:107 .\apps\courses\admin_new.py:240
+#: .\apps\courses\admin_refactored.py:34 .\apps\courses\admin_refactored.py:107
+#: .\apps\courses\admin_refactored.py:240 .\apps\media_manager\models.py:131
+msgid "Content Items"
+msgstr "Content Items"
+
+#: .\apps\courses\admin.py:47 .\apps\courses\admin.py:199
+#: .\apps\courses\admin.py:297 .\apps\courses\admin_new.py:47
+#: .\apps\courses\admin_new.py:199 .\apps\courses\admin_new.py:297
+#: .\apps\courses\admin_refactored.py:47 .\apps\courses\admin_refactored.py:199
+#: .\apps\courses\admin_refactored.py:297 .\apps\media_manager\admin.py:25
+#: .\apps\media_manager\admin.py:181 .\apps\media_manager\admin_new.py:128
+#: .\apps\media_manager\admin_refactored.py:129
+msgid "Basic Information"
+msgstr "Basic Information"
+
+#: .\apps\courses\admin.py:50 .\apps\courses\admin.py:202
+#: .\apps\courses\admin_new.py:50 .\apps\courses\admin_new.py:202
+#: .\apps\courses\admin_refactored.py:50 .\apps\courses\admin_refactored.py:202
+msgid "Description"
+msgstr "Description"
+
+#: .\apps\courses\admin.py:54 .\apps\courses\admin.py:206
+#: .\apps\courses\admin.py:300 .\apps\courses\admin_new.py:54
+#: .\apps\courses\admin_new.py:206 .\apps\courses\admin_new.py:300
+#: .\apps\courses\admin_refactored.py:54 .\apps\courses\admin_refactored.py:206
+#: .\apps\courses\admin_refactored.py:300 .\apps\media_manager\admin.py:34
+#: .\apps\media_manager\admin.py:190 .\apps\media_manager\admin_new.py:137
+#: .\apps\media_manager\admin_refactored.py:138
+msgid "System Information"
+msgstr "System Information"
+
+#: .\apps\courses\admin.py:72 .\apps\courses\admin.py:221
+#: .\apps\courses\admin_new.py:72 .\apps\courses\admin_new.py:221
+#: .\apps\courses\admin_refactored.py:72 .\apps\courses\admin_refactored.py:221
+#: .\apps\media_manager\admin.py:212 .\apps\media_manager\admin_new.py:159
+#: .\apps\media_manager\admin_refactored.py:160
+#: .\templates\admin\dashboard.html:104
+msgid "Title"
+msgstr "Title"
+
+#: .\apps\courses\admin.py:78 .\apps\courses\admin_new.py:78
+#: .\apps\courses\admin_refactored.py:78
+msgid "Theology"
+msgstr "Theology"
+
+#: .\apps\courses\admin.py:79 .\apps\courses\admin_new.py:79
+#: .\apps\courses\admin_refactored.py:79
+msgid "Bible Study"
+msgstr "Bible Study"
+
+#: .\apps\courses\admin.py:80 .\apps\courses\admin_new.py:80
+#: .\apps\courses\admin_refactored.py:80
+msgid "History"
+msgstr "History"
+
+#: .\apps\courses\admin.py:81 .\apps\courses\admin_new.py:81
+#: .\apps\courses\admin_refactored.py:81
+msgid "Apologetics"
+msgstr "Apologetics"
+
+#: .\apps\courses\admin.py:82 .\apps\courses\admin_new.py:82
+#: .\apps\courses\admin_refactored.py:82
+msgid "Christian Living"
+msgstr "Christian Living"
+
+#: .\apps\courses\admin.py:83 .\apps\courses\admin_new.py:83
+#: .\apps\courses\admin_refactored.py:83
+msgid "Liturgy"
+msgstr "Liturgy"
+
+#: .\apps\courses\admin.py:86 .\apps\courses\admin_new.py:86
+#: .\apps\courses\admin_refactored.py:86 .\apps\courses\models.py:32
+msgid "Category"
+msgstr "Category"
+
+#: .\apps\courses\admin.py:99 .\apps\courses\admin.py:135
+#: .\apps\courses\admin_new.py:99 .\apps\courses\admin_new.py:135
+#: .\apps\courses\admin_refactored.py:99 .\apps\courses\admin_refactored.py:135
+#: .\apps\courses\models.py:119
+msgid "Modules"
+msgstr "Modules"
+
+#: .\apps\courses\admin.py:114 .\apps\courses\admin_new.py:114
+#: .\apps\courses\admin_refactored.py:114
+msgid "View Course"
+msgstr "View Course"
+
+#: .\apps\courses\admin.py:116 .\apps\courses\admin_new.py:116
+#: .\apps\courses\admin_refactored.py:116
+msgid "Course URL"
+msgstr "Course URL"
+
+#: .\apps\courses\admin.py:137 .\apps\courses\admin_new.py:137
+#: .\apps\courses\admin_refactored.py:137 .\templates\admin\dashboard.html:49
+#: .\templates\frontend_api\home.html:38
+#: .\templates\frontend_api\partials\search_results.html:15
+#: .\templates\frontend_api\search.html:72
+#: .\templates\frontend_api\video_detail.html:6
+#: .\templates\includes\navbar.html:25 .\templates\layouts\admin_base.html:29
+msgid "Videos"
+msgstr "Videos"
+
+#: .\apps\courses\admin.py:139 .\apps\courses\admin_new.py:139
+#: .\apps\courses\admin_refactored.py:139
+msgid "Audio Files"
+msgstr "Audio Files"
+
+#: .\apps\courses\admin.py:141 .\apps\courses\admin_new.py:141
+#: .\apps\courses\admin_refactored.py:141
+msgid "PDF Files"
+msgstr "PDF Files"
+
+#: .\apps\courses\admin.py:143 .\apps\courses\admin_new.py:143
+#: .\apps\courses\admin_refactored.py:143 .\apps\media_manager\admin.py:258
+#: .\apps\media_manager\admin_new.py:197
+#: .\apps\media_manager\admin_refactored.py:198
+#: .\apps\media_manager\models.py:176 .\apps\media_manager\models.py:292
+#: .\apps\media_manager\models.py:369 .\templates\admin\dashboard.html:52
+msgid "Processing"
+msgstr "Processing"
+
+#: .\apps\courses\admin.py:147 .\apps\courses\admin_new.py:147
+#: .\apps\courses\admin_refactored.py:147 .\apps\users\admin.py:166
+#: .\apps\users\admin_new.py:166 .\apps\users\admin_refactored.py:166
+msgid "Error loading statistics"
+msgstr "Error loading statistics"
+
+#: .\apps\courses\admin.py:148 .\apps\courses\admin_new.py:148
+#: .\apps\courses\admin_refactored.py:148
+msgid "Statistics"
+msgstr "Statistics"
+
+#: .\apps\courses\admin.py:173 .\apps\courses\admin_new.py:173
+#: .\apps\courses\admin_refactored.py:173
+msgid "Activate selected courses"
+msgstr "Activate selected courses"
+
+#: .\apps\courses\admin.py:180 .\apps\courses\admin_new.py:180
+#: .\apps\courses\admin_refactored.py:180
+msgid "Deactivate selected courses"
+msgstr "Deactivate selected courses"
+
+#: .\apps\courses\admin.py:185 .\apps\courses\admin_new.py:185
+#: .\apps\courses\admin_refactored.py:185
+msgid "Course export functionality will be implemented."
+msgstr "Course export functionality will be implemented."
+
+#: .\apps\courses\admin.py:186 .\apps\courses\admin_new.py:186
+#: .\apps\courses\admin_refactored.py:186
+msgid "Export course data"
+msgstr "Export course data"
+
+#: .\apps\courses\admin.py:227 .\apps\courses\admin_new.py:227
+#: .\apps\courses\admin_refactored.py:227 .\apps\courses\models.py:42
+#: .\apps\courses\models.py:102 .\templates\admin\audio_management.html:36
+#: .\templates\admin\pdf_management.html:36
+#: .\templates\admin\video_management.html:36
+msgid "Course"
+msgstr "Course"
+
+#: .\apps\courses\admin.py:247 .\apps\courses\admin_new.py:247
+#: .\apps\courses\admin_refactored.py:247
+msgid "View Module"
+msgstr "View Module"
+
+#: .\apps\courses\admin.py:249 .\apps\courses\admin_new.py:249
+#: .\apps\courses\admin_refactored.py:249
+msgid "Module URL"
+msgstr "Module URL"
+
+#: .\apps\courses\admin.py:273 .\apps\courses\admin_new.py:273
+#: .\apps\courses\admin_refactored.py:273
+msgid "Activate selected modules"
+msgstr "Activate selected modules"
+
+#: .\apps\courses\admin.py:279 .\apps\courses\admin_new.py:279
+#: .\apps\courses\admin_refactored.py:279
+msgid "Deactivate selected modules"
+msgstr "Deactivate selected modules"
+
+#: .\apps\courses\admin.py:283 .\apps\courses\admin_new.py:283
+#: .\apps\courses\admin_refactored.py:283
+msgid "Module reordering functionality will be implemented."
+msgstr "Module reordering functionality will be implemented."
+
+#: .\apps\courses\admin.py:284 .\apps\courses\admin_new.py:284
+#: .\apps\courses\admin_refactored.py:284
+msgid "Reorder modules"
+msgstr "Reorder modules"
+
+#: .\apps\courses\admin.py:315 .\apps\courses\admin_new.py:315
+#: .\apps\courses\admin_refactored.py:315 .\apps\users\admin.py:79
+#: .\apps\users\admin_new.py:79 .\apps\users\admin_refactored.py:79
+msgid "Name"
+msgstr "Name"
+
+#: .\apps\courses\admin.py:328 .\apps\courses\admin_new.py:328
+#: .\apps\courses\admin_refactored.py:328 .\apps\courses\models.py:178
+#: .\apps\media_manager\admin.py:47 .\apps\media_manager\models.py:37
+msgid "Color"
+msgstr "Color"
+
+#: .\apps\courses\admin.py:340 .\apps\courses\admin_new.py:340
+#: .\apps\courses\admin_refactored.py:340
+msgid "Used in Content"
+msgstr "Used in Content"
+
+#: .\apps\courses\admin.py:365 .\apps\courses\admin_new.py:365
+#: .\apps\courses\admin_refactored.py:365 .\apps\media_manager\admin.py:61
+msgid "Activate selected tags"
+msgstr "Activate selected tags"
+
+#: .\apps\courses\admin.py:372 .\apps\courses\admin_new.py:372
+#: .\apps\courses\admin_refactored.py:372 .\apps\media_manager\admin.py:67
+msgid "Deactivate selected tags"
+msgstr "Deactivate selected tags"
+
+#: .\apps\courses\admin.py:376 .\apps\courses\admin_new.py:376
+#: .\apps\courses\admin_refactored.py:376
+msgid "Tag merging functionality will be implemented."
+msgstr "Tag merging functionality will be implemented."
+
+#: .\apps\courses\admin.py:377 .\apps\courses\admin_new.py:377
+#: .\apps\courses\admin_refactored.py:377
+msgid "Merge selected tags"
+msgstr "Merge selected tags"
+
+#: .\apps\courses\models.py:28 .\apps\courses\models.py:105
+#: .\apps\media_manager\models.py:116 .\templates\admin\content_detail.html:45
+msgid "Arabic Title"
+msgstr "Arabic Title"
+
+#: .\apps\courses\models.py:29 .\apps\courses\models.py:106
+#: .\apps\media_manager\models.py:117 .\templates\admin\content_detail.html:51
+msgid "English Title"
+msgstr "English Title"
+
+#: .\apps\courses\models.py:30 .\apps\courses\models.py:107
+#: .\apps\courses\models.py:174 .\apps\media_manager\models.py:33
+#: .\apps\media_manager\models.py:118 .\templates\admin\content_detail.html:64
+msgid "Arabic Description"
+msgstr "Arabic Description"
+
+#: .\apps\courses\models.py:31 .\apps\courses\models.py:108
+#: .\apps\media_manager\models.py:119 .\templates\admin\content_detail.html:70
+msgid "English Description"
+msgstr "English Description"
+
+#: .\apps\courses\models.py:33
+msgid "Slug"
+msgstr "Slug"
+
+#: .\apps\courses\models.py:34 .\apps\courses\models.py:110
+#: .\apps\courses\models.py:181 .\apps\media_manager\models.py:40
+#: .\apps\media_manager\models.py:122
+#: .\templates\admin\audio_management.html:78
+#: .\templates\admin\dashboard.html:145
+#: .\templates\admin\partials\content_list.html:65
+#: .\templates\admin\pdf_management.html:88
+msgid "Active"
+msgstr "Active"
+
+#: .\apps\courses\models.py:35 .\apps\courses\models.py:111
+#: .\apps\courses\models.py:182 .\apps\media_manager\models.py:41
+#: .\apps\media_manager\models.py:123 .\apps\users\models.py:71
+msgid "Created At"
+msgstr "Created At"
+
+#: .\apps\courses\models.py:36 .\apps\courses\models.py:112
+#: .\apps\media_manager\models.py:124 .\apps\users\models.py:72
+msgid "Updated At"
+msgstr "Updated At"
+
+#: .\apps\courses\models.py:43
+msgid "Courses"
+msgstr "Courses"
+
+#: .\apps\courses\models.py:109
+msgid "Order"
+msgstr "Order"
+
+#: .\apps\courses\models.py:118 .\apps\media_manager\admin_new.py:178
+#: .\apps\media_manager\admin_refactored.py:179
+#: .\templates\admin\dashboard.html:106
+msgid "Module"
+msgstr "Module"
+
+#: .\apps\courses\models.py:146
+msgid "Order must be a positive integer"
+msgstr "Order must be a positive integer"
+
+#: .\apps\courses\models.py:172 .\apps\media_manager\models.py:31
+msgid "Arabic Name"
+msgstr "Arabic Name"
+
+#: .\apps\courses\models.py:173 .\apps\media_manager\models.py:32
+msgid "English Name"
+msgstr "English Name"
+
+#: .\apps\courses\models.py:179 .\apps\media_manager\models.py:38
+msgid "Hex color code (e.g., #8C1C13)"
+msgstr "Hex color code (e.g., #8C1C13)"
+
+#: .\apps\courses\models.py:188 .\apps\media_manager\models.py:47
+msgid "Tag"
+msgstr "Tag"
+
+#: .\apps\courses\models.py:189 .\apps\media_manager\admin.py:239
+#: .\apps\media_manager\models.py:48 .\apps\media_manager\models.py:121
+#: .\templates\admin\content_detail.html:83
+#: .\templates\admin\partials\content_list.html:10
+#: .\templates\admin\upload_content.html:197
+#: .\templates\frontend_api\home.html:65
+msgid "Tags"
+msgstr "Tags"
+
+#: .\apps\courses\models.py:210 .\apps\media_manager\models.py:69
+msgid "Color must be a valid hex color code (e.g., #8C1C13)"
+msgstr "Color must be a valid hex color code (e.g., #8C1C13)"
+
+#: .\apps\courses\views.py:63 .\apps\courses\views.py:193
+msgid "Course not found"
+msgstr "Course not found"
+
+#: .\apps\courses\views.py:179
+msgid "Failed to retrieve courses"
+msgstr "Failed to retrieve courses"
+
+#: .\apps\courses\views.py:236
+msgid "Failed to retrieve course"
+msgstr "Failed to retrieve course"
+
+#: .\apps\courses\views.py:266
+msgid "Failed to retrieve modules"
+msgstr "Failed to retrieve modules"
+
+#: .\apps\courses\views.py:310
+msgid "Failed to retrieve module"
+msgstr "Failed to retrieve module"
+
+#: .\apps\courses\views.py:327
+msgid "Failed to retrieve categories"
+msgstr "Failed to retrieve categories"
+
+#: .\apps\courses\views.py:366
+msgid "Search failed"
+msgstr "Search failed"
+
+#: .\apps\frontend_api\admin_views.py:141
+msgid "Arabic title is required"
+msgstr "Arabic title is required"
+
+#: .\apps\frontend_api\admin_views.py:145
+msgid "Please select a file to upload"
+msgstr "Please select a file to upload"
+
+#: .\apps\frontend_api\admin_views.py:159
+msgid "Invalid file type for selected content type"
+msgstr "Invalid file type for selected content type"
+
+#: .\apps\frontend_api\admin_views.py:189 .\apps\media_manager\models.py:170
+#: .\apps\media_manager\views.py:47 .\apps\media_manager\views_new.py:44
+#: .\apps\media_manager\views_refactored.py:44
+msgid "Invalid content type"
+msgstr "Invalid content type"
+
+#: .\apps\frontend_api\admin_views.py:198
+msgid "Upload failed"
+msgstr "Upload failed"
+
+#: .\apps\frontend_api\admin_views.py:263
+msgid "Content updated successfully"
+msgstr "Content updated successfully"
+
+#: .\apps\frontend_api\admin_views.py:266
+msgid "Update failed"
+msgstr "Update failed"
+
+#: .\apps\frontend_api\admin_views.py:280 .\apps\media_manager\services.py:196
+msgid "Content deleted successfully"
+msgstr "Content deleted successfully"
+
+#: .\apps\frontend_api\admin_views.py:283
+msgid "Failed to delete content"
+msgstr "Failed to delete content"
+
+#: .\apps\frontend_api\admin_views.py:467
+msgid "Please select content items"
+msgstr "Please select content items"
+
+#: .\apps\frontend_api\admin_views.py:495
+msgid "Operation completed"
+msgstr "Operation completed"
+
+#: .\apps\frontend_api\admin_views.py:495
+msgid "items processed"
+msgstr "items processed"
+
+#: .\apps\frontend_api\admin_views.py:498
+msgid "items failed to process"
+msgstr "items failed to process"
+
+#: .\apps\frontend_api\admin_views.py:501
+msgid "Bulk operation failed"
+msgstr "Bulk operation failed"
+
+#: .\apps\frontend_api\admin_views.py:523
+msgid "Status updated successfully"
+msgstr "Status updated successfully"
+
+#: .\apps\frontend_api\views_refactored.py:55
+#: .\apps\frontend_api\views_refactored.py:270
+msgid "Error loading content"
+msgstr "Error loading content"
+
+#: .\apps\frontend_api\views_refactored.py:160 .\apps\media_manager\views.py:82
+#: .\apps\media_manager\views.py:494 .\apps\media_manager\views_new.py:79
+#: .\apps\media_manager\views_new.py:239
+#: .\apps\media_manager\views_refactored.py:79
+msgid "Content not found"
+msgstr "Content not found"
+
+#: .\apps\frontend_api\views_refactored.py:225
+msgid "Search temporarily unavailable"
+msgstr "Search temporarily unavailable"
+
+#: .\apps\frontend_api\views_refactored.py:307
+msgid "Search error"
+msgstr "Search error"
+
+#: .\apps\frontend_api\views_refactored.py:337
+msgid "Error loading dashboard"
+msgstr "Error loading dashboard"
+
+#: .\apps\media_manager\admin.py:28
+msgid "Appearance"
+msgstr "Appearance"
+
+#: .\apps\media_manager\admin.py:31 .\apps\media_manager\admin.py:187
+#: .\apps\media_manager\admin.py:273 .\apps\media_manager\admin_new.py:134
+#: .\apps\media_manager\admin_new.py:212
+#: .\apps\media_manager\admin_refactored.py:135
+#: .\apps\media_manager\admin_refactored.py:213
+#: .\templates\admin\audio_management.html:38
+#: .\templates\admin\content_detail.html:155
+#: .\templates\admin\dashboard.html:107
+#: .\templates\admin\partials\content_list.html:11
+#: .\templates\admin\pdf_management.html:39
+#: .\templates\admin\video_management.html:38
+msgid "Status"
+msgstr "Status"
+
+#: .\apps\media_manager\admin.py:53
+msgid "Content Count"
+msgstr "Content Count"
+
+#: .\apps\media_manager\admin.py:80 .\apps\media_manager\admin.py:87
+#: .\apps\media_manager\admin.py:132 .\apps\media_manager\admin.py:139
+#: .\apps\media_manager\admin.py:169 .\apps\media_manager\admin_new.py:27
+#: .\apps\media_manager\admin_new.py:34 .\apps\media_manager\admin_new.py:79
+#: .\apps\media_manager\admin_new.py:86 .\apps\media_manager\admin_new.py:116
+#: .\apps\media_manager\admin_refactored.py:28
+#: .\apps\media_manager\admin_refactored.py:35
+#: .\apps\media_manager\admin_refactored.py:80
+#: .\apps\media_manager\admin_refactored.py:87
+#: .\apps\media_manager\admin_refactored.py:117
+#: .\apps\media_manager\models.py:239 .\apps\media_manager\models.py:359
+#: .\templates\admin\audio_management.html:72
+#: .\templates\admin\pdf_management.html:73
+#: .\templates\admin\pdf_management.html:82
+msgid "Unknown"
+msgstr "Unknown"
+
+#: .\apps\media_manager\admin.py:81 .\apps\media_manager\admin.py:133
+#: .\apps\media_manager\admin.py:356 .\apps\media_manager\admin.py:372
+#: .\apps\media_manager\admin_new.py:28 .\apps\media_manager\admin_new.py:80
+#: .\apps\media_manager\admin_new.py:297 .\apps\media_manager\admin_new.py:313
+#: .\apps\media_manager\admin_refactored.py:29
+#: .\apps\media_manager\admin_refactored.py:81
+#: .\apps\media_manager\admin_refactored.py:327
+#: .\apps\media_manager\admin_refactored.py:343
+#: .\templates\admin\audio_management.html:37
+#: .\templates\admin\content_detail.html:164
+#: .\templates\admin\video_management.html:37
+msgid "Duration"
+msgstr "Duration"
+
+#: .\apps\media_manager\admin.py:88 .\apps\media_manager\admin_new.py:35
+#: .\apps\media_manager\admin_refactored.py:36
+#: .\templates\admin\content_detail.html:179
+msgid "File Size"
+msgstr "File Size"
+
+#: .\apps\media_manager\admin.py:101 .\apps\media_manager\admin_new.py:48
+#: .\apps\media_manager\admin_refactored.py:49
+msgid "Processing pending"
+msgstr "Processing pending"
+
+#: .\apps\media_manager\admin.py:102 .\apps\media_manager\admin_new.py:49
+#: .\apps\media_manager\admin_refactored.py:50
+msgid "Currently processing"
+msgstr "Currently processing"
+
+#: .\apps\media_manager\admin.py:103 .\apps\media_manager\admin_new.py:50
+#: .\apps\media_manager\admin_refactored.py:51
+msgid "Processing failed"
+msgstr "Processing failed"
+
+#: .\apps\media_manager\admin.py:105 .\apps\media_manager\admin_new.py:52
+#: .\apps\media_manager\admin_refactored.py:53
+msgid "Not ready"
+msgstr "Not ready"
+
+#: .\apps\media_manager\admin.py:106 .\apps\media_manager\admin_new.py:53
+#: .\apps\media_manager\admin_refactored.py:54
+msgid "HLS Status"
+msgstr "HLS Status"
+
+#: .\apps\media_manager\admin.py:120 .\apps\media_manager\admin_new.py:67
+#: .\apps\media_manager\admin_refactored.py:68
+msgid "Compressed"
+msgstr "Compressed"
+
+#: .\apps\media_manager\admin.py:124 .\apps\media_manager\admin.py:158
+#: .\apps\media_manager\admin_new.py:71 .\apps\media_manager\admin_new.py:105
+#: .\apps\media_manager\admin_refactored.py:72
+#: .\apps\media_manager\admin_refactored.py:106
+msgid "Original only"
+msgstr "Original only"
+
+#: .\apps\media_manager\admin.py:126 .\apps\media_manager\admin_new.py:73
+#: .\apps\media_manager\admin_refactored.py:74
+msgid "Compression Status"
+msgstr "Compression Status"
+
+#: .\apps\media_manager\admin.py:140 .\apps\media_manager\admin_new.py:87
+#: .\apps\media_manager\admin_refactored.py:88
+msgid "Bitrate"
+msgstr "Bitrate"
+
+#: .\apps\media_manager\admin.py:154 .\apps\media_manager\admin_new.py:101
+#: .\apps\media_manager\admin_refactored.py:102
+msgid "Optimized"
+msgstr "Optimized"
+
+#: .\apps\media_manager\admin.py:160 .\apps\media_manager\admin_new.py:107
+#: .\apps\media_manager\admin_refactored.py:108
+msgid "Optimization Status"
+msgstr "Optimization Status"
+
+#: .\apps\media_manager\admin.py:166 .\apps\media_manager\admin_new.py:113
+#: .\apps\media_manager\admin_refactored.py:114
+#: .\templates\admin\pdf_management.html:38
+msgid "Size"
+msgstr "Size"
+
+#: .\apps\media_manager\admin.py:168 .\apps\media_manager\admin_new.py:115
+#: .\apps\media_manager\admin_refactored.py:116
+#: .\templates\admin\content_detail.html:172
+#: .\templates\admin\pdf_management.html:37
+msgid "Pages"
+msgstr "Pages"
+
+#: .\apps\media_manager\admin.py:170 .\apps\media_manager\admin_new.py:117
+#: .\apps\media_manager\admin_refactored.py:118
+msgid "File Information"
+msgstr "File Information"
+
+#: .\apps\media_manager\admin.py:184 .\apps\media_manager\admin_new.py:131
+#: .\apps\media_manager\admin_refactored.py:132
+msgid "Classification"
+msgstr "Classification"
+
+#: .\apps\media_manager\admin.py:218 .\apps\media_manager\admin_new.py:165
+#: .\apps\media_manager\admin_refactored.py:166
+#: .\apps\media_manager\models.py:110 .\apps\media_manager\models.py:229
+#: .\templates\admin\upload_content.html:40
+#: .\templates\admin\upload_content.html:81
+#: .\templates\admin\video_management.html:35
+msgid "Video"
+msgstr "Video"
+
+#: .\apps\media_manager\admin.py:219 .\apps\media_manager\admin_new.py:166
+#: .\apps\media_manager\admin_refactored.py:167
+#: .\apps\media_manager\models.py:111 .\apps\media_manager\models.py:345
+#: .\templates\admin\upload_content.html:53
+#: .\templates\admin\upload_content.html:94
+#: .\templates\frontend_api\audio_detail.html:6
+#: .\templates\frontend_api\audio_detail.html:30
+#: .\templates\frontend_api\home.html:47
+#: .\templates\frontend_api\partials\search_results.html:18
+#: .\templates\frontend_api\search.html:83 .\templates\includes\navbar.html:30
+#: .\templates\layouts\admin_base.html:30
+msgid "Audio"
+msgstr "Audio"
+
+#: .\apps\media_manager\admin.py:220 .\apps\media_manager\admin_new.py:167
+#: .\apps\media_manager\admin_refactored.py:168
+#: .\apps\media_manager\models.py:112 .\apps\media_manager\models.py:419
+msgid "PDF"
+msgstr "PDF"
+
+#: .\apps\media_manager\admin.py:223 .\apps\media_manager\admin_new.py:170
+#: .\apps\media_manager\admin_refactored.py:171
+#: .\templates\admin\dashboard.html:105
+#: .\templates\admin\partials\content_list.html:9
+msgid "Type"
+msgstr "Type"
+
+#: .\apps\media_manager\admin.py:238
+#: .\templates\admin\partials\content_list.html:59
+#: .\templates\admin\video_management.html:64
+msgid "No tags"
+msgstr "No tags"
+
+#: .\apps\media_manager\admin.py:257 .\apps\media_manager\admin_new.py:196
+#: .\apps\media_manager\admin_refactored.py:197
+#: .\apps\media_manager\models.py:175 .\apps\media_manager\models.py:291
+#: .\apps\media_manager\models.py:368
+msgid "Pending"
+msgstr "Pending"
+
+#: .\apps\media_manager\admin.py:259 .\apps\media_manager\admin_new.py:198
+#: .\apps\media_manager\admin_refactored.py:199
+msgid "Ready"
+msgstr "Ready"
+
+#: .\apps\media_manager\admin.py:260 .\apps\media_manager\admin_new.py:199
+#: .\apps\media_manager\admin_refactored.py:200
+#: .\apps\media_manager\models.py:178 .\apps\media_manager\models.py:294
+#: .\apps\media_manager\models.py:371
+msgid "Failed"
+msgstr "Failed"
+
+#: .\apps\media_manager\admin.py:279 .\apps\media_manager\admin_new.py:218
+#: .\apps\media_manager\admin_refactored.py:219
+msgid "View Content"
+msgstr "View Content"
+
+#: .\apps\media_manager\admin.py:281 .\apps\media_manager\admin_new.py:220
+#: .\apps\media_manager\admin_refactored.py:221
+msgid "Content URL"
+msgstr "Content URL"
+
+#: .\apps\media_manager\admin.py:310 .\apps\media_manager\admin_new.py:251
+#: .\apps\media_manager\admin_refactored.py:281
+msgid "Activate selected content"
+msgstr "Activate selected content"
+
+#: .\apps\media_manager\admin.py:317 .\apps\media_manager\admin_new.py:258
+#: .\apps\media_manager\admin_refactored.py:288
+msgid "Deactivate selected content"
+msgstr "Deactivate selected content"
+
+#: .\apps\media_manager\admin.py:343 .\apps\media_manager\admin_new.py:284
+#: .\apps\media_manager\admin_refactored.py:314
+msgid "No items could be queued for reprocessing."
+msgstr "No items could be queued for reprocessing."
+
+#: .\apps\media_manager\admin.py:344 .\apps\media_manager\admin_new.py:285
+#: .\apps\media_manager\admin_refactored.py:315
+msgid "Reprocess selected media"
+msgstr "Reprocess selected media"
+
+#: .\apps\media_manager\admin.py:360 .\apps\media_manager\admin_new.py:301
+#: .\apps\media_manager\admin_refactored.py:331
+msgid "Ready for Streaming"
+msgstr "Ready for Streaming"
+
+#: .\apps\media_manager\admin.py:376 .\apps\media_manager\admin_new.py:317
+#: .\apps\media_manager\admin_refactored.py:347
+msgid "Ready for Playback"
+msgstr "Ready for Playback"
+
+#: .\apps\media_manager\admin.py:388 .\apps\media_manager\admin_new.py:329
+#: .\apps\media_manager\admin_refactored.py:359
+msgid "Ready for Viewing"
+msgstr "Ready for Viewing"
+
+#: .\apps\media_manager\admin_new.py:177
+#: .\apps\media_manager\admin_refactored.py:178
+msgid "No module"
+msgstr "No module"
+
+#: .\apps\media_manager\models.py:120 .\templates\admin\content_detail.html:146
+msgid "Content Type"
+msgstr "Content Type"
+
+#: .\apps\media_manager\models.py:130 .\apps\media_manager\models.py:184
+#: .\apps\media_manager\models.py:300 .\apps\media_manager\models.py:377
+msgid "Content Item"
+msgstr "Content Item"
+
+#: .\apps\media_manager\models.py:177 .\apps\media_manager\models.py:293
+#: .\apps\media_manager\models.py:370
+msgid "Completed"
+msgstr "Completed"
+
+#: .\apps\media_manager\models.py:189 .\apps\media_manager\models.py:305
+#: .\apps\media_manager\models.py:382
+msgid "Original File"
+msgstr "Original File"
+
+#: .\apps\media_manager\models.py:194 .\apps\media_manager\models.py:315
+msgid "Duration (seconds)"
+msgstr "Duration (seconds)"
+
+#: .\apps\media_manager\models.py:200
+msgid "HLS 720p Path"
+msgstr "HLS 720p Path"
+
+#: .\apps\media_manager\models.py:205
+msgid "HLS 480p Path"
+msgstr "HLS 480p Path"
+
+#: .\apps\media_manager\models.py:211 .\apps\media_manager\models.py:327
+#: .\apps\media_manager\models.py:405
+msgid "Processing Status"
+msgstr "Processing Status"
+
+#: .\apps\media_manager\models.py:217 .\apps\media_manager\models.py:333
+#: .\apps\media_manager\models.py:392
+msgid "File Size (MB)"
+msgstr "File Size (MB)"
+
+#: .\apps\media_manager\models.py:221 .\apps\media_manager\models.py:222
+msgid "Video Metadata"
+msgstr "Video Metadata"
+
+#: .\apps\media_manager\models.py:310
+msgid "Compressed File"
+msgstr "Compressed File"
+
+#: .\apps\media_manager\models.py:321
+msgid "Bitrate (kbps)"
+msgstr "Bitrate (kbps)"
+
+#: .\apps\media_manager\models.py:337 .\apps\media_manager\models.py:338
+msgid "Audio Metadata"
+msgstr "Audio Metadata"
+
+#: .\apps\media_manager\models.py:387
+msgid "Optimized File"
+msgstr "Optimized File"
+
+#: .\apps\media_manager\models.py:398
+msgid "Page Count"
+msgstr "Page Count"
+
+#: .\apps\media_manager\models.py:410 .\apps\media_manager\models.py:411
+msgid "PDF Metadata"
+msgstr "PDF Metadata"
+
+#: .\apps\media_manager\services.py:68
+msgid "Video uploaded successfully and queued for processing"
+msgstr "Video uploaded successfully and queued for processing"
+
+#: .\apps\media_manager\services.py:71
+#: .\apps\media_manager\services\upload_service.py:156
+msgid "Error uploading video"
+msgstr "Error uploading video"
+
+#: .\apps\media_manager\services.py:111
+msgid "Audio uploaded and compressed successfully"
+msgstr "Audio uploaded and compressed successfully"
+
+#: .\apps\media_manager\services.py:114
+#: .\apps\media_manager\services\upload_service.py:230
+msgid "Error uploading audio"
+msgstr "Error uploading audio"
+
+#: .\apps\media_manager\services.py:153
+msgid "PDF uploaded and compressed successfully"
+msgstr "PDF uploaded and compressed successfully"
+
+#: .\apps\media_manager\services.py:156
+#: .\apps\media_manager\services\upload_service.py:302
+msgid "Error uploading PDF"
+msgstr "Error uploading PDF"
+
+#: .\apps\media_manager\services.py:199
+msgid "Error deleting content"
+msgstr "Error deleting content"
+
+#: .\apps\media_manager\services\content_service.py:145
+msgid "Error creating content item"
+msgstr "Error creating content item"
+
+#: .\apps\media_manager\services\content_service.py:183
+msgid "Error updating content item"
+msgstr "Error updating content item"
+
+#: .\apps\media_manager\services\upload_service.py:62
+msgid "File size exceeds maximum allowed size"
+msgstr "File size exceeds maximum allowed size"
+
+#: .\apps\media_manager\services\upload_service.py:73
+msgid "File type not supported"
+msgstr "File type not supported"
+
+#: .\apps\media_manager\services\upload_service.py:82
+msgid "Invalid PDF file"
+msgstr "Invalid PDF file"
+
+#: .\apps\media_manager\services\upload_service.py:152
+msgid "Video uploaded and queued for processing"
+msgstr "Video uploaded and queued for processing"
+
+#: .\apps\media_manager\services\upload_service.py:226
+msgid "Audio uploaded and queued for processing"
+msgstr "Audio uploaded and queued for processing"
+
+#: .\apps\media_manager\services\upload_service.py:298
+msgid "PDF uploaded and queued for processing"
+msgstr "PDF uploaded and queued for processing"
+
+#: .\apps\media_manager\views.py:58 .\apps\media_manager\views_new.py:55
+#: .\apps\media_manager\views_refactored.py:55
+msgid "Media file not available"
+msgstr "Media file not available"
+
+#: .\apps\media_manager\views.py:87 .\apps\media_manager\views_new.py:84
+#: .\apps\media_manager\views_refactored.py:84
+msgid "Content type mismatch"
+msgstr "Content type mismatch"
+
+#: .\apps\media_manager\views.py:93 .\apps\media_manager\views.py:437
+#: .\apps\media_manager\views.py:616 .\apps\media_manager\views.py:645
+#: .\apps\media_manager\views_new.py:90 .\apps\media_manager\views_new.py:182
+#: .\apps\media_manager\views_new.py:361 .\apps\media_manager\views_new.py:390
+#: .\apps\media_manager\views_refactored.py:90
+#: .\apps\media_manager\views_refactored.py:169 .\core\utils\exceptions.py:92
+msgid "Internal server error"
+msgstr "Internal server error"
+
+#: .\apps\media_manager\views.py:389 .\apps\media_manager\views_new.py:134
+msgid "Invalid quality parameter"
+msgstr "Invalid quality parameter"
+
+#: .\apps\media_manager\views.py:400 .\apps\media_manager\views_new.py:145
+msgid "Video is not ready for streaming"
+msgstr "Video is not ready for streaming"
+
+#: .\apps\media_manager\views.py:408 .\apps\media_manager\views_new.py:153
+msgid "Requested quality not available"
+msgstr "Requested quality not available"
+
+#: .\apps\media_manager\views.py:431 .\apps\media_manager\views_new.py:176
+msgid "Video not found"
+msgstr "Video not found"
+
+#: .\apps\users\admin.py:27 .\apps\users\admin_new.py:27
+#: .\apps\users\admin_refactored.py:27
+msgid "Authentication"
+msgstr "Authentication"
+
+#: .\apps\users\admin.py:30 .\apps\users\admin.py:53
+#: .\apps\users\admin_new.py:30 .\apps\users\admin_new.py:53
+#: .\apps\users\admin_refactored.py:30 .\apps\users\admin_refactored.py:53
+msgid "Personal Information"
+msgstr "Personal Information"
+
+#: .\apps\users\admin.py:34 .\apps\users\admin.py:57
+#: .\apps\users\admin_new.py:34 .\apps\users\admin_new.py:57
+#: .\apps\users\admin_refactored.py:34 .\apps\users\admin_refactored.py:57
+msgid "Permissions"
+msgstr "Permissions"
+
+#: .\apps\users\admin.py:38 .\apps\users\admin_new.py:38
+#: .\apps\users\admin_refactored.py:38
+msgid "Important Dates"
+msgstr "Important Dates"
+
+#: .\apps\users\admin.py:42 .\apps\users\admin_new.py:42
+#: .\apps\users\admin_refactored.py:42
+msgid "Statistics & Management"
+msgstr "Statistics & Management"
+
+#: .\apps\users\admin.py:49 .\apps\users\admin_new.py:49
+#: .\apps\users\admin_refactored.py:49
+msgid "Required Information"
+msgstr "Required Information"
+
+#: .\apps\users\admin.py:89 .\apps\users\admin_new.py:89
+#: .\apps\users\admin_refactored.py:89
+msgid "Superuser"
+msgstr "Superuser"
+
+#: .\apps\users\admin.py:94 .\apps\users\admin_new.py:94
+#: .\apps\users\admin_refactored.py:94
+msgid "Staff"
+msgstr "Staff"
+
+#: .\apps\users\admin.py:100 .\apps\users\admin_new.py:100
+#: .\apps\users\admin_refactored.py:100 .\apps\users\models.py:62
+msgid "Content Manager"
+msgstr "Content Manager"
+
+#: .\apps\users\admin.py:106 .\apps\users\admin_new.py:106
+#: .\apps\users\admin_refactored.py:106
+msgid "Regular User"
+msgstr "Regular User"
+
+#: .\apps\users\admin.py:110 .\apps\users\admin_new.py:110
+#: .\apps\users\admin_refactored.py:110
+msgid "Role"
+msgstr "Role"
+
+#: .\apps\users\admin.py:123 .\apps\users\admin_new.py:123
+#: .\apps\users\admin_refactored.py:123
+msgid "courses"
+msgstr "courses"
+
+#: .\apps\users\admin.py:125 .\apps\users\admin_new.py:125
+#: .\apps\users\admin_refactored.py:125
+msgid "modules"
+msgstr "modules"
+
+#: .\apps\users\admin.py:127 .\apps\users\admin_new.py:127
+#: .\apps\users\admin_refactored.py:127
+msgid "content"
+msgstr "content"
+
+#: .\apps\users\admin.py:133 .\apps\users\admin_new.py:133
+#: .\apps\users\admin_refactored.py:133
+msgid "Content Statistics"
+msgstr "Content Statistics"
+
+#: .\apps\users\admin.py:153 .\apps\users\admin_new.py:153
+#: .\apps\users\admin_refactored.py:153
+msgid "Member Since"
+msgstr "Member Since"
+
+#: .\apps\users\admin.py:155 .\apps\users\admin_new.py:155
+#: .\apps\users\admin_refactored.py:155
+msgid "Last Active"
+msgstr "Last Active"
+
+#: .\apps\users\admin.py:156 .\apps\users\admin_new.py:156
+#: .\apps\users\admin_refactored.py:156
+msgid "Never"
+msgstr "Never"
+
+#: .\apps\users\admin.py:157 .\apps\users\admin_new.py:157
+#: .\apps\users\admin_refactored.py:157
+msgid "Content Created"
+msgstr "Content Created"
+
+#: .\apps\users\admin.py:159 .\apps\users\admin_new.py:159
+#: .\apps\users\admin_refactored.py:159
+msgid "Courses Managed"
+msgstr "Courses Managed"
+
+#: .\apps\users\admin.py:161 .\apps\users\admin_new.py:161
+#: .\apps\users\admin_refactored.py:161
+msgid "Total Uploads"
+msgstr "Total Uploads"
+
+#: .\apps\users\admin.py:167 .\apps\users\admin_new.py:167
+#: .\apps\users\admin_refactored.py:167
+msgid "Detailed Statistics"
+msgstr "Detailed Statistics"
+
+#: .\apps\users\admin.py:178 .\apps\users\admin_new.py:178
+#: .\apps\users\admin_refactored.py:178
+msgid "Manage Courses"
+msgstr "Manage Courses"
+
+#: .\apps\users\admin.py:182 .\apps\users\admin_new.py:182
+#: .\apps\users\admin_refactored.py:182
+msgid "Manage Content"
+msgstr "Manage Content"
+
+#: .\apps\users\admin.py:185 .\apps\users\admin_new.py:185
+#: .\apps\users\admin_refactored.py:185 .\templates\admin\content_list.html:16
+#: .\templates\layouts\admin_base.html:19
+#: .\templates\layouts\admin_base.html:26
+msgid "Content Management"
+msgstr "Content Management"
+
+#: .\apps\users\admin.py:231 .\apps\users\admin_new.py:231
+#: .\apps\users\admin_refactored.py:231
+msgid "Content remains available."
+msgstr "Content remains available."
+
+#: .\apps\users\admin.py:253 .\apps\users\admin_new.py:253
+#: .\apps\users\admin_refactored.py:253
+msgid "Activate selected users"
+msgstr "Activate selected users"
+
+#: .\apps\users\admin.py:260 .\apps\users\admin_new.py:260
+#: .\apps\users\admin_refactored.py:260
+msgid "Deactivate selected users"
+msgstr "Deactivate selected users"
+
+#: .\apps\users\admin.py:267 .\apps\users\admin_new.py:267
+#: .\apps\users\admin_refactored.py:267
+msgid "Make content managers"
+msgstr "Make content managers"
+
+#: .\apps\users\admin.py:274 .\apps\users\admin_new.py:274
+#: .\apps\users\admin_refactored.py:274
+msgid "Remove content manager status"
+msgstr "Remove content manager status"
+
+#: .\apps\users\forms.py:13
+msgid "أدخل اسم المستخدم"
+msgstr "Enter username"
+
+#: .\apps\users\forms.py:15
+msgid "اسم المستخدم"
+msgstr "Username"
+
+#: .\apps\users\forms.py:21
+msgid "أدخل كلمة المرور"
+msgstr "Enter password"
+
+#: .\apps\users\forms.py:23
+msgid "كلمة المرور"
+msgstr "Password"
+
+#: .\apps\users\forms.py:28
+msgid ""
+"يرجى التأكد من صحة اسم المستخدم وكلمة المرور. تذكر أن كلا الحقلين قد يكونان "
+"حساسين للحروف الكبيرة والصغيرة."
+msgstr ""
+"Please ensure your username and password are correct. Remember that both fields may be case-sensitive."
+
+#: .\apps\users\forms.py:30
+msgid "هذا الحساب غير مفعل."
+msgstr "This account is inactive."
+
+#: .\apps\users\forms.py:48
+msgid "رقم الهاتف (اختياري)"
+msgstr "Phone Number (Optional)"
+
+#: .\apps\users\forms.py:53
+msgid "اللغة المفضلة"
+msgstr "Preferred Language"
+
+#: .\apps\users\forms.py:54
+msgid "رقم الهاتف"
+msgstr "Phone Number"
+
+#: .\apps\users\models.py:57
+msgid "Phone Number"
+msgstr "Phone Number"
+
+#: .\apps\users\models.py:58
+msgid "Optional phone number for contact"
+msgstr "Optional phone number for contact"
+
+#: .\apps\users\models.py:63
+msgid "Can this user manage content uploads and processing?"
+msgstr "Can this user manage content uploads and processing?"
+
+#: .\apps\users\models.py:67
+msgid "Arabic"
+msgstr "Arabic"
+
+#: .\apps\users\models.py:67
+msgid "English"
+msgstr "English"
+
+#: .\apps\users\models.py:69
+msgid "Preferred Language"
+msgstr "Preferred Language"
+
+#: .\apps\users\models.py:78
+msgid "User"
+msgstr "User"
+
+#: .\apps\users\models.py:79
+msgid "Users"
+msgstr "Users"
+
+#: .\apps\users\models.py:101
+msgid "Phone number must contain only digits, +, -, and spaces"
+msgstr "Phone number must contain only digits, +, -, and spaces"
+
+#: .\apps\users\views.py:61
+msgid "تم تسجيل الدخول بنجاح"
+msgstr "Successfully logged in"
+
+#: .\apps\users\views.py:65
+msgid "اسم المستخدم أو كلمة المرور غير صحيحة"
+msgstr "Incorrect username or password"
+
+#: .\apps\users\views.py:79
+msgid "تم تسجيل الخروج بنجاح"
+msgstr "Successfully logged out"
+
+#: .\apps\users\views.py:104
+msgid "All required fields must be filled"
+msgstr "All required fields must be filled"
+
+#: .\apps\users\views.py:107
+msgid "Passwords do not match"
+msgstr "Passwords do not match"
+
+#: .\apps\users\views.py:110
+msgid "Password must be at least 8 characters long"
+msgstr "Password must be at least 8 characters long"
+
+#: .\apps\users\views.py:113
+msgid "Username already exists"
+msgstr "Username already exists"
+
+#: .\apps\users\views.py:116
+msgid "Email already exists"
+msgstr "Email already exists"
+
+#: .\apps\users\views.py:144
+msgid "Registration failed. Please try again."
+msgstr "Registration failed. Please try again."
+
+#: .\apps\users\views.py:157
+msgid "Password reset functionality will be implemented."
+msgstr "Password reset functionality will be implemented."
+
+#: .\apps\users\views.py:171
+msgid "Password reset confirmation will be implemented."
+msgstr "Password reset confirmation will be implemented."
+
+#: .\apps\users\views.py:205
+msgid "Email already in use by another account"
+msgstr "Email already in use by another account"
+
+#: .\apps\users\views.py:216 .\apps\users\views.py:313
+msgid "Profile updated successfully"
+msgstr "Profile updated successfully"
+
+#: .\apps\users\views.py:221 .\apps\users\views.py:318
+msgid "Failed to update profile"
+msgstr "Failed to update profile"
+
+#: .\apps\users\views.py:259
+msgid "Preferences functionality will be implemented."
+msgstr "Preferences functionality will be implemented."
+
+#: .\apps\users\views.py:290
+msgid "Failed to retrieve profile"
+msgstr "Failed to retrieve profile"
+
+#: .\apps\users\views.py:307
+msgid "Email already in use"
+msgstr "Email already in use"
+
+#: .\apps\users\views.py:337
+msgid "Failed to retrieve content"
+msgstr "Failed to retrieve content"
+
+#: .\apps\users\views.py:354
+msgid "Failed to retrieve statistics"
+msgstr "Failed to retrieve statistics"
+
+#: .\apps\users\views.py:371
+msgid "Failed to retrieve preferences"
+msgstr "Failed to retrieve preferences"
+
+#: .\apps\users\views.py:378
+msgid "Preferences updated successfully"
+msgstr "Preferences updated successfully"
+
+#: .\apps\users\views.py:383
+msgid "Failed to update preferences"
+msgstr "Failed to update preferences"
+
+#: .\core\utils\exceptions.py:55
+msgid "An error occurred"
+msgstr "An error occurred"
+
+#: .\core\utils\exceptions.py:61 .\core\utils\exceptions.py:73
+msgid "Resource not found"
+msgstr "Resource not found"
+
+#: .\core\utils\exceptions.py:63 .\core\utils\exceptions.py:79
+msgid "Permission denied"
+msgstr "Permission denied"
+
+#: .\core\utils\exceptions.py:65 .\core\utils\exceptions.py:85
+msgid "Validation error"
+msgstr "Validation error"
+
+#: .\core\utils\exceptions.py:93
+msgid "An unexpected error occurred"
+msgstr "An unexpected error occurred"
+
+#: .\templates\admin\audio_management.html:16
+msgid "Audio Manager"
+msgstr "Audio Manager"
+
+#: .\templates\admin\audio_management.html:17
+msgid "Manage audio messages, sermons, and spiritual teachings"
+msgstr "Manage audio messages, sermons, and spiritual teachings"
+
+#: .\templates\admin\audio_management.html:23
+#: .\templates\admin\audio_management.html:106
+msgid "Add Audio"
+msgstr "Add Audio"
+
+#: .\templates\admin\audio_management.html:35
+msgid "Audio Content"
+msgstr "Audio Content"
+
+#: .\templates\admin\audio_management.html:39
+#: .\templates\admin\dashboard.html:109
+#: .\templates\admin\partials\content_list.html:13
+#: .\templates\admin\pdf_management.html:40
+msgid "Actions"
+msgstr "Actions"
+
+#: .\templates\admin\audio_management.html:63
+#: .\templates\admin\pdf_management.html:64
+msgid "No course assigned"
+msgstr "No course assigned"
+
+#: .\templates\admin\audio_management.html:82
+#: .\templates\admin\dashboard.html:149
+#: .\templates\admin\partials\content_list.html:69
+#: .\templates\admin\pdf_management.html:92
+msgid "Inactive"
+msgstr "Inactive"
+
+#: .\templates\admin\audio_management.html:88
+#: .\templates\admin\dashboard.html:156
+#: .\templates\admin\partials\content_list.html:82
+#: .\templates\admin\pdf_management.html:98
+#: .\templates\admin\video_management.html:75
+msgid "Edit"
+msgstr "Edit"
+
+#: .\templates\admin\audio_management.html:91
+#: .\templates\admin\partials\content_list.html:86
+#: .\templates\admin\partials\content_list.html:90
+#: .\templates\admin\partials\content_list.html:94
+#: .\templates\admin\pdf_management.html:101
+msgid "Preview"
+msgstr "Preview"
+
+#: .\templates\admin\audio_management.html:103
+msgid "No audio content found"
+msgstr "No audio content found"
+
+#: .\templates\admin\audio_management.html:104
+msgid "Start by uploading your first audio message"
+msgstr "Start by uploading your first audio message"
+
+#: .\templates\admin\bulk_operations.html:14
+#: .\templates\layouts\admin_base.html:36
+msgid "Bulk Operations"
+msgstr "Bulk Operations"
+
+#: .\templates\admin\bulk_operations.html:15
+msgid "Perform actions on multiple content items simultaneously"
+msgstr "Perform actions on multiple content items simultaneously"
+
+#: .\templates\admin\bulk_operations.html:32
+msgid "Important Warning"
+msgstr "Important Warning"
+
+#: .\templates\admin\bulk_operations.html:33
+msgid ""
+"These operations affect multiple items and cannot be easily undone. Please "
+"proceed with caution."
+msgstr ""
+"These operations affect multiple items and cannot be easily undone. Please "
+"proceed with caution."
+
+#: .\templates\admin\bulk_operations.html:45
+msgid "Select Operation"
+msgstr "Select Operation"
+
+#: .\templates\admin\bulk_operations.html:52
+msgid "Activate"
+msgstr "Activate"
+
+#: .\templates\admin\bulk_operations.html:53
+msgid "Make content visible"
+msgstr "Make content visible"
+
+#: .\templates\admin\bulk_operations.html:60
+msgid "Deactivate"
+msgstr "Deactivate"
+
+#: .\templates\admin\bulk_operations.html:61
+msgid "Hide from public"
+msgstr "Hide from public"
+
+#: .\templates\admin\bulk_operations.html:68
+#: .\templates\admin\partials\content_list.html:98
+msgid "Delete"
+msgstr "Delete"
+
+#: .\templates\admin\bulk_operations.html:69
+msgid "Permanently remove"
+msgstr "Permanently remove"
+
+#: .\templates\admin\bulk_operations.html:79
+msgid "Enter Content IDs"
+msgstr "Enter Content IDs"
+
+#: .\templates\admin\bulk_operations.html:89
+msgid ""
+"Enter content IDs separated by commas or place each ID on a new line. You "
+"can find IDs in the content management table."
+msgstr ""
+"Enter content IDs separated by commas or place each ID on a new line. You "
+"can find IDs in the content management table."
+
+#: .\templates\admin\bulk_operations.html:101
+msgid "Execute Bulk Operation"
+msgstr "Execute Bulk Operation"
+
+#: .\templates\admin\bulk_operations.html:103
+msgid "This action will be applied to all specified content items"
+msgstr "This action will be applied to all specified content items"
+
+#: .\templates\admin\bulk_operations.html:118
+msgid "Please select an operation first."
+msgstr "Please select an operation first."
+
+#: .\templates\admin\bulk_operations.html:123
+msgid "Please enter at least one content ID."
+msgstr "Please enter at least one content ID."
+
+#: .\templates\admin\bulk_operations.html:130
+msgid "Are you sure you want to"
+msgstr "Are you sure you want to"
+
+#: .\templates\admin\bulk_operations.html:130
+msgid "content item(s)?"
+msgstr "content item(s)?"
+
+#: .\templates\admin\bulk_operations.html:130
+msgid "This action cannot be easily undone."
+msgstr "This action cannot be easily undone."
+
+#: .\templates\admin\content_delete_confirm.html:17
+msgid "Delete Content?"
+msgstr "Delete Content?"
+
+#: .\templates\admin\content_delete_confirm.html:20
+msgid "Are you sure you want to permanently delete:"
+msgstr "Are you sure you want to permanently delete:"
+
+#: .\templates\admin\content_delete_confirm.html:44
+msgid ""
+"This action cannot be undone and will permanently remove all associated "
+"files including thumbnails, processed versions, and metadata."
+msgstr ""
+"This action cannot be undone and will permanently remove all associated "
+"files including thumbnails, processed versions, and metadata."
+
+#: .\templates\admin\content_delete_confirm.html:53
+#: .\templates\admin\content_detail.html:119
+msgid "Cancel"
+msgstr "Cancel"
+
+#: .\templates\admin\content_delete_confirm.html:56
+msgid "Yes, Delete Permanently"
+msgstr "Yes, Delete Permanently"
+
+#: .\templates\admin\content_detail.html:14
+msgid "Content Details"
+msgstr "Content Details"
+
+#: .\templates\admin\content_detail.html:15
+msgid "Edit and manage content metadata and settings"
+msgstr "Edit and manage content metadata and settings"
+
+#: .\templates\admin\content_detail.html:28
+msgid "Edit Content Details"
+msgstr "Edit Content Details"
+
+#: .\templates\admin\content_detail.html:32
+msgid "Published"
+msgstr "Published"
+
+#: .\templates\admin\content_detail.html:32
+msgid "Draft"
+msgstr "Draft"
+
+#: .\templates\admin\content_detail.html:42
+msgid "Content Titles"
+msgstr "Content Titles"
+
+#: .\templates\admin\content_detail.html:61
+msgid "Content Descriptions"
+msgstr "Content Descriptions"
+
+#: .\templates\admin\content_detail.html:80
+msgid "Content Settings"
+msgstr "Content Settings"
+
+#: .\templates\admin\content_detail.html:83
+msgid "Comma Separated"
+msgstr "Comma Separated"
+
+#: .\templates\admin\content_detail.html:100
+msgid "Content is Active and Visible"
+msgstr "Content is Active and Visible"
+
+#: .\templates\admin\content_detail.html:102
+msgid "Toggle to publish or unpublish this content for users"
+msgstr "Toggle to publish or unpublish this content for users"
+
+#: .\templates\admin\content_detail.html:114 .\templates\users\profile.html:48
+msgid "Save Changes"
+msgstr "Save Changes"
+
+#: .\templates\admin\content_detail.html:133
+msgid "Technical Metadata"
+msgstr "Technical Metadata"
+
+#: .\templates\admin\content_detail.html:140
+msgid "Content ID"
+msgstr "Content ID"
+
+#: .\templates\admin\content_detail.html:184
+msgid "Not available"
+msgstr "Not available"
+
+#: .\templates\admin\content_detail.html:195
+msgid "Danger Zone"
+msgstr "Danger Zone"
+
+#: .\templates\admin\content_detail.html:199
+msgid "Are you sure you want to delete this content?"
+msgstr "Are you sure you want to delete this content?"
+
+#: .\templates\admin\content_detail.html:201
+msgid "Delete Content"
+msgstr "Delete Content"
+
+#: .\templates\admin\content_list.html:17
+msgid "Manage your library's videos, audio messages, and documents"
+msgstr "Manage your library's videos, audio messages, and documents"
+
+#: .\templates\admin\content_list.html:24
+msgid "Upload"
+msgstr "Upload"
+
+#: .\templates\admin\content_list.html:27
+msgid "Bulk"
+msgstr "Bulk"
+
+#: .\templates\admin\content_list.html:48
+msgid "Search content by title, description, or ID..."
+msgstr "Search content by title, description, or ID..."
+
+#: .\templates\admin\content_list.html:54
+msgid "All Types"
+msgstr "All Types"
+
+#: .\templates\admin\dashboard.html:16
+msgid "Admin Dashboard"
+msgstr "Admin Dashboard"
+
+#: .\templates\admin\dashboard.html:17
+msgid "Manage your Christian Library content and monitor system performance"
+msgstr "Manage your Christian Library content and monitor system performance"
+
+#: .\templates\admin\dashboard.html:23 .\templates\frontend_api\home.html:181
+#: .\templates\layouts\admin_base.html:23
+msgid "Upload Content"
+msgstr "Upload Content"
+
+#: .\templates\admin\dashboard.html:38
+msgid "Total Content"
+msgstr "Total Content"
+
+#: .\templates\admin\dashboard.html:54
+msgid "All Processed"
+msgstr "All Processed"
+
+#: .\templates\admin\dashboard.html:67 .\templates\frontend_api\audios.html:43
+msgid "Audio Messages"
+msgstr "Audio Messages"
+
+#: .\templates\admin\dashboard.html:78 .\templates\admin\upload_content.html:67
+#: .\templates\admin\upload_content.html:108
+#: .\templates\frontend_api\pdfs.html:5 .\templates\frontend_api\pdfs.html:17
+msgid "Books & PDFs"
+msgstr "Books & PDFs"
+
+#: .\templates\admin\dashboard.html:93
+msgid "Recent Uploads"
+msgstr "Recent Uploads"
+
+#: .\templates\admin\dashboard.html:96 .\templates\frontend_api\home.html:83
+#: .\templates\frontend_api\home.html:105
+#: .\templates\frontend_api\home.html:127
+msgid "View All"
+msgstr "View All"
+
+#: .\templates\admin\dashboard.html:108
+#: .\templates\admin\partials\content_list.html:12
+msgid "Date"
+msgstr "Date"
+
+#: .\templates\admin\dashboard.html:165
+msgid "No recent content"
+msgstr "No recent content"
+
+#: .\templates\admin\dashboard.html:166
+msgid "Start by uploading your first content"
+msgstr "Start by uploading your first content"
+
+#: .\templates\admin\partials\content_list.html:8
+msgid "Content"
+msgstr "Content"
+
+#: .\templates\admin\partials\content_list.html:110
+msgid "No content found"
+msgstr "No content found"
+
+#: .\templates\admin\partials\content_list.html:111
+msgid "No content matches your current filters"
+msgstr "No content matches your current filters"
+
+#: .\templates\admin\partials\content_list.html:113
+msgid "Add Content"
+msgstr "Add Content"
+
+#: .\templates\admin\partials\content_list.html:126
+msgid "Showing"
+msgstr "Showing"
+
+#: .\templates\admin\partials\content_list.html:126
+msgid "of"
+msgstr "of"
+
+#: .\templates\admin\pdf_management.html:16
+msgid "PDF Manager"
+msgstr "PDF Manager"
+
+#: .\templates\admin\pdf_management.html:17
+msgid "Manage books, documents, and sacred texts"
+msgstr "Manage books, documents, and sacred texts"
+
+#: .\templates\admin\pdf_management.html:23
+#: .\templates\admin\pdf_management.html:123
+msgid "Add PDF"
+msgstr "Add PDF"
+
+#: .\templates\admin\pdf_management.html:35
+#: .\templates\admin\upload_content.html:66
+#: .\templates\admin\upload_content.html:107
+msgid "Document"
+msgstr "Document"
+
+#: .\templates\admin\pdf_management.html:70
+#: .\templates\frontend_api\pdf_detail.html:37
+msgid "pages"
+msgstr "pages"
+
+#: .\templates\admin\pdf_management.html:105
+#: .\templates\components\audio_player.html:23
+#: .\templates\components\pdf_viewer.html:19
+#: .\templates\frontend_api\pdf_detail.html:63
+msgid "Download"
+msgstr "Download"
+
+#: .\templates\admin\pdf_management.html:109
+msgid "No file"
+msgstr "No file"
+
+#: .\templates\admin\pdf_management.html:120
+msgid "No PDF documents found"
+msgstr "No PDF documents found"
+
+#: .\templates\admin\pdf_management.html:121
+msgid "Start by uploading your first document"
+msgstr "Start by uploading your first document"
+
+#: .\templates\admin\system_monitor.html:14
+#: .\templates\layouts\admin_base.html:37
+msgid "System Monitor"
+msgstr "System Monitor"
+
+#: .\templates\admin\system_monitor.html:15
+msgid "Monitor system performance, storage usage, and processing queues"
+msgstr "Monitor system performance, storage usage, and processing queues"
+
+#: .\templates\admin\system_monitor.html:28
+msgid "Disk Usage"
+msgstr "Disk Usage"
+
+#: .\templates\admin\system_monitor.html:35
+msgid "Used"
+msgstr "Used"
+
+#: .\templates\admin\system_monitor.html:36
+msgid "Free"
+msgstr "Free"
+
+#: .\templates\admin\system_monitor.html:58
+msgid "Original Files"
+msgstr "Original Files"
+
+#: .\templates\admin\system_monitor.html:66
+msgid "HLS Segments"
+msgstr "HLS Segments"
+
+#: .\templates\admin\system_monitor.html:81
+msgid "Processing Queue"
+msgstr "Processing Queue"
+
+#: .\templates\admin\system_monitor.html:94
+msgid "Jobs Pending"
+msgstr "Jobs Pending"
+
+#: .\templates\admin\system_monitor.html:107
+msgid "Jobs Failed"
+msgstr "Jobs Failed"
+
+#: .\templates\admin\system_monitor.html:117
+msgid "Background workers are currently processing content."
+msgstr "Background workers are currently processing content."
+
+#: .\templates\admin\system_monitor.html:124
+msgid "Some processing jobs have failed. Please check the logs."
+msgstr "Some processing jobs have failed. Please check the logs."
+
+#: .\templates\admin\system_monitor.html:131
+msgid "All systems running smoothly."
+msgstr "All systems running smoothly."
+
+#: .\templates\admin\upload_content.html:14
+msgid "Upload New Content"
+msgstr "Upload New Content"
+
+#: .\templates\admin\upload_content.html:15
+msgid "Add videos, audio messages, and documents to your library"
+msgstr "Add videos, audio messages, and documents to your library"
+
+#: .\templates\admin\upload_content.html:30
+msgid "Select Content Type"
+msgstr "Select Content Type"
+
+#: .\templates\admin\upload_content.html:41
+#: .\templates\admin\upload_content.html:82
+msgid "Sermons & teachings"
+msgstr "Sermons & teachings"
+
+#: .\templates\admin\upload_content.html:54
+#: .\templates\admin\upload_content.html:95
+msgid "Messages & podcasts"
+msgstr "Messages & podcasts"
+
+#: .\templates\admin\upload_content.html:118
+msgid "Upload File"
+msgstr "Upload File"
+
+#: .\templates\admin\upload_content.html:126
+msgid "Drag & drop your file here"
+msgstr "Drag & drop your file here"
+
+#: .\templates\admin\upload_content.html:127
+msgid "or click to browse"
+msgstr "or click to browse"
+
+#: .\templates\admin\upload_content.html:129
+msgid "Supports MP4, AVI, MOV files (Max 2GB)"
+msgstr "Supports MP4, AVI, MOV files (Max 2GB)"
+
+#: .\templates\admin\upload_content.html:130
+msgid "Supports MP3, WAV files (Max 100MB)"
+msgstr "Supports MP3, WAV files (Max 100MB)"
+
+#: .\templates\admin\upload_content.html:131
+msgid "Supports PDF documents (Max 50MB)"
+msgstr "Supports PDF documents (Max 50MB)"
+
+#: .\templates\admin\upload_content.html:144
+msgid "Content Information"
+msgstr "Content Information"
+
+#: .\templates\admin\upload_content.html:151
+msgid "Arabic Details"
+msgstr "Arabic Details"
+
+#: .\templates\admin\upload_content.html:154
+msgid "Title (Arabic)"
+msgstr "Title (Arabic)"
+
+#: .\templates\admin\upload_content.html:159
+msgid "Description (Arabic)"
+msgstr "Description (Arabic)"
+
+#: .\templates\admin\upload_content.html:172
+msgid "English Details"
+msgstr "English Details"
+
+#: .\templates\admin\upload_content.html:175
+msgid "Title (English)"
+msgstr "Title (English)"
+
+#: .\templates\admin\upload_content.html:180
+msgid "Description (English)"
+msgstr "Description (English)"
+
+#: .\templates\admin\upload_content.html:192
+msgid "Tags & Categories"
+msgstr "Tags & Categories"
+
+#: .\templates\admin\upload_content.html:200
+msgid "e.g. liturgy, hymns, history (comma separated)"
+msgstr "e.g. liturgy, hymns, history (comma separated)"
+
+#: .\templates\admin\upload_content.html:201
+msgid ""
+"Use commas to separate multiple tags. Tags will be created automatically if "
+"they don't exist."
+msgstr ""
+"Use commas to separate multiple tags. Tags will be created automatically if "
+"they don't exist."
+
+#: .\templates\admin\upload_content.html:211
+msgid "Upload and Process Content"
+msgstr "Upload and Process Content"
+
+#: .\templates\admin\upload_content.html:213
+msgid "Processing may take a few minutes depending on file size"
+msgstr "Processing may take a few minutes depending on file size"
+
+#: .\templates\admin\video_management.html:16
+msgid "Video Manager"
+msgstr "Video Manager"
+
+#: .\templates\admin\video_management.html:17
+msgid "Manage video sermons, teachings, and spiritual content"
+msgstr "Manage video sermons, teachings, and spiritual content"
+
+#: .\templates\admin\video_management.html:23
+msgid "Add Video"
+msgstr "Add Video"
+
+#: .\templates\admin\video_management.html:80
+#: .\templates\frontend_api\partials\video_grid.html:11
+msgid "No videos found"
+msgstr "No videos found"
+
+#: .\templates\base.html:11 .\templates\frontend_api\audio_detail.html:6
+#: .\templates\frontend_api\audios.html:5 .\templates\frontend_api\home.html:9
+#: .\templates\frontend_api\pdf_detail.html:6
+#: .\templates\frontend_api\pdfs.html:5
+#: .\templates\frontend_api\video_detail.html:6
+#: .\templates\includes\footer.html:12 .\templates\includes\footer.html:29
+#: .\templates\includes\navbar.html:9
+msgid "Christian Library"
+msgstr "Christian Library"
+
+#: .\templates\components\audio_player.html:13
+#: .\templates\components\media_card.html:55
+#: .\templates\components\pdf_viewer.html:14
+msgid "Uncategorized"
+msgstr "Uncategorized"
+
+#: .\templates\components\audio_player.html:35
+msgid "Your browser does not support the audio element."
+msgstr "Your browser does not support the audio element."
+
+#: .\templates\components\audio_player.html:42
+msgid "Audio file not available"
+msgstr "Audio file not available"
+
+#: .\templates\components\media_card.html:71
+msgid "ago"
+msgstr "ago"
+
+#: .\templates\components\media_card.html:75
+msgid "View"
+msgstr "View"
+
+#: .\templates\components\pdf_viewer.html:62
+msgid "Loading..."
+msgstr "Loading..."
+
+#: .\templates\components\pdf_viewer.html:64
+msgid "Loading PDF..."
+msgstr "Loading PDF..."
+
+#: .\templates\components\pdf_viewer.html:228
+msgid "Error loading PDF"
+msgstr "Error loading PDF"
+
+#: .\templates\components\pdf_viewer.html:229
+msgid "Please try refreshing the page"
+msgstr "Please try refreshing the page"
+
+#: .\templates\components\pdf_viewer.html:240
+msgid "PDF file not available"
+msgstr "PDF file not available"
+
+#: .\templates\components\pdf_viewer.html:241
+msgid "This document has not been uploaded yet"
+msgstr "This document has not been uploaded yet"
+
+#: .\templates\components\video_player.html:16
+msgid "Your browser does not support the video element."
+msgstr "Your browser does not support the video element."
+
+#: .\templates\components\video_player.html:44
+msgid "Video file not available"
+msgstr "Video file not available"
+
+#: .\templates\components\video_player.html:45
+msgid "This video has not been uploaded yet"
+msgstr "This video has not been uploaded yet"
+
+#: .\templates\errors\403.html:10
+msgid "Access Denied"
+msgstr "Access Denied"
+
+#: .\templates\errors\403.html:12
+msgid "You do not have permission to view this page or resource."
+msgstr "You do not have permission to view this page or resource."
+
+#: .\templates\errors\403.html:15
+msgid "You are currently logged in as"
+msgstr "You are currently logged in as"
+
+#: .\templates\errors\403.html:17
+msgid "Please log in to access this content."
+msgstr "Please log in to access this content."
+
+#: .\templates\errors\403.html:23 .\templates\errors\404.html:17
+msgid "Go Home"
+msgstr "Go Home"
+
+#: .\templates\errors\403.html:27 .\templates\registration\register.html:35
+msgid "Login"
+msgstr "Login"
+
+#: .\templates\errors\404.html:12
+msgid ""
+"The page you are looking for might have been removed, had its name changed, "
+"or is temporarily unavailable."
+msgstr ""
+"The page you are looking for might have been removed, had its name changed, "
+"or is temporarily unavailable."
+
+#: .\templates\errors\404.html:20
+msgid "Browse Library"
+msgstr "Browse Library"
+
+#: .\templates\frontend_api\audio_detail.html:13
+msgid "Back to Audio Library"
+msgstr "Back to Audio Library"
+
+#: .\templates\frontend_api\audio_detail.html:73
+msgid "Download Audio"
+msgstr "Download Audio"
+
+#: .\templates\frontend_api\audio_detail.html:82
+msgid "Loading audio player..."
+msgstr "Loading audio player..."
+
+#: .\templates\frontend_api\audio_detail.html:98
+msgid "Transcript"
+msgstr "Transcript"
+
+#: .\templates\frontend_api\audio_detail.html:109
+msgid "Notes"
+msgstr "Notes"
+
+#: .\templates\frontend_api\audios.html:5
+#: .\templates\frontend_api\audios.html:17
+msgid "Audio Library"
+msgstr "Audio Library"
+
+#: .\templates\frontend_api\audios.html:18
+msgid "Listen to inspiring sermons and spiritual messages"
+msgstr "Listen to inspiring sermons and spiritual messages"
+
+#: .\templates\frontend_api\audios.html:26
+msgid "Search audio messages..."
+msgstr "Search audio messages..."
+
+#: .\templates\frontend_api\audios.html:51
+msgid "Latest"
+msgstr "Latest"
+
+#: .\templates\frontend_api\audios.html:52
+msgid "Recently Added"
+msgstr "Recently Added"
+
+#: .\templates\frontend_api\audios.html:60
+msgid "Featured"
+msgstr "Featured"
+
+#: .\templates\frontend_api\audios.html:61
+msgid "Popular Messages"
+msgstr "Popular Messages"
+
+#: .\templates\frontend_api\audios.html:69
+msgid "Playlists"
+msgstr "Playlists"
+
+#: .\templates\frontend_api\audios.html:70
+msgid "Organized Content"
+msgstr "Organized Content"
+
+#: .\templates\frontend_api\home.html:10
+msgid "Discover the Word of God through Videos, Audio, and Books"
+msgstr "Discover the Word of God through Videos, Audio, and Books"
+
+#: .\templates\frontend_api\home.html:19
+msgid "Search videos, audio, books..."
+msgstr "Search videos, audio, books..."
+
+#: .\templates\frontend_api\home.html:23
+#: .\templates\frontend_api\search.html:36 .\templates\includes\navbar.html:80
+msgid "Search"
+msgstr "Search"
+
+#: .\templates\frontend_api\home.html:56
+#: .\templates\frontend_api\partials\search_results.html:21
+#: .\templates\frontend_api\pdf_detail.html:6
+#: .\templates\frontend_api\search.html:94 .\templates\includes\navbar.html:35
+msgid "Books"
+msgstr "Books"
+
+#: .\templates\frontend_api\home.html:79
+msgid "Latest Videos"
+msgstr "Latest Videos"
+
+#: .\templates\frontend_api\home.html:80
+msgid "Recently added spiritual content"
+msgstr "Recently added spiritual content"
+
+#: .\templates\frontend_api\home.html:101
+msgid "Latest Audio"
+msgstr "Latest Audio"
+
+#: .\templates\frontend_api\home.html:102
+msgid "Inspiring sermons and teachings"
+msgstr "Inspiring sermons and teachings"
+
+#: .\templates\frontend_api\home.html:123
+msgid "Recent Books"
+msgstr "Recent Books"
+
+#: .\templates\frontend_api\home.html:124
+msgid "Sacred texts and study materials"
+msgstr "Sacred texts and study materials"
+
+#: .\templates\frontend_api\home.html:146
+msgid "Popular Categories"
+msgstr "Popular Categories"
+
+#: .\templates\frontend_api\home.html:147
+msgid "Explore content by topics"
+msgstr "Explore content by topics"
+
+#: .\templates\frontend_api\home.html:162
+msgid "Explore"
+msgstr "Explore"
+
+#: .\templates\frontend_api\home.html:177
+msgid "No Content Available"
+msgstr "No Content Available"
+
+#: .\templates\frontend_api\home.html:178
+msgid "Content will appear here once it's uploaded."
+msgstr "Content will appear here once it's uploaded."
+
+#: .\templates\frontend_api\partials\audio_grid.html:11
+msgid "No audio messages found"
+msgstr "No audio messages found"
+
+#: .\templates\frontend_api\partials\audio_grid.html:12
+#: .\templates\frontend_api\partials\pdf_grid.html:12
+#: .\templates\frontend_api\partials\video_grid.html:12
+msgid "Try adjusting your search terms or browse our categories"
+msgstr "Try adjusting your search terms or browse our categories"
+
+#: .\templates\frontend_api\partials\audio_grid.html:14
+#: .\templates\frontend_api\partials\pdf_grid.html:14
+#: .\templates\frontend_api\partials\video_grid.html:14
+msgid "Browse Categories"
+msgstr "Browse Categories"
+
+#: .\templates\frontend_api\partials\audio_grid.html:28
+msgid "Loading more audio..."
+msgstr "Loading more audio..."
+
+#: .\templates\frontend_api\partials\pdf_grid.html:11
+msgid "No documents found"
+msgstr "No documents found"
+
+#: .\templates\frontend_api\partials\pdf_grid.html:28
+msgid "Loading more documents..."
+msgstr "Loading more documents..."
+
+#: .\templates\frontend_api\partials\search_results.html:11
+#: .\templates\frontend_api\search.html:59
+msgid "No results found"
+msgstr "No results found"
+
+#: .\templates\frontend_api\partials\search_results.html:12
+msgid "Try different keywords or browse our categories below"
+msgstr "Try different keywords or browse our categories below"
+
+#: .\templates\frontend_api\partials\video_grid.html:28
+msgid "Loading more videos..."
+msgstr "Loading more videos..."
+
+#: .\templates\frontend_api\pdf_detail.html:13
+msgid "Back to Books"
+msgstr "Back to Books"
+
+#: .\templates\frontend_api\pdf_detail.html:66
+msgid "File not available"
+msgstr "File not available"
+
+#: .\templates\frontend_api\pdf_detail.html:83
+msgid "Loading PDF viewer..."
+msgstr "Loading PDF viewer..."
+
+#: .\templates\frontend_api\pdf_detail.html:84
+msgid "Please wait while we prepare your document"
+msgstr "Please wait while we prepare your document"
+
+#: .\templates\frontend_api\pdf_detail.html:103
+msgid "Summary"
+msgstr "Summary"
+
+#: .\templates\frontend_api\pdf_detail.html:114
+msgid "Table of Contents"
+msgstr "Table of Contents"
+
+#: .\templates\frontend_api\pdfs.html:18
+msgid "Explore our collection of spiritual literature and sacred texts"
+msgstr "Explore our collection of spiritual literature and sacred texts"
+
+#: .\templates\frontend_api\pdfs.html:26
+msgid "Search books and documents..."
+msgstr "Search books and documents..."
+
+#: .\templates\frontend_api\pdfs.html:43
+msgid "Total Books"
+msgstr "Total Books"
+
+#: .\templates\frontend_api\pdfs.html:51
+msgid "Scripture"
+msgstr "Scripture"
+
+#: .\templates\frontend_api\pdfs.html:52
+msgid "Sacred Texts"
+msgstr "Sacred Texts"
+
+#: .\templates\frontend_api\pdfs.html:60
+msgid "Devotionals"
+msgstr "Devotionals"
+
+#: .\templates\frontend_api\pdfs.html:61
+msgid "Daily Readings"
+msgstr "Daily Readings"
+
+#: .\templates\frontend_api\pdfs.html:69
+msgid "Downloads"
+msgstr "Downloads"
+
+#: .\templates\frontend_api\pdfs.html:70
+msgid "Available Offline"
+msgstr "Available Offline"
+
+#: .\templates\frontend_api\search.html:14
+msgid "Search Library"
+msgstr "Search Library"
+
+#: .\templates\frontend_api\search.html:15
+msgid "Find videos, audio, books, and content by tags"
+msgstr "Find videos, audio, books, and content by tags"
+
+#: .\templates\frontend_api\search.html:29
+msgid "Enter your search query..."
+msgstr "Enter your search query..."
+
+#: .\templates\frontend_api\search.html:60
+msgid "No results found for"
+msgstr "No results found for"
+
+#: .\templates\frontend_api\search.html:61
+msgid "Try different keywords or check spelling"
+msgstr "Try different keywords or check spelling"
+
+#: .\templates\frontend_api\search.html:73
+msgid "Spiritual teachings"
+msgstr "Spiritual teachings"
+
+#: .\templates\frontend_api\search.html:84
+msgid "Sermons & talks"
+msgstr "Sermons & talks"
+
+#: .\templates\frontend_api\search.html:95
+msgid "Sacred texts"
+msgstr "Sacred texts"
+
+#: .\templates\frontend_api\search.html:104
+msgid "Search Tips"
+msgstr "Search Tips"
+
+#: .\templates\frontend_api\search.html:106
+msgid "Use quotes for exact phrases"
+msgstr "Use quotes for exact phrases"
+
+#: .\templates\frontend_api\search.html:107
+msgid "Try different keywords"
+msgstr "Try different keywords"
+
+#: .\templates\frontend_api\search.html:108
+msgid "Search by topic or speaker"
+msgstr "Search by topic or speaker"
+
+#: .\templates\frontend_api\video_detail.html:13
+msgid "Back to Videos"
+msgstr "Back to Videos"
+
+#: .\templates\frontend_api\video_detail.html:51
+msgid "views"
+msgstr "views"
+
+#: .\templates\frontend_api\video_detail.html:65
+msgid "Download Video"
+msgstr "Download Video"
+
+#: .\templates\frontend_api\video_detail.html:72
+msgid "Like"
+msgstr "Like"
+
+#: .\templates\frontend_api\video_detail.html:75
+msgid "Share"
+msgstr "Share"
+
+#: .\templates\frontend_api\video_detail.html:78
+msgid "Save"
+msgstr "Save"
+
+#: .\templates\frontend_api\video_detail.html:93
+msgid "Loading video player..."
+msgstr "Loading video player..."
+
+#: .\templates\frontend_api\video_detail.html:107
+msgid "Related Videos"
+msgstr "Related Videos"
+
+#: .\templates\frontend_api\video_detail.html:145
+msgid "No related videos available"
+msgstr "No related videos available"
+
+#: .\templates\frontend_api\videos.html:12
+msgid "Video Library"
+msgstr "Video Library"
+
+#: .\templates\frontend_api\videos.html:13
+msgid "Spiritual teachings and sermons"
+msgstr "Spiritual teachings and sermons"
+
+#: .\templates\frontend_api\videos.html:22
+msgid "Search Videos"
+msgstr "Search Videos"
+
+#: .\templates\frontend_api\videos.html:25
+msgid "Search videos, topics, speakers..."
+msgstr "Search videos, topics, speakers..."
+
+#: .\templates\frontend_api\videos.html:35
+msgid "Filter by Tag"
+msgstr "Filter by Tag"
+
+#: .\templates\frontend_api\videos.html:40
+msgid "All Tags"
+msgstr "All Tags"
+
+#: .\templates\frontend_api\videos.html:51
+msgid "videos"
+msgstr "videos"
+
+#: .\templates\includes\footer.html:13
+msgid "Sharing the Word of God"
+msgstr "Sharing the Word of God"
+
+#: .\templates\includes\footer.html:29
+msgid "All rights reserved"
+msgstr "All rights reserved"
+
+#: .\templates\includes\navbar.html:20
+msgid "Home"
+msgstr "Home"
+
+#: .\templates\includes\navbar.html:84
+msgid "Admin"
+msgstr "Admin"
+
+#: .\templates\layouts\admin_base.html:18 .\templates\users\profile.html:18
+msgid "Admin Panel"
+msgstr "Admin Panel"
+
+#: .\templates\layouts\admin_base.html:22
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: .\templates\layouts\admin_base.html:28
+msgid "All Content"
+msgstr "All Content"
+
+#: .\templates\layouts\admin_base.html:31
+msgid "PDFs"
+msgstr "PDFs"
+
+#: .\templates\layouts\admin_base.html:34
+msgid "System"
+msgstr "System"
+
+#: .\templates\registration\login.html:12
+msgid "Welcome Back"
+msgstr "Welcome Back"
+
+#: .\templates\registration\login.html:20
+msgid "Your username and password didn't match. Please try again."
+msgstr "Your username and password didn't match. Please try again."
+
+#: .\templates\registration\login.html:25
+msgid "Username"
+msgstr "Username"
+
+#: .\templates\registration\login.html:30
+msgid "Password"
+msgstr "Password"
+
+#: .\templates\registration\login.html:35
+msgid "Forgot password?"
+msgstr "Forgot password?"
+
+#: .\templates\registration\login.html:38
+msgid "Sign In"
+msgstr "Sign In"
+
+#: .\templates\registration\login.html:42
+msgid "Don't have an account?"
+msgstr "Don't have an account?"
+
+#: .\templates\registration\login.html:42
+#: .\templates\registration\register.html:31
+msgid "Register"
+msgstr "Register"
+
+#: .\templates\registration\password_reset_form.html:9
+msgid "Reset Password"
+msgstr "Reset Password"
+
+#: .\templates\registration\password_reset_form.html:11
+msgid ""
+"Enter your email address and we will send you instructions to reset your "
+"password."
+msgstr ""
+"Enter your email address and we will send you instructions to reset your "
+"password."
+
+#: .\templates\registration\password_reset_form.html:16
+msgid "Email Address"
+msgstr "Email Address"
+
+#: .\templates\registration\password_reset_form.html:19
+msgid "Send Instructions"
+msgstr "Send Instructions"
+
+#: .\templates\registration\register.html:11
+msgid "Create Account"
+msgstr "Create Account"
+
+#: .\templates\registration\register.html:12
+msgid "Join our community to save your favorite content."
+msgstr "Join our community to save your favorite content."
+
+#: .\templates\registration\register.html:35
+msgid "Already have an account?"
+msgstr "Already have an account?"
+
+#: .\templates\users\profile.html:11 .\templates\users\user_content.html:10
+msgid "Profile Settings"
+msgstr "Profile Settings"
+
+#: .\templates\users\profile.html:14 .\templates\users\user_content.html:13
+msgid "My Library"
+msgstr "My Library"
+
+#: .\templates\users\profile.html:28
+msgid "Edit Profile"
+msgstr "Edit Profile"
+
+#: .\templates\users\profile.html:35
+msgid "First Name"
+msgstr "First Name"
+
+#: .\templates\users\profile.html:39
+msgid "Last Name"
+msgstr "Last Name"
+
+#: .\templates\users\profile.html:43
+msgid "Email"
+msgstr "Email"
+
+#: .\templates\users\profile.html:45
+msgid "Email cannot be changed."
+msgstr "Email cannot be changed."
+
+#: .\templates\users\user_content.html:21
+msgid "My Saved Content"
+msgstr "My Saved Content"
+
+#: .\templates\users\user_content.html:26
+msgid "Track your learning progress here."
+msgstr "Track your learning progress here."
+
+#: .\templates\users\user_content.html:29
+msgid "You haven't saved any content yet."
+msgstr "You haven't saved any content yet."

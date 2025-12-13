@@ -1,0 +1,219 @@
+version: '3.8'
+
+services:
+  #============================================================================
+  # Database Service
+  #============================================================================
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-christian_library_db}
+      POSTGRES_USER: ${DB_USER:-christian_library_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ChristianLibrary2024!}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-christian_library_user} -d ${DB_NAME:-christian_library_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - christian_library_network
+
+  #============================================================================
+  # Redis Service
+  #============================================================================
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - christian_library_network
+
+  #============================================================================
+  # Nginx Reverse Proxy Service
+  #============================================================================
+  nginx:
+    image: nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+    depends_on:
+      - app
+    networks:
+      - christian_library_network
+  #============================================================================
+  # Main Application Service
+  #============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: application
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["web"]
+    environment:
+      # Django settings
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      SECRET_KEY: ${SECRET_KEY:-your-very-secret-key-change-in-production}
+      DEBUG: "False"
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,${DOMAIN_NAME:-localhost}
+      
+      # Database
+      DB_NAME: ${DB_NAME:-christian_library_db}
+      DB_USER: ${DB_USER:-christian_library_user}
+      DB_PASSWORD: ${DB_PASSWORD:-ChristianLibrary2024!}
+      DB_HOST: db
+      DB_PORT: 5432
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      
+      # Media and Static
+      STATIC_URL: /static/
+      MEDIA_URL: /media/
+      STATIC_ROOT: /app/staticfiles
+      MEDIA_ROOT: /app/media
+      
+      # Security
+      SECURE_SSL_REDIRECT: "False"
+      SECURE_PROXY_SSL_HEADER_NAME: HTTP_X_FORWARDED_PROTO
+      SECURE_PROXY_SSL_HEADER_VALUE: https
+      
+      # Email (configure as needed)
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+      
+      # Language
+      LANGUAGE_CODE: ar
+      TIME_ZONE: Asia/Damascus
+      
+    volumes:
+      - media_data:/app/media
+      - static_data:/app/staticfiles
+      - logs_data:/app/logs
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - christian_library_network
+
+  #============================================================================
+  # Celery Worker Service
+  #============================================================================
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: application
+    restart: unless-stopped
+    command: ["worker"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      SECRET_KEY: ${SECRET_KEY:-your-very-secret-key-change-in-production}
+      DB_NAME: ${DB_NAME:-christian_library_db}
+      DB_USER: ${DB_USER:-christian_library_user}
+      DB_PASSWORD: ${DB_PASSWORD:-ChristianLibrary2024!}
+      DB_HOST: db
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MEDIA_ROOT: /app/media
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    depends_on:
+      - db
+      - redis
+    networks:
+      - christian_library_network
+
+  #============================================================================
+  # Celery Beat Service (for scheduled tasks)
+  #============================================================================
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: application
+    restart: unless-stopped
+    command: ["beat"]
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      SECRET_KEY: ${SECRET_KEY:-your-very-secret-key-change-in-production}
+      DB_NAME: ${DB_NAME:-christian_library_db}
+      DB_USER: ${DB_USER:-christian_library_user}
+      DB_PASSWORD: ${DB_PASSWORD:-ChristianLibrary2024!}
+      DB_HOST: db
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      - logs_data:/app/logs
+    depends_on:
+      - db
+      - redis
+    networks:
+      - christian_library_network
+
+#==============================================================================
+# Volumes
+#==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  media_data:
+    driver: local
+  static_data:
+    driver: local
+  logs_data:
+    driver: local
+
+#==============================================================================
+# Networks
+#==============================================================================
+networks:
+  christian_library_network:
+    driver: bridge

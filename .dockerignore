@@ -1,0 +1,68 @@
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose*
+
+# Documentation
+*.md
+README*
+docs/
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.venv
+venv/
+.env*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Media files (will be volume mounted)
+backend/media/
+backend/staticfiles/
+
+# Cache
+node_modules/
+.cache/
+
+# Backups
+*.bak
+*.backup
+backups/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+
+# Archives
+*.zip
+*.tar.gz
+*.rar
+
+# Test files
+.pytest_cache/
+.coverage
+htmlcov/

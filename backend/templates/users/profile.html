@@ -1,0 +1,54 @@
+<!-- templates/users/profile.html -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Sidebar -->
+    <div class="col-lg-3">
+        <div class="list-group shadow-sm">
+            <a href="#" class="list-group-item list-group-item-action active">
+                <i class="bi bi-person-gear me-2"></i> {% trans "Profile Settings" %}
+            </a>
+            <a href="{% url 'user_content' %}" class="list-group-item list-group-item-action">
+                <i class="bi bi-collection-play me-2"></i> {% trans "My Library" %}
+            </a>
+            {% if user.is_staff %}
+                <a href="{% url 'frontend_api:admin_dashboard' %}" class="list-group-item list-group-item-action text-danger">
+                    <i class="bi bi-shield-lock me-2"></i> {% trans "Admin Panel" %}
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="col-lg-9">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 fw-bold">{% trans "Edit Profile" %}</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "First Name" %}</label>
+                            <input type="text" name="first_name" value="{{ user.first_name }}" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">{% trans "Last Name" %}</label>
+                            <input type="text" name="last_name" value="{{ user.last_name }}" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">{% trans "Email" %}</label>
+                            <input type="email" value="{{ user.email }}" class="form-control" disabled>
+                            <div class="form-text">{% trans "Email cannot be changed." %}</div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-4">{% trans "Save Changes" %}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,116 @@
+<!-- templates/frontend_api/search.html -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<!-- Search Header -->
+<div class="text-center mb-5">
+    <div class="mb-4">
+        <div class="d-flex align-items-center justify-content-center mb-3">
+            <div class="p-3" style="background: linear-gradient(135deg, #B8860B, #DAA520); border-radius: 16px;">
+                <i class="bi bi-search text-white" style="font-size: 2rem;"></i>
+            </div>
+        </div>
+        <h2 class="fw-bold mb-2" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Search Library" %}</h2>
+        <p class="text-muted">{% trans "Find videos, audio, books, and content by tags" %}</p>
+    </div>
+    
+    <!-- Main Search Form -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.15);">
+                <div class="card-body p-4">
+                    <form action="." method="get">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-lg-10">
+                                <div class="position-relative">
+                                    <input type="text" name="q" value="{{ query }}" 
+                                           class="form-control form-control-lg border-0 ps-5 pe-4" 
+                                           placeholder="{% trans 'Enter your search query...' %}"
+                                           style="background: rgba(184, 134, 11, 0.05); border-radius: 16px;" autofocus>
+                                    <i class="bi bi-search position-absolute" style="left: 1.5rem; top: 50%; transform: translateY(-50%); color: #B8860B;"></i>
+                                </div>
+                            </div>
+                            <div class="col-lg-2">
+                                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill">
+                                    <i class="bi bi-search me-1"></i>{% trans "Search" %}
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results -->
+<div id="search-results">
+    {% if query %}
+        {% if results %}
+            <div class="row g-4">
+                {% for item in results %}
+                    {% include "components/media_card.html" with item=item %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-search text-muted" style="font-size: 4rem;"></i>
+                <h4 class="text-muted mt-3">{% trans "No results found" %}</h4>
+                <p class="text-muted">{% trans "No results found for" %} "<strong>{{ query }}</strong>"</p>
+                <p class="text-muted small">{% trans "Try different keywords or check spelling" %}</p>
+            </div>
+        {% endif %}
+    {% else %}
+        <!-- Quick Access Categories -->
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-3">
+                <a href="{% url 'frontend_api:videos' %}" class="text-decoration-none">
+                    <div class="card border-0 text-center h-100" style="background: #87CEEB; border-radius: 20px; box-shadow: 0 8px 32px rgba(135, 206, 235, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div class="card-body py-4">
+                            <i class="bi bi-play-circle text-white display-4 mb-3"></i>
+                            <h5 class="text-white fw-bold mb-1">{% trans "Videos" %}</h5>
+                            <p class="text-white-50 mb-0">{% trans "Spiritual teachings" %}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <a href="{% url 'frontend_api:audios' %}" class="text-decoration-none">
+                    <div class="card border-0 text-center h-100" style="background: #E6E6FA; border-radius: 20px; box-shadow: 0 8px 32px rgba(230, 230, 250, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div class="card-body py-4">
+                            <i class="bi bi-music-note text-white display-4 mb-3"></i>
+                            <h5 class="text-white fw-bold mb-1">{% trans "Audio" %}</h5>
+                            <p class="text-white-50 mb-0">{% trans "Sermons & talks" %}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <a href="{% url 'frontend_api:pdfs' %}" class="text-decoration-none">
+                    <div class="card border-0 text-center h-100" style="background: #F5DEB3; border-radius: 20px; box-shadow: 0 8px 32px rgba(245, 222, 179, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div class="card-body py-4">
+                            <i class="bi bi-journal-bookmark text-white display-4 mb-3"></i>
+                            <h5 class="text-white fw-bold mb-1">{% trans "Books" %}</h5>
+                            <p class="text-white-50 mb-0">{% trans "Sacred texts" %}</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="card border-0 text-center h-100" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.1);">
+                    <div class="card-body py-4">
+                        <i class="bi bi-lightbulb text-muted display-4 mb-3"></i>
+                        <h6 class="text-muted fw-bold mb-2">{% trans "Search Tips" %}</h6>
+                        <ul class="list-unstyled text-start small text-muted">
+                            <li>• {% trans "Use quotes for exact phrases" %}</li>
+                            <li>• {% trans "Try different keywords" %}</li>
+                            <li>• {% trans "Search by topic or speaker" %}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

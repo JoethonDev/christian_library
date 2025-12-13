@@ -1,0 +1,93 @@
+<!-- templates/admin/content_list.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Header Section -->
+    <div class="mb-5">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #87CEEB, #E6E6FA); backdrop-filter: blur(10px);">
+                        <i class="bi bi-collection" style="font-size: 2rem; color: white;"></i>
+                    </div>
+                    <div>
+                        <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Content Management" %}</h1>
+                        <p class="text-muted mb-0">{% trans "Manage your library's videos, audio messages, and documents" %}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex gap-2">
+                    <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary px-4 py-2" style="border-radius: 25px; background: linear-gradient(135deg, #B8860B, #F5DEB3); border: none;">
+                        <i class="bi bi-plus-lg me-2"></i>{% trans "Upload" %}
+                    </a>
+                    <a href="{% url 'frontend_api:admin_bulk_operations' %}" class="btn btn-outline-primary px-4 py-2" style="border-radius: 25px;">
+                        <i class="bi bi-gear me-2"></i>{% trans "Bulk" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Management Card -->
+    <div class="card border-0 shadow-lg" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+        <div class="card-body p-5">
+            <!-- Search and Filter Section -->
+            <div class="row align-items-center mb-4">
+                <div class="col-md-8">
+                    <form hx-get="{% url 'frontend_api:admin_content_list' %}" 
+                          hx-target="#admin-content-table" 
+                          hx-trigger="change, keyup delay:300ms"
+                          class="d-flex gap-3 align-items-center">
+                        
+                        <div class="position-relative flex-grow-1">
+                            <input type="search" name="q" class="form-control form-control-lg ps-5" 
+                                   style="border-radius: 25px; border: 2px solid rgba(184,134,11,0.2); background: rgba(255,255,255,0.9);"
+                                   placeholder="{% trans 'Search content by title, description, or ID...' %}" 
+                                   value="{{ search_query }}">
+                            <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                        </div>
+                        
+                        <select name="type" class="form-select fw-medium" style="border-radius: 20px; border: 2px solid rgba(184,134,11,0.3); background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(248,249,250,0.95)); width: auto; min-width: 150px; color: #2d3436; font-weight: 600;">
+                            <option value="" style="font-weight: 600; color: #2d3436;">{% trans "All Types" %}</option>
+                            {% for type_code, type_name in content_types %}
+                                <option value="{{ type_code }}" {% if content_type_filter == type_code %}selected{% endif %} style="font-weight: 600; color: #2d3436; background: white;">
+                                    {{ type_name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+                <div class="col-md-4 text-end">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-outline-secondary px-3 py-2" style="border-radius: 15px;" onclick="window.print()">
+                            <i class="bi bi-printer"></i>
+                        </button>
+                        <button class="btn btn-outline-secondary px-3 py-2" style="border-radius: 15px;">
+                            <i class="bi bi-download"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Table -->
+            <div id="admin-content-table" style="border-radius: 15px; overflow: hidden;">
+                {% include "admin/partials/content_list.html" %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-control:focus, .form-select:focus {
+    border-color: #B8860B;
+    box-shadow: 0 0 0 0.25rem rgba(184, 134, 11, 0.25);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(184,134,11,0.05) !important;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,32 @@
+<!-- templates/frontend_api/partials/video_grid.html -->
+{% load i18n %}
+{% for item in videos %}
+    {% include "components/media_card.html" with item=item %}
+{% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: rgba(135,206,235,0.2); width: 120px; height: 120px;">
+                <i class="bi bi-play-circle" style="font-size: 3rem; color: #87CEEB;"></i>
+            </div>
+            <h4 class="text-muted mb-2">{% trans "No videos found" %}</h4>
+            <p class="text-muted mb-4">{% trans "Try adjusting your search terms or browse our categories" %}</p>
+            <a href="{% url 'frontend_api:search' %}" class="btn btn-outline-primary px-4 py-2" style="border-radius: 25px;">
+                <i class="bi bi-search me-2"></i>{% trans "Browse Categories" %}
+            </a>
+        </div>
+    </div>
+{% endfor %}
+
+{% if videos.has_next %}
+    <div class="col-12">
+        <div hx-get="{% url 'frontend_api:videos' %}?page={{ videos.next_page_number }}&search={{ search_query }}"
+             hx-trigger="revealed"
+             hx-swap="afterend"
+             class="text-center py-5">
+            <div class="d-inline-flex align-items-center gap-3 px-4 py-3 rounded-pill" style="background: rgba(135,206,235,0.1); backdrop-filter: blur(10px);">
+                <div class="spinner-border text-primary spinner-border-sm"></div>
+                <span class="text-muted fw-medium">{% trans "Loading more videos..." %}</span>
+            </div>
+        </div>
+    </div>
+{% endif %}

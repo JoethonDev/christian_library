@@ -1,0 +1,93 @@
+<!-- templates/frontend_api/pdfs.html -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Books & PDFs" %} - {% trans "Christian Library" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4">
+    <!-- Page Header with Search -->
+    <div class="row align-items-center mb-5">
+        <div class="col-md-8">
+            <div class="d-flex align-items-center mb-3">
+                <div class="p-3 rounded-circle me-3" style="background: #F5DEB3; backdrop-filter: blur(10px);">
+                    <i class="bi bi-journal-bookmark" style="font-size: 2rem; color: white;"></i>
+                </div>
+                <div>
+                    <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Books & PDFs" %}</h1>
+                    <p class="text-muted mb-0">{% trans "Explore our collection of spiritual literature and sacred texts" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="position-relative">
+                <input type="search" class="form-control form-control-lg ps-5" 
+                       style="border-radius: 25px; border: 2px solid #F5DEB3; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);"
+                       placeholder="{% trans 'Search books and documents...' %}"
+                       name="search" value="{{ search_query }}"
+                       hx-get="{% url 'frontend_api:pdfs' %}" 
+                       hx-target="#pdf-grid" 
+                       hx-trigger="keyup changed delay:500ms">
+                <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Stats -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #DEB887, #CD853F); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(222, 184, 135, 0.2);">
+                <div class="card-body py-4">
+                    <i class="bi bi-book" style="font-size: 2.5rem; color: white;"></i>
+                    <h5 class="mt-3 mb-1 fw-bold text-white">{{ pdfs.count|default:0 }}</h5>
+                    <p class="text-white small mb-0 fw-medium">{% trans "Total Books" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #8B0000, #B22222); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(139, 0, 0, 0.2);">
+                <div class="card-body py-4">
+                    <i class="bi bi-journal-text" style="font-size: 2.5rem; color: white;"></i>
+                    <h5 class="mt-3 mb-1 fw-bold text-white">{% trans "Scripture" %}</h5>
+                    <p class="text-white small mb-0 fw-medium">{% trans "Sacred Texts" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #B8860B, #DAA520); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(184, 134, 11, 0.2);">
+                <div class="card-body py-4">
+                    <i class="bi bi-bookmark-star" style="font-size: 2.5rem; color: white;"></i>
+                    <h5 class="mt-3 mb-1 fw-bold text-white">{% trans "Devotionals" %}</h5>
+                    <p class="text-white small mb-0 fw-medium">{% trans "Daily Readings" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #9370DB, #8A2BE2); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(147, 112, 219, 0.2);">
+                <div class="card-body py-4">
+                    <i class="bi bi-download" style="font-size: 2.5rem; color: white;"></i>
+                    <h5 class="mt-3 mb-1 fw-bold text-white">{% trans "Downloads" %}</h5>
+                    <p class="text-white small mb-0 fw-medium">{% trans "Available Offline" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Grid -->
+    <div id="pdf-grid" class="row g-4">
+        {% include "frontend_api/partials/pdf_grid.html" %}
+    </div>
+</div>
+
+<style>
+.card:hover {
+    transform: translateY(-5px);
+    transition: transform 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #F5DEB3;
+    box-shadow: 0 0 0 0.25rem rgba(245, 222, 179, 0.25);
+}
+</style>
+{% endblock %}

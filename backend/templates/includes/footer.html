@@ -1,0 +1,33 @@
+<!-- templates/includes/footer.html -->
+{% load i18n %}
+<footer class="mt-auto" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px); border-top: 1px solid rgba(184, 134, 11, 0.2);">
+    <div class="container py-4">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="d-flex align-items-center mb-2 mb-md-0">
+                    <div class="d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border-radius: 8px;">
+                        <i class="bi bi-book-half text-white"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-0 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Christian Library" %}</h6>
+                        <small style="color: #4B0082; opacity: 0.8;">{% trans "Sharing the Word of God" %}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <div class="d-flex justify-content-md-end gap-3 mb-2">
+                    <a href="#" class="text-decoration-none" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.color='#B8860B'" onmouseout="this.style.color='#4B0082'">
+                        <i class="bi bi-facebook fs-5"></i>
+                    </a>
+                    <a href="#" class="text-decoration-none" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.color='#B8860B'" onmouseout="this.style.color='#4B0082'">
+                        <i class="bi bi-youtube fs-5"></i>
+                    </a>
+                    <a href="#" class="text-decoration-none" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.color='#B8860B'" onmouseout="this.style.color='#4B0082'">
+                        <i class="bi bi-envelope fs-5"></i>
+                    </a>
+                </div>
+                <small style="color: #4B0082; opacity: 0.8;">&copy; {% now "Y" %} {% trans "Christian Library" %}. {% trans "All rights reserved" %}.</small>
+            </div>
+        </div>
+    </div>
+</footer>

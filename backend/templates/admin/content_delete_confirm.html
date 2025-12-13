@@ -1,0 +1,65 @@
+<!-- templates/admin/content_delete_confirm.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <div class="row justify-content-center py-5">
+        <div class="col-lg-6 col-md-8">
+            <div class="card border-0 shadow-lg" style="border-radius: 30px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+                <div class="card-body p-5 text-center">
+                    <!-- Warning Icon -->
+                    <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="background: rgba(139,0,0,0.1); width: 120px; height: 120px;">
+                        <i class="bi bi-exclamation-triangle" style="font-size: 4rem; color: #8B0000;"></i>
+                    </div>
+                    
+                    <!-- Warning Message -->
+                    <h2 class="fw-bold mb-3" style="color: #8B0000;">{% trans "Delete Content?" %}</h2>
+                    <div class="mb-4">
+                        <p class="text-muted fs-5 mb-3">
+                            {% trans "Are you sure you want to permanently delete:" %}
+                        </p>
+                        <div class="card border-0 mb-3" style="background: rgba(139,0,0,0.05); border-radius: 15px;">
+                            <div class="card-body py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="p-2 rounded-circle me-3" style="background: 
+                                        {% if content_item.content_type == 'video' %}rgba(135,206,235,0.2)
+                                        {% elif content_item.content_type == 'audio' %}rgba(230,230,250,0.2)
+                                        {% else %}rgba(245,222,179,0.2){% endif %};">
+                                        {% if content_item.content_type == 'video' %}<i class="bi bi-play-circle" style="color: #87CEEB;"></i>
+                                        {% elif content_item.content_type == 'audio' %}<i class="bi bi-music-note" style="color: #E6E6FA;"></i>
+                                        {% else %}<i class="bi bi-file-text" style="color: #F5DEB3;"></i>{% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold" style="color: var(--bs-primary);">{{ content_item.title_ar }}</div>
+                                        {% if content_item.title_en %}
+                                        <div class="small text-muted">{{ content_item.title_en }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="alert alert-warning border-0" style="background: rgba(255,193,7,0.1); border-radius: 15px;">
+                            <i class="bi bi-exclamation-triangle me-2" style="color: #ffc107;"></i>
+                            <small>{% trans "This action cannot be undone and will permanently remove all associated files including thumbnails, processed versions, and metadata." %}</small>
+                        </div>
+                    </div>
+
+                    <!-- Action Form -->
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="{% url 'frontend_api:admin_content_detail' content_item.id %}" class="btn btn-outline-secondary px-5 py-3" style="border-radius: 25px;">
+                                <i class="bi bi-x-circle me-2"></i>{% trans "Cancel" %}
+                            </a>
+                            <button type="submit" class="btn px-5 py-3 fw-bold" style="border-radius: 25px; background: linear-gradient(135deg, #8B0000, #DC143C); border: none; color: white; box-shadow: 0 8px 32px rgba(139,0,0,0.3);">
+                                <i class="bi bi-trash me-2"></i>{% trans "Yes, Delete Permanently" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

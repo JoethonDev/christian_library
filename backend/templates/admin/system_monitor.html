@@ -1,0 +1,140 @@
+<!-- templates/admin/system_monitor.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div class="container-fluid px-0">
+    <!-- Header Section -->
+    <div class="mb-5">
+        <div class="d-flex align-items-center mb-3">
+            <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #87CEEB, #4B0082); backdrop-filter: blur(10px);">
+                <i class="bi bi-activity" style="font-size: 2rem; color: white;"></i>
+            </div>
+            <div>
+                <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "System Monitor" %}</h1>
+                <p class="text-muted mb-0">{% trans "Monitor system performance, storage usage, and processing queues" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status Cards -->
+    <div class="row g-4 mb-5">
+        <!-- Storage Usage Card -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-lg h-100" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+                <div class="card-header bg-transparent border-0 py-4 px-4">
+                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: var(--bs-primary);">
+                        <i class="bi bi-hdd me-2" style="color: #87CEEB;"></i>
+                        {% trans "Disk Usage" %}
+                    </h4>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="row align-items-center mb-4">
+                        <div class="col-8">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="fw-bold" style="color: var(--bs-primary);">{{ disk_usage.percentage }}% {% trans "Used" %}</span>
+                                <span class="text-muted">{{ disk_usage.free|filesizeformat }} {% trans "Free" %}</span>
+                            </div>
+                            <div class="progress" style="height: 12px; border-radius: 10px;">
+                                <div class="progress-bar {% if disk_usage.percentage > 80 %}bg-danger{% elif disk_usage.percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ disk_usage.percentage }}%; border-radius: 10px;">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                 style="background: {% if disk_usage.percentage > 80 %}rgba(220,53,69,0.1){% elif disk_usage.percentage > 60 %}rgba(255,193,7,0.1){% else %}rgba(25,135,84,0.1){% endif %}; width: 70px; height: 70px;">
+                                <i class="bi bi-server" style="font-size: 1.8rem; color: {% if disk_usage.percentage > 80 %}#dc3545{% elif disk_usage.percentage > 60 %}#ffc107{% else %}#198754{% endif %};"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="card border-0" style="background: rgba(135,206,235,0.1); border-radius: 10px;">
+                                <div class="card-body text-center py-3">
+                                    <div class="fw-bold text-truncate" style="color: var(--bs-primary);">{{ storage_breakdown.original|filesizeformat }}</div>
+                                    <small class="text-muted">{% trans "Original Files" %}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card border-0" style="background: rgba(230,230,250,0.1); border-radius: 10px;">
+                                <div class="card-body text-center py-3">
+                                    <div class="fw-bold text-truncate" style="color: var(--bs-primary);">{{ storage_breakdown.hls|filesizeformat }}</div>
+                                    <small class="text-muted">{% trans "HLS Segments" %}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Queue Card -->
+        <div class="col-lg-6">
+            <div class="card border-0 shadow-lg h-100" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+                <div class="card-header bg-transparent border-0 py-4 px-4">
+                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: var(--bs-primary);">
+                        <i class="bi bi-list-task me-2" style="color: #E6E6FA;"></i>
+                        {% trans "Processing Queue" %}
+                    </h4>
+                </div>
+                <div class="card-body px-4 pb-4">
+                    <div class="row g-4 text-center">
+                        <div class="col-6">
+                            <div class="card border-0" style="background: rgba(245,222,179,0.1); border-radius: 15px;">
+                                <div class="card-body py-4">
+                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                                         style="background: rgba(245,222,179,0.2); width: 60px; height: 60px;">
+                                        <i class="bi bi-clock-history" style="font-size: 1.5rem; color: #F5DEB3;"></i>
+                                    </div>
+                                    <h2 class="fw-bold mb-1" style="color: var(--bs-primary);">{{ processing_queue }}</h2>
+                                    <p class="text-muted small mb-0">{% trans "Jobs Pending" %}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="card border-0" style="background: {% if failed_processing > 0 %}rgba(220,53,69,0.1){% else %}rgba(25,135,84,0.1){% endif %}; border-radius: 15px;">
+                                <div class="card-body py-4">
+                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                                         style="background: {% if failed_processing > 0 %}rgba(220,53,69,0.2){% else %}rgba(25,135,84,0.2){% endif %}; width: 60px; height: 60px;">
+                                        <i class="bi bi-{% if failed_processing > 0 %}exclamation-triangle{% else %}check-circle{% endif %}" 
+                                           style="font-size: 1.5rem; color: {% if failed_processing > 0 %}#dc3545{% else %}#198754{% endif %};"></i>
+                                    </div>
+                                    <h2 class="fw-bold mb-1" style="color: {% if failed_processing > 0 %}#dc3545{% else %}#198754{% endif %};">{{ failed_processing }}</h2>
+                                    <p class="text-muted small mb-0">{% trans "Jobs Failed" %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if processing_queue > 0 %}
+                        <div class="alert border-0 mt-4 mb-0" style="background: rgba(135,206,235,0.1); border-radius: 15px;">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-info-circle me-2" style="color: #87CEEB;"></i>
+                                <small class="mb-0" style="color: var(--bs-primary);">{% trans "Background workers are currently processing content." %}</small>
+                            </div>
+                        </div>
+                    {% elif failed_processing > 0 %}
+                        <div class="alert border-0 mt-4 mb-0" style="background: rgba(220,53,69,0.1); border-radius: 15px;">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-exclamation-triangle me-2" style="color: #dc3545;"></i>
+                                <small class="mb-0 text-danger">{% trans "Some processing jobs have failed. Please check the logs." %}</small>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert border-0 mt-4 mb-0" style="background: rgba(25,135,84,0.1); border-radius: 15px;">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-check-circle me-2" style="color: #198754;"></i>
+                                <small class="mb-0 text-success">{% trans "All systems running smoothly." %}</small>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
