@@ -145,8 +145,8 @@ class MediaUploadService:
                     video_meta.processing_status = 'pending'
                     video_meta.save()
                 
-                # Queue for background processing
-                process_video_to_hls.delay(str(video_meta.id))
+                # Queue for background processing after commit
+                transaction.on_commit(lambda: process_video_to_hls.delay(str(video_meta.id)))
                 
                 logger.info(f"Video uploaded successfully: {content_item.id}")
                 return True, _("Video uploaded and queued for processing"), content_item
@@ -219,8 +219,8 @@ class MediaUploadService:
                 print(f"Audio meta ID: {audio_meta.id} (created: {created})")
 
                 
-                # Queue for background processing
-                process_audio_compression.delay(str(audio_meta.id))
+                # Queue for background processing after commit
+                transaction.on_commit(lambda: process_audio_compression.delay(str(audio_meta.id)))
                 
                 logger.info(f"Audio uploaded successfully: {content_item.id}")
                 return True, _("Audio uploaded and queued for processing"), content_item
@@ -291,8 +291,8 @@ class MediaUploadService:
                     pdf_meta.processing_status = 'pending'
                     pdf_meta.save()
                 
-                # Queue for background processing
-                process_pdf_optimization.delay(str(pdf_meta.id))
+                # Queue for background processing after commit
+                transaction.on_commit(lambda: process_pdf_optimization.delay(str(pdf_meta.id)))
                 
                 logger.info(f"PDF uploaded successfully: {content_item.id}")
                 return True, _("PDF uploaded and queued for processing"), content_item
