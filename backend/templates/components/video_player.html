@@ -56,8 +56,10 @@
         
         if (videoSrc && typeof Hls !== 'undefined') {
             if (Hls.isSupported()) {
-                const hls = new Hls({
-                    enableWorker: true,
+                // Best-practice config for audio issues
+                const hlsConfig = {
+                    enableWorker: false, // Disable worker to avoid audio artifacts
+                    defaultAudioCodec: 'mp4a.40.2', // Force AAC-LC (change if your audio is different)
                     lowLatencyMode: false,
                     backBufferLength: 90,
                     maxBufferLength: 300,
@@ -71,20 +73,23 @@
                     fragLoadingTimeOut: 20000,
                     fragLoadingMaxRetry: 3,
                     fragLoadingRetryDelay: 1000,
-                    startLevel: -1, 
+                    startLevel: -1,
                     abrEwmaDefaultEstimate: 500000
-                });
-                
+                };
+                const hls = new Hls(hlsConfig);
                 hlsInstance = hls;
-                
                 console.log('Loading HLS source:', videoSrc.src);
                 hls.loadSource(videoSrc.src);
                 hls.attachMedia(video);
-                
+
                 hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
                     console.log('HLS manifest parsed:', data);
                     console.log('Available levels:', data.levels);
-                    
+                    // Log audio tracks and force first if needed
+                    if (hls.audioTracks && hls.audioTracks.length > 0) {
+                        console.log('Available audio tracks:', hls.audioTracks);
+                        hls.audioTrack = 0; // Force first audio track (change if needed)
+                    }
                     // More detailed level logging with null checks
                     data.levels.forEach((level, index) => {
                         console.log(`Level ${index}:`, {
@@ -95,7 +100,6 @@
                             url: Array.isArray(level.url) ? level.url[0] : level.url
                         });
                     });
-                    
                     console.log('HLS manifest loaded successfully');
                 });
 
@@ -103,62 +107,37 @@
                     qualitySelect.addEventListener('change', function(e) {
                         const selectedQuality = this.value;
                         console.log('Quality changed to:', selectedQuality);
-
-                        // Get current HLS URL and replace quality in the path
                         const currentSrc = videoSrc.src;
                         console.log('Current source:', currentSrc);
-                        
-                        // Extract the base URL pattern and replace quality
-                        // Pattern: .../hls/videos/{uuid}/{quality}/playlist.m3u8
                         const urlPattern = /(.+\/hls\/videos\/[^\/]+\/)([^\/]+)(\/playlist\.m3u8)$/;
                         const match = currentSrc.match(urlPattern);
-                        
                         if (match) {
                             const basePath = match[1];
                             const filename = match[3];
                             const newSrc = basePath + selectedQuality + filename;
-                            
                             console.log('New source URL:', newSrc);
-                            
-                            // Destroy current HLS instance
                             if (hlsInstance) {
                                 hlsInstance.destroy();
                             }
-                            
-                            // Create new HLS instance with new source
-                            const newHls = new Hls({
-                                enableWorker: true,
-                                lowLatencyMode: false,
-                                backBufferLength: 90,
-                                maxBufferLength: 300,
-                                maxMaxBufferLength: 600,
-                                manifestLoadingTimeOut: 20000,
-                                manifestLoadingMaxRetry: 3,
-                                manifestLoadingRetryDelay: 1000,
-                                levelLoadingTimeOut: 20000,
-                                levelLoadingMaxRetry: 3,
-                                levelLoadingRetryDelay: 1000,
-                                fragLoadingTimeOut: 20000,
-                                fragLoadingMaxRetry: 3,
-                                fragLoadingRetryDelay: 1000,
-                                startLevel: -1,
-                                abrEwmaDefaultEstimate: 500000
-                            });
-                            
+                            const newHls = new Hls(hlsConfig);
                             newHls.loadSource(newSrc);
                             newHls.attachMedia(video);
                             hlsInstance = newHls;
-                            
+                            newHls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+                                if (newHls.audioTracks && newHls.audioTracks.length > 0) {
+                                    console.log('Available audio tracks:', newHls.audioTracks);
+                                    newHls.audioTrack = 0;
+                                }
+                            });
                             console.log('Successfully switched to quality:', selectedQuality);
                         } else {
                             console.error('Could not parse current video URL for quality replacement');
                         }
                     });
                 }
-                
+
                 hls.on(Hls.Events.ERROR, function(event, data) {
                     console.error('HLS error:', data);
-                    // Check for fatal errors and attempt recovery
                     if (data.fatal) {
                         switch(data.type) {
                             case Hls.ErrorTypes.NETWORK_ERROR:
