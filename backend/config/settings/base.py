@@ -172,6 +172,9 @@ CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_ACKS_LATE = True
 
+# Celery 6.0+ compatibility: retry broker connection on startup
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
 # Periodic tasks
 CELERY_BEAT_SCHEDULE = {
     'cleanup-failed-uploads': {

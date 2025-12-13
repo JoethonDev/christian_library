@@ -84,6 +84,9 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.getenv('CELERY_PREFETCH_MULTIPLIER', '1'))
 CELERY_WORKER_MAX_TASKS_PER_CHILD = int(os.getenv('CELERY_MAX_TASKS_PER_CHILD', '1000'))
 
+# Celery 6.0+ compatibility: retry broker connection on startup
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
 # Static and media files
 STATIC_URL = '/static/'
 STATIC_ROOT = os.getenv('STATIC_ROOT', '/app/staticfiles')
