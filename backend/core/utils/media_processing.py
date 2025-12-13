@@ -160,46 +160,64 @@ class VideoProcessor(MediaProcessor):
         except subprocess.CalledProcessError as e:
             raise Exception(f"Video compression failed: {e}")
     
-    def generate_hls(self, input_path, output_dir, resolution='720'):
-        """Generate HLS playlist and segments (optimized for speed, quality, and stability)"""
+    def generate_hls(self, input_path, output_dir, resolution='720', hybrid=True):
+        """Generate HLS playlist and segments. If hybrid=True, skip video encoding (copy video), encode audio only."""
         try:
             output_dir = Path(output_dir)
             self.ensure_directory(output_dir)
             playlist_path = output_dir / 'playlist.m3u8'
             segment_pattern = output_dir / 'segment_%03d.ts'
 
-            # Optimization parameters
-            if resolution == '720':
-                scale = "scale='min(1280,iw)':-2"
-                bitrate = '2000k'
-                maxrate = '2200k'
-                bufsize = '4000k'
-            elif resolution == '480':
-                scale = "scale='min(854,iw)':-2"
-                bitrate = '1000k'
-                maxrate = '1100k'
-                bufsize = '2000k'
-            else:
-                raise ValueError(f"Unsupported resolution: {resolution}")
+            logger = logging.getLogger(__name__)
 
-            cmd = [
-                'ffmpeg', '-i', str(input_path),
-                '-vf', scale,
-                '-c:v', 'libx264', '-preset', 'veryfast',
-                '-b:v', bitrate, '-maxrate', maxrate, '-bufsize', bufsize,
-                '-g', '48', '-sc_threshold', '0',
-                '-c:a', 'aac', '-b:a', '128k', '-ac', '2', '-ar', '44100',
-                '-hls_time', '6',
-                '-hls_list_size', '0',
-                '-hls_segment_filename', str(segment_pattern),
-                '-hls_playlist_type', 'vod',
-                '-threads', '2',
-                '-loglevel', 'info',
-                '-y', str(playlist_path)
-            ]
+            if hybrid:
+                # Hybrid mode: copy video, encode audio only
+                cmd = [
+                    'ffmpeg', '-i', str(input_path),
+                    '-c:v', 'copy',
+                    '-c:a', 'aac', '-b:a', '128k', '-ac', '2', '-ar', '44100',
+                    '-hls_time', '6',
+                    '-hls_list_size', '0',
+                    '-hls_segment_filename', str(segment_pattern),
+                    '-hls_playlist_type', 'vod',
+                    '-threads', '2',
+                    '-loglevel', 'info',
+                    '-y', str(playlist_path)
+                ]
+                logger.info("Hybrid HLS: Skipping video encoding, encoding audio only.")
+            else:
+                # Standard: encode video and audio
+                # Optimization parameters
+                if resolution == '720':
+                    scale = "scale='min(1280,iw)':-2"
+                    bitrate = '2000k'
+                    maxrate = '2200k'
+                    bufsize = '4000k'
+                elif resolution == '480':
+                    scale = "scale='min(854,iw)':-2"
+                    bitrate = '1000k'
+                    maxrate = '1100k'
+                    bufsize = '2000k'
+                else:
+                    raise ValueError(f"Unsupported resolution: {resolution}")
+
+                cmd = [
+                    'ffmpeg', '-i', str(input_path),
+                    '-vf', scale,
+                    '-c:v', 'libx264', '-preset', 'veryfast',
+                    '-b:v', bitrate, '-maxrate', maxrate, '-bufsize', bufsize,
+                    '-g', '48', '-sc_threshold', '0',
+                    '-c:a', 'aac', '-b:a', '128k', '-ac', '2', '-ar', '44100',
+                    '-hls_time', '6',
+                    '-hls_list_size', '0',
+                    '-hls_segment_filename', str(segment_pattern),
+                    '-hls_playlist_type', 'vod',
+                    '-threads', '2',
+                    '-loglevel', 'info',
+                    '-y', str(playlist_path)
+                ]
 
             # Log the command for observability
-            logger = logging.getLogger(__name__)
             logger.info(f"Running FFmpeg command: {' '.join(str(x) for x in cmd)}")
 
             # Capture stdout/stderr for Celery logs
