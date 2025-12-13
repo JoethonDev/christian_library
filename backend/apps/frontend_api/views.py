@@ -489,6 +489,11 @@ def video_player(request, video_uuid):
         
         # Get quality parameter from request (default to 'auto')
         quality = request.GET.get('quality', 'auto')
+        
+        # Debug logging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Video player requested - Video: {video.id}, Quality: {quality}")
 
         # Get available qualities for this video
         available_qualities = []
@@ -496,6 +501,7 @@ def video_player(request, video_uuid):
         if hasattr(video, 'videometa') and video.videometa:
             available_qualities = video.videometa.get_available_qualities()
             hls_playlist = video.videometa.get_hls_playlist(quality)
+            logger.info(f"Available qualities: {available_qualities}, HLS playlist: {hls_playlist}")
 
         context = {
             'video': video,
