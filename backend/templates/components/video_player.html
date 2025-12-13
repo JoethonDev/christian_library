@@ -2,27 +2,39 @@
 {% load i18n %}
 {% if video.videometa %}
     <div id="video-player-container">
-        <div style="position:relative; border-radius:1rem; overflow:hidden; background:#000;">
+        <!-- 
+            FIX 1: Use Bootstrap's ratio utility (e.g., ratio-16x9) to ensure the container 
+            maintains the correct aspect ratio and the video fills the space, eliminating black bars.
+            The `style` below is applied to the ratio container.
+        -->
+        <div class="ratio ratio-16x9" style="position:relative; border-radius:1rem; overflow:hidden; background:#000;">
             <!-- Quality Selector Overlay -->
             {% if available_qualities and available_qualities|length > 1 %}
                 <div style="position:absolute; top:10px; right:10px; z-index:1000;">
-                    <form id="quality-form" hx-get="{% url 'frontend_api:video_player' video.id %}" hx-target="#video-player-container" hx-swap="outerHTML" style="display:inline;">
-                        <select id="quality-select" name="quality" class="form-select form-select-sm" 
-                                style="background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 0.8rem; min-width: 70px; padding: 2px 6px;">
-                            <option value="auto" {% if selected_quality == 'auto' %}selected{% endif %}>{% trans "Auto" %}</option>
-                            {% for q in available_qualities %}
-                                <option value="{{ q }}" {% if selected_quality == q %}selected{% endif %}>{{ q|upper }}</option>
-                            {% endfor %}
-                        </select>
-                    </form>
+                    <!-- 
+                        FIX 2: Removed the form and HTMX attributes. 
+                        Quality selection is now handled purely by client-side JavaScript 
+                        to prevent player reload and maintain playback state.
+                    -->
+                    <select id="quality-select" name="quality" class="form-select form-select-sm" 
+                            style="background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 0.8rem; min-width: 70px; padding: 2px 6px;">
+                        <!-- 'auto' corresponds to HLS ABR (Adaptive Bitrate) -->
+                        <option value="auto" {% if selected_quality == 'auto' %}selected{% endif %}>{% trans "Auto" %}</option>
+                        {% for q in available_qualities %}
+                            <!-- Quality is stored as resolution (e.g., 720P) -->
+                            <option value="{{ q }}" {% if selected_quality == q %}selected{% endif %}>{{ q|upper }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
             {% endif %}
             
             <video id="video-{{ video.id }}" controls preload="metadata" 
-                   style="width:100%; max-width:100%; height:auto; display:block; border-radius:1rem;"
+                   <!-- FIX 1: Set height:100% to fill the ratio container -->
+                   style="width:100%; height:100%; max-width:100%; display:block; border-radius:1rem;"
                    poster="{% if video.videometa.thumbnail %}{{ video.videometa.thumbnail.url }}{% endif %}">
                 {% if hls_playlist %}
                     <!-- HLS streaming source (correct MIME type) -->
+                    <!-- The URL should contain the entire HLS manifest, which is handled by hls.js -->
                     <source src="{% url 'core_utils:secure_stream' file_path=hls_playlist %}" type="application/vnd.apple.mpegurl">
                 {% elif video.videometa.original_file %}
                     <!-- Fallback to original file only if HLS is not available -->
@@ -37,40 +49,24 @@
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video-{{ video.id }}');
         const videoSrc = video.querySelector('source[type="application/vnd.apple.mpegurl"]');
-        const qualityForm = document.getElementById('quality-form');
         const qualitySelect = document.getElementById('quality-select');
         
-        // Debug logging for quality selection
+        let hlsInstance = null; // Store HLS instance
+        
+        // Debug logging
         console.log('Video player loaded:', {
             selectedQuality: '{{ selected_quality }}',
             availableQualities: {{ available_qualities|default:"[]"|safe }},
             hlsPlaylist: '{{ hls_playlist }}'
         });
         
-        // Prevent form submission navigation and ensure HTMX handles it
-        if (qualityForm && qualitySelect) {
-            qualitySelect.addEventListener('change', function(e) {
-                e.preventDefault();
-                console.log('Quality changed to:', this.value);
-                
-                // Trigger HTMX request manually to ensure correct targeting
-                const url = qualityForm.getAttribute('hx-get') + '?quality=' + encodeURIComponent(this.value);
-                console.log('Requesting quality change:', url);
-                
-                htmx.ajax('GET', url, {
-                    target: '#video-player-container',
-                    swap: 'outerHTML'
-                });
-                
-                return false;
-            });
-        }
-        
         if (videoSrc && typeof Hls !== 'undefined') {
             if (Hls.isSupported()) {
+                // HLS.js configuration
                 const hls = new Hls({
                     enableWorker: true,
                     lowLatencyMode: false,
+                    // Configuration parameters are kept mostly the same
                     backBufferLength: 90,
                     maxBufferLength: 300,
                     maxMaxBufferLength: 600,
@@ -83,18 +79,54 @@
                     fragLoadingTimeOut: 20000,
                     fragLoadingMaxRetry: 3,
                     fragLoadingRetryDelay: 1000,
-                    startLevel: -1,
+                    startLevel: -1, // Start in ABR mode
                     abrEwmaDefaultEstimate: 500000
                 });
+                
+                hlsInstance = hls; // Assign instance
                 
                 console.log('Loading HLS source:', videoSrc.src);
                 hls.loadSource(videoSrc.src);
                 hls.attachMedia(video);
                 
-                // Log when levels are loaded
                 hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
+                    // Logs all available levels
                     console.log('HLS manifest loaded, levels:', data.levels.map(l => l.height + 'p'));
+                    
+                    // Initial quality setting (if specified, usually 'auto')
+                    if ('{{ selected_quality }}' !== 'auto' && hls.levels.length > 0) {
+                        const initialQuality = '{{ selected_quality }}'.toUpperCase();
+                        const targetLevel = hls.levels.findIndex(l => (l.height + 'P') === initialQuality);
+                        if (targetLevel !== -1) {
+                            hls.currentLevel = targetLevel;
+                            console.log('Set initial HLS level to:', targetLevel);
+                        }
+                    }
                 });
+
+                // FIX 2: Handle quality change by manipulating the HLS instance directly
+                if (qualitySelect) {
+                    qualitySelect.addEventListener('change', function(e) {
+                        const selectedQuality = this.value;
+                        console.log('Quality changed to:', selectedQuality);
+
+                        if (selectedQuality === 'auto') {
+                            hls.currentLevel = -1; // -1 enables ABR
+                            console.log('Switched to Automatic Quality (ABR)');
+                        } else if (hls.levels && hls.levels.length > 0) {
+                            // Find the index of the selected quality level
+                            const targetQuality = selectedQuality.toUpperCase();
+                            const targetLevel = hls.levels.findIndex(l => (l.height + 'P') === targetQuality);
+                            
+                            if (targetLevel !== -1) {
+                                hls.currentLevel = targetLevel; // Manually set the level
+                                console.log('Manually set HLS level to:', targetLevel, `(${targetQuality})`);
+                            } else {
+                                console.error('Target quality level not found in HLS manifest:', selectedQuality);
+                            }
+                        }
+                    });
+                }
                 
                 // Add error handling to prevent excessive retries
                 hls.on(Hls.Events.ERROR, function(event, data) {
@@ -119,6 +151,10 @@
             } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 console.log('Using native HLS support');
                 video.src = videoSrc.src;
+                // Disable quality selector for native HLS as quality switching is not easily exposed
+                if (qualitySelect) {
+                    qualitySelect.disabled = true;
+                }
             }
         } else {
             console.log('HLS not available, using direct video source');
