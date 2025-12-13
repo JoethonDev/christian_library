@@ -48,7 +48,7 @@
 <div id="search-results">
     {% if query %}
         {% if results %}
-            <div class="row g-4">
+            <div class="row g-4 mb-5">
                 {% for item in results %}
                     {% include "components/media_card.html" with item=item %}
                 {% endfor %}
