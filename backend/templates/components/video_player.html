@@ -6,7 +6,7 @@
             FIX 1: Use CSS aspect ratio hack instead of Bootstrap .ratio class for better compatibility.
             This outer container enforces the 16:9 aspect ratio and prevents the black bars.
         -->
-        <div class="video-wrapper" style="position: relative; padding-bottom: 56.25%; height: 0; border-radius:1rem; overflow:hidden; background:#000;">
+        <div class="video-wrapper" style="padding-bottom: 56.25%; height: 0; border-radius:1rem; overflow:hidden; background:#000;">
             
             <!-- Quality Selector Overlay -->
             {% if available_qualities and available_qualities|length > 1 %}
@@ -43,7 +43,7 @@
         </div>
     </div>
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    function initializeVideoPlayer() {
         const video = document.getElementById('video-{{ video.id }}');
         const videoSrc = video.querySelector('source[type="application/vnd.apple.mpegurl"]');
         const qualitySelect = document.getElementById('quality-select');
@@ -148,7 +148,12 @@
         } else {
             console.log('HLS not available, using direct video source');
         }
-    });
+        
+        return hlsInstance;
+    }
+    
+    // Initialize the video player immediately
+    initializeVideoPlayer();
     </script>
     
     <style>
