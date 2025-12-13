@@ -1,14 +1,14 @@
 <!-- templates/components/video_player.html -->
 {% load i18n %}
-{% if video.videometa and video.videometa.get_streaming_file %}
+{% if video.videometa %}
+    {% with hls_playlist=video.videometa.get_hls_master_playlist %}
     <div style="position:relative; width:100%; padding-top:56.25%; background:#000; border-radius:1rem; overflow:hidden;">
         <video id="video-{{ video.id }}" controls preload="metadata"
                style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; border-radius:1rem;">
-            {% if video.videometa.get_hls_master_playlist %}
+            {% if hls_playlist %}
                 <!-- HLS streaming source (correct MIME type) -->
-                <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.get_streaming_file %}" type="application/vnd.apple.mpegurl">
-            {% endif %}
-            {% if not video.videometa.get_hls_master_playlist and video.videometa.original_file %}
+                <source src="{% url 'core_utils:secure_stream' file_path=hls_playlist %}" type="application/vnd.apple.mpegurl">
+            {% elif video.videometa.original_file %}
                 <!-- Fallback to original file only if HLS is not available -->
                 <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/mp4">
                 <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/webm">
@@ -16,6 +16,7 @@
             {% trans "Your browser does not support the video element." %}
         </video>
     </div>
+    {% endwith %}
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video-{{ video.id }}');
