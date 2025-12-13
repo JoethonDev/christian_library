@@ -161,38 +161,56 @@ class VideoProcessor(MediaProcessor):
             raise Exception(f"Video compression failed: {e}")
     
     def generate_hls(self, input_path, output_dir, resolution='720'):
-        """Generate HLS playlist and segments"""
+        """Generate HLS playlist and segments (optimized for speed, quality, and stability)"""
         try:
             output_dir = Path(output_dir)
             self.ensure_directory(output_dir)
-            
             playlist_path = output_dir / 'playlist.m3u8'
             segment_pattern = output_dir / 'segment_%03d.ts'
-            
+
+            # Optimization parameters
             if resolution == '720':
-                scale = 'scale=-2:720'
-                bitrate = '2500k'
+                scale = "scale='min(1280,iw)':-2"
+                bitrate = '2000k'
+                maxrate = '2200k'
+                bufsize = '4000k'
             elif resolution == '480':
-                scale = 'scale=-2:480'
+                scale = "scale='min(854,iw)':-2"
                 bitrate = '1000k'
+                maxrate = '1100k'
+                bufsize = '2000k'
             else:
                 raise ValueError(f"Unsupported resolution: {resolution}")
-            
+
             cmd = [
                 'ffmpeg', '-i', str(input_path),
                 '-vf', scale,
-                '-c:v', 'libx264', '-b:v', bitrate,
-                '-c:a', 'aac', '-b:a', '128k',
-                '-hls_time', '10',
+                '-c:v', 'libx264', '-preset', 'veryfast',
+                '-b:v', bitrate, '-maxrate', maxrate, '-bufsize', bufsize,
+                '-g', '48', '-sc_threshold', '0',
+                '-c:a', 'aac', '-b:a', '128k', '-ac', '2', '-ar', '44100',
+                '-hls_time', '6',
                 '-hls_list_size', '0',
                 '-hls_segment_filename', str(segment_pattern),
+                '-hls_playlist_type', 'vod',
+                '-threads', '2',
+                '-loglevel', 'info',
                 '-y', str(playlist_path)
             ]
-            
-            subprocess.run(cmd, check=True)
+
+            # Log the command for observability
+            logger = logging.getLogger(__name__)
+            logger.info(f"Running FFmpeg command: {' '.join(str(x) for x in cmd)}")
+
+            # Capture stdout/stderr for Celery logs
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            logger.info(f"FFmpeg stdout: {result.stdout}")
+            logger.info(f"FFmpeg stderr: {result.stderr}")
             return playlist_path
-            
+
         except subprocess.CalledProcessError as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"HLS generation failed: {e}\nstdout: {e.stdout}\nstderr: {e.stderr}")
             raise Exception(f"HLS generation failed: {e}")
 
 

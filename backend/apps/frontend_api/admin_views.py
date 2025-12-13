@@ -171,7 +171,6 @@ def handle_content_upload(request):
                         defaults={'name_en': tag_name, 'color': '#B8860B'}
                     )
                     tag_ids.append(str(tag.id))
-        print(f"Tag IDs: {tag_ids}")
         # Upload based on content type
         if content_type == 'video':
             success, message, content_item = MediaUploadService.upload_video(
