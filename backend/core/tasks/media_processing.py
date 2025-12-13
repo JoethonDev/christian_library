@@ -13,6 +13,26 @@ from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta, ContentItem
 
 logger = logging.getLogger(__name__)
 
+@shared_task
+def delete_files_task(paths):
+    """
+    Delete files or folders from the filesystem asynchronously.
+    Accepts a list of absolute file/folder paths.
+    """
+    import shutil
+    deleted = []
+    for path in paths:
+        try:
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+                deleted.append(path)
+            elif os.path.isfile(path):
+                os.remove(path)
+                deleted.append(path)
+        except Exception as e:
+            logger.warning(f"Failed to delete {path}: {e}")
+    return {'deleted': deleted, 'requested': paths}
+
 
 @shared_task(bind=True, max_retries=3)
 def process_video_to_hls(self, video_meta_id):

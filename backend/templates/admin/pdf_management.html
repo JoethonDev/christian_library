@@ -108,6 +108,9 @@
                                 {% else %}
                                 <span class="text-muted small">{% trans "No file" %}</span>
                                 {% endif %}
+                                    <a href="{% url 'frontend_api:content_delete_confirm' pdf.id %}" class="btn btn-sm btn-danger ms-2">
+                                        <i class="bi bi-trash"></i> {% trans "Delete" %}
+                                    </a>
                             </div>
                         </td>
                     </tr>

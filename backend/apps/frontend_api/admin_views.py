@@ -7,17 +7,17 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, Http404
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
+from django.db.models import Q
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse
 
-from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
+from apps.media_manager.models import ContentItem, VideoMeta, Tag
 from apps.media_manager.services.content_service import ContentService
 from apps.media_manager.services.upload_service import MediaUploadService
+from apps.media_manager.services.delete_service import MediaProcessingService
 
 
 # Initialize services
@@ -274,12 +274,12 @@ def content_delete_confirm(request, content_id):
     content_item = get_object_or_404(ContentItem, id=content_id)
     
     if request.method == 'POST':
-        success = content_service.delete_content_item(str(content_item.id))
+        media_service = MediaProcessingService()
+        success, msg = media_service.delete_content(content_item)
         if success:
-            messages.success(request, _("Content deleted successfully"))
             return redirect('frontend_api:admin_content_list')
         else:
-            messages.error(request, _("Failed to delete content"))
+            messages.error(request, msg)
             return redirect('frontend_api:admin_content_detail', content_id=content_id)
     
     context = {
@@ -469,36 +469,32 @@ def handle_bulk_operation(request):
     success_count = 0
     error_count = 0
     
+    from apps.media_manager.services import MediaProcessingService
     try:
         if operation == 'delete':
+            media_service = MediaProcessingService()
             for content_id in content_ids:
                 try:
                     content_item = ContentItem.objects.get(id=content_id)
-                    success = content_service.delete_content_item(str(content_item.id))
+                    success, _ = media_service.delete_content(content_item)
                     if success:
                         success_count += 1
                     else:
                         error_count += 1
                 except:
                     error_count += 1
-        
         elif operation == 'deactivate':
             ContentItem.objects.filter(id__in=content_ids).update(is_active=False)
             success_count = len(content_ids)
-        
         elif operation == 'activate':
             ContentItem.objects.filter(id__in=content_ids).update(is_active=True)
             success_count = len(content_ids)
-        
         if success_count > 0:
             messages.success(request, f"{_('Operation completed')}: {success_count} {_('items processed')}")
-        
         if error_count > 0:
             messages.warning(request, f"{error_count} {_('items failed to process')}")
-            
     except Exception as e:
         messages.error(request, f"{_('Bulk operation failed')}: {str(e)}")
-    
     return redirect('frontend_api:bulk_operations')
 
 

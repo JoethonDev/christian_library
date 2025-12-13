@@ -91,6 +91,9 @@
                                 <a href="{% url 'frontend_api:audio_detail' audio.id %}" class="btn btn-sm btn-outline-secondary px-3" style="border-radius: 15px;" title="{% trans 'Preview' %}" target="_blank">
                                     <i class="bi bi-eye"></i>
                                 </a>
+                                    <a href="{% url 'frontend_api:content_delete_confirm' audio.id %}" class="btn btn-sm btn-danger ms-2">
+                                        <i class="bi bi-trash"></i> {% trans "Delete" %}
+                                    </a>
                             </div>
                         </td>
                     </tr>

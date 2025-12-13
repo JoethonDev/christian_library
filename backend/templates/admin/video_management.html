@@ -74,6 +74,9 @@
                         <a href="{% url 'frontend_api:admin_content_detail' video.id %}" class="btn btn-sm btn-light">
                             {% trans "Edit" %}
                         </a>
+                        <a href="{% url 'frontend_api:content_delete_confirm' video.id %}" class="btn btn-sm btn-danger ms-2">
+                            <i class="bi bi-trash"></i> {% trans "Delete" %}
+                        </a>
                     </td>
                 </tr>
                 {% empty %}
