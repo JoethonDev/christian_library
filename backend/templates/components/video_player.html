@@ -1,21 +1,23 @@
 <!-- templates/components/video_player.html -->
 {% load i18n %}
 {% if video.videometa %}
-    <div class="mb-3" style="text-align:right;">
-        {% if available_qualities and available_qualities|length > 1 %}
-            <form id="quality-form" hx-get="{% url 'frontend_api:video_player' video.id %}" hx-target="#video-player-container" hx-swap="outerHTML" style="display:inline;">
-                <label for="quality-select" class="me-2 fw-bold">{% trans "Quality:" %}</label>
-                <select id="quality-select" name="quality" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
-                    <option value="auto" {% if selected_quality == 'auto' %}selected{% endif %}>{% trans "Auto" %}</option>
-                    {% for q in available_qualities %}
-                        <option value="{{ q }}" {% if selected_quality == q %}selected{% endif %}>{{ q|upper }}</option>
-                    {% endfor %}
-                </select>
-            </form>
-        {% endif %}
-    </div>
     <div id="video-player-container">
         <div style="position:relative; width:100%; padding-top:56.25%; background:#000; border-radius:1rem; overflow:hidden;">
+            <!-- Quality Selector Overlay -->
+            {% if available_qualities and available_qualities|length > 1 %}
+                <div style="position:absolute; top:15px; right:15px; z-index:10;">
+                    <form id="quality-form" hx-get="{% url 'frontend_api:video_player' video.id %}" hx-target="#video-player-container" hx-swap="outerHTML" style="display:inline;">
+                        <select id="quality-select" name="quality" class="form-select form-select-sm" onchange="this.form.submit()" 
+                                style="background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.2); color: white; font-size: 0.85rem; min-width: 80px;">
+                            <option value="auto" {% if selected_quality == 'auto' %}selected{% endif %}>{% trans "Auto" %}</option>
+                            {% for q in available_qualities %}
+                                <option value="{{ q }}" {% if selected_quality == q %}selected{% endif %}>{{ q|upper }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </div>
+            {% endif %}
+            
             <video id="video-{{ video.id }}" controls preload="metadata"
                    style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; border-radius:1rem;">
                 {% if hls_playlist %}
@@ -82,6 +84,32 @@
         }
     });
     </script>
+    
+    <style>
+    /* Quality selector styling */
+    #quality-select {
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        border-radius: 8px !important;
+        padding: 4px 8px;
+    }
+    
+    #quality-select:hover {
+        background: rgba(0,0,0,0.9) !important;
+        border-color: rgba(255,255,255,0.4) !important;
+    }
+    
+    #quality-select:focus {
+        background: rgba(0,0,0,0.9) !important;
+        border-color: #87CEEB !important;
+        box-shadow: 0 0 0 2px rgba(135, 206, 235, 0.2) !important;
+    }
+    
+    #quality-select option {
+        background: #333;
+        color: white;
+    }
+    </style>
 {% else %}
     <div class="ratio ratio-16x9 w-100 d-flex align-items-center justify-content-center" style="background: #f8f9fa; min-height:60vh;">
         <div class="text-center w-100">
