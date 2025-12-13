@@ -83,15 +83,60 @@
                 hls.attachMedia(video);
                 
                 hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
-                    console.log('HLS manifest loaded, levels:', data.levels.map(l => l.height + 'p'));
+                    console.log('HLS manifest parsed:', data);
+                    console.log('Available levels:', data.levels);
+                    
+                    // More detailed level logging
+                    data.levels.forEach((level, index) => {
+                        console.log(`Level ${index}:`, {
+                            width: level.width,
+                            height: level.height,
+                            bitrate: level.bitrate,
+                            name: level.name,
+                            url: level.url
+                        });
+                    });
+                    
+                    const levelLabels = data.levels.map(l => {
+                        // Try multiple ways to get resolution
+                        if (l.height && l.height > 0) {
+                            return l.height + 'p';
+                        } else if (l.name) {
+                            return l.name;
+                        } else if (l.url) {
+                            // Try to extract resolution from URL
+                            const urlMatch = l.url.match(/(\d+)p/);
+                            return urlMatch ? urlMatch[0] : 'Unknown';
+                        }
+                        return 'Level ' + data.levels.indexOf(l);
+                    });
+                    
+                    console.log('HLS manifest loaded, levels:', levelLabels);
                     
                     if ('{{ selected_quality }}' !== 'auto' && hls.levels.length > 0) {
                         const initialQuality = '{{ selected_quality }}'.toUpperCase();
-                        // Search for the level index based on resolution, case insensitive
-                        const targetLevel = hls.levels.findIndex(l => (l.height + 'P') === initialQuality);
+                        
+                        // Try multiple matching strategies
+                        let targetLevel = -1;
+                        
+                        // Strategy 1: Match by height
+                        targetLevel = hls.levels.findIndex(l => (l.height + 'P') === initialQuality);
+                        
+                        // Strategy 2: Match by name
+                        if (targetLevel === -1) {
+                            targetLevel = hls.levels.findIndex(l => l.name && l.name.toUpperCase() === initialQuality);
+                        }
+                        
+                        // Strategy 3: Match by URL pattern
+                        if (targetLevel === -1) {
+                            targetLevel = hls.levels.findIndex(l => l.url && l.url.includes(initialQuality.toLowerCase()));
+                        }
+                        
                         if (targetLevel !== -1) {
                             hls.currentLevel = targetLevel;
-                            console.log('Set initial HLS level to:', targetLevel);
+                            console.log('Set initial HLS level to:', targetLevel, 'for quality:', initialQuality);
+                        } else {
+                            console.warn('Initial quality not found:', initialQuality, 'Available levels:', levelLabels);
                         }
                     }
                 });
@@ -106,13 +151,32 @@
                             console.log('Switched to Automatic Quality (ABR)');
                         } else if (hls.levels && hls.levels.length > 0) {
                             const targetQuality = selectedQuality.toUpperCase();
-                            const targetLevel = hls.levels.findIndex(l => (l.height + 'P') === targetQuality);
+                            let targetLevel = -1;
+                            
+                            // Strategy 1: Match by height
+                            targetLevel = hls.levels.findIndex(l => (l.height + 'P') === targetQuality);
+                            
+                            // Strategy 2: Match by name
+                            if (targetLevel === -1) {
+                                targetLevel = hls.levels.findIndex(l => l.name && l.name.toUpperCase() === targetQuality);
+                            }
+                            
+                            // Strategy 3: Match by URL pattern
+                            if (targetLevel === -1) {
+                                targetLevel = hls.levels.findIndex(l => l.url && l.url.includes(targetQuality.toLowerCase()));
+                            }
                             
                             if (targetLevel !== -1) {
                                 hls.currentLevel = targetLevel;
                                 console.log('Manually set HLS level to:', targetLevel, `(${targetQuality})`);
                             } else {
                                 console.error('Target quality level not found in HLS manifest:', selectedQuality);
+                                console.log('Available levels:', hls.levels.map((l, i) => ({
+                                    index: i,
+                                    height: l.height,
+                                    name: l.name,
+                                    url: l.url
+                                })));
                             }
                         }
                     });
