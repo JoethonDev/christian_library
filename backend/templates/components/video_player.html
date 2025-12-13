@@ -15,7 +15,6 @@
         {% endif %}
     </div>
     <div id="video-player-container">
-    {% with hls_playlist=video.videometa.get_hls_playlist selected_quality %}
         <div style="position:relative; width:100%; padding-top:56.25%; background:#000; border-radius:1rem; overflow:hidden;">
             <video id="video-{{ video.id }}" controls preload="metadata"
                    style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; border-radius:1rem;">
@@ -30,7 +29,6 @@
                 {% trans "Your browser does not support the video element." %}
             </video>
         </div>
-    {% endwith %}
     </div>
     <script>
     document.addEventListener('DOMContentLoaded', function() {

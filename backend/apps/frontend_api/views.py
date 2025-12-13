@@ -489,18 +489,21 @@ def video_player(request, video_uuid):
         
         # Get quality parameter from request (default to 'auto')
         quality = request.GET.get('quality', 'auto')
-        
+
         # Get available qualities for this video
         available_qualities = []
+        hls_playlist = None
         if hasattr(video, 'videometa') and video.videometa:
             available_qualities = video.videometa.get_available_qualities()
-        
+            hls_playlist = video.videometa.get_hls_playlist(quality)
+
         context = {
             'video': video,
             'selected_quality': quality,
             'available_qualities': available_qualities,
+            'hls_playlist': hls_playlist,
         }
-        
+
         return render(request, 'components/video_player.html', context)
     except ContentItem.DoesNotExist:
         # Return HTML error message for HTMX
