@@ -2,12 +2,12 @@
 {% load i18n %}
 {% if video.videometa %}
     <div id="video-player-container">
-        <div class="ratio ratio-16x9" style="background:#000; border-radius:1rem; overflow:hidden;">
+        <div style="position:relative; border-radius:1rem; overflow:hidden; background:#000;">
             <!-- Quality Selector Overlay -->
             {% if available_qualities and available_qualities|length > 1 %}
                 <div style="position:absolute; top:10px; right:10px; z-index:1000;">
                     <form id="quality-form" hx-get="{% url 'frontend_api:video_player' video.id %}" hx-target="#video-player-container" hx-swap="outerHTML" style="display:inline;">
-                        <select id="quality-select" name="quality" class="form-select form-select-sm" onchange="this.form.submit()" 
+                        <select id="quality-select" name="quality" class="form-select form-select-sm" 
                                 style="background: rgba(0,0,0,0.85); border: 1px solid rgba(255,255,255,0.3); color: white; font-size: 0.8rem; min-width: 70px; padding: 2px 6px;">
                             <option value="auto" {% if selected_quality == 'auto' %}selected{% endif %}>{% trans "Auto" %}</option>
                             {% for q in available_qualities %}
@@ -19,7 +19,8 @@
             {% endif %}
             
             <video id="video-{{ video.id }}" controls preload="metadata" 
-                   style="width:100%; height:100%; object-fit:cover; border-radius:1rem;">
+                   style="width:100%; max-width:100%; height:auto; display:block; border-radius:1rem;"
+                   poster="{% if video.videometa.thumbnail %}{{ video.videometa.thumbnail.url }}{% endif %}">
                 {% if hls_playlist %}
                     <!-- HLS streaming source (correct MIME type) -->
                     <source src="{% url 'core_utils:secure_stream' file_path=hls_playlist %}" type="application/vnd.apple.mpegurl">
@@ -36,6 +37,8 @@
     document.addEventListener('DOMContentLoaded', function() {
         const video = document.getElementById('video-{{ video.id }}');
         const videoSrc = video.querySelector('source[type="application/vnd.apple.mpegurl"]');
+        const qualityForm = document.getElementById('quality-form');
+        const qualitySelect = document.getElementById('quality-select');
         
         // Debug logging for quality selection
         console.log('Video player loaded:', {
@@ -43,6 +46,25 @@
             availableQualities: {{ available_qualities|default:"[]"|safe }},
             hlsPlaylist: '{{ hls_playlist }}'
         });
+        
+        // Prevent form submission navigation and ensure HTMX handles it
+        if (qualityForm && qualitySelect) {
+            qualitySelect.addEventListener('change', function(e) {
+                e.preventDefault();
+                console.log('Quality changed to:', this.value);
+                
+                // Trigger HTMX request manually to ensure correct targeting
+                const url = qualityForm.getAttribute('hx-get') + '?quality=' + encodeURIComponent(this.value);
+                console.log('Requesting quality change:', url);
+                
+                htmx.ajax('GET', url, {
+                    target: '#video-player-container',
+                    swap: 'outerHTML'
+                });
+                
+                return false;
+            });
+        }
         
         if (videoSrc && typeof Hls !== 'undefined') {
             if (Hls.isSupported()) {
