@@ -40,6 +40,7 @@ urlpatterns = [
     # Upload functionality
     path('admin/upload/', admin_views.upload_content, name='upload_content'),
     path('admin/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
+    path('admin/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
     
     # Content type specific management
     path('admin/videos/', admin_views.video_management, name='video_management'),

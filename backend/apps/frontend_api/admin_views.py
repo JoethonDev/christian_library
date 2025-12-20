@@ -18,6 +18,10 @@ from apps.media_manager.models import ContentItem, VideoMeta, Tag
 from apps.media_manager.services.content_service import ContentService
 from apps.media_manager.services.upload_service import MediaUploadService
 from apps.media_manager.services.delete_service import MediaProcessingService
+from apps.media_manager.services.gemini_service import get_gemini_service
+# Save file temporarily
+import tempfile
+import os
 
 
 # Initialize services
@@ -197,6 +201,71 @@ def handle_content_upload(request):
         messages.error(request, f"{_('Upload failed')}: {str(e)}")
     
     return redirect('frontend_api:upload_content')
+
+
+@login_required
+@require_POST  
+def generate_content_metadata(request):
+    """Generate content metadata using Gemini AI"""
+    try:
+        # Get uploaded file from request
+        if 'file' not in request.FILES:
+            return JsonResponse({'success': False, 'error': _('No file provided')})
+            
+        file = request.FILES['file']
+        content_type = request.POST.get('content_type', '')
+        
+        if not content_type or content_type not in ['video', 'audio', 'pdf']:
+            return JsonResponse({'success': False, 'error': _('Invalid content type')})
+        
+        # Validate file type
+        valid_extensions = {
+            'video': ['.mp4', '.avi', '.mov', '.mkv', '.wmv'],
+            'audio': ['.mp3', '.wav', '.flac', '.aac', '.ogg'],
+            'pdf': ['.pdf']
+        }
+        
+        file_ext = file.name.lower().split('.')[-1]
+        if f'.{file_ext}' not in valid_extensions.get(content_type, []):
+            return JsonResponse({'success': False, 'error': _('Invalid file type for selected content type')})
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_ext}') as temp_file:
+            for chunk in file.chunks():
+                temp_file.write(chunk)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Get Gemini service and generate metadata
+            gemini_service = get_gemini_service()
+            
+            if not gemini_service.is_available():
+                return JsonResponse({
+                    'success': False, 
+                    'error': _('AI service is not available. Please try again later.')
+                })
+            
+            success, metadata = gemini_service.generate_content_metadata(temp_file_path, content_type)
+            
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'metadata': metadata
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': metadata.get('error', _('AI generation failed'))
+                })
+                
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f"{_('Generation failed')}: {str(e)}"})
 
 
 @login_required

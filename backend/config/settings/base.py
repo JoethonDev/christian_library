@@ -118,6 +118,10 @@ LANGUAGES = [
     ('en', 'English'),
 ]
 
+# Gemini AI Configuration
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
+
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
 ]

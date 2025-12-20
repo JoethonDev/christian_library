@@ -149,7 +149,14 @@
 
                         <!-- Content Details -->
                         <div class="mb-5 px-1 px-md-3">
-                            <h5 class="fw-bold mb-4" style="color: var(--bs-primary);">{% trans "Content Information" %}</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="fw-bold mb-0" style="color: var(--bs-primary);">{% trans "Content Information" %}</h5>
+                                <button type="button" id="generate-ai-btn" class="btn btn-sm" 
+                                        style="background: linear-gradient(135deg, #6A5ACD, #9370DB); border: none; color: white; border-radius: 20px; padding: 8px 16px;"
+                                        title="{% trans 'Generate metadata using AI' %}">
+                                    <i class="bi bi-sparkles me-1"></i>{% trans "Generate with AI" %}
+                                </button>
+                            </div>
                             <div class="row g-4">
                                 <!-- Arabic Metadata -->
                                 <div class="col-md-6">
@@ -276,7 +283,137 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressBar = document.getElementById('progress-bar');
     const progressStatus = document.getElementById('progress-status');
     const uploadBtn = document.getElementById('upload-btn');
+    const generateAiBtn = document.getElementById('generate-ai-btn');
 
+    // AI Generation functionality
+    if (generateAiBtn) {
+        generateAiBtn.addEventListener('click', function() {
+            const fileInput = document.querySelector('input[type="file"]');
+            const contentTypeInputs = document.querySelectorAll('input[name="content_type"]');
+            let selectedType = null;
+            
+            for (let input of contentTypeInputs) {
+                if (input.checked) {
+                    selectedType = input.value;
+                    break;
+                }
+            }
+            
+            if (!fileInput.files[0]) {
+                alert('{% trans "Please select a file first" %}');
+                return;
+            }
+            
+            if (!selectedType) {
+                alert('{% trans "Please select content type first" %}');
+                return;
+            }
+            
+            // Disable button and show loading
+            generateAiBtn.disabled = true;
+            generateAiBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>{% trans "Generating..." %}';
+            
+            // Create form data for AI generation
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('content_type', selectedType);
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            
+            // Send request to AI endpoint
+            fetch('{% url "frontend_api:generate_content_metadata" %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.metadata) {
+                    // Populate form fields with AI-generated content
+                    const metadata = data.metadata;
+                    
+                    // Set titles
+                    if (metadata.title_ar) {
+                        document.querySelector('input[name="title_ar"]').value = metadata.title_ar;
+                    }
+                    if (metadata.title_en) {
+                        document.querySelector('input[name="title_en"]').value = metadata.title_en;
+                    }
+                    
+                    // Set descriptions
+                    if (metadata.description_ar) {
+                        document.querySelector('textarea[name="description_ar"]').value = metadata.description_ar;
+                    }
+                    if (metadata.description_en) {
+                        document.querySelector('textarea[name="description_en"]').value = metadata.description_en;
+                    }
+                    
+                    // Set tags
+                    if (metadata.tags && metadata.tags.length > 0) {
+                        document.querySelector('input[name="tags"]').value = metadata.tags.join(', ');
+                    }
+                    
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+                    alertDiv.innerHTML = `
+                        <i class="bi bi-check-circle me-2"></i>
+                        {% trans "AI successfully generated content metadata!" %}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    generateAiBtn.parentNode.appendChild(alertDiv);
+                    
+                    // Auto-dismiss after 5 seconds
+                    setTimeout(() => {
+                        if (alertDiv.parentNode) {
+                            alertDiv.remove();
+                        }
+                    }, 5000);
+                    
+                } else {
+                    // Show error message
+                    const errorMsg = data.error || '{% trans "AI generation failed" %}';
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                    alertDiv.innerHTML = `
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        ${errorMsg}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    generateAiBtn.parentNode.appendChild(alertDiv);
+                    
+                    // Auto-dismiss after 7 seconds
+                    setTimeout(() => {
+                        if (alertDiv.parentNode) {
+                            alertDiv.remove();
+                        }
+                    }, 7000);
+                }
+            })
+            .catch(error => {
+                console.error('AI generation error:', error);
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    <i class="bi bi-x-circle me-2"></i>
+                    {% trans "Network error. Please try again." %}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                generateAiBtn.parentNode.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 7000);
+            })
+            .finally(() => {
+                // Re-enable button
+                generateAiBtn.disabled = false;
+                generateAiBtn.innerHTML = '<i class="bi bi-sparkles me-1"></i>{% trans "Generate with AI" %}';
+            });
+        });
+    }
+
+    // Upload form submission
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
