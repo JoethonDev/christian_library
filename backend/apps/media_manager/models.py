@@ -1,8 +1,33 @@
+"""
+Christian Library Backend: Full-Text Search & Extraction
+
+New fields:
+    - ContentItem.book_content: stores extracted text from PDF (supports Arabic, millions of chars)
+    - ContentItem.search_vector: PostgreSQL FTS vector (GIN index, Arabic config)
+
+Background processing:
+    - ContentItem.save() triggers Celery task for extraction/indexing (never sync)
+    - Celery task: extract_and_index_contentitem (see tasks.py)
+
+Bulk processing:
+    - Management command: bulk_extract_index (triggers all PDFs)
+
+See tests.py for FTS/Arabic search tests.
+"""
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 import uuid
+# For full-text search support
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
+from apps.media_manager.tasks import extract_and_index_contentitem
+from pdfminer.high_level import extract_text
+from django.contrib.postgres.search import SearchVector
+from django.db import connection
+import os
+
 
 
 class TagManager(models.Manager):
@@ -106,12 +131,66 @@ class ContentItemManager(models.Manager):
 
 
 class ContentItem(models.Model):
+    def save(self, *args, **kwargs):
+        """
+        Override save to trigger background extraction/indexing if relevant fields change.
+        Extraction and FTS update are always done in the background (never synchronously).
+        """
+        is_new = self._state.adding
+        super().save(*args, **kwargs)
+        # Only trigger for PDFs
+        if self.content_type == 'pdf':
+            self.trigger_background_extraction_and_indexing()
+
+    def trigger_background_extraction_and_indexing(self):
+        """
+        Trigger a Celery task to extract text and update FTS in the background.
+        """
+        extract_and_index_contentitem.delay(str(self.id))
+
+    def extract_text_from_pdf(self):
+        """
+        Extract text from the associated PDF file (PdfMeta.original_file) and store in book_content.
+        This should be called from a background task. Supports Arabic text extraction.
+        """
+        try:
+            pdfmeta = getattr(self, 'pdfmeta', None)
+            if not pdfmeta or not pdfmeta.original_file:
+                self.book_content = ''
+                return
+
+            pdf_path = pdfmeta.original_file.path
+            if not os.path.exists(pdf_path):
+                self.book_content = ''
+                return
+            text = extract_text(pdf_path)
+            self.book_content = text or ''
+        except Exception as e:
+            self.book_content = ''
+
+    def update_search_vector(self):
+        """
+        Update the search_vector field using book_content, title_ar, and description_ar.
+        Should use PostgreSQL FTS with Arabic language config.
+        This should be called from a background task.
+        """
+        # Use weights: A for title, B for description, C for content
+        vector = (
+            SearchVector('title_ar', weight='A', config='arabic') +
+            SearchVector('description_ar', weight='B', config='arabic') +
+            SearchVector('book_content', weight='C', config='arabic')
+        )
+        # Update only this instance
+        ContentItem = self.__class__
+        ContentItem.objects.filter(pk=self.pk).update(
+            search_vector=vector
+        )
     CONTENT_TYPES = (
         ('video', _('Video')),
-        ('audio', _('Audio')),  
+        ('audio', _('Audio')),
         ('pdf', _('PDF')),
     )
-    
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title_ar = models.CharField(max_length=200, verbose_name=_('Arabic Title'), db_index=True)
     title_en = models.CharField(max_length=200, blank=True, verbose_name=_('English Title'), db_index=True)
@@ -122,10 +201,16 @@ class ContentItem(models.Model):
     is_active = models.BooleanField(default=True, verbose_name=_('Active'), db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'), db_index=True)
     updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
-    
+
+    # --- Full-Text Search & Content Extraction Fields ---
+    # Stores extracted book text (supports Arabic, can hold millions of characters)
+    book_content = models.TextField(blank=True, null=True, verbose_name=_('Extracted Book Content'))
+    # PostgreSQL SearchVectorField for FTS (supports Arabic config)
+    search_vector = SearchVectorField(blank=True, null=True, verbose_name=_('Search Vector'))
+
     # Custom manager
     objects = ContentItemManager()
-    
+
     class Meta:
         verbose_name = _('Content Item')
         verbose_name_plural = _('Content Items')
@@ -133,26 +218,27 @@ class ContentItem(models.Model):
         indexes = [
             models.Index(fields=['content_type', 'is_active', '-created_at']),
             models.Index(fields=['is_active', '-created_at']),
+            GinIndex(fields=['search_vector']),  # GIN index for FTS
         ]
-    
+
     def __str__(self):
         return self.title_ar
-    
+
     def get_title(self, language='ar'):
         """Get title in specified language"""
         return self.title_ar if language == 'ar' else (self.title_en or self.title_ar)
-    
+
     def get_description(self, language='ar'):
         """Get description in specified language"""
         return self.description_ar if language == 'ar' else (self.description_en or self.description_ar)
-    
+
     def get_absolute_url(self):
         """Get the absolute URL for this content item"""
         return reverse('frontend_api:content_detail', kwargs={
             'content_type': self.content_type,
             'pk': self.id
         })
-    
+
     def get_meta_object(self):
         """Get the appropriate meta object based on content type"""
         if self.content_type == 'video':
@@ -162,7 +248,7 @@ class ContentItem(models.Model):
         elif self.content_type == 'pdf':
             return getattr(self, 'pdfmeta', None)
         return None
-    
+
     def clean(self):
         """Validate the content item"""
         super().clean()

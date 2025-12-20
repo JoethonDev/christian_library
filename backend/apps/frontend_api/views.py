@@ -1,6 +1,8 @@
+import logging
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
+from django.db import models
 from django.db.models import Q, Count
 from django.utils.translation import gettext as _
 from django.utils.translation import get_language
@@ -8,6 +10,7 @@ from django.views.generic import ListView
 from django.views.decorators.http import require_http_methods
 from django.template.loader import render_to_string
 from rest_framework.decorators import api_view
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchHeadline
 
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
 
@@ -333,41 +336,59 @@ def search(request):
     available_tags = Tag.objects.filter(is_active=True).distinct()
     
     if search_query or content_type_filter or tag_filter:
-        # Base query for all content types
         base_query = ContentItem.objects.filter(is_active=True).prefetch_related('tags')
-        
-        # Multilingual search - search in both Arabic and English fields
+
+        # Use FTS for PDFs, fallback to icontains for others
         if search_query:
-            search_conditions = (
-                Q(title_ar__icontains=search_query) |
-                Q(title_en__icontains=search_query) |
-                Q(description_ar__icontains=search_query) |
-                Q(description_en__icontains=search_query) |
-                Q(tags__name_ar__icontains=search_query)
-            )
-            base_query = base_query.filter(search_conditions).distinct()
-        
+            if not content_type_filter or content_type_filter == 'pdf':
+                # Use FTS for PDFs (Arabic config)
+                query = SearchQuery(search_query, config='arabic')
+                base_query = base_query.annotate(
+                    rank=SearchRank(models.F('search_vector'), query),
+                    headline=SearchHeadline(
+                        'book_content',
+                        query,
+                        config='arabic',
+                        start_sel='<mark>',
+                        stop_sel='</mark>',
+                        max_words=30,
+                        min_words=10,
+                        max_fragments=2,
+                        fragment_delimiter=' ... '
+                    )
+                ).filter(rank__gte=0.1)
+                results = base_query.order_by('-rank')
+            else:
+                # Fallback: icontains for video/audio
+                search_conditions = (
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query) |
+                    Q(description_ar__icontains=search_query) |
+                    Q(description_en__icontains=search_query) |
+                    Q(tags__name_ar__icontains=search_query)
+                )
+                results = base_query.filter(search_conditions).distinct()
+        else:
+            results = base_query
+
         # Filter by content type if specified
         if content_type_filter in ['video', 'audio', 'pdf']:
-            base_query = base_query.filter(content_type=content_type_filter)
-        
+            results = results.filter(content_type=content_type_filter)
+
         # Filter by tag if specified
         if tag_filter:
-            base_query = base_query.filter(tags__id=tag_filter)
-        
-        # Apply sorting with language-appropriate field
+            results = results.filter(tags__id=tag_filter)
+
+        # Sorting
         if sort_by in ['title_ar', 'title_en']:
-            # Use language-appropriate title field
-            title_field = f'title_{current_language}' if current_language in ['ar', 'en'] else 'title_ar'
-            results = base_query.order_by(title_field)
-        else:
-            # Default sorting by creation date
-            results = base_query.order_by(sort_by)
-        
+            results = results.order_by(sort_by)
+        elif not search_query or content_type_filter != 'pdf':
+            results = results.order_by('-created_at')
+
         total_count = results.count()
-        
+
         # Pagination
-        paginator = Paginator(results, 12)  # Show 12 items per page for better grid layout
+        paginator = Paginator(results, 12)
         page_number = request.GET.get('page', 1)
         results = paginator.get_page(page_number)
     
@@ -491,7 +512,6 @@ def video_player(request, video_uuid):
         quality = request.GET.get('quality', 'auto')
         
         # Debug logging
-        import logging
         logger = logging.getLogger(__name__)
         logger.info(f"Video player requested - Video: {video.id}, Quality: {quality}")
 

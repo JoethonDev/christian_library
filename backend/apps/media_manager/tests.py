@@ -1,3 +1,24 @@
+from django.contrib.postgres.search import SearchQuery, SearchRank
+
+class ContentItemFTSTest(TestCase):
+    def setUp(self):
+        self.item = ContentItem.objects.create(
+            title_ar="كتاب عربي للاختبار",
+            description_ar="هذا كتاب تجريبي لاختبار البحث النصي الكامل.",
+            content_type="pdf",
+            book_content="هذا نص كتاب عربي للاختبار الكامل في النظام.",
+            is_active=True
+        )
+        self.item.update_search_vector()
+        self.item.save()
+
+    def test_arabic_fts(self):
+        query = SearchQuery("كتاب", config="arabic")
+        results = ContentItem.objects.annotate(
+            rank=SearchRank(models.F("search_vector"), query)
+        ).filter(rank__gte=0.1)
+        self.assertTrue(results.exists())
+        self.assertIn(self.item, results)
 import os
 import subprocess
 import tempfile

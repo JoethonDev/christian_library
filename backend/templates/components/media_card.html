@@ -59,6 +59,16 @@
             <h5 class="card-title fw-bold mb-3" style="color: #8B0000; font-family: 'Crimson Text', serif; line-height: 1.3;">
                 {% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar|truncatechars:60 }}{% else %}{{ item.title_en|truncatechars:60 }}{% endif %}
             </h5>
+            {% if item.headline %}
+            <div class="search-highlight-snippet mb-2 small text-muted" style="line-height:1.5;">
+                {{ item.headline|safe }}
+            </div>
+            {% elif item.description_ar %}
+            <p class="card-text small text-muted mb-3" style="line-height: 1.4;">
+                {{ item.description_ar|truncatechars:100 }}
+            </p>
+            {% endif %}
+            </h5>
             
             {% if item.description_ar %}
             <p class="card-text small text-muted mb-3" style="line-height: 1.4;">

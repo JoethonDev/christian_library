@@ -1,3 +1,5 @@
+# robots.txt
+from apps.frontend_api.views_root_robots import robots_txt
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -21,7 +23,6 @@ def redirect_to_custom_admin(request):
     return HttpResponseRedirect(reverse('frontend_api:admin_dashboard'))
 
 
-# Base URL patterns (non-internationalized)
 urlpatterns = [
     # Admin URLs
     path('admin/', redirect_to_custom_admin, name='admin_redirect'),
@@ -45,6 +46,21 @@ urlpatterns = [
     
     # Root redirect to user's preferred language
     path('', smart_root_redirect, name='root_redirect'),
+]
+
+# Sitemap
+from django.contrib.sitemaps.views import sitemap
+from apps.frontend_api.sitemaps import HomeSitemap, PdfListSitemap, PdfDetailSitemap
+sitemaps = {
+    'home': HomeSitemap(),
+    'pdf-list': PdfListSitemap(),
+    'pdf-detail': PdfDetailSitemap(),
+}
+urlpatterns += [
+    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django_sitemap'),
+]
+urlpatterns += [
+    path('robots.txt', robots_txt, name='robots_txt'),
 ]
 
 # Internationalized URL patterns

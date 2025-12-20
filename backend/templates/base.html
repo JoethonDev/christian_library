@@ -8,7 +8,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>{% block title %}{% trans "Christian Library" %}{% endblock %}</title>
+    {% block meta %}{% endblock %}
 
     <!-- Bootstrap 5 RTL/LTR -->
     {% if LANGUAGE_BIDI %}

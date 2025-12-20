@@ -3,7 +3,50 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
+
 {% block title %}{{ pdf.title_ar }} - {% trans "Books" %} - {% trans "Christian Library" %}{% endblock %}
+
+{% block meta %}
+        {% if LANGUAGE_CODE == 'ar' %}
+                <meta name="description" content="{{ pdf.description_ar|truncatechars:160 }}">
+                <meta name="keywords" content="{% if pdf.tags.all %}{% for tag in pdf.tags.all %}{{ tag.name_ar }}, {% endfor %}{% endif %}كتاب, كتب, مكتبة, مسيحية">
+                <meta property="og:type" content="book" />
+                <meta property="og:title" content="{{ pdf.title_ar }}" />
+                <meta property="og:description" content="{{ pdf.description_ar|truncatechars:160 }}" />
+                <meta property="og:url" content="{{ request.build_absolute_uri }}" />
+                <meta property="og:site_name" content="{% trans 'Christian Library' %}" />
+                <script type="application/ld+json">
+                {
+                    "@context": "https://schema.org",
+                    "@type": "Book",
+                    "name": "{{ pdf.title_ar }}",
+                    "description": "{{ pdf.description_ar|truncatechars:160 }}",
+                    "inLanguage": "ar",
+                    "datePublished": "{{ pdf.created_at|date:'Y-m-d' }}",
+                    "url": "{{ request.build_absolute_uri }}"
+                }
+                </script>
+        {% else %}
+                <meta name="description" content="{{ pdf.description_en|default:pdf.description_ar|truncatechars:160 }}">
+                <meta name="keywords" content="{% if pdf.tags.all %}{% for tag in pdf.tags.all %}{{ tag.name_en|default:tag.name_ar }}, {% endfor %}{% endif %}book, books, library, christian">
+                <meta property="og:type" content="book" />
+                <meta property="og:title" content="{{ pdf.title_en|default:pdf.title_ar }}" />
+                <meta property="og:description" content="{{ pdf.description_en|default:pdf.description_ar|truncatechars:160 }}" />
+                <meta property="og:url" content="{{ request.build_absolute_uri }}" />
+                <meta property="og:site_name" content="{% trans 'Christian Library' %}" />
+                <script type="application/ld+json">
+                {
+                    "@context": "https://schema.org",
+                    "@type": "Book",
+                    "name": "{{ pdf.title_en|default:pdf.title_ar }}",
+                    "description": "{{ pdf.description_en|default:pdf.description_ar|truncatechars:160 }}",
+                    "inLanguage": "en",
+                    "datePublished": "{{ pdf.created_at|date:'Y-m-d' }}",
+                    "url": "{{ request.build_absolute_uri }}"
+                }
+                </script>
+        {% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
