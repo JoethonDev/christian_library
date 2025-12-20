@@ -326,10 +326,15 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
+                // Find the main container to insert alert at the top
+                const mainContainer = document.querySelector('.container-fluid');
+                // Remove any previous AI alert
+                const prevAlert = document.getElementById('ai-alert-top');
+                if (prevAlert) prevAlert.remove();
+
                 if (data.success && data.metadata) {
                     // Populate form fields with AI-generated content
                     const metadata = data.metadata;
-                    
                     // Set titles
                     if (metadata.title_ar) {
                         document.querySelector('input[name="title_ar"]').value = metadata.title_ar;
@@ -337,7 +342,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (metadata.title_en) {
                         document.querySelector('input[name="title_en"]').value = metadata.title_en;
                     }
-                    
                     // Set descriptions
                     if (metadata.description_ar) {
                         document.querySelector('textarea[name="description_ar"]').value = metadata.description_ar;
@@ -345,41 +349,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (metadata.description_en) {
                         document.querySelector('textarea[name="description_en"]').value = metadata.description_en;
                     }
-                    
                     // Set tags
                     if (metadata.tags && metadata.tags.length > 0) {
                         document.querySelector('input[name="tags"]').value = metadata.tags.join(', ');
                     }
-                    
-                    // Show success message
+                    // Show success message at the top
                     const alertDiv = document.createElement('div');
+                    alertDiv.id = 'ai-alert-top';
                     alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
                     alertDiv.innerHTML = `
                         <i class="bi bi-check-circle me-2"></i>
                         {% trans "AI successfully generated content metadata!" %}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     `;
-                    generateAiBtn.parentNode.appendChild(alertDiv);
-                    
+                    if (mainContainer) {
+                        mainContainer.insertBefore(alertDiv, mainContainer.firstChild);
+                    }
                     // Auto-dismiss after 5 seconds
                     setTimeout(() => {
                         if (alertDiv.parentNode) {
                             alertDiv.remove();
                         }
                     }, 5000);
-                    
                 } else {
-                    // Show error message
+                    // Show error message at the top
                     const errorMsg = data.error || '{% trans "AI generation failed" %}';
                     const alertDiv = document.createElement('div');
+                    alertDiv.id = 'ai-alert-top';
                     alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
                     alertDiv.innerHTML = `
                         <i class="bi bi-exclamation-triangle me-2"></i>
                         ${errorMsg}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     `;
-                    generateAiBtn.parentNode.appendChild(alertDiv);
-                    
+                    if (mainContainer) {
+                        mainContainer.insertBefore(alertDiv, mainContainer.firstChild);
+                    }
                     // Auto-dismiss after 7 seconds
                     setTimeout(() => {
                         if (alertDiv.parentNode) {
