@@ -1,10 +1,113 @@
-# Christian Library - Coptic Orthodox Learning Platform (Beta Version)
+# Christian Library - Coptic Orthodox Digital Library
 
-**A secure, multilingual learning platform for Coptic Orthodox educational content**
+[![Django](https://img.shields.io/badge/Django-5.2.9-green.svg)](https://djangoproject.com/)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://postgresql.org/)
+[![Gemini AI](https://img.shields.io/badge/Gemini-2.5--Flash-purple.svg)](https://ai.google.dev/)
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Django 5.0+](https://img.shields.io/badge/django-5.0+-green.svg)](https://www.djangoproject.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+A modern, bilingual (Arabic/English) digital library system specifically designed for the **Coptic Orthodox Church of Egypt**, featuring AI-powered content generation, full-text search, and comprehensive media management.
+
+## ✨ Key Features
+
+### 🎯 **Coptic Orthodox Specialized**
+- **Denominational Safety**: AI content generation uses only Coptic Orthodox terminology
+- **Source Grounding**: Extracts metadata only from actual content, no theological inference
+- **Arabic-First**: RTL support with proper Arabic typographic handling
+- **Orthodox-Safe**: Avoids Protestant, Evangelical, or Catholic terminology
+
+### 🤖 **AI-Powered Content Generation**
+- **Gemini AI Integration**: Automatic metadata generation for uploaded content
+- **Consistent Output**: Deterministic generation with enhanced configuration (temperature=0.1)
+- **Multilingual**: Arabic and English content generation with semantic alignment
+- **Content-Grounded**: Uses only terms explicitly found in uploaded files
+
+### 🔍 **Advanced Search & SEO**
+- **Full-Text Search**: PostgreSQL-powered search with Arabic support
+- **SEO Optimization**: Dynamic meta tags, OpenGraph, JSON-LD schema
+- **Search Highlights**: HTML highlighting of search results
+- **Sitemap Generation**: Automatic XML sitemaps for search engines
+
+### 📱 **Modern Architecture**
+- **Responsive Design**: Bootstrap-based responsive layout
+- **Performance**: Redis caching, database optimization, CDN-ready
+- **Security**: HTTPS-ready, secure media handling, CSRF protection
+- **Scalability**: Celery background tasks, Docker deployment
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.11+
+- PostgreSQL 15+
+- Redis 6+
+- Google Gemini API key ([Get API Key](https://aistudio.google.com/apikey))
+
+### 1. Environment Setup
+```bash
+# Clone repository
+git clone <repository-url>
+cd library_prod
+
+# Set environment variables
+export GEMINI_API_KEY="your-gemini-api-key"
+export DB_NAME="christian_library"
+export DB_USER="postgres"
+export DB_PASSWORD="your-password"
+export SECRET_KEY="your-secret-key"
+```
+
+### 2. Install Dependencies
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install requirements
+pip install -r backend/requirements/base.txt
+```
+
+### 3. Database Setup
+```bash
+cd backend
+
+# Run migrations
+python manage.py migrate
+
+# Create superuser
+python manage.py createsuperuser
+
+# Load initial data (optional)
+python manage.py loaddata fixtures/initial_data.json
+```
+
+### 4. Start the Server
+```bash
+# Development server
+python manage.py runserver
+
+# Visit http://localhost:8000
+```
+
+## 🎨 AI Content Generation
+
+The **Gemini AI integration** is the flagship feature, providing intelligent metadata generation specifically designed for Coptic Orthodox content:
+
+### Key Features:
+- **📖 Source-Grounded**: Uses only terms from uploaded content, no theological inference
+- **⛪ Denomination-Safe**: Coptic Orthodox terminology only, avoids Western theological terms
+- **🎯 Consistent**: Enhanced configuration (temperature=0.1, top_p=0.9, top_k=20) for deterministic outputs
+- **🌐 Bilingual**: Arabic and English generation with semantic alignment
+
+### Usage:
+1. Navigate to `/admin/upload/`
+2. Select content type (Video, Audio, Document)
+3. Upload your file
+4. Click **"Generate with AI" ✨** button
+5. Review and edit the generated metadata
+
+### Generated Output:
+- **Titles**: 3-6 words using actual content terms
+- **Descriptions**: 140-160 words extracted from content vocabulary
+- **Tags**: 5-6 Arabic tags derived from repeated keywords and explicit themes
 
 ## 📋 Table of Contents
 
