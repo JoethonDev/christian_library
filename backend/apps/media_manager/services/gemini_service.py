@@ -64,7 +64,7 @@ class GeminiContentGenerator:
             response = self.client.models.generate_content(
                 model=self.model,
                 contents=[prompt, uploaded_file],
-                generation_config={
+                config={
                     "temperature": 0.1,  # Low temperature for deterministic outputs
                     "top_p": 0.9,       # Nucleus sampling for consistency
                     "top_k": 20,        # Limit token choices for predictability
