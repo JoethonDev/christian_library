@@ -22,6 +22,9 @@ urlpatterns = [
     path('search/', views.search, name='search'),
     path('search/autocomplete/', views.search_autocomplete, name='search_autocomplete'),
     
+    # Component showcase for Phase 4
+    path('showcase/', views.component_showcase, name='component_showcase'),
+    
     # Tag-based content filtering
     path('tags/<uuid:tag_id>/', views.tag_content, name='tag_content'),
     

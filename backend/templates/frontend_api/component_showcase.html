@@ -1,0 +1,287 @@
+<!-- templates/frontend_api/component_showcase.html -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Component Showcase - Phase 4 Enhanced Media Components" %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .showcase-section {
+        margin-bottom: 3rem;
+    }
+    
+    .showcase-header {
+        background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.1) 100%);
+        border: 1px solid rgba(184, 134, 11, 0.2);
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .component-demo {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(184, 134, 11, 0.1);
+        border-radius: 20px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 16px rgba(230, 230, 250, 0.3);
+    }
+    
+    .demo-title {
+        color: #8B0000;
+        font-family: 'Crimson Text', serif;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .demo-description {
+        color: #666;
+        font-size: 0.9rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .coptic-cross {
+        color: #B8860B;
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .color-palette {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin: 1.5rem 0;
+    }
+    
+    .color-swatch {
+        width: 80px;
+        height: 60px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+    
+    @media (max-width: 768px) {
+        .color-swatch {
+            width: 60px;
+            height: 45px;
+            font-size: 0.7rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="showcase-header">
+        <div class="coptic-cross">✠</div>
+        <h1 class="display-4 fw-bold mb-3" style="color: #8B0000; font-family: 'Crimson Text', serif;">
+            {% trans "Phase 4 Component Showcase" %}
+        </h1>
+        <p class="lead mb-4" style="color: #4B0082;">
+            {% trans "Enhanced Media Components with Coptic Orthodox Theming & Mobile-First Design" %}
+        </p>
+        
+        <!-- Color Palette Display -->
+        <div class="color-palette">
+            <div class="color-swatch" style="background: #B8860B;">Gold</div>
+            <div class="color-swatch" style="background: #8B0000;">Deep Red</div>
+            <div class="color-swatch" style="background: #4B0082;">Indigo</div>
+            <div class="color-swatch" style="background: #E6E6FA; color: #333;">Lavender</div>
+            <div class="color-swatch" style="background: #FAFAFA; color: #333; border: 1px solid #ddd;">Ivory</div>
+        </div>
+        
+        <small class="text-muted">
+            {% trans "All components feature responsive design optimized for mobile devices with touch-friendly controls" %}
+        </small>
+    </div>
+    
+    <div class="row">
+        <!-- PDF Viewer Showcase -->
+        <div class="col-lg-6 showcase-section">
+            <div class="component-demo">
+                <h3 class="demo-title">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>{% trans "Enhanced PDF Viewer" %}
+                </h3>
+                <p class="demo-description">
+                    {% trans "Mobile-first responsive design with Coptic Orthodox theming, enhanced download functionality, and touch-friendly controls." %}
+                </p>
+                
+                <!-- Mock PDF Viewer Component -->
+                <div class="modern-pdf-viewer rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); box-shadow: 0 8px 32px rgba(230, 230, 250, 0.2);">
+                    <div class="pdf-header p-3" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(230, 230, 250, 0.2) 100%); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(184, 134, 11, 0.1);">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="pdf-icon flex-shrink-0">
+                                <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #B8860B, #8B0000); border-radius: 20px; width: 56px; height: 56px;">
+                                    <span style="color: white; font-size: 1.2rem; font-weight: bold;">✠</span>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="pdf-title mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">
+                                    {% trans "Sample Spiritual Document.pdf" %}
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="bi bi-file-text me-1"></i>{% trans "12 pages" %} • 
+                                    <i class="bi bi-clock me-1"></i>{% trans "Est. 15 min read" %}
+                                </small>
+                            </div>
+                            <button class="btn btn-link p-2" style="color: #B8860B; min-width: 44px; height: 44px;" disabled>
+                                <i class="bi bi-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="pdf-body text-center p-4" style="background: rgba(250, 250, 250, 0.8);">
+                        <i class="bi bi-file-earmark-pdf" style="font-size: 3rem; color: #B8860B;"></i>
+                        <p class="mt-2 mb-0 text-muted">{% trans "PDF Viewer Demo - Enhanced for Mobile" %}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>{% trans "Features:" %}</strong> {% trans "Larger touch targets, Coptic cross iconography, enhanced accessibility" %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Audio Player Showcase -->
+        <div class="col-lg-6 showcase-section">
+            <div class="component-demo">
+                <h3 class="demo-title">
+                    <i class="bi bi-music-note-beamed me-2"></i>{% trans "Enhanced Audio Player" %}
+                </h3>
+                <p class="demo-description">
+                    {% trans "Complete redesign with mobile-first approach, enhanced metadata display, and cultural theming." %}
+                </p>
+                
+                <!-- Mock Audio Player Component -->
+                <div class="modern-audio-player rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); box-shadow: 0 8px 32px rgba(230, 230, 250, 0.2);">
+                    <div class="audio-header p-3" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(230, 230, 250, 0.2) 100%); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(184, 134, 11, 0.1);">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="audio-icon flex-shrink-0">
+                                <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #E6E6FA, #8B0000); border-radius: 20px; width: 56px; height: 56px;">
+                                    <i class="bi bi-music-note-beamed text-white" style="font-size: 1.5rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <h6 class="audio-title mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">
+                                    {% trans "Coptic Hymn Sample" %}
+                                </h6>
+                                <div class="audio-metadata">
+                                    <div class="d-flex flex-wrap gap-1 mb-1">
+                                        <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem;">{% trans "Hymn" %}</span>
+                                        <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem;">{% trans "Arabic" %}</span>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>4:32
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="audio-controls p-3">
+                        <div class="d-flex align-items-center justify-content-center p-3 rounded" style="background: rgba(184, 134, 11, 0.1);">
+                            <i class="bi bi-play-circle" style="font-size: 2rem; color: #B8860B;"></i>
+                            <span class="ms-3 text-muted">{% trans "Audio Player Demo" %}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>{% trans "Features:" %}</strong> {% trans "Enhanced metadata, tag display, mobile-optimized controls, cultural iconography" %}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Video Player Showcase -->
+        <div class="col-12 showcase-section">
+            <div class="component-demo">
+                <h3 class="demo-title">
+                    <i class="bi bi-camera-video-fill me-2"></i>{% trans "Enhanced Video Player" %}
+                </h3>
+                <p class="demo-description">
+                    {% trans "Mobile-first video player with HLS.js integration preserved, fullscreen support, and responsive design." %}
+                </p>
+                
+                <!-- Mock Video Player Component -->
+                <div class="modern-video-player rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); box-shadow: 0 8px 32px rgba(230, 230, 250, 0.2);">
+                    <div class="video-header p-3" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(230, 230, 250, 0.2) 100%); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(184, 134, 11, 0.1);">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="video-icon flex-shrink-0">
+                                <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #E6E6FA, #4B0082); border-radius: 20px; width: 56px; height: 56px;">
+                                    <i class="bi bi-camera-video-fill text-white" style="font-size: 1.5rem;"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <h6 class="video-title mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">
+                                    {% trans "Coptic Orthodox Liturgy Sample" %}
+                                </h6>
+                                <div class="video-metadata">
+                                    <div class="d-flex flex-wrap gap-1 mb-1">
+                                        <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem;">{% trans "Liturgy" %}</span>
+                                        <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem;">{% trans "HD Quality" %}</span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3 text-muted small">
+                                        <span><i class="bi bi-clock me-1"></i>45:20</span>
+                                        <span><i class="bi bi-aspect-ratio me-1"></i>1920x1080</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="video-container position-relative" style="background: #000; border-radius: 0 0 24px 24px; min-height: 250px; display: flex; align-items: center; justify-content: center;">
+                        <div class="text-center text-white">
+                            <i class="bi bi-play-circle" style="font-size: 4rem; color: #B8860B;"></i>
+                            <p class="mt-2 mb-0">{% trans "Video Player Demo - Enhanced for Mobile" %}</p>
+                            <small class="text-muted">{% trans "Fullscreen support • Quality selection • Touch controls" %}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <strong>{% trans "Features:" %}</strong> {% trans "HLS.js streaming, quality selector, fullscreen support, responsive containers, touch gestures" %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Technical Information -->
+    <div class="component-demo mt-5">
+        <h3 class="demo-title">
+            <i class="bi bi-gear-fill me-2"></i>{% trans "Technical Implementation" %}
+        </h3>
+        <div class="row">
+            <div class="col-md-6">
+                <h5 style="color: #4B0082;">{% trans "Mobile-First Features" %}</h5>
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "Touch targets minimum 44px" %}</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "Responsive breakpoints: 576px, 768px, 992px" %}</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "Progressive enhancement for desktop" %}</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "Touch gesture support" %}</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5 style="color: #4B0082;">{% trans "Accessibility & Performance" %}</h5>
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "WCAG 2.1 compliance" %}</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "Screen reader optimization" %}</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "High contrast color ratios" %}</li>
+                    <li><i class="bi bi-check-circle-fill text-success me-2"></i>{% trans "Optimized for mobile performance" %}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

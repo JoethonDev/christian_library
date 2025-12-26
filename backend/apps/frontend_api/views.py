@@ -17,6 +17,8 @@ from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta
 
 def home(request):
     """Homepage with featured content and categories"""
+    current_language = get_language()
+    
     # Get latest content
     latest_videos = ContentItem.objects.filter(
         content_type='video', 
@@ -33,12 +35,28 @@ def home(request):
         is_active=True
     ).select_related('pdfmeta').prefetch_related('tags').order_by('-created_at')[:6]
     
-    # Get popular tags
+    # Add unified metadata for each content item
+    for item in latest_videos:
+        item.title = item.get_title(current_language)
+        item.description = item.get_description(current_language)
+    
+    for item in latest_audios:
+        item.title = item.get_title(current_language)
+        item.description = item.get_description(current_language)
+        
+    for item in latest_pdfs:
+        item.title = item.get_title(current_language)
+        item.description = item.get_description(current_language)
+    
+    # Get popular tags with unified names
     popular_tags = Tag.objects.filter(
         is_active=True
     ).annotate(
         content_count=Count('contentitem', filter=Q(contentitem__is_active=True))
     ).order_by('-content_count')[:8]
+    
+    for tag in popular_tags:
+        tag.name = tag.get_name(current_language)
     
     # Get content statistics
     stats = {
@@ -61,6 +79,8 @@ def home(request):
 
 def videos(request):
     """Video listing page with filtering and pagination"""
+    current_language = get_language()
+    
     videos_qs = ContentItem.objects.filter(
         content_type='video',
         is_active=True
@@ -73,8 +93,11 @@ def videos(request):
     if search_query:
         videos_qs = videos_qs.filter(
             Q(title_ar__icontains=search_query) |
+            Q(title_en__icontains=search_query) |
             Q(description_ar__icontains=search_query) |
-            Q(tags__name_ar__icontains=search_query)
+            Q(description_en__icontains=search_query) |
+            Q(tags__name_ar__icontains=search_query) |
+            Q(tags__name_en__icontains=search_query)
         ).distinct()
     
     if tag_filter:
@@ -85,12 +108,20 @@ def videos(request):
     page_number = request.GET.get('page', 1)
     videos_page = paginator.get_page(page_number)
     
-    # Get available tags for filter
+    # Add unified metadata for video items
+    for video in videos_page:
+        video.title = video.get_title(current_language)
+        video.description = video.get_description(current_language)
+    
+    # Get available tags for filter with unified names
     available_tags = Tag.objects.filter(
         is_active=True,
         contentitem__content_type='video',
         contentitem__is_active=True
     ).distinct().order_by('name_ar')
+    
+    for tag in available_tags:
+        tag.name = tag.get_name(current_language)
     
     context = {
         'videos': videos_page,
@@ -116,6 +147,10 @@ def video_detail(request, video_uuid):
         is_active=True
     )
     
+    current_language = get_language()
+    video.title = video.get_title(current_language)
+    video.description = video.get_description(current_language)
+    
     # Get related videos with similar tags
     video_tags = video.tags.all()
     related_videos = ContentItem.objects.filter(
@@ -123,6 +158,11 @@ def video_detail(request, video_uuid):
         content_type='video',
         is_active=True
     ).exclude(id=video.id).select_related('videometa').distinct()[:4]
+    
+    # Add unified metadata for related videos
+    for item in related_videos:
+        item.title = item.get_title(current_language)
+        item.description = item.get_description(current_language)
     
     context = {
         'video': video,
@@ -134,6 +174,8 @@ def video_detail(request, video_uuid):
 
 def audios(request):
     """Audio listing page with filtering and pagination"""
+    current_language = get_language()
+    
     audios_qs = ContentItem.objects.filter(
         content_type='audio',
         is_active=True
@@ -146,8 +188,11 @@ def audios(request):
     if search_query:
         audios_qs = audios_qs.filter(
             Q(title_ar__icontains=search_query) |
+            Q(title_en__icontains=search_query) |
             Q(description_ar__icontains=search_query) |
-            Q(tags__name_ar__icontains=search_query)
+            Q(description_en__icontains=search_query) |
+            Q(tags__name_ar__icontains=search_query) |
+            Q(tags__name_en__icontains=search_query)
         ).distinct()
     
     if tag_filter:
@@ -158,12 +203,20 @@ def audios(request):
     page_number = request.GET.get('page', 1)
     audios_page = paginator.get_page(page_number)
     
-    # Get available tags for filter
+    # Add unified metadata for audio items
+    for audio in audios_page:
+        audio.title = audio.get_title(current_language)
+        audio.description = audio.get_description(current_language)
+    
+    # Get available tags for filter with unified names
     available_tags = Tag.objects.filter(
         is_active=True,
         contentitem__content_type='audio',
         contentitem__is_active=True
     ).distinct().order_by('name_ar')
+    
+    for tag in available_tags:
+        tag.name = tag.get_name(current_language)
     
     context = {
         'audios': audios_page,
@@ -189,6 +242,10 @@ def audio_detail(request, audio_uuid):
         is_active=True
     )
     
+    current_language = get_language()
+    audio.title = audio.get_title(current_language)
+    audio.description = audio.get_description(current_language)
+    
     # Get related audios with similar tags
     audio_tags = audio.tags.all()
     related_audios = ContentItem.objects.filter(
@@ -196,6 +253,11 @@ def audio_detail(request, audio_uuid):
         content_type='audio',
         is_active=True
     ).exclude(id=audio.id).select_related('audiometa').distinct()[:4]
+    
+    # Add unified metadata for related audios
+    for item in related_audios:
+        item.title = item.get_title(current_language)
+        item.description = item.get_description(current_language)
     
     context = {
         'audio': audio,
@@ -207,6 +269,8 @@ def audio_detail(request, audio_uuid):
 
 def pdfs(request):
     """PDF listing page with filtering and pagination"""
+    current_language = get_language()
+    
     pdfs_qs = ContentItem.objects.filter(
         content_type='pdf',
         is_active=True
@@ -219,8 +283,11 @@ def pdfs(request):
     if search_query:
         pdfs_qs = pdfs_qs.filter(
             Q(title_ar__icontains=search_query) |
+            Q(title_en__icontains=search_query) |
             Q(description_ar__icontains=search_query) |
-            Q(tags__name_ar__icontains=search_query)
+            Q(description_en__icontains=search_query) |
+            Q(tags__name_ar__icontains=search_query) |
+            Q(tags__name_en__icontains=search_query)
         ).distinct()
     
     if tag_filter:
@@ -231,12 +298,20 @@ def pdfs(request):
     page_number = request.GET.get('page', 1)
     pdfs_page = paginator.get_page(page_number)
     
-    # Get available tags for filter
+    # Add unified metadata for PDF items
+    for pdf in pdfs_page:
+        pdf.title = pdf.get_title(current_language)
+        pdf.description = pdf.get_description(current_language)
+    
+    # Get available tags for filter with unified names
     available_tags = Tag.objects.filter(
         is_active=True,
         contentitem__content_type='pdf',
         contentitem__is_active=True
     ).distinct().order_by('name_ar')
+    
+    for tag in available_tags:
+        tag.name = tag.get_name(current_language)
     
     context = {
         'pdfs': pdfs_page,
@@ -262,6 +337,10 @@ def pdf_detail(request, pdf_uuid):
         is_active=True
     )
     
+    current_language = get_language()
+    pdf.title = pdf.get_title(current_language)
+    pdf.description = pdf.get_description(current_language)
+    
     # Get related PDFs with similar tags
     pdf_tags = pdf.tags.all()
     related_pdfs = ContentItem.objects.filter(
@@ -269,6 +348,11 @@ def pdf_detail(request, pdf_uuid):
         content_type='pdf',
         is_active=True
     ).exclude(id=pdf.id).select_related('pdfmeta').distinct()[:4]
+    
+    # Add unified metadata for related PDFs
+    for item in related_pdfs:
+        item.title = item.get_title(current_language)
+        item.description = item.get_description(current_language)
     
     context = {
         'pdf': pdf,
@@ -748,3 +832,11 @@ def api_content_stats(request):
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+def component_showcase(request):
+    """Showcase page for Phase 4 enhanced media components"""
+    return render(request, 'frontend_api/component_showcase.html', {
+        'page_title': _('Component Showcase - Phase 4 Enhanced Media Components'),
+        'meta_description': _('Showcase of enhanced media components with Coptic Orthodox theming and mobile-first responsive design'),
+    })

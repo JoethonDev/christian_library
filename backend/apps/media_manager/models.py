@@ -86,8 +86,13 @@ class Tag(models.Model):
         return self.name_ar
     
     def get_name(self, language='ar'):
-        """Get name in specified language"""
-        return self.name_ar if language == 'ar' else (self.name_en or self.name_ar)
+        """Get tag name with fallback logic for guest-facing views.
+        Returns name in requested language, falls back to other language if empty/missing.
+        """
+        if language == 'ar':
+            return self.name_ar if self.name_ar and self.name_ar.strip() else (self.name_en or '')
+        else:
+            return self.name_en if self.name_en and self.name_en.strip() else (self.name_ar or '')
     
     def get_content_count(self):
         """Get the number of content items using this tag"""
@@ -372,12 +377,22 @@ class ContentItem(models.Model):
         return self.title_ar
 
     def get_title(self, language='ar'):
-        """Get title in specified language"""
-        return self.title_ar if language == 'ar' else (self.title_en or self.title_ar)
+        """Get title with fallback logic for guest-facing views.
+        Returns title in requested language, falls back to other language if empty/missing.
+        """
+        if language == 'ar':
+            return self.title_ar if self.title_ar and self.title_ar.strip() else (self.title_en or '')
+        else:
+            return self.title_en if self.title_en and self.title_en.strip() else (self.title_ar or '')
 
     def get_description(self, language='ar'):
-        """Get description in specified language"""
-        return self.description_ar if language == 'ar' else (self.description_en or self.description_ar)
+        """Get description with fallback logic for guest-facing views.
+        Returns description in requested language, falls back to other language if empty/missing.
+        """
+        if language == 'ar':
+            return self.description_ar if self.description_ar and self.description_ar.strip() else (self.description_en or '')
+        else:
+            return self.description_en if self.description_en and self.description_en.strip() else (self.description_ar or '')
 
     def get_absolute_url(self):
         """Get the absolute URL for this content item"""

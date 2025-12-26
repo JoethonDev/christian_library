@@ -48,7 +48,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.performance.PerformanceMonitoringMiddleware',
     'core.middleware.security.SecurityHeadersMiddleware',
-    'core.middleware.database.DatabaseOptimizationMiddleware',
+    'core.middleware.db_query_metrics.UnifiedDBQueryMetricsMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

@@ -3,7 +3,7 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{{ audio.title_ar }} - {% trans "Audio" %} - {% trans "Christian Library" %}{% endblock %}
+{% block title %}{{ audio.title }} - {% trans "Audio" %} - {% trans "Christian Library" %}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -34,9 +34,9 @@
                         </div>
                         <div class="col-lg-8">
                             <h1 class="h2 fw-bold mb-3" style="color: var(--bs-primary);">
-                                {% if LANGUAGE_CODE == 'ar' %}{{ audio.title_ar }}{% else %}{{ audio.title_en|default:audio.title_ar }}{% endif %}
+                                {{ audio.title }}
                             </h1>
-                            <p class="text-muted mb-4 fs-5">{{ audio.description_ar }}</p>
+                            <p class="text-muted mb-4 fs-5">{{ audio.description }}</p>
                             
                             <!-- Audio Details -->
                             <div class="row g-3 mb-4">

@@ -1,45 +1,144 @@
 <!-- templates/components/audio_player.html -->
 {% load i18n %}
-<div class="modern-audio-player p-2 p-md-3 rounded-4" style="background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1);">
-    <div class="d-flex align-items-center mb-2 flex-wrap">
-        <div class="p-1 me-2 mb-2 mb-md-0" style="background: linear-gradient(135deg, #E6E6FA, #8B0000); border-radius: 12px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-            <i class="bi bi-music-note text-white" style="font-size: 1rem;"></i>
-        </div>
-        <div class="flex-grow-1">
-            <h6 class="mb-0 fw-bold" style="color: #8B0000; font-size:1rem;">{{ audio.title_ar }}</h6>
-            {% if audio.tags.exists %}
-            <small class="text-muted">{% for tag in audio.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>
-            {% else %}
-            <small class="text-muted">{% trans "Uncategorized" %}</small>
+<div class="modern-audio-player rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); box-shadow: 0 8px 32px rgba(230, 230, 250, 0.2);">
+    <!-- Enhanced Header with Mobile-First Design -->
+    <div class="audio-header p-3 p-md-4" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(230, 230, 250, 0.2) 100%); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(184, 134, 11, 0.1);">
+        <div class="d-flex align-items-start gap-3">
+            <!-- Enhanced Coptic Music Icon -->
+            <div class="audio-icon flex-shrink-0">
+                <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #E6E6FA, #8B0000); border-radius: 20px; width: 56px; height: 56px; box-shadow: 0 6px 20px rgba(230, 230, 250, 0.4);">
+                    <i class="bi bi-music-note-beamed text-white" style="font-size: 1.5rem;"></i>
+                </div>
+            </div>
+            <!-- Title and Metadata -->
+            <div class="flex-grow-1 min-w-0">
+                <h6 class="audio-title mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif; font-size: 1.2rem; line-height: 1.3;">{{ audio.title_ar }}</h6>
+                <div class="audio-metadata">
+                    {% if audio.tags.exists %}
+                    <div class="d-flex flex-wrap gap-1 mb-1">
+                        {% for tag in audio.tags.all %}
+                        <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem; padding: 0.3rem 0.6rem;">{{ tag.name }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    {% if audio.audiometa.duration_seconds %}
+                    <small class="text-muted d-block">
+                        <i class="bi bi-clock me-1"></i>{{ audio.audiometa.get_duration_formatted }}
+                    </small>
+                    {% endif %}
+                </div>
+            </div>
+            <!-- Enhanced Actions Menu -->
+            {% if audio.audiometa and audio.audiometa.get_playback_file %}
+            <div class="audio-actions flex-shrink-0">
+                <div class="dropdown">
+                    <button class="btn btn-link p-2" type="button" data-bs-toggle="dropdown" 
+                            style="color: #4B0082; border-radius: 12px; min-width: 44px; height: 44px;" 
+                            aria-label="{% trans 'Audio options' %}">
+                        <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow" style="border-radius: 12px; border: 1px solid rgba(184, 134, 11, 0.2);">
+                        <li><a class="dropdown-item d-flex align-items-center" href="{% url 'core_utils:secure_media' file_path=audio.audiometa.get_playback_file %}?download=true">
+                            <i class="bi bi-download me-2" style="color: #B8860B;"></i>{% trans "Download Audio" %}
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><span class="dropdown-item-text small text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            {% if audio.audiometa.file_size_mb %}{{ audio.audiometa.file_size_mb }} MB{% endif %}
+                            {% if audio.audiometa.bitrate %}• {{ audio.audiometa.bitrate }} kbps{% endif %}
+                        </span></li>
+                    </ul>
+                </div>
+            </div>
             {% endif %}
         </div>
+    </div>
+    
+    <!-- Enhanced Audio Player Controls -->
+    <div class="audio-controls p-3 p-md-4">
         {% if audio.audiometa and audio.audiometa.get_playback_file %}
-            <div class="dropdown ms-auto">
-                <button class="btn btn-link text-muted p-1" type="button" data-bs-toggle="dropdown">
-                    <i class="bi bi-three-dots-vertical"></i>
-                </button>
-                <ul class="dropdown-menu">
-                    <li><a class="dropdown-item small" href="{% url 'core_utils:secure_media' file_path=audio.audiometa.get_playback_file %}?download=true">
-                        <i class="bi bi-download me-2"></i>{% trans "Download" %}
-                    </a></li>
-                </ul>
+            <!-- Custom Audio Player with Coptic Orthodox Styling -->
+            <div class="custom-audio-wrapper">
+                <audio id="audio-{{ audio.id }}" class="w-100" preload="metadata" 
+                       style="border-radius: 16px; height: 56px; background: linear-gradient(135deg, rgba(184, 134, 11, 0.1) 0%, rgba(75, 0, 130, 0.05) 100%); box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);">
+                    <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/mpeg">
+                    <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/wav">
+                    <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/ogg">
+                    {% trans "Your browser does not support the audio element." %}
+                </audio>
+                
+                <!-- Mobile-Friendly Progress Indicator -->
+                <div class="audio-progress mt-2 d-none d-md-block">
+                    <div class="d-flex justify-content-between align-items-center small text-muted">
+                        <span>{% trans "Spiritual Content" %}</span>
+                        <span>{% trans "Coptic Orthodox" %}</span>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- Enhanced Error State -->
+            <div class="audio-error text-center py-4">
+                <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: rgba(220, 53, 69, 0.1); width: 64px; height: 64px;">
+                    <i class="bi bi-exclamation-triangle text-warning" style="font-size: 1.5rem;"></i>
+                </div>
+                <h6 class="text-muted mb-1">{% trans "Audio Not Available" %}</h6>
+                <small class="text-muted">{% trans "The audio file is currently being processed or not found." %}</small>
             </div>
         {% endif %}
     </div>
-    
-    {% if audio.audiometa and audio.audiometa.get_playback_file %}
-        <audio controls class="w-100" preload="metadata" style="border-radius: 10px; height: 44px; min-width:120px;">
-            <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/mpeg">
-            <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/wav">
-            <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/ogg">
-            {% trans "Your browser does not support the audio element." %}
-        </audio>
-    {% else %}
-        <div class="text-center py-2">
-            <div class="mb-2">
-                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 1.1rem;"></i>
-            </div>
-            <small class="text-muted">{% trans "Audio file not available" %}</small>
-        </div>
-    {% endif %}
 </div>
+
+<!-- Enhanced Audio Player Styling -->
+<style>
+/* Mobile-first audio player enhancements */
+.modern-audio-player {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modern-audio-player:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(230, 230, 250, 0.3);
+}
+
+.audio-title {
+    overflow-wrap: break-word;
+    hyphens: auto;
+}
+
+/* Enhanced audio element styling */
+.custom-audio-wrapper audio {
+    width: 100%;
+    height: 56px;
+    outline: none;
+}
+
+.custom-audio-wrapper audio::-webkit-media-controls-panel {
+    background: linear-gradient(135deg, rgba(184, 134, 11, 0.1) 0%, rgba(75, 0, 130, 0.05) 100%);
+    border-radius: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .audio-header {
+        padding: 1rem !important;
+    }
+    
+    .audio-controls {
+        padding: 1rem !important;
+    }
+    
+    .audio-icon > div {
+        width: 48px !important;
+        height: 48px !important;
+        padding: 0.75rem !important;
+    }
+    
+    .audio-icon i {
+        font-size: 1.2rem !important;
+    }
+    
+    .audio-title {
+        font-size: 1rem !important;
+    }
+}
+</style>

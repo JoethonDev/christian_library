@@ -6,52 +6,82 @@
     This workaround forces the PDF viewer to always use LTR direction while keeping the UI
     elements (buttons, labels) in the correct language direction.
 -->
-<div class="modern-pdf-viewer rounded-4 overflow-hidden w-100 h-100" dir="ltr" style="background: linear-gradient(135deg, #F5DEB3 0%, rgba(75, 0, 130, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); min-height:100%; min-width:100%; display:flex; flex-direction:column;">
-    <div class="p-3 border-bottom flex-shrink-0" style="background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(10px);">
-        <div class="d-flex align-items-center flex-wrap">
-            <div class="p-1 me-3" style="background: linear-gradient(135deg, #F5DEB3, #4B0082); border-radius: 12px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                <i class="bi bi-journal-bookmark text-white" style="font-size: 1rem;"></i>
+<div class="modern-pdf-viewer rounded-4 overflow-hidden w-100 h-100" dir="ltr" style="background: linear-gradient(135deg, #F5DEB3 0%, rgba(75, 0, 130, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); min-height:100%; min-width:100%; display:flex; flex-direction:column; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.15);">
+    <!-- Enhanced Mobile-First Header -->
+    <div class="p-3 border-bottom flex-shrink-0" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 222, 179, 0.3) 100%); backdrop-filter: blur(15px); border-bottom: 2px solid rgba(184, 134, 11, 0.2);">
+        <div class="d-flex align-items-start flex-column flex-md-row gap-2 gap-md-3">
+            <!-- Coptic Cross Icon with Enhanced Styling -->
+            <div class="d-flex align-items-center flex-shrink-0">
+                <div class="p-2" style="background: linear-gradient(135deg, #B8860B, #DAA520); border-radius: 16px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(184, 134, 11, 0.3);">
+                    <i class="bi bi-journal-bookmark-fill text-white" style="font-size: 1.1rem;"></i>
+                </div>
             </div>
-            <div class="flex-grow-1">
-                <h6 class="mb-0 fw-bold" style="color: #8B0000; font-size:1rem;">{{ pdf.title_ar }}</h6>
+            <!-- Title and Tags with Mobile Optimization -->
+            <div class="flex-grow-1 min-w-0">
+                <h6 class="mb-1 fw-bold text-truncate" style="color: #8B0000; font-family: 'Crimson Text', serif; font-size: 1.1rem; line-height: 1.3;">{{ pdf.title_ar }}</h6>
                 {% if pdf.tags.exists %}
-                <small class="text-muted">{% for tag in pdf.tags.all %}{{ tag.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</small>
+                <div class="d-flex flex-wrap gap-1 mb-0">
+                    {% for tag in pdf.tags.all %}
+                    <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem; padding: 0.25rem 0.5rem;">{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
                 {% else %}
                 <small class="text-muted">{% trans "Uncategorized" %}</small>
                 {% endif %}
             </div>
+            <!-- Enhanced Download Button for Mobile -->
             {% if pdf.pdfmeta and pdf.pdfmeta.get_viewing_file %}
-                <a href="{% url 'core_utils:secure_media' file_path=pdf.pdfmeta.get_viewing_file %}?download=true" class="btn btn-outline-primary btn-sm rounded-pill ms-auto mt-2 mt-md-0" target="_blank" style="font-size:0.95rem;">
-                    <i class="bi bi-download me-1"></i>{% trans "Download" %}
-                </a>
+                <div class="d-flex gap-2 flex-shrink-0">
+                    <a href="{% url 'core_utils:secure_media' file_path=pdf.pdfmeta.get_viewing_file %}?download=true" 
+                       class="btn btn-primary rounded-pill px-3 py-2" target="_blank" 
+                       style="background: linear-gradient(135deg, #B8860B, #DAA520); border: none; box-shadow: 0 4px 12px rgba(184, 134, 11, 0.3); font-size: 0.875rem; white-space: nowrap;">
+                        <i class="bi bi-download me-1"></i><span class="d-none d-sm-inline">{% trans "Download" %}</span>
+                    </a>
+                </div>
             {% endif %}
         </div>
     </div>
     <div class="flex-grow-1 d-flex flex-column" style="min-height:60vh;">
         {% if pdf.pdfmeta and pdf.pdfmeta.get_viewing_file %}
         <div class="d-flex flex-column h-100">
-            <!-- PDF Controls -->
-            <div class="pdf-controls bg-light p-2 border-bottom d-flex align-items-center justify-content-between flex-wrap flex-shrink-0" style="gap: 10px;">
-                <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
-                    <button id="pdf-prev-btn" class="btn btn-outline-secondary btn-sm" disabled>
-                        <i class="bi bi-chevron-left"></i>
+            <!-- Enhanced Mobile-First PDF Controls -->
+            <div class="pdf-controls p-2 p-md-3 border-bottom d-flex align-items-center justify-content-between flex-wrap flex-shrink-0" style="background: linear-gradient(135deg, rgba(248, 249, 250, 0.95) 0%, rgba(245, 222, 179, 0.1) 100%); backdrop-filter: blur(10px); gap: 8px; border-bottom: 1px solid rgba(184, 134, 11, 0.1);">
+                <!-- Navigation Controls with Larger Touch Targets -->
+                <div class="d-flex align-items-center gap-2">
+                    <button id="pdf-prev-btn" class="btn btn-outline-primary" disabled 
+                            style="min-width: 44px; height: 44px; border-color: rgba(184, 134, 11, 0.3); color: #8B0000; border-radius: 12px;" 
+                            aria-label="{% trans 'Previous page' %}">
+                        <i class="bi bi-chevron-left" style="font-size: 1.1rem;"></i>
                     </button>
-                    <span class="text-muted small">
-                        <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">-</span>
-                    </span>
-                    <button id="pdf-next-btn" class="btn btn-outline-secondary btn-sm" disabled>
-                        <i class="bi bi-chevron-right"></i>
+                    <div class="d-flex align-items-center px-2 py-1 rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-weight: 600; min-width: 80px; text-align: center;">
+                        <span class="small">
+                            <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">-</span>
+                        </span>
+                    </div>
+                    <button id="pdf-next-btn" class="btn btn-outline-primary" disabled 
+                            style="min-width: 44px; height: 44px; border-color: rgba(184, 134, 11, 0.3); color: #8B0000; border-radius: 12px;" 
+                            aria-label="{% trans 'Next page' %}">
+                        <i class="bi bi-chevron-right" style="font-size: 1.1rem;"></i>
                     </button>
                 </div>
-                <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
-                    <button id="pdf-zoom-out-btn" class="btn btn-outline-secondary btn-sm">
+                <!-- Zoom Controls with Better Mobile UX -->
+                <div class="d-flex align-items-center gap-2">
+                    <button id="pdf-zoom-out-btn" class="btn btn-outline-secondary" 
+                            style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
+                            aria-label="{% trans 'Zoom out' %}">
                         <i class="bi bi-zoom-out"></i>
                     </button>
-                    <span class="text-muted small" id="pdf-zoom-level">100%</span>
-                    <button id="pdf-zoom-in-btn" class="btn btn-outline-secondary btn-sm">
+                    <div class="px-2 py-1 rounded-pill small fw-medium" style="background: rgba(75, 0, 130, 0.1); color: #4B0082; min-width: 50px; text-align: center;">
+                        <span id="pdf-zoom-level">100%</span>
+                    </div>
+                    <button id="pdf-zoom-in-btn" class="btn btn-outline-secondary" 
+                            style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
+                            aria-label="{% trans 'Zoom in' %}">
                         <i class="bi bi-zoom-in"></i>
                     </button>
-                    <button id="pdf-fit-width-btn" class="btn btn-outline-secondary btn-sm">
+                    <button id="pdf-fit-width-btn" class="btn btn-outline-secondary d-none d-md-inline-flex" 
+                            style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
+                            aria-label="{% trans 'Fit to width' %}">
                         <i class="bi bi-arrows-angle-expand"></i>
                     </button>
                 </div>

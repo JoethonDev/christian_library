@@ -3,7 +3,7 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{{ video.title_ar }} - {% trans "Videos" %} - {% trans "Christian Library" %}{% endblock %}
+{% block title %}{{ video.title }} - {% trans "Videos" %} - {% trans "Christian Library" %}{% endblock %}
 
 {% block content %}
 <div class="container-fluid px-4">
@@ -28,9 +28,9 @@
                         </div>
                         <div class="col-md-10">
                             <h1 class="h3 fw-bold mb-3" style="color: var(--bs-primary);">
-                                {% if LANGUAGE_CODE == 'ar' %}{{ video.title_ar }}{% else %}{{ video.title_en|default:video.title_ar }}{% endif %}
+                                {{ video.title }}
                             </h1>
-                            <p class="text-muted mb-4 fs-6">{{ video.description_ar }}</p>
+                            <p class="text-muted mb-4 fs-6">{{ video.description }}</p>
                             <!-- Video Details -->
                             <div class="d-flex flex-wrap gap-4 text-muted small mb-3">
                                 {% if video.duration %}
@@ -117,7 +117,7 @@
                                             <div class="d-flex gap-3">
                                                 <div class="flex-shrink-0">
                                                     {% if item.thumbnail %}
-                                                        <img src="{{ item.thumbnail.url }}" alt="{{ item.title_ar }}" class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
+                                                        <img src="{{ item.thumbnail.url }}" alt="{{ item.title }}" class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
                                                     {% else %}
                                                         <div class="d-flex align-items-center justify-content-center rounded" style="width: 80px; height: 60px; background: rgba(135,206,235,0.2);">
                                                             <i class="bi bi-play-circle" style="font-size: 1.5rem; color: #87CEEB;"></i>
@@ -125,8 +125,8 @@
                                                     {% endif %}
                                                 </div>
                                                 <div class="flex-grow-1 min-w-0">
-                                                    <h6 class="fw-bold mb-2 text-truncate" style="color: var(--bs-primary);">{{ item.title_ar }}</h6>
-                                                    <p class="text-muted small mb-1 text-truncate">{{ item.description_ar|truncatewords:8 }}</p>
+                                                    <h6 class="fw-bold mb-2 text-truncate" style="color: var(--bs-primary);">{{ item.title }}</h6>
+                                                    <p class="text-muted small mb-1 text-truncate">{{ item.description|truncatewords:8 }}</p>
                                                     {% if item.duration %}
                                                     <div class="text-muted small">
                                                         <i class="bi bi-clock me-1"></i>{{ item.duration }}
