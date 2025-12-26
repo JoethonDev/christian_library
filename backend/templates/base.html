@@ -189,6 +189,23 @@
             0% { left: -100%; }
             100% { left: 100%; }
         }
+        
+        /* PDF.js RTL Fix - Force LTR direction for PDF rendering */
+        .textLayer,
+        .textLayer > div,
+        .annotationLayer,
+        .annotationLayer > section,
+        #pdf-viewer-container,
+        #pdf-canvas-container,
+        .modern-pdf-viewer canvas {
+            direction: ltr !important;
+            unicode-bidi: embed !important;
+        }
+        
+        /* Ensure PDF.js components render correctly in RTL mode */
+        .modern-pdf-viewer[dir="ltr"] .textLayer {
+            text-align: start !important;
+        }
     </style>
     <!-- pdf_viewer.min.css is now included above with the correct version -->
     {% block extra_css %}{% endblock %}

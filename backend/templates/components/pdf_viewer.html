@@ -1,6 +1,12 @@
 {% load i18n %}
 {% load static %}
-<div class="modern-pdf-viewer rounded-4 overflow-hidden w-100 h-100" style="background: linear-gradient(135deg, #F5DEB3 0%, rgba(75, 0, 130, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); min-height:100%; min-width:100%; display:flex; flex-direction:column;">
+<!-- 
+    PDF.js RTL Fix: Force LTR direction for PDF viewer to ensure correct Arabic text rendering.
+    PDF.js has issues rendering Arabic text correctly when the container has dir="rtl".
+    This workaround forces the PDF viewer to always use LTR direction while keeping the UI
+    elements (buttons, labels) in the correct language direction.
+-->
+<div class="modern-pdf-viewer rounded-4 overflow-hidden w-100 h-100" dir="ltr" style="background: linear-gradient(135deg, #F5DEB3 0%, rgba(75, 0, 130, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); min-height:100%; min-width:100%; display:flex; flex-direction:column;">
     <div class="p-3 border-bottom flex-shrink-0" style="background: rgba(255, 255, 255, 0.5); backdrop-filter: blur(10px);">
         <div class="d-flex align-items-center flex-wrap">
             <div class="p-1 me-3" style="background: linear-gradient(135deg, #F5DEB3, #4B0082); border-radius: 12px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
@@ -51,7 +57,8 @@
                 </div>
             </div>
             <!-- PDF Viewer Container -->
-            <div id="pdf-viewer-container" class="flex-grow-1 bg-white position-relative overflow-auto" style="min-height: 400px;" data-pdf-url="{% url 'core_utils:secure_media' file_path=pdf.pdfmeta.get_viewing_file %}">
+            <!-- Force LTR for PDF.js canvas rendering and text layers -->
+            <div id="pdf-viewer-container" class="flex-grow-1 bg-white position-relative overflow-auto" dir="ltr" style="min-height: 400px; direction: ltr !important;" data-pdf-url="{% url 'core_utils:secure_media' file_path=pdf.pdfmeta.get_viewing_file %}">
                 <!-- Loading Overlay -->
                 <div id="pdf-loading-overlay" class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center" style="top: 0; left: 0; background: rgba(255,255,255,0.9); z-index: 10;">
                     <div class="text-center">
@@ -71,7 +78,7 @@
                     </div>
                 </div>
                 <!-- Canvas Container -->
-                <div id="pdf-canvas-container" class="d-flex justify-content-center align-items-start p-3" style="min-height: 100%;"></div>
+                <div id="pdf-canvas-container" class="d-flex justify-content-center align-items-start p-3" dir="ltr" style="min-height: 100%; direction: ltr !important; unicode-bidi: embed;"></div>
             </div>
         </div>
         {% else %}
