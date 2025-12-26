@@ -1,4 +1,16 @@
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+from django.test import TestCase
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.db import models
+
+from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta
+from core.utils.media_processing import VideoProcessor, AudioProcessor, PDFProcessor
+
 
 class ContentItemFTSTest(TestCase):
     def setUp(self):
@@ -19,17 +31,9 @@ class ContentItemFTSTest(TestCase):
         ).filter(rank__gte=0.1)
         self.assertTrue(results.exists())
         self.assertIn(self.item, results)
-import os
-import subprocess
-import tempfile
-from pathlib import Path
-from django.test import TestCase
-from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
+
 
 # from apps.courses.models import Course, Module  # Course functionality removed
-from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta
-from core.utils.media_processing import VideoProcessor, AudioProcessor, PDFProcessor
 
 
 class MediaProcessingTestCase(TestCase):

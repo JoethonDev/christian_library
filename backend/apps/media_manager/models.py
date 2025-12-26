@@ -27,6 +27,12 @@ from pdfminer.high_level import extract_text
 from django.contrib.postgres.search import SearchVector
 from django.db import connection
 import os
+import logging
+import fitz  # PyMuPDF for PDF processing and OCR fallback
+from PIL import Image
+import io
+import subprocess
+from pathlib import Path
 
 
 
@@ -152,21 +158,162 @@ class ContentItem(models.Model):
         """
         Extract text from the associated PDF file (PdfMeta.original_file) and store in book_content.
         This should be called from a background task. Supports Arabic text extraction.
+        Falls back to OCR if PDF contains only images.
         """
+        logger = logging.getLogger(__name__)
+        
         try:
             pdfmeta = getattr(self, 'pdfmeta', None)
             if not pdfmeta or not pdfmeta.original_file:
+                logger.warning(f"PDF meta or file not found for ContentItem {self.id}")
                 self.book_content = ''
                 return
 
             pdf_path = pdfmeta.original_file.path
             if not os.path.exists(pdf_path):
+                logger.error(f"PDF file does not exist at path: {pdf_path}")
                 self.book_content = ''
                 return
+            
+            logger.info(f"Starting text extraction for PDF: {self.id}")
+            
+            # First try: Extract text using pdfminer
             text = extract_text(pdf_path)
-            self.book_content = text or ''
-        except Exception as e:
+            
+            # Clean and validate extracted text
+            if text and text.strip() and len(text.strip()) > 10:
+                self.book_content = text.strip()
+                logger.info(f"Successfully extracted {len(text)} characters using pdfminer for PDF {self.id}")
+                return
+            
+            # Second try: Use PyMuPDF for better text extraction
+            logger.info(f"Pdfminer extraction minimal, trying PyMuPDF for PDF {self.id}")
+            text = self._extract_text_with_pymupdf(pdf_path)
+            
+            if text and text.strip() and len(text.strip()) > 10:
+                self.book_content = text.strip()
+                logger.info(f"Successfully extracted {len(text)} characters using PyMuPDF for PDF {self.id}")
+                return
+            
+            # Third try: OCR fallback for image-based PDFs
+            logger.info(f"PDF appears to be image-based, attempting OCR for PDF {self.id}")
+            text = self._extract_text_with_ocr(pdf_path)
+            
+            if text and text.strip():
+                self.book_content = text.strip()
+                logger.info(f"Successfully extracted {len(text)} characters using OCR for PDF {self.id}")
+                return
+            
+            # If all methods fail
+            logger.warning(f"All text extraction methods failed for PDF {self.id}")
             self.book_content = ''
+            
+        except Exception as e:
+            logger.error(f"Error extracting text from PDF {self.id}: {str(e)}", exc_info=True)
+            self.book_content = ''
+
+    def _extract_text_with_pymupdf(self, pdf_path):
+        """
+        Extract text using PyMuPDF (fitz) which often works better than pdfminer.
+        """
+        try:
+            text_content = []
+            with fitz.open(pdf_path) as doc:
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    page_text = page.get_text()
+                    if page_text.strip():
+                        text_content.append(page_text)
+            
+            return '\n\n'.join(text_content) if text_content else ''
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"PyMuPDF extraction failed: {str(e)}")
+            return ''
+
+    def _extract_text_with_ocr(self, pdf_path):
+        """
+        Extract text using OCR (Tesseract) for image-based PDFs.
+        Supports Arabic text recognition.
+        """
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Check if Tesseract is available
+            result = subprocess.run(['tesseract', '--version'], 
+                                  capture_output=True, text=True, check=True)
+            if 'tesseract' not in result.stdout.lower():
+                logger.warning("Tesseract OCR not available, skipping OCR extraction")
+                return ''
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            logger.warning("Tesseract OCR not available, skipping OCR extraction")
+            return ''
+        
+        try:
+            text_content = []
+            
+            # Convert PDF pages to images and perform OCR
+            with fitz.open(pdf_path) as doc:
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    
+                    # Convert page to image
+                    mat = fitz.Matrix(2.0, 2.0)  # Higher resolution for better OCR
+                    pix = page.get_pixmap(matrix=mat)
+                    img_data = pix.tobytes("png")
+                    
+                    # Create temporary image file for Tesseract
+                    temp_image_path = f"/tmp/ocr_page_{self.id}_{page_num}.png"
+                    temp_text_path = f"/tmp/ocr_text_{self.id}_{page_num}"
+                    
+                    try:
+                        # Save image temporarily
+                        with open(temp_image_path, "wb") as img_file:
+                            img_file.write(img_data)
+                        
+                        # Run Tesseract OCR with Arabic and English
+                        cmd = [
+                            'tesseract', 
+                            temp_image_path, 
+                            temp_text_path, 
+                            '-l', 'ara+eng',  # Arabic + English
+                            '--oem', '3',     # Use LSTM OCR engine
+                            '--psm', '6'      # Assume uniform block of text
+                        ]
+                        
+                        subprocess.run(cmd, check=True, capture_output=True)
+                        
+                        # Read OCR output
+                        output_file = f"{temp_text_path}.txt"
+                        if os.path.exists(output_file):
+                            with open(output_file, 'r', encoding='utf-8') as f:
+                                page_text = f.read().strip()
+                                if page_text:
+                                    text_content.append(page_text)
+                    
+                    except Exception as page_error:
+                        logger.warning(f"OCR failed for page {page_num}: {str(page_error)}")
+                        continue
+                    
+                    finally:
+                        # Clean up temporary files
+                        for temp_file in [temp_image_path, f"{temp_text_path}.txt"]:
+                            if os.path.exists(temp_file):
+                                try:
+                                    os.remove(temp_file)
+                                except:
+                                    pass
+            
+            # Join all page texts
+            full_text = '\n\n'.join(text_content) if text_content else ''
+            
+            if full_text:
+                logger.info(f"OCR extraction completed for PDF {self.id}: {len(full_text)} characters")
+            
+            return full_text
+            
+        except Exception as e:
+            logger.error(f"OCR extraction failed for PDF {self.id}: {str(e)}", exc_info=True)
+            return ''
 
     def update_search_vector(self):
         """
