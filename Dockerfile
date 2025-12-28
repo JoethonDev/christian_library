@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # OCR dependencies
     tesseract-ocr \
     tesseract-ocr-ara \
-    tesseract-ocr-eng \
     # Image processing
     libjpeg62-turbo-dev \
     libpng-dev \
