@@ -1,93 +1,200 @@
-<!-- templates/frontend_api/pdfs.html -->
+<!-- templates/frontend_api/pdfs.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
 
 {% block title %}{% trans "Books & PDFs" %} - {% trans "Christian Library" %}{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <!-- Page Header with Search -->
-    <div class="row align-items-center mb-5">
-        <div class="col-md-8">
-            <div class="d-flex align-items-center mb-3">
-                <div class="p-3 rounded-circle me-3" style="background: #F5DEB3; backdrop-filter: blur(10px);">
-                    <i class="bi bi-journal-bookmark" style="font-size: 2rem; color: white;"></i>
-                </div>
-                <div>
-                    <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Books & PDFs" %}</h1>
-                    <p class="text-muted mb-0">{% trans "Explore our collection of spiritual literature and sacred texts" %}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="position-relative">
-                <input type="search" class="form-control form-control-lg ps-5" 
-                       style="border-radius: 25px; border: 2px solid #F5DEB3; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);"
-                       placeholder="{% trans 'Search books and documents...' %}"
-                       name="search" value="{{ search_query }}"
-                       hx-get="{% url 'frontend_api:pdfs' %}" 
-                       hx-target="#pdf-grid" 
-                       hx-trigger="keyup changed delay:500ms">
-                <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-            </div>
-        </div>
+<!-- Header Section -->
+<div class="d-flex align-items-center mb-5">
+    <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+         style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 16px; border: 3px solid var(--color-golden-ochre);">
+        <i class="bi bi-journal-bookmark text-white fs-2"></i>
     </div>
-
-    <!-- Document Stats -->
-    <div class="row g-4 mb-5">
-        <div class="col-md-3">
-            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #DEB887, #CD853F); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(222, 184, 135, 0.2);">
-                <div class="card-body py-4">
-                    <i class="bi bi-book" style="font-size: 2.5rem; color: white;"></i>
-                    <h5 class="mt-3 mb-1 fw-bold text-white">{{ pdfs.count|default:0 }}</h5>
-                    <p class="text-white small mb-0 fw-medium">{% trans "Total Books" %}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #8B0000, #B22222); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(139, 0, 0, 0.2);">
-                <div class="card-body py-4">
-                    <i class="bi bi-journal-text" style="font-size: 2.5rem; color: white;"></i>
-                    <h5 class="mt-3 mb-1 fw-bold text-white">{% trans "Scripture" %}</h5>
-                    <p class="text-white small mb-0 fw-medium">{% trans "Sacred Texts" %}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #B8860B, #DAA520); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(184, 134, 11, 0.2);">
-                <div class="card-body py-4">
-                    <i class="bi bi-bookmark-star" style="font-size: 2.5rem; color: white;"></i>
-                    <h5 class="mt-3 mb-1 fw-bold text-white">{% trans "Devotionals" %}</h5>
-                    <p class="text-white small mb-0 fw-medium">{% trans "Daily Readings" %}</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #9370DB, #8A2BE2); backdrop-filter: blur(10px); border-radius: 20px; color: white; border: 1px solid rgba(147, 112, 219, 0.2);">
-                <div class="card-body py-4">
-                    <i class="bi bi-download" style="font-size: 2.5rem; color: white;"></i>
-                    <h5 class="mt-3 mb-1 fw-bold text-white">{% trans "Downloads" %}</h5>
-                    <p class="text-white small mb-0 fw-medium">{% trans "Available Offline" %}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- PDF Grid -->
-    <div id="pdf-grid" class="row g-4 mb-5">
-        {% include "frontend_api/partials/pdf_grid.html" %}
+    <div class="flex-grow-1">
+        <h2 class="heading-font text-maroon mb-1 fw-bold">{% trans "Digital Library" %}</h2>
+        <p class="body-font text-muted mb-0">{% trans "Explore our collection of spiritual literature, sacred texts, and manuscripts" %}</p>
     </div>
 </div>
 
-<style>
-.card:hover {
-    transform: translateY(-5px);
-    transition: transform 0.3s ease;
-}
+<!-- Search and Filter Section -->
+<div class="card card-coptic mb-5">
+    <div class="card-header-coptic">
+        <h4 class="heading-font text-white mb-0 text-center">{% trans "Search Books & Documents" %}</h4>
+    </div>
+    <div class="card-body p-4">
+        <form method="get" action="{% url 'frontend_api:pdfs' %}" class="row g-3 align-items-end">
+            <div class="col-lg-6">
+                <label class="form-label fw-medium text-maroon">{% trans "Search Books & Documents" %}</label>
+                <div class="position-relative">
+                    <input type="search" class="form-control form-control-lg border-2 ps-5" 
+                           placeholder="{% trans 'Search books, manuscripts, documents...' %}"
+                           name="search" value="{{ search_query }}"
+                           style="border-color: var(--color-golden-ochre); border-radius: 12px;">
+                    <i class="bi bi-search position-absolute text-golden" style="left: 1rem; top: 50%; transform: translateY(-50%);"></i>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <label class="form-label fw-medium text-maroon">{% trans "Filter by Category" %}</label>
+                <select class="form-select border-2" name="tag" 
+                        style="border-color: var(--color-golden-ochre); border-radius: 12px;">
+                    <option value="">{% trans "All Categories" %}</option>
+                    {% for tag in available_tags %}
+                        <option value="{{ tag.slug }}" {% if tag_filter == tag.slug %}selected{% endif %}>
+                            {% get_current_language as LANGUAGE_CODE %}
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                {{ tag.name_ar|default:tag.name_en }}
+                            {% else %}
+                                {{ tag.name_en|default:tag.name_ar }}
+                            {% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2">
+                <button type="submit" class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-funnel me-2"></i>{% trans "Filter" %}
+                </button>
+                <div class="text-center p-2 rounded-3" style="background: var(--color-golden-ochre-10);">
+                    <small class="fw-bold text-golden">{{ total_count }}</small><br>
+                    <small class="body-font text-muted">{% trans "documents" %}</small>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
-.form-control:focus {
-    border-color: #F5DEB3;
-    box-shadow: 0 0 0 0.25rem rgba(245, 222, 179, 0.25);
+<!-- Document Statistics -->
+<div class="row g-4 mb-5">
+    <div class="col-lg-3 col-md-6">
+        <div class="card card-coptic text-center h-100 hover-maroon-glow">
+            <div class="card-body py-4">
+                <div class="mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
+                         style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
+                        <i class="bi bi-book text-white fs-2"></i>
+                    </div>
+                </div>
+                <h3 class="heading-font text-maroon fw-bold mb-2">{{ total_count|default:0 }}</h3>
+                <p class="body-font text-muted mb-0">{% trans "Total Books" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="card card-coptic text-center h-100 hover-golden-glow">
+            <div class="card-body py-4">
+                <div class="mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
+                         style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
+                        <i class="bi bi-journal-text text-white fs-2"></i>
+                    </div>
+                </div>
+                <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Sacred" %}</h3>
+                <p class="body-font text-muted mb-0">{% trans "Scripture & Texts" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="card card-coptic text-center h-100 hover-maroon-glow">
+            <div class="card-body py-4">
+                <div class="mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
+                         style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
+                        <i class="bi bi-bookmark-star text-white fs-2"></i>
+                    </div>
+                </div>
+                <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Devotional" %}</h3>
+                <p class="body-font text-muted mb-0">{% trans "Spiritual Readings" %}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="card card-coptic text-center h-100 hover-golden-glow">
+            <div class="card-body py-4">
+                <div class="mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
+                         style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
+                        <i class="bi bi-download text-white fs-2"></i>
+                    </div>
+                </div>
+                <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Offline" %}</h3>
+                <p class="body-font text-muted mb-0">{% trans "Available Downloads" %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF Grid -->
+<div id="pdf-grid" class="row g-4 mb-5">
+    {% include "frontend_api/partials/pdf_grid.html" %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<nav aria-label="{% trans 'Book pagination' %}" class="mb-5">
+    <div class="d-flex justify-content-center">
+        <div class="pagination-container">
+            <ul class="pagination pagination-lg">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in page_obj.paginator.page_range %}
+                    {% if page_num == page_obj.number %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                    {% elif page_num == 1 or page_num == page_obj.paginator.num_pages or page_num >= page_obj.number|add:-2 and page_num <= page_obj.number|add:2 %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">{{ page_num }}</a>
+                        </li>
+                    {% elif page_num == 2 or page_num == page_obj.paginator.num_pages|add:-1 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endif %}
+
+<!-- Back to Top Button -->
+<div class="text-center mb-3">
+    <button class="btn btn-secondary rounded-pill px-4" onclick="scrollToTop()">
+        <i class="bi bi-arrow-up me-2"></i>{% trans "Back to Top" %}
+    </button>
+</div>
+
+<script>
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
 }
-</style>
+</script>
 {% endblock %}

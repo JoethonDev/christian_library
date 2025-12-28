@@ -1,49 +1,54 @@
-<!-- templates/includes/navbar.html -->
-{% load i18n %}
-<nav class="navbar navbar-expand-lg sticky-top" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(184, 134, 11, 0.2);">
-    <div class="container">
-        <a class="navbar-brand fw-bold d-flex align-items-center" href="{% url 'frontend_api:home' %}" style="color: #8B0000; font-family: 'Crimson Text', serif; font-size: 1.5rem;">
-            <div class="d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border-radius: 12px; box-shadow: 0 4px 16px rgba(184, 134, 11, 0.3);">
-                <i class="bi bi-book-half text-white" style="font-size: 1.2rem;"></i>
+<!-- templates/includes/navbar.html - Coptic Orthodox Theme -->
+{% load i18n static %}
+
+<!-- Main Navigation with Header Image -->
+<nav class="navbar navbar-expand-lg sticky-top navbar-coptic">
+    <div class="container-boxed">
+        <div class="row w-100 align-items-center">
+            <!-- Left: Logo/Header Image -->
+            <div class="col-md-3">
+                <div class="d-flex align-items-center">
+                    <img src="{% static 'images/icon.png' %}" alt="Library Icon" 
+                         style="height: 80px; width: auto;" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                    <div class="d-none align-items-center justify-content-center sacred-shadow" 
+                         style="width: 60px; height: 60px; background: linear-gradient(135deg, var(--color-maroon) 0%, #A0001A 100%); border-radius: 12px; border: 2px solid var(--color-golden-ochre);">
+                        <i class="bi bi-book-half text-white" style="font-size: 1.6rem;"></i>
+                    </div>
+                </div>
             </div>
-            {% trans "Christian Library" %}
-        </a>
-        
-        <button class="navbar-toggler border-0 p-2" type="button" data-bs-toggle="collapse" data-bs-target="#navContent" style="background: rgba(184, 134, 11, 0.1); border-radius: 8px;">
-            <span class="navbar-toggler-icon" style="filter: invert(1);"></span>
-        </button>
-        
-        <div class="collapse navbar-collapse" id="navContent">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link fw-medium px-3 py-2 rounded-pill" href="{% url 'frontend_api:home' %}" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(184, 134, 11, 0.1)'; this.style.color='#8B0000'" onmouseout="this.style.background='transparent'; this.style.color='#4B0082'">
-                        <i class="bi bi-house me-2"></i>{% trans "Home" %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link fw-medium px-3 py-2 rounded-pill" href="{% url 'frontend_api:videos' %}" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(184, 134, 11, 0.1)'; this.style.color='#8B0000'" onmouseout="this.style.background='transparent'; this.style.color='#4B0082'">
-                        <i class="bi bi-play-circle me-2"></i>{% trans "Videos" %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link fw-medium px-3 py-2 rounded-pill" href="{% url 'frontend_api:audios' %}" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(184, 134, 11, 0.1)'; this.style.color='#8B0000'" onmouseout="this.style.background='transparent'; this.style.color='#4B0082'">
-                        <i class="bi bi-music-note me-2"></i>{% trans "Audio" %}
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link fw-medium px-3 py-2 rounded-pill" href="{% url 'frontend_api:pdfs' %}" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(184, 134, 11, 0.1)'; this.style.color='#8B0000'" onmouseout="this.style.background='transparent'; this.style.color='#4B0082'">
-                        <i class="bi bi-journal-bookmark me-2"></i>{% trans "Books" %}
-                    </a>
-                </li>
-            </ul>
             
-            <div class="d-flex align-items-center gap-3">
+            <!-- Center: Brand Title with 3D Golden Effect -->
+            <div class="col-md-6 text-center">
+                <div class="golden-3d-text" style="font-size: 2.2rem; line-height: 1.1;">
+                    {% get_current_language as LANGUAGE_CODE %}
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        المكتبه الشخصيه
+                    {% else %}
+                        Personal Library
+                    {% endif %}
+                </div>
+                <div class="text-muted" style="font-size: 0.9rem; font-family: var(--font-sans); margin-top: 0.5rem;">
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        الحبر الجليل المطران الانبا ابرام مطران الفيوم و رئيس دير الملاك غبريال النقلون
+                    {% else %}
+                        His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of Archangel Gabriel Monastery, Naqlun
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Right: Navigation Controls -->
+            <div class="col-md-3 text-end">
+                <!-- Mobile Toggle Button -->
+                <button class="navbar-toggler border-0 p-2 d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#navContent" 
+                        style="background: rgba(221, 153, 51, 0.1); border-radius: 8px;">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                
                 <!-- Language Switcher -->
-                <div class="dropdown">
+                <div class="dropdown d-none d-lg-inline-block">
                     <button class="btn btn-outline-secondary border-0 rounded-pill px-3 py-2 fw-medium" type="button" data-bs-toggle="dropdown" 
-                            style="background: rgba(75, 0, 130, 0.1); color: #4B0082; transition: all 0.3s ease; min-width: 100px;"
-                            onmouseover="this.style.background='rgba(75, 0, 130, 0.15)'; this.style.transform='scale(1.05)'" 
-                            onmouseout="this.style.background='rgba(75, 0, 130, 0.1)'; this.style.transform='scale(1)'">
+                            style="background: rgba(221, 153, 51, 0.1); color: var(--color-maroon);">
                         <i class="bi bi-globe me-2"></i>
                         {% get_current_language as LANGUAGE_CODE %}
                         {% if LANGUAGE_CODE == 'ar' %}العربية{% else %}English{% endif %}
@@ -59,10 +64,8 @@
                                         {% csrf_token %}
                                         <input name="next" type="hidden" value="{{ request.get_full_path|slice:'3:' }}" />
                                         <input name="language" type="hidden" value="{{ lang_code }}" />
-                                        <button type="submit" class="dropdown-item fw-medium py-2 px-3 border-0 bg-transparent w-100 text-start" 
-                                                style="color: #4B0082; transition: all 0.3s ease; border-radius: 8px;"
-                                                onmouseover="this.style.background='rgba(184, 134, 11, 0.1)'" 
-                                                onmouseout="this.style.background='transparent'">
+                                        <button type="submit" class="dropdown-item fw-medium py-2 px-3 border-0 bg-transparent w-100 text-start hover-text-secondary" 
+                                                style="color: var(--color-maroon);">
                                             {% if lang_code == 'ar' %}
                                                 <i class="bi bi-translate me-2"></i>العربية
                                             {% else %}
@@ -75,16 +78,93 @@
                         {% endfor %}
                     </ul>
                 </div>
-                
-                <a href="{% url 'frontend_api:search' %}" class="btn btn-outline-primary border-0 rounded-pill px-3 py-2" style="background: rgba(184, 134, 11, 0.1); color: #B8860B; transition: all 0.3s ease;" onmouseover="this.style.background='rgba(184, 134, 11, 0.2)'; this.style.transform='scale(1.05)'" onmouseout="this.style.background='rgba(184, 134, 11, 0.1)'; this.style.transform='scale(1)'">
-                    <i class="bi bi-search me-2"></i>{% trans "Search" %}
-                </a>
-                {% if user.is_authenticated and user.is_staff %}
-                    <a href="{% url 'frontend_api:admin_dashboard' %}" class="btn btn-primary rounded-pill px-4 py-2 fw-medium" style="box-shadow: 0 4px 16px rgba(184, 134, 11, 0.3);">
-                        <i class="bi bi-shield-lock me-2"></i>{% trans "Admin" %}
-                    </a>
-                {% endif %}
             </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Navigation Bar -->
+<nav class="navbar navbar-expand-lg bg-maroon">
+    <div class="container-boxed">
+        <!-- Navigation Links -->
+        <div class="collapse navbar-collapse" id="navContent">
+            <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link fw-medium px-4 py-3 text-white hover-text-secondary d-none d-lg-block" href="{% url 'frontend_api:home' %}">
+                        <i class="bi bi-house me-2"></i>{% trans "Home" %}
+                    </a>
+                    <a class="nav-link fw-medium px-3 py-2 text-white d-lg-none" href="{% url 'frontend_api:home' %}">
+                        <i class="bi bi-house me-2"></i>{% trans "Home" %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link fw-medium px-4 py-3 text-white hover-text-secondary d-none d-lg-block" href="{% url 'frontend_api:videos' %}">
+                        <i class="bi bi-play-circle me-2"></i>{% trans "Videos" %}
+                    </a>
+                    <a class="nav-link fw-medium px-3 py-2 text-white d-lg-none" href="{% url 'frontend_api:videos' %}">
+                        <i class="bi bi-play-circle me-2"></i>{% trans "Videos" %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link fw-medium px-4 py-3 text-white hover-text-secondary d-none d-lg-block" href="{% url 'frontend_api:audios' %}">
+                        <i class="bi bi-music-note me-2"></i>{% trans "Audio" %}
+                    </a>
+                    <a class="nav-link fw-medium px-3 py-2 text-white d-lg-none" href="{% url 'frontend_api:audios' %}">
+                        <i class="bi bi-music-note me-2"></i>{% trans "Audio" %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link fw-medium px-4 py-3 text-white hover-text-secondary d-none d-lg-block" href="{% url 'frontend_api:pdfs' %}">
+                        <i class="bi bi-journal-bookmark me-2"></i>{% trans "Books" %}
+                    </a>
+                    <a class="nav-link fw-medium px-3 py-2 text-white d-lg-none" href="{% url 'frontend_api:pdfs' %}">
+                        <i class="bi bi-journal-bookmark me-2"></i>{% trans "Books" %}
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link fw-medium px-4 py-3 text-white hover-text-secondary d-none d-lg-block" href="{% url 'frontend_api:search' %}">
+                        <i class="bi bi-search me-2"></i>{% trans "Search" %}
+                    </a>
+                    <a class="nav-link fw-medium px-3 py-2 text-white d-lg-none" href="{% url 'frontend_api:search' %}">
+                        <i class="bi bi-search me-2"></i>{% trans "Search" %}
+                    </a>
+                </li>
+                <!-- Mobile Language Switcher -->
+                <li class="nav-item dropdown d-lg-none">
+                    <a class="nav-link dropdown-toggle fw-medium px-3 py-2 text-white" href="#" role="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-globe me-2"></i>
+                        {% get_current_language as LANGUAGE_CODE %}
+                        {% if LANGUAGE_CODE == 'ar' %}العربية{% else %}English{% endif %}
+                    </a>
+                    <ul class="dropdown-menu">
+                        {% get_available_languages as LANGUAGES %}
+                        {% for lang_code, lang_name in LANGUAGES %}
+                            {% if lang_code != LANGUAGE_CODE %}
+                                <li>
+                                    <form action="{% url 'set_language' %}" method="post" class="m-0">
+                                        {% csrf_token %}
+                                        <input name="next" type="hidden" value="{{ request.get_full_path|slice:'3:' }}" />
+                                        <input name="language" type="hidden" value="{{ lang_code }}" />
+                                        <button type="submit" class="dropdown-item">
+                                            {% if lang_code == 'ar' %}العربية{% else %}English{% endif %}
+                                        </button>
+                                    </form>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </li>
+                {% if user.is_authenticated and user.is_staff %}
+                    <li class="nav-item">
+                        <a class="nav-link fw-medium px-4 py-3 text-golden hover-text-white d-none d-lg-block" href="{% url 'frontend_api:admin_dashboard' %}">
+                            <i class="bi bi-shield-lock me-2"></i>{% trans "Admin" %}
+                        </a>
+                        <a class="nav-link fw-medium px-3 py-2 text-golden d-lg-none" href="{% url 'frontend_api:admin_dashboard' %}">
+                            <i class="bi bi-shield-lock me-2"></i>{% trans "Admin" %}
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
         </div>
     </div>
 </nav>

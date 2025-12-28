@@ -1,57 +1,64 @@
-<!-- templates/frontend_api/videos.html -->
+<!-- templates/frontend_api/videos.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
 
 {% block content %}
 <!-- Header Section -->
-<div class="d-flex align-items-center mb-4">
-    <div class="p-2 me-3" style="background: linear-gradient(135deg, #87CEEB, #B8860B); border-radius: 12px;">
-        <i class="bi bi-play-circle text-white fs-4"></i>
+<div class="d-flex align-items-center mb-5">
+    <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+         style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 16px; border: 3px solid var(--color-golden-ochre);">
+        <i class="bi bi-play-circle text-white fs-2"></i>
     </div>
     <div class="flex-grow-1">
-        <h2 class="mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Video Library" %}</h2>
-        <p class="text-muted mb-0">{% trans "Spiritual teachings and sermons" %}</p>
+        <h2 class="heading-font text-maroon mb-1 fw-bold">{% trans "Video Library" %}</h2>
+        <p class="body-font text-muted mb-0">{% trans "Spiritual teachings and sermons from Bishop Abram" %}</p>
     </div>
 </div>
 
 <!-- Search and Filter Section -->
-<div class="card border-0 mb-4" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.1);">
+<div class="card card-coptic mb-5">
+    <div class="card-header-coptic">
+        <h4 class="heading-font text-white mb-0 text-center">{% trans "Search Videos" %}</h4>
+    </div>
     <div class="card-body p-4">
-        <div class="row g-3 align-items-end">
+        <form method="get" action="{% url 'frontend_api:videos' %}" class="row g-3 align-items-end">
             <div class="col-lg-6">
-                <label class="form-label fw-medium" style="color: #4B0082;">{% trans "Search Videos" %}</label>
+                <label class="form-label fw-medium text-maroon">{% trans "Search Videos" %}</label>
                 <div class="position-relative">
-                    <input type="search" class="form-control form-control-lg border-0 ps-5" 
+                    <input type="search" class="form-control form-control-lg border-2 ps-5" 
                            placeholder="{% trans 'Search videos, topics, speakers...' %}"
                            name="search" value="{{ search_query }}"
-                           hx-get="{% url 'frontend_api:videos' %}" 
-                           hx-target="#video-grid" 
-                           hx-trigger="keyup changed delay:500ms"
-                           style="background: rgba(184, 134, 11, 0.05); border-radius: 12px;">
-                    <i class="bi bi-search position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #B8860B;"></i>
+                           style="border-color: var(--color-golden-ochre); border-radius: 12px;">
+                    <i class="bi bi-search position-absolute text-golden" style="left: 1rem; top: 50%; transform: translateY(-50%);"></i>
                 </div>
             </div>
             <div class="col-lg-4">
-                <label class="form-label fw-medium" style="color: #4B0082;">{% trans "Filter by Tag" %}</label>
-                <select class="form-select border-0" name="tag" 
-                        hx-get="{% url 'frontend_api:videos' %}" 
-                        hx-target="#video-grid"
-                        style="background: rgba(184, 134, 11, 0.05); border-radius: 12px;">
-                    <option value="">{% trans "All Tags" %}</option>
+                <label class="form-label fw-medium text-maroon">{% trans "Filter by Tag" %}</label>
+                <select class="form-select border-2" name="tag" 
+                        style="border-color: var(--color-golden-ochre); border-radius: 12px;">
+                    <option value="">{% trans "All Categories" %}</option>
                     {% for tag in available_tags %}
                         <option value="{{ tag.slug }}" {% if tag_filter == tag.slug %}selected{% endif %}>
-                            {{ tag.name }}
+                            {% get_current_language as LANGUAGE_CODE %}
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                {{ tag.name_ar|default:tag.name_en }}
+                            {% else %}
+                                {{ tag.name_en|default:tag.name_ar }}
+                            {% endif %}
                         </option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-lg-2">
-                <div class="text-center p-2 rounded-3" style="background: rgba(184, 134, 11, 0.1);">
-                    <small class="fw-bold" style="color: #B8860B;">{{ total_count }}</small><br>
-                    <small class="text-muted">{% trans "videos" %}</small>
+                <button type="submit" class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-funnel me-2"></i>{% trans "Filter" %}
+                </button>
+                <div class="text-center p-2 rounded-3" style="background: var(--color-golden-ochre-10);">
+                    <small class="fw-bold text-golden">{{ total_count }}</small><br>
+                    <small class="body-font text-muted">{% trans "videos" %}</small>
                 </div>
             </div>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -59,4 +66,73 @@
 <div id="video-grid" class="row g-4 mb-5">
     {% include "frontend_api/partials/video_grid.html" %}
 </div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<nav aria-label="{% trans 'Video pagination' %}" class="mb-5">
+    <div class="d-flex justify-content-center">
+        <div class="pagination-container">
+            <ul class="pagination pagination-lg">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in page_obj.paginator.page_range %}
+                    {% if page_num == page_obj.number %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page_num }}</span>
+                        </li>
+                    {% elif page_num == 1 or page_num == page_obj.paginator.num_pages or page_num >= page_obj.number|add:-2 and page_num <= page_obj.number|add:2 %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">{{ page_num }}</a>
+                        </li>
+                    {% elif page_num == 2 or page_num == page_obj.paginator.num_pages|add:-1 %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+{% endif %}
+
+<!-- Back to Top Button -->
+<div class="text-center mb-3">
+    <button class="btn btn-secondary rounded-pill px-4" onclick="scrollToTop()">
+        <i class="bi bi-arrow-up me-2"></i>{% trans "Back to Top" %}
+    </button>
+</div>
+
+<script>
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
+</script>
 {% endblock %}

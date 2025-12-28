@@ -7,63 +7,66 @@
     <!-- Header Section -->
     <div class="mb-5">
         <div class="d-flex align-items-center mb-3">
-            <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #87CEEB, #4B0082); backdrop-filter: blur(10px);">
-                <i class="bi bi-activity" style="font-size: 2rem; color: white;"></i>
+            <div class="p-3 rounded-circle me-3" 
+                 style="background: linear-gradient(135deg, #800000, #DD9933); backdrop-filter: blur(10px); box-shadow: 0 6px 20px rgba(128,0,0,0.25);">
+                <i class="bi bi-activity" style="font-size: 2rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
             </div>
             <div>
-                <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "System Monitor" %}</h1>
-                <p class="text-muted mb-0">{% trans "Monitor system performance, storage usage, and processing queues" %}</p>
+                <h1 class="h2 mb-1 fw-bold" style="color: #800000; text-shadow: 1px 1px 2px rgba(128,0,0,0.1);">
+                    <i class="bi bi-shield-check me-2" style="color: #DD9933;"></i>{% trans "Sacred System Monitor" %}
+                </h1>
+                <p class="mb-0" style="color: #5a4037;">{% trans "Monitor blessed system performance, sacred storage, and divine processing queues" %}</p>
             </div>
         </div>
     </div>
 
     <!-- System Status Cards -->
     <div class="row g-4 mb-5">
-        <!-- Storage Usage Card -->
+        <!-- Sacred Storage Usage Card -->
         <div class="col-lg-6">
-            <div class="card border-0 shadow-lg h-100" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+            <div class="card border-0 shadow-lg h-100" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
                 <div class="card-header bg-transparent border-0 py-4 px-4">
-                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: var(--bs-primary);">
-                        <i class="bi bi-hdd me-2" style="color: #87CEEB;"></i>
-                        {% trans "Disk Usage" %}
+                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
+                        <i class="bi bi-hdd-stack me-2" style="color: #DD9933;"></i>
+                        {% trans "Sacred Storage Usage" %}
                     </h4>
                 </div>
                 <div class="card-body px-4 pb-4">
                     <div class="row align-items-center mb-4">
                         <div class="col-8">
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="fw-bold" style="color: var(--bs-primary);">{{ disk_usage.percentage }}% {% trans "Used" %}</span>
-                                <span class="text-muted">{{ disk_usage.free|filesizeformat }} {% trans "Free" %}</span>
+                                <span class="fw-bold" style="color: #800000;">{{ disk_usage.percentage }}% {% trans "Used" %}</span>
+                                <span style="color: #5a4037;">{{ disk_usage.free|filesizeformat }} {% trans "Free" %}</span>
                             </div>
-                            <div class="progress" style="height: 12px; border-radius: 10px;">
+                            <div class="progress" style="height: 15px; border-radius: 12px; background: rgba(128,0,0,0.1);">
                                 <div class="progress-bar {% if disk_usage.percentage > 80 %}bg-danger{% elif disk_usage.percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
                                      role="progressbar" 
-                                     style="width: {{ disk_usage.percentage }}%; border-radius: 10px;">
+                                     style="width: {{ disk_usage.percentage }}%; border-radius: 12px; background: {% if disk_usage.percentage > 80 %}linear-gradient(135deg, #dc3545, #bb2d3b){% elif disk_usage.percentage > 60 %}linear-gradient(135deg, #ffc107, #e0a800){% else %}linear-gradient(135deg, #28a745, #20c997){% endif %};">
                                 </div>
                             </div>
                         </div>
                         <div class="col-4 text-center">
                             <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center" 
-                                 style="background: {% if disk_usage.percentage > 80 %}rgba(220,53,69,0.1){% elif disk_usage.percentage > 60 %}rgba(255,193,7,0.1){% else %}rgba(25,135,84,0.1){% endif %}; width: 70px; height: 70px;">
-                                <i class="bi bi-server" style="font-size: 1.8rem; color: {% if disk_usage.percentage > 80 %}#dc3545{% elif disk_usage.percentage > 60 %}#ffc107{% else %}#198754{% endif %};"></i>
+                                 style="background: {% if disk_usage.percentage > 80 %}linear-gradient(135deg, rgba(220,53,69,0.1), rgba(220,53,69,0.2)){% elif disk_usage.percentage > 60 %}linear-gradient(135deg, rgba(255,193,7,0.1), rgba(255,193,7,0.2)){% else %}linear-gradient(135deg, rgba(25,135,84,0.1), rgba(25,135,84,0.2)){% endif %}; width: 80px; height: 80px; box-shadow: 0 4px 15px {% if disk_usage.percentage > 80 %}rgba(220,53,69,0.2){% elif disk_usage.percentage > 60 %}rgba(255,193,7,0.2){% else %}rgba(25,135,84,0.2){% endif %};">
+                                <i class="bi bi-server" style="font-size: 2rem; color: {% if disk_usage.percentage > 80 %}#dc3545{% elif disk_usage.percentage > 60 %}#ffc107{% else %}#198754{% endif %};"></i>
                             </div>
                         </div>
                     </div>
                     
                     <div class="row g-3">
                         <div class="col-6">
-                            <div class="card border-0" style="background: rgba(135,206,235,0.1); border-radius: 10px;">
+                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(128,0,0,0.08), rgba(128,0,0,0.12)); border-radius: 15px; border: 1px solid rgba(128,0,0,0.15);">
                                 <div class="card-body text-center py-3">
-                                    <div class="fw-bold text-truncate" style="color: var(--bs-primary);">{{ storage_breakdown.original|filesizeformat }}</div>
-                                    <small class="text-muted">{% trans "Original Files" %}</small>
+                                    <div class="fw-bold text-truncate" style="color: #800000;">{{ storage_breakdown.original|filesizeformat }}</div>
+                                    <small style="color: #5a4037;">{% trans "Sacred Original Files" %}</small>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6">
-                            <div class="card border-0" style="background: rgba(230,230,250,0.1); border-radius: 10px;">
+                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(221,153,51,0.08), rgba(221,153,51,0.12)); border-radius: 15px; border: 1px solid rgba(221,153,51,0.15);">
                                 <div class="card-body text-center py-3">
-                                    <div class="fw-bold text-truncate" style="color: var(--bs-primary);">{{ storage_breakdown.hls|filesizeformat }}</div>
-                                    <small class="text-muted">{% trans "HLS Segments" %}</small>
+                                    <div class="fw-bold text-truncate" style="color: #DD9933;">{{ storage_breakdown.hls|filesizeformat }}</div>
+                                    <small style="color: #5a4037;">{% trans "Blessed HLS Segments" %}</small>
                                 </div>
                             </div>
                         </div>
@@ -72,63 +75,63 @@
             </div>
         </div>
 
-        <!-- Processing Queue Card -->
+        <!-- Sacred Processing Queue Card -->
         <div class="col-lg-6">
-            <div class="card border-0 shadow-lg h-100" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+            <div class="card border-0 shadow-lg h-100" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
                 <div class="card-header bg-transparent border-0 py-4 px-4">
-                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: var(--bs-primary);">
-                        <i class="bi bi-list-task me-2" style="color: #E6E6FA;"></i>
-                        {% trans "Processing Queue" %}
+                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
+                        <i class="bi bi-list-check me-2" style="color: #DD9933;"></i>
+                        {% trans "Sacred Processing Queue" %}
                     </h4>
                 </div>
                 <div class="card-body px-4 pb-4">
                     <div class="row g-4 text-center">
                         <div class="col-6">
-                            <div class="card border-0" style="background: rgba(245,222,179,0.1); border-radius: 15px;">
+                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(139,69,19,0.08), rgba(139,69,19,0.12)); border-radius: 20px; border: 1px solid rgba(139,69,19,0.15);">
                                 <div class="card-body py-4">
                                     <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: rgba(245,222,179,0.2); width: 60px; height: 60px;">
-                                        <i class="bi bi-clock-history" style="font-size: 1.5rem; color: #F5DEB3;"></i>
+                                         style="background: linear-gradient(135deg, rgba(139,69,19,0.15), rgba(139,69,19,0.25)); width: 70px; height: 70px; box-shadow: 0 4px 15px rgba(139,69,19,0.2);">
+                                        <i class="bi bi-hourglass-split" style="font-size: 1.8rem; color: #8B4513;"></i>
                                     </div>
-                                    <h2 class="fw-bold mb-1" style="color: var(--bs-primary);">{{ processing_queue }}</h2>
-                                    <p class="text-muted small mb-0">{% trans "Jobs Pending" %}</p>
+                                    <h2 class="fw-bold mb-1" style="color: #800000;">{{ processing_queue }}</h2>
+                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Sacred Jobs Pending" %}</p>
                                 </div>
                             </div>
                         </div>
                         <div class="col-6">
-                            <div class="card border-0" style="background: {% if failed_processing > 0 %}rgba(220,53,69,0.1){% else %}rgba(25,135,84,0.1){% endif %}; border-radius: 15px;">
+                            <div class="card border-0" style="background: {% if failed_processing > 0 %}linear-gradient(135deg, rgba(220,53,69,0.08), rgba(220,53,69,0.12)){% else %}linear-gradient(135deg, rgba(25,135,84,0.08), rgba(25,135,84,0.12)){% endif %}; border-radius: 20px; border: 1px solid {% if failed_processing > 0 %}rgba(220,53,69,0.15){% else %}rgba(25,135,84,0.15){% endif %};">
                                 <div class="card-body py-4">
                                     <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: {% if failed_processing > 0 %}rgba(220,53,69,0.2){% else %}rgba(25,135,84,0.2){% endif %}; width: 60px; height: 60px;">
-                                        <i class="bi bi-{% if failed_processing > 0 %}exclamation-triangle{% else %}check-circle{% endif %}" 
-                                           style="font-size: 1.5rem; color: {% if failed_processing > 0 %}#dc3545{% else %}#198754{% endif %};"></i>
+                                         style="background: {% if failed_processing > 0 %}linear-gradient(135deg, rgba(220,53,69,0.15), rgba(220,53,69,0.25)){% else %}linear-gradient(135deg, rgba(25,135,84,0.15), rgba(25,135,84,0.25)){% endif %}; width: 70px; height: 70px; box-shadow: 0 4px 15px {% if failed_processing > 0 %}rgba(220,53,69,0.2){% else %}rgba(25,135,84,0.2){% endif %};">
+                                        <i class="bi bi-{% if failed_processing > 0 %}exclamation-triangle-fill{% else %}check-circle-fill{% endif %}" 
+                                           style="font-size: 1.8rem; color: {% if failed_processing > 0 %}#dc3545{% else %}#198754{% endif %};"></i>
                                     </div>
                                     <h2 class="fw-bold mb-1" style="color: {% if failed_processing > 0 %}#dc3545{% else %}#198754{% endif %};">{{ failed_processing }}</h2>
-                                    <p class="text-muted small mb-0">{% trans "Jobs Failed" %}</p>
+                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Sacred Jobs Failed" %}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
                     {% if processing_queue > 0 %}
-                        <div class="alert border-0 mt-4 mb-0" style="background: rgba(135,206,235,0.1); border-radius: 15px;">
+                        <div class="alert border-0 mt-4 mb-0" style="background: linear-gradient(135deg, rgba(128,0,0,0.08), rgba(128,0,0,0.12)); border-radius: 20px; border: 1px solid rgba(128,0,0,0.15);">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-info-circle me-2" style="color: #87CEEB;"></i>
-                                <small class="mb-0" style="color: var(--bs-primary);">{% trans "Background workers are currently processing content." %}</small>
+                                <i class="bi bi-gear-wide-connected me-2" style="color: #800000;"></i>
+                                <small class="mb-0" style="color: #5a4037;">{% trans "Sacred background workers are currently processing blessed content." %}</small>
                             </div>
                         </div>
                     {% elif failed_processing > 0 %}
-                        <div class="alert border-0 mt-4 mb-0" style="background: rgba(220,53,69,0.1); border-radius: 15px;">
+                        <div class="alert border-0 mt-4 mb-0" style="background: linear-gradient(135deg, rgba(220,53,69,0.08), rgba(220,53,69,0.12)); border-radius: 20px; border: 1px solid rgba(220,53,69,0.15);">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-exclamation-triangle me-2" style="color: #dc3545;"></i>
-                                <small class="mb-0 text-danger">{% trans "Some processing jobs have failed. Please check the logs." %}</small>
+                                <i class="bi bi-exclamation-triangle-fill me-2" style="color: #dc3545;"></i>
+                                <small class="mb-0 text-danger">{% trans "Some sacred processing jobs have encountered divine challenges. Please check the blessed logs." %}</small>
                             </div>
                         </div>
                     {% else %}
-                        <div class="alert border-0 mt-4 mb-0" style="background: rgba(25,135,84,0.1); border-radius: 15px;">
+                        <div class="alert border-0 mt-4 mb-0" style="background: linear-gradient(135deg, rgba(25,135,84,0.08), rgba(25,135,84,0.12)); border-radius: 20px; border: 1px solid rgba(25,135,84,0.15);">
                             <div class="d-flex align-items-center">
-                                <i class="bi bi-check-circle me-2" style="color: #198754;"></i>
-                                <small class="mb-0 text-success">{% trans "All systems running smoothly." %}</small>
+                                <i class="bi bi-check-circle-fill me-2" style="color: #198754;"></i>
+                                <small class="mb-0 text-success">{% trans "All sacred systems are running in divine harmony." %}</small>
                             </div>
                         </div>
                     {% endif %}

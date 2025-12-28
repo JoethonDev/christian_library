@@ -1,4 +1,4 @@
-<!-- templates/frontend_api/video_detail.html -->
+<!-- templates/frontend_api/video_detail.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
@@ -6,146 +6,163 @@
 {% block title %}{{ video.title }} - {% trans "Videos" %} - {% trans "Christian Library" %}{% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4">
-    <!-- Back Navigation -->
-    <div class="mb-4">
-        <a href="{% url 'frontend_api:videos' %}" class="btn btn-outline-primary px-4" style="border-radius: 25px;">
-            <i class="bi bi-arrow-left me-2"></i>{% trans "Back to Videos" %}
-        </a>
-    </div>
+<!-- Back Navigation -->
+<div class="mb-4">
+    <a href="{% url 'frontend_api:videos' %}" class="btn btn-secondary rounded-pill px-4">
+        <i class="bi bi-arrow-left me-2"></i>{% trans "Back to Video Library" %}
+    </a>
+</div>
 
-    <div class="row">
-        <!-- Main Video Content -->
-        <div class="col-lg-8">
-            <!-- Video Information -->
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 20px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);">
-                <div class="card-body p-4">
-                    <div class="row align-items-start">
-                        <div class="col-md-2">
-                            <div class="p-1 rounded-circle text-center" style="background: #87CEEB; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                                <i class="bi bi-play-circle" style="font-size: 1rem; color: white;"></i>
-                            </div>
-                        </div>
-                        <div class="col-md-10">
-                            <h1 class="h3 fw-bold mb-3" style="color: var(--bs-primary);">
-                                {{ video.title }}
-                            </h1>
-                            <p class="text-muted mb-4 fs-6">{{ video.description }}</p>
-                            <!-- Video Details -->
-                            <div class="d-flex flex-wrap gap-4 text-muted small mb-3">
-                                {% if video.duration %}
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-clock me-2"></i>
-                                    <span>{{ video.duration }}</span>
-                                </div>
-                                {% endif %}
-                                {% if video.category %}
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-tag me-2"></i>
-                                    <span>{{ video.category }}</span>
-                                </div>
-                                {% endif %}
-                                {% if video.views %}
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-eye me-2"></i>
-                                    <span>{{ video.views }} {% trans "views" %}</span>
-                                </div>
-                                {% endif %}
-                                {% if video.created_at %}
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-calendar3 me-2"></i>
-                                    <span>{{ video.created_at|date:"F d, Y" }}</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                            <!-- Download Button -->
-                            {% if video.videometa and video.videometa.get_download_file %}
-                                <div class="mb-3">
-                                    <a href="{% url 'core_utils:secure_media' file_path=video.videometa.get_download_file %}?download=true" class="btn btn-primary px-4 py-2" style="border-radius: 25px;">
-                                        <i class="bi bi-download me-2"></i>{% trans "Download Video" %}
-                                    </a>
-                                </div>
-                            {% endif %}
-                            <!-- Action Buttons (future improvement) -->
-                            <!-- <div class="d-flex gap-2 flex-wrap">
-                                <button class="btn btn-outline-primary px-3" style="border-radius: 20px;">
-                                    <i class="bi bi-heart me-2"></i>{% trans "Like" %}
-                                </button>
-                                <button class="btn btn-outline-secondary px-3" style="border-radius: 20px;">
-                                    <i class="bi bi-share me-2"></i>{% trans "Share" %}
-                                </button>
-                                <button class="btn btn-outline-info px-3" style="border-radius: 20px;">
-                                    <i class="bi bi-bookmark me-2"></i>{% trans "Save" %}
-                                </button>
-                            </div> -->
+<div class="row">
+    <!-- Main Video Content -->
+    <div class="col-lg-8">
+        <!-- Video Information -->
+        <div class="card card-coptic mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start gap-3">
+                    <div class="flex-shrink-0">
+                        <div class="d-flex align-items-center justify-content-center sacred-shadow" 
+                             style="background: var(--color-maroon); width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                            <i class="bi bi-play-circle text-white" style="font-size: 1.2rem;"></i>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Video Player (now between details and related videos) -->
-            <div class="card border-0 shadow-lg mb-4" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
-                <div class="card-body p-0">
-                    <div class="ratio ratio-16x9" style="border-radius: 20px; overflow: hidden; background: linear-gradient(135deg, #000 0%, #333 100%);">
-                        <div hx-get="{% url 'frontend_api:video_player' video.id %}" hx-trigger="load" class="d-flex align-items-center justify-content-center">
-                            <div class="text-center">
-                                <div class="spinner-border text-light mb-3" style="width: 2.2rem; height: 2.2rem;"></div>
-                                <h5 class="text-light" style="font-size:1rem;">{% trans "Loading video player..." %}</h5>
+                    <div class="flex-grow-1">
+                        <h1 class="heading-font text-maroon mb-3 fw-bold">
+                            {{ video.title }}
+                        </h1>
+                        
+                        {% if video.description %}
+                        <p class="body-font text-muted mb-4 lh-base">{{ video.description }}</p>
+                        {% endif %}
+                        
+                        <!-- Video Metadata -->
+                        <div class="row g-3 mb-4">
+                            {% if video.videometa.duration_seconds %}
+                            <div class="col-auto">
+                                <div class="d-flex align-items-center text-muted">
+                                    <i class="bi bi-clock text-golden me-2"></i>
+                                    <span class="body-font">{{ video.videometa.get_duration_formatted }}</span>
+                                </div>
                             </div>
+                            {% endif %}
+                            
+                            {% if video.tags.exists %}
+                            <div class="col-auto">
+                                <div class="d-flex align-items-center text-muted">
+                                    <i class="bi bi-tags text-golden me-2"></i>
+                                    <span class="body-font">
+                                        {% for tag in video.tags.all %}
+                                            {% if LANGUAGE_CODE == 'ar' %}
+                                                {{ tag.name_ar|default:tag.name_en }}
+                                            {% else %}
+                                                {{ tag.name_en|default:tag.name_ar }}
+                                            {% endif %}
+                                            {% if not forloop.last %}, {% endif %}
+                                        {% endfor %}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if video.created_at %}
+                            <div class="col-auto">
+                                <div class="d-flex align-items-center text-muted">
+                                    <i class="bi bi-calendar3 text-golden me-2"></i>
+                                    <span class="body-font">{{ video.created_at|date:"F d, Y" }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
+                        
+                        <!-- Download Button -->
+                        {% if video.videometa and video.videometa.get_download_file %}
+                        <div class="mb-3">
+                            <a href="{% url 'core_utils:secure_media' file_path=video.videometa.get_download_file %}?download=true" 
+                               class="btn btn-primary rounded-pill px-4 py-2">
+                                <i class="bi bi-download me-2"></i>{% trans "Download Video" %}
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Sidebar -->
-        <div class="col-lg-4">
-            <!-- Related Videos -->
-            <div class="card border-0 shadow-sm" style="border-radius: 20px; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);">
-                <div class="card-header bg-transparent border-0 pt-4 px-4">
-                    <h5 class="fw-bold mb-0" style="color: var(--bs-primary);">
-                        <i class="bi bi-collection-play me-2"></i>{% trans "Related Videos" %}
-                    </h5>
+        <!-- Video Player -->
+        <div class="card card-coptic mb-4">
+            <div class="card-header-coptic">
+                <h4 class="heading-font text-white mb-0 text-center">
+                    <i class="bi bi-play-circle me-2"></i>{% trans "Video Player" %}
+                </h4>
+            </div>
+            <div class="card-body p-0">
+                <div class="ratio ratio-16x9" style="background: linear-gradient(135deg, #000 0%, #333 100%);">
+                    <div hx-get="{% url 'frontend_api:video_player' video.id %}" hx-trigger="load" class="d-flex align-items-center justify-content-center">
+                        <div class="text-center">
+                            <div class="spinner-border text-light mb-3" style="width: 2.2rem; height: 2.2rem;"></div>
+                            <h5 class="text-light" style="font-size: 1rem;">{% trans "Loading video player..." %}</h5>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body p-4">
-                    {% if related_videos %}
-                        <div class="d-flex flex-column gap-3">
-                            {% for item in related_videos %}
-                                <a href="{% url 'frontend_api:video_detail' item.id %}" class="text-decoration-none">
-                                    <div class="card border-0 shadow-sm h-100" style="border-radius: 15px; transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
-                                        <div class="card-body p-3">
-                                            <div class="d-flex gap-3">
-                                                <div class="flex-shrink-0">
-                                                    {% if item.thumbnail %}
-                                                        <img src="{{ item.thumbnail.url }}" alt="{{ item.title }}" class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
-                                                    {% else %}
-                                                        <div class="d-flex align-items-center justify-content-center rounded" style="width: 80px; height: 60px; background: rgba(135,206,235,0.2);">
-                                                            <i class="bi bi-play-circle" style="font-size: 1.5rem; color: #87CEEB;"></i>
-                                                        </div>
-                                                    {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Related Videos -->
+        <div class="card card-coptic">
+            <div class="card-header-coptic">
+                <h5 class="heading-font text-white mb-0 text-center">
+                    <i class="bi bi-collection-play me-2"></i>{% trans "Related Videos" %}
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                {% if related_videos %}
+                    <div class="d-flex flex-column gap-3">
+                        {% for item in related_videos %}
+                        <a href="{% url 'frontend_api:video_detail' item.id %}" class="text-decoration-none">
+                            <div class="card card-coptic h-100 hover-maroon-glow" style="transition: transform 0.3s ease;">
+                                <div class="card-body p-3">
+                                    <div class="d-flex gap-3">
+                                        <div class="flex-shrink-0">
+                                            {% if item.videometa.thumbnail %}
+                                                <img src="{{ item.videometa.thumbnail.url }}" alt="{{ item.title }}" 
+                                                     class="rounded" style="width: 80px; height: 60px; object-fit: cover; border: 1px solid var(--color-golden-ochre);">
+                                            {% elif item.thumbnail %}
+                                                <img src="{{ item.thumbnail.url }}" alt="{{ item.title }}" 
+                                                     class="rounded" style="width: 80px; height: 60px; object-fit: cover; border: 1px solid var(--color-golden-ochre);">
+                                            {% else %}
+                                                <div class="d-flex align-items-center justify-content-center rounded" 
+                                                     style="width: 80px; height: 60px; background: var(--color-maroon-10); border: 1px solid var(--color-golden-ochre);">
+                                                    <i class="bi bi-play-circle text-maroon" style="font-size: 1.5rem;"></i>
                                                 </div>
-                                                <div class="flex-grow-1 min-w-0">
-                                                    <h6 class="fw-bold mb-2 text-truncate" style="color: var(--bs-primary);">{{ item.title }}</h6>
-                                                    <p class="text-muted small mb-1 text-truncate">{{ item.description|truncatewords:8 }}</p>
-                                                    {% if item.duration %}
-                                                    <div class="text-muted small">
-                                                        <i class="bi bi-clock me-1"></i>{{ item.duration }}
-                                                    </div>
-                                                    {% endif %}
-                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="flex-grow-1 min-w-0">
+                                            <h6 class="heading-font text-maroon fw-bold mb-2 text-truncate">{{ item.title }}</h6>
+                                            <p class="body-font text-muted small mb-1 text-truncate">{{ item.description|truncatewords:8 }}</p>
+                                            {% if item.videometa.duration_seconds %}
+                                            <div class="body-font text-muted small">
+                                                <i class="bi bi-clock text-golden me-1"></i>{{ item.videometa.get_duration_formatted }}
                                             </div>
+                                            {% endif %}
                                         </div>
                                     </div>
-                                </a>
-                            {% endfor %}
+                                </div>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                             style="width: 80px; height: 80px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
+                            <i class="bi bi-collection text-white" style="font-size: 2rem;"></i>
                         </div>
-                    {% else %}
-                        <div class="text-center py-4">
-                            <i class="bi bi-collection text-muted" style="font-size: 3rem;"></i>
-                            <p class="text-muted mt-3 mb-0">{% trans "No related videos available" %}</p>
-                        </div>
-                    {% endif %}
-                </div>
+                        <p class="body-font text-muted mb-0">{% trans "No related videos available" %}</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

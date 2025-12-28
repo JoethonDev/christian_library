@@ -1,4 +1,4 @@
-<!-- templates/frontend_api/search.html -->
+<!-- templates/frontend_api/search.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
 
@@ -7,18 +7,19 @@
 <div class="text-center mb-5">
     <div class="mb-4">
         <div class="d-flex align-items-center justify-content-center mb-3">
-            <div class="p-3" style="background: linear-gradient(135deg, #B8860B, #DAA520); border-radius: 16px;">
-                <i class="bi bi-search text-white" style="font-size: 2rem;"></i>
+            <div class="d-flex align-items-center justify-content-center sacred-shadow" 
+                 style="background: var(--color-maroon); width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
+                <i class="bi bi-search text-white" style="font-size: 2.5rem;"></i>
             </div>
         </div>
-        <h2 class="fw-bold mb-2" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Search Library" %}</h2>
-        <p class="text-muted">{% trans "Find videos, audio, books, and content by tags" %}</p>
+        <h2 class="heading-font text-maroon mb-2 fw-bold">{% trans "Search Library" %}</h2>
+        <p class="body-font text-muted">{% trans "Find videos, audio, books, and content by tags" %}</p>
     </div>
     
     <!-- Main Search Form -->
     <div class="row justify-content-center">
         <div class="col-lg-8">
-            <div class="card border-0" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.15);">
+            <div class="card card-coptic">
                 <div class="card-body p-4">
                     <form action="." method="get">
                         <div class="row g-3 align-items-end">
@@ -27,8 +28,10 @@
                                     <input type="text" name="q" value="{{ query }}" 
                                            class="form-control form-control-lg border-0 ps-5 pe-4" 
                                            placeholder="{% trans 'Enter your search query...' %}"
-                                           style="background: rgba(184, 134, 11, 0.05); border-radius: 16px;" autofocus>
-                                    <i class="bi bi-search position-absolute" style="left: 1.5rem; top: 50%; transform: translateY(-50%); color: #B8860B;"></i>
+                                           style="background: var(--color-golden-ochre-10); border-radius: 16px; border: 2px solid transparent; transition: all 0.3s ease;" 
+                                           onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'" 
+                                           onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'" autofocus>
+                                    <i class="bi bi-search position-absolute text-golden" style="left: 1.5rem; top: 50%; transform: translateY(-50%);"></i>
                                 </div>
                             </div>
                             <div class="col-lg-2">
@@ -48,6 +51,17 @@
 <div id="search-results">
     {% if query %}
         {% if results %}
+            <!-- Results Header -->
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h4 class="heading-font text-maroon mb-0">
+                        {% trans "Search Results" %}
+                    </h4>
+                    <span class="body-font text-muted">{{ results|length }} {% trans "results found" %}</span>
+                </div>
+                <p class="body-font text-muted mb-0">{% trans "Results for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
+            </div>
+            
             <div class="row g-4 mb-5">
                 {% for item in results %}
                     {% include "components/media_card.html" with item=item %}
@@ -55,10 +69,25 @@
             </div>
         {% else %}
             <div class="text-center py-5">
-                <i class="bi bi-search text-muted" style="font-size: 4rem;"></i>
-                <h4 class="text-muted mt-3">{% trans "No results found" %}</h4>
-                <p class="text-muted">{% trans "No results found for" %} "<strong>{{ query }}</strong>"</p>
-                <p class="text-muted small">{% trans "Try different keywords or check spelling" %}</p>
+                <div class="d-inline-flex align-items-center justify-content-center mb-4 sacred-shadow" 
+                     style="width: 120px; height: 120px; background: var(--color-maroon); border-radius: 50%; border: 4px solid var(--color-golden-ochre);">
+                    <i class="bi bi-search text-white" style="font-size: 3rem;"></i>
+                </div>
+                <h4 class="heading-font text-maroon mt-3">{% trans "No results found" %}</h4>
+                <p class="body-font text-muted mb-3">{% trans "No results found for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
+                <p class="body-font text-muted small">{% trans "Try different keywords or check spelling" %}</p>
+                
+                <!-- Search Suggestions -->
+                <div class="mt-4">
+                    <h6 class="heading-font text-maroon mb-3">{% trans "Search Suggestions" %}:</h6>
+                    <div class="d-flex flex-wrap gap-2 justify-content-center">
+                        <span class="badge bg-secondary px-3 py-2">{% trans "sermons" %}</span>
+                        <span class="badge bg-secondary px-3 py-2">{% trans "prayers" %}</span>
+                        <span class="badge bg-secondary px-3 py-2">{% trans "teachings" %}</span>
+                        <span class="badge bg-secondary px-3 py-2">{% trans "hymns" %}</span>
+                        <span class="badge bg-secondary px-3 py-2">{% trans "scripture" %}</span>
+                    </div>
+                </div>
             </div>
         {% endif %}
     {% else %}
@@ -66,46 +95,58 @@
         <div class="row g-4">
             <div class="col-md-6 col-lg-3">
                 <a href="{% url 'frontend_api:videos' %}" class="text-decoration-none">
-                    <div class="card border-0 text-center h-100" style="background: #87CEEB; border-radius: 20px; box-shadow: 0 8px 32px rgba(135, 206, 235, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <div class="card-body py-4">
-                            <i class="bi bi-play-circle text-white display-4 mb-3"></i>
-                            <h5 class="text-white fw-bold mb-1">{% trans "Videos" %}</h5>
-                            <p class="text-white-50 mb-0">{% trans "Spiritual teachings" %}</p>
+                    <div class="card card-coptic text-center h-100 hover-maroon-glow" style="transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div class="card-body py-5">
+                            <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                                 style="width: 64px; height: 64px; background: var(--color-maroon); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                                <i class="bi bi-play-circle text-white" style="font-size: 1.8rem;"></i>
+                            </div>
+                            <h5 class="heading-font text-maroon fw-bold mb-2">{% trans "Videos" %}</h5>
+                            <p class="body-font text-muted mb-0 small">{% trans "Spiritual teachings" %}</p>
                         </div>
                     </div>
                 </a>
             </div>
             <div class="col-md-6 col-lg-3">
                 <a href="{% url 'frontend_api:audios' %}" class="text-decoration-none">
-                    <div class="card border-0 text-center h-100" style="background: #E6E6FA; border-radius: 20px; box-shadow: 0 8px 32px rgba(230, 230, 250, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <div class="card-body py-4">
-                            <i class="bi bi-music-note text-white display-4 mb-3"></i>
-                            <h5 class="text-white fw-bold mb-1">{% trans "Audio" %}</h5>
-                            <p class="text-white-50 mb-0">{% trans "Sermons & talks" %}</p>
+                    <div class="card card-coptic text-center h-100 hover-maroon-glow" style="transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div class="card-body py-5">
+                            <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                                 style="width: 64px; height: 64px; background: var(--color-golden-ochre); border-radius: 50%; border: 2px solid var(--color-maroon);">
+                                <i class="bi bi-music-note text-white" style="font-size: 1.8rem;"></i>
+                            </div>
+                            <h5 class="heading-font text-maroon fw-bold mb-2">{% trans "Audio" %}</h5>
+                            <p class="body-font text-muted mb-0 small">{% trans "Sermons & talks" %}</p>
                         </div>
                     </div>
                 </a>
             </div>
             <div class="col-md-6 col-lg-3">
                 <a href="{% url 'frontend_api:pdfs' %}" class="text-decoration-none">
-                    <div class="card border-0 text-center h-100" style="background: #F5DEB3; border-radius: 20px; box-shadow: 0 8px 32px rgba(245, 222, 179, 0.3); transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <div class="card-body py-4">
-                            <i class="bi bi-journal-bookmark text-white display-4 mb-3"></i>
-                            <h5 class="text-white fw-bold mb-1">{% trans "Books" %}</h5>
-                            <p class="text-white-50 mb-0">{% trans "Sacred texts" %}</p>
+                    <div class="card card-coptic text-center h-100 hover-maroon-glow" style="transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-8px)'" onmouseout="this.style.transform='translateY(0)'">
+                        <div class="card-body py-5">
+                            <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                                 style="width: 64px; height: 64px; background: var(--color-maroon); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                                <i class="bi bi-journal-bookmark text-white" style="font-size: 1.8rem;"></i>
+                            </div>
+                            <h5 class="heading-font text-maroon fw-bold mb-2">{% trans "Books" %}</h5>
+                            <p class="body-font text-muted mb-0 small">{% trans "Sacred texts" %}</p>
                         </div>
                     </div>
                 </a>
             </div>
             <div class="col-md-6 col-lg-3">
-                <div class="card border-0 text-center h-100" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.1);">
-                    <div class="card-body py-4">
-                        <i class="bi bi-lightbulb text-muted display-4 mb-3"></i>
-                        <h6 class="text-muted fw-bold mb-2">{% trans "Search Tips" %}</h6>
-                        <ul class="list-unstyled text-start small text-muted">
-                            <li>• {% trans "Use quotes for exact phrases" %}</li>
-                            <li>• {% trans "Try different keywords" %}</li>
-                            <li>• {% trans "Search by topic or speaker" %}</li>
+                <div class="card card-coptic text-center h-100">
+                    <div class="card-body py-5">
+                        <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                             style="width: 64px; height: 64px; background: var(--color-golden-ochre-10); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                            <i class="bi bi-lightbulb text-golden" style="font-size: 1.8rem;"></i>
+                        </div>
+                        <h6 class="heading-font text-maroon fw-bold mb-3">{% trans "Search Tips" %}</h6>
+                        <ul class="list-unstyled text-start body-font small text-muted">
+                            <li class="mb-1"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Use quotes for exact phrases" %}</li>
+                            <li class="mb-1"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Try different keywords" %}</li>
+                            <li class="mb-1"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Search by topic or speaker" %}</li>
                         </ul>
                     </div>
                 </div>

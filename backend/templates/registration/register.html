@@ -1,45 +1,116 @@
-<!-- templates/registration/register.html -->
+<!-- templates/registration/register.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n static %}
 
 {% block content %}
 <div class="row justify-content-center py-5">
     <div class="col-md-6 col-lg-5">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
+        <div class="card card-coptic">
+            <div class="card-body p-4 p-md-5">
+                <!-- Sacred Icon Header -->
                 <div class="text-center mb-4">
-                    <h3 class="fw-bold">{% trans "Create Account" %}</h3>
-                    <p class="text-muted small">{% trans "Join our community to save your favorite content." %}</p>
+                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                         style="width: 80px; height: 80px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
+                        <i class="bi bi-person-plus text-white" style="font-size: 2.2rem;"></i>
+                    </div>
+                    <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Create Account" %}</h3>
+                    <p class="body-font text-muted small mb-0">{% trans "Join our spiritual community to save your favorite content and access personalized features." %}</p>
                 </div>
 
                 <form method="post">
                     {% csrf_token %}
                     
                     {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label">{{ field.label }}</label>
-                            {{ field }}
-                            {% if field.errors %}
-                                <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                        <div class="mb-4">
+                            <label class="form-label heading-font text-maroon fw-bold">{{ field.label }}</label>
+                            
+                            {% if field.name == 'username' %}
+                                <div class="position-relative">
+                                    <input type="text" name="{{ field.name }}" class="form-control form-control-lg border-0 ps-5" 
+                                           style="background: var(--color-golden-ochre-10); border-radius: 12px; border: 2px solid transparent; transition: all 0.3s ease;"
+                                           onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'"
+                                           onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'" {% if field.field.required %}required{% endif %}>
+                                    <i class="bi bi-person position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                                </div>
+                            {% elif field.name == 'email' %}
+                                <div class="position-relative">
+                                    <input type="email" name="{{ field.name }}" class="form-control form-control-lg border-0 ps-5" 
+                                           style="background: var(--color-golden-ochre-10); border-radius: 12px; border: 2px solid transparent; transition: all 0.3s ease;"
+                                           onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'"
+                                           onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'" {% if field.field.required %}required{% endif %}>
+                                    <i class="bi bi-envelope position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                                </div>
+                            {% elif 'password' in field.name %}
+                                <div class="position-relative">
+                                    <input type="password" name="{{ field.name }}" class="form-control form-control-lg border-0 ps-5" 
+                                           style="background: var(--color-golden-ochre-10); border-radius: 12px; border: 2px solid transparent; transition: all 0.3s ease;"
+                                           onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'"
+                                           onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'" {% if field.field.required %}required{% endif %}>
+                                    <i class="bi bi-lock position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                                </div>
+                            {% else %}
+                                {{ field }}
                             {% endif %}
+                            
+                            {% if field.errors %}
+                                <div class="d-flex align-items-center mt-2">
+                                    <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+                                    <small class="text-danger body-font">{{ field.errors.0 }}</small>
+                                </div>
+                            {% endif %}
+                            
                             {% if field.help_text %}
-                                <div class="form-text small">{{ field.help_text }}</div>
+                                <div class="d-flex align-items-start mt-2">
+                                    <i class="bi bi-info-circle text-golden me-2 mt-1" style="font-size: 0.8rem;"></i>
+                                    <small class="body-font text-muted">{{ field.help_text }}</small>
+                                </div>
                             {% endif %}
                         </div>
                     {% endfor %}
 
-                    <button type="submit" class="btn btn-primary w-100 mt-3">{% trans "Register" %}</button>
+                    <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill py-3 mt-3">
+                        <i class="bi bi-check-circle me-2"></i>{% trans "Create Account" %}
+                    </button>
                 </form>
             </div>
-            <div class="card-footer bg-light text-center py-3">
-                <small class="text-muted">{% trans "Already have an account?" %} <a href="{% url 'login' %}" class="fw-bold text-decoration-none">{% trans "Login" %}</a></small>
+            
+            <!-- Footer -->
+            <div class="card-footer text-center py-4" style="background: var(--color-maroon-10); border-top: 1px solid var(--color-golden-ochre);">
+                <p class="body-font text-muted small mb-2">{% trans "Already have an account?" %}</p>
+                <a href="{% url 'login' %}" class="btn btn-outline-primary rounded-pill px-4">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>{% trans "Sign In" %}
+                </a>
+            </div>
+        </div>
+        
+        <!-- Community Welcome -->
+        <div class="text-center mt-4">
+            <div class="card card-coptic p-3">
+                <p class="body-font text-muted small mb-2">{% trans "Join the community of" %}</p>
+                <p class="heading-font text-maroon fw-bold small mb-0">{% trans "Bishop Abram's Spiritual Library" %}</p>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Add Bootstrap classes to Django form fields
-    document.querySelectorAll('input').forEach(input => input.classList.add('form-control'));
+    // Enhanced form styling for any remaining Django fields
+    document.querySelectorAll('input:not([style])').forEach(input => {
+        input.classList.add('form-control', 'form-control-lg');
+        input.style.background = 'var(--color-golden-ochre-10)';
+        input.style.borderRadius = '12px';
+        input.style.border = '2px solid transparent';
+        input.style.transition = 'all 0.3s ease';
+        
+        input.addEventListener('focus', function() {
+            this.style.borderColor = 'var(--color-golden-ochre)';
+            this.style.boxShadow = '0 0 0 0.2rem rgba(221, 153, 51, 0.25)';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.style.borderColor = 'transparent';
+            this.style.boxShadow = 'none';
+        });
+    });
 </script>
 {% endblock %}

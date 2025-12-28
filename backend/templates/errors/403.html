@@ -1,4 +1,4 @@
-<!-- templates/403.html -->
+<!-- templates/403.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
 
@@ -6,27 +6,78 @@
 
 {% block content %}
 <div class="container text-center py-5 my-5">
-    <div class="display-1 fw-bold text-warning mb-4 opacity-50">403</div>
-    <h1 class="h2 mb-4">{% trans "Access Denied" %}</h1>
-    <p class="lead text-muted col-md-8 mx-auto mb-5">
-        {% trans "You do not have permission to view this page or resource." %}
-        <br>
-        {% if user.is_authenticated %}
-            <span class="small">{% trans "You are currently logged in as" %} <strong>{{ user.username }}</strong>.</span>
-        {% else %}
-            {% trans "Please log in to access this content." %}
-        {% endif %}
-    </p>
+    <!-- Error Icon -->
+    <div class="mb-5">
+        <div class="d-inline-flex align-items-center justify-content-center mb-4 sacred-shadow" 
+             style="width: 150px; height: 150px; background: var(--color-golden-ochre); border-radius: 50%; border: 4px solid var(--color-maroon);">
+            <i class="bi bi-shield-exclamation text-white" style="font-size: 4rem;"></i>
+        </div>
+        
+        <!-- Error Code -->
+        <div class="display-1 heading-font fw-bold text-maroon mb-3" style="text-shadow: 2px 2px 4px rgba(128, 0, 0, 0.3); font-size: 6rem;">403</div>
+    </div>
     
-    <div class="d-flex justify-content-center gap-3">
-        <a href="{% url 'frontend_api:home' %}" class="btn btn-primary px-4">
+    <!-- Error Message -->
+    <div class="mb-5">
+        <h1 class="heading-font text-maroon mb-4 fw-bold">{% trans "Access Denied" %}</h1>
+        <p class="body-font text-muted col-md-8 mx-auto mb-4 lh-lg">
+            {% trans "You do not have permission to view this page or resource." %}
+        </p>
+        
+        <div class="mb-4">
+            {% if user.is_authenticated %}
+                <div class="card card-coptic d-inline-block">
+                    <div class="card-body p-3">
+                        <p class="body-font text-muted small mb-0">
+                            {% trans "You are currently logged in as" %} 
+                            <strong class="text-maroon">{{ user.username }}</strong>
+                        </p>
+                    </div>
+                </div>
+            {% else %}
+                <p class="body-font text-golden">
+                    <i class="bi bi-info-circle me-2"></i>{% trans "Please log in to access this content." %}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a href="{% url 'frontend_api:home' %}" class="btn btn-primary rounded-pill px-4 py-2">
             <i class="bi bi-house-door me-2"></i>{% trans "Go Home" %}
         </a>
         {% if not user.is_authenticated %}
-            <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-outline-primary px-4">
+            <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-secondary rounded-pill px-4 py-2">
                 <i class="bi bi-box-arrow-in-right me-2"></i>{% trans "Login" %}
             </a>
         {% endif %}
+        <a href="{% url 'frontend_api:search' %}" class="btn btn-outline-primary rounded-pill px-4 py-2">
+            <i class="bi bi-search me-2"></i>{% trans "Search Library" %}
+        </a>
+    </div>
+    
+    <!-- Information Card -->
+    <div class="mt-5 pt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card card-coptic">
+                    <div class="card-body p-4">
+                        <h5 class="heading-font text-maroon mb-3">
+                            <i class="bi bi-question-circle text-golden me-2"></i>{% trans "Need Access?" %}
+                        </h5>
+                        <p class="body-font text-muted mb-3">
+                            {% trans "If you believe you should have access to this content, please:" %}
+                        </p>
+                        <ul class="list-unstyled body-font text-muted text-start">
+                            <li class="mb-2"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Contact the library administrator" %}</li>
+                            <li class="mb-2"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Verify your login credentials" %}</li>
+                            <li class="mb-2"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Check if you have the required permissions" %}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}

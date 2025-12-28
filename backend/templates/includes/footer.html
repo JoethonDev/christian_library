@@ -1,32 +1,129 @@
-<!-- templates/includes/footer.html -->
+<!-- templates/includes/footer.html - Coptic Orthodox Theme -->
 {% load i18n %}
-<footer class="mt-auto" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px); border-top: 1px solid rgba(184, 134, 11, 0.2);">
-    <div class="container py-4">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <div class="d-flex align-items-center mb-2 mb-md-0">
-                    <div class="d-flex align-items-center justify-content-center me-3" style="width: 35px; height: 35px; background: linear-gradient(135deg, #B8860B 0%, #DAA520 100%); border-radius: 8px;">
+<footer class="footer-coptic mt-auto">
+    <div class="container-boxed py-5">
+        <!-- Main Footer Content - 4-Column Layout -->
+        <div class="row">
+            <!-- Column 1: Library Information -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="d-flex align-items-center justify-content-center me-3 sacred-shadow" style="width: 40px; height: 40px; background: linear-gradient(135deg, var(--color-maroon) 0%, #A0001A 100%); border-radius: 8px; border: 2px solid var(--color-golden-ochre);">
                         <i class="bi bi-book-half text-white"></i>
                     </div>
                     <div>
-                        <h6 class="mb-0 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Christian Library" %}</h6>
-                        <small style="color: #4B0082; opacity: 0.8;">{% trans "Sharing the Word of God" %}</small>
+                        <h6 class="mb-0 fw-bold heading-font" style="color: var(--color-golden-ochre);">{% trans "Christian Library" %}</h6>
+                        <small class="text-light opacity-75">{% trans "Sharing the Word of God" %}</small>
+                    </div>
+                </div>
+                <p class="small text-light opacity-75 body-font">
+                    {% get_current_language as LANGUAGE_CODE %}
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        مكتبة رقمية متخصصة في المحتوى المسيحي الأرثوذكسي القبطي لنشر كلمة الله والتعليم الروحي.
+                    {% else %}
+                        A digital library dedicated to Coptic Orthodox Christian content for sharing God's Word and spiritual education.
+                    {% endif %}
+                </p>
+            </div>
+            
+            <!-- Column 2: Quick Links -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <h6 class="fw-bold heading-font mb-3" style="color: var(--color-golden-ochre);">{% trans "Quick Links" %}</h6>
+                <ul class="list-unstyled body-font">
+                    <li class="mb-2">
+                        <a href="{% url 'frontend_api:home' %}" class="text-decoration-none">
+                            <i class="bi bi-house me-2"></i>{% trans "Home" %}
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="{% url 'frontend_api:videos' %}" class="text-decoration-none">
+                            <i class="bi bi-play-circle me-2"></i>{% trans "Videos" %}
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="{% url 'frontend_api:audios' %}" class="text-decoration-none">
+                            <i class="bi bi-music-note me-2"></i>{% trans "Audio" %}
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="{% url 'frontend_api:pdfs' %}" class="text-decoration-none">
+                            <i class="bi bi-journal-bookmark me-2"></i>{% trans "Books" %}
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Column 3: Contact Information -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <h6 class="fw-bold heading-font mb-3" style="color: var(--color-golden-ochre);">{% trans "Contact" %}</h6>
+                <ul class="list-unstyled body-font">
+                    <li class="mb-2 text-light opacity-75">
+                        <i class="bi bi-geo-alt me-2 text-golden"></i>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            دير الملاك غبريال النقلون، الفيوم، مصر
+                        {% else %}
+                            Archangel Gabriel Monastery, Naqlun, Fayoum, Egypt
+                        {% endif %}
+                    </li>
+                    <li class="mb-2">
+                        <a href="mailto:info@library.example.com" class="text-decoration-none">
+                            <i class="bi bi-envelope me-2"></i>info@library.example.com
+                        </a>
+                    </li>
+                    <li class="mb-2 text-light opacity-75">
+                        <i class="bi bi-phone me-2 text-golden"></i>+20 XXX XXXX XXX
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Column 4: Social & Apps -->
+            <div class="col-lg-3 col-md-6 mb-4">
+                <h6 class="fw-bold heading-font mb-3" style="color: var(--color-golden-ochre);">{% trans "Follow Us" %}</h6>
+                <div class="d-flex gap-3 mb-3">
+                    <a href="#" class="btn btn-outline-light btn-sm rounded-circle p-2" style="width: 40px; height: 40px; border-color: var(--color-golden-ochre);">
+                        <i class="bi bi-facebook"></i>
+                    </a>
+                    <a href="#" class="btn btn-outline-light btn-sm rounded-circle p-2" style="width: 40px; height: 40px; border-color: var(--color-golden-ochre);">
+                        <i class="bi bi-youtube"></i>
+                    </a>
+                    <a href="#" class="btn btn-outline-light btn-sm rounded-circle p-2" style="width: 40px; height: 40px; border-color: var(--color-golden-ochre);">
+                        <i class="bi bi-instagram"></i>
+                    </a>
+                    <a href="#" class="btn btn-outline-light btn-sm rounded-circle p-2" style="width: 40px; height: 40px; border-color: var(--color-golden-ochre);">
+                        <i class="bi bi-envelope"></i>
+                    </a>
+                </div>
+                
+                <!-- App Store Links Placeholder -->
+                <div>
+                    <h6 class="fw-bold heading-font mb-2 small" style="color: var(--color-golden-ochre);">{% trans "Download App" %}</h6>
+                    <div class="d-flex flex-column gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-secondary" style="border-color: var(--color-golden-ochre); color: var(--color-golden-ochre);">
+                            <i class="bi bi-apple me-2"></i>App Store
+                        </a>
+                        <a href="#" class="btn btn-sm btn-outline-secondary" style="border-color: var(--color-golden-ochre); color: var(--color-golden-ochre);">
+                            <i class="bi bi-google-play me-2"></i>Google Play
+                        </a>
                     </div>
                 </div>
             </div>
+        </div>
+        
+        <!-- Footer Bottom -->
+        <hr style="border-color: var(--color-golden-ochre); opacity: 0.3;">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <small class="text-light opacity-75 body-font">
+                    &copy; {% now "Y" %} {% trans "Christian Library" %}. {% trans "All rights reserved" %}.
+                </small>
+            </div>
             <div class="col-md-6 text-md-end">
-                <div class="d-flex justify-content-md-end gap-3 mb-2">
-                    <a href="#" class="text-decoration-none" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.color='#B8860B'" onmouseout="this.style.color='#4B0082'">
-                        <i class="bi bi-facebook fs-5"></i>
-                    </a>
-                    <a href="#" class="text-decoration-none" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.color='#B8860B'" onmouseout="this.style.color='#4B0082'">
-                        <i class="bi bi-youtube fs-5"></i>
-                    </a>
-                    <a href="#" class="text-decoration-none" style="color: #4B0082; transition: all 0.3s ease;" onmouseover="this.style.color='#B8860B'" onmouseout="this.style.color='#4B0082'">
-                        <i class="bi bi-envelope fs-5"></i>
-                    </a>
-                </div>
-                <small style="color: #4B0082; opacity: 0.8;">&copy; {% now "Y" %} {% trans "Christian Library" %}. {% trans "All rights reserved" %}.</small>
+                <small class="text-light opacity-75 body-font">
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        بركة الملاك غبريال تكون معنا
+                    {% else %}
+                        May the blessing of Archangel Gabriel be with us
+                    {% endif %}
+                </small>
             </div>
         </div>
     </div>

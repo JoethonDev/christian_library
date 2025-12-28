@@ -1,89 +1,176 @@
-<!-- templates/admin/video_management.html -->
+<!-- templates/admin/video_management.html - Coptic Orthodox Video Management -->
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
 {% block admin_content %}
 <div class="container-fluid px-0">
-    <!-- Header Section -->
-    <div class="mb-5">
+    <!-- Video Management Header -->
+    <div class="admin-content-header mb-5">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #87CEEB, #B8860B); backdrop-filter: blur(10px);">
-                        <i class="bi bi-play-circle" style="font-size: 2rem; color: white;"></i>
+                <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center justify-content-center me-4 sacred-shadow" 
+                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
+                        <i class="bi bi-play-circle text-white" style="font-size: 2rem;"></i>
                     </div>
                     <div>
-                        <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Video Manager" %}</h1>
-                        <p class="text-muted mb-0">{% trans "Manage video sermons, teachings, and spiritual content" %}</p>
+                        <h1 class="heading-font text-maroon mb-2 fw-bold">{% trans "Video Manager" %}</h1>
+                        <p class="body-font text-muted mb-0">{% trans "Manage video sermons, teachings, and spiritual content" %}</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-4 text-end">
-                <a href="{% url 'frontend_api:upload_content' %}?type=video" class="btn btn-primary px-4 py-3 fw-medium" style="border-radius: 25px; background: linear-gradient(135deg, #87CEEB, #B8860B); border: none;">
+                <a href="{% url 'frontend_api:upload_content' %}?type=video" class="btn btn-primary px-4 py-3 rounded-pill">
                     <i class="bi bi-plus-lg me-2"></i>{% trans "Add Video" %}
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- Video Table -->
-    <div class="card border-0 shadow-lg" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+    <!-- Video Management Table -->
+    <div class="card card-coptic">
+        <div class="card-header-coptic py-4">
+            <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center justify-content-center me-3" 
+                     style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px;">
+                    <i class="bi bi-camera-video text-white"></i>
+                </div>
+                <h3 class="heading-font text-white mb-0 fw-bold">{% trans "Video Content" %}</h3>
+            </div>
+        </div>
+        
         <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-                <tr>
-                    <th class="ps-4">{% trans "Video" %}</th>
-                    <th>{% trans "Course" %}</th>
-                    <th>{% trans "Duration" %}</th>
-                    <th>{% trans "Status" %}</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for video in videos %}
-                <tr>
-                    <td class="ps-4">
-                        <div class="d-flex align-items-center">
-                            {% if video.videometa.thumbnail %}
-                                <img src="{{ video.videometa.thumbnail.url }}" width="60" height="40" class="rounded object-fit-cover me-2">
-                            {% else %}
-                                <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width:60px; height:40px;">
-                                    <i class="bi bi-film text-muted"></i>
-                                </div>
-                            {% endif %}
-                            <div>
-                                <div class="fw-bold">{{ video.title_ar }}</div>
-                                <div class="small text-muted">{{ video.title_en }}</div>
+            <table class="table admin-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-camera-video me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Video" %}</span>
                             </div>
-                        </div>
-                    </td>
-                    <td>
-                        {% for tag in video.tags.all %}
-                            <span class="badge bg-secondary me-1">{{ tag.name }}</span>
-                        {% empty %}
-                            <span class="text-muted">{% trans "No tags" %}</span>
-                        {% endfor %}
-                    </td>
-                    <td>{{ video.videometa.duration_seconds|default:"--" }}s</td>
-                    <td>
-                        <span class="badge {% if video.videometa.processing_status == 'completed' %}bg-success{% else %}bg-warning{% endif %}">
-                            {{ video.videometa.processing_status }}
-                        </span>
-                    </td>
-                    <td class="text-end pe-4">
-                        <a href="{% url 'frontend_api:admin_content_detail' video.id %}" class="btn btn-sm btn-light">
-                            {% trans "Edit" %}
-                        </a>
-                        <a href="{% url 'frontend_api:content_delete_confirm' video.id %}" class="btn btn-sm btn-danger ms-2">
-                            <i class="bi bi-trash"></i> {% trans "Delete" %}
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="5" class="text-center py-4">{% trans "No videos found" %}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-tags me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Tags" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-clock me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Duration" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-cpu me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Status" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3 text-center">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="bi bi-gear me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Actions" %}</span>
+                            </div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for video in videos %}
+                    <tr class="hover-row">
+                        <td class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="video-thumbnail me-3" style="width: 60px; height: 40px; border-radius: 8px; overflow: hidden; border: 2px solid var(--color-golden-ochre-30);">
+                                    {% if video.videometa.thumbnail %}
+                                        <img src="{{ video.videometa.thumbnail.url }}" width="60" height="40" class="object-fit-cover" style="width: 100%; height: 100%;">
+                                    {% else %}
+                                        <div class="w-100 h-100 d-flex align-items-center justify-content-center" style="background: var(--color-maroon-10);">
+                                            <i class="bi bi-camera-video text-maroon"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="body-font fw-bold text-maroon mb-1">{{ video.title_ar }}</div>
+                                    {% if video.title_en %}
+                                        <div class="small text-muted body-font">{{ video.title_en }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3">
+                            {% for tag in video.tags.all %}
+                                <span class="badge px-2 py-1 rounded-pill me-1 small" 
+                                      style="background: var(--color-maroon-20); color: var(--color-maroon); border: 1px solid var(--color-maroon-30);">
+                                    <i class="bi bi-tag me-1"></i>{{ tag.name }}
+                                </span>
+                            {% empty %}
+                                <span class="text-muted small body-font">{% trans "No tags" %}</span>
+                            {% endfor %}
+                        </td>
+                        <td class="py-3">
+                            {% if video.videometa.duration_seconds %}
+                                <span class="badge bg-info bg-opacity-15 text-info px-3 py-2 rounded-pill">
+                                    <i class="bi bi-stopwatch me-1"></i>{{ video.videometa.duration_seconds }}s
+                                </span>
+                            {% else %}
+                                <span class="text-muted small body-font">{% trans "Unknown" %}</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3">
+                            {% if video.videometa.processing_status == 'completed' %}
+                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
+                                    <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
+                                </span>
+                            {% elif video.videometa.processing_status == 'processing' %}
+                                <span class="badge bg-warning bg-opacity-15 text-warning px-3 py-2 rounded-pill">
+                                    <i class="bi bi-arrow-clockwise me-1 spin"></i>{% trans "Processing" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary bg-opacity-15 text-secondary px-3 py-2 rounded-pill">
+                                    <i class="bi bi-pause-circle me-1"></i>{{ video.videometa.processing_status }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 text-center">
+                            <div class="d-flex gap-1 justify-content-center flex-wrap">
+                                <a href="{% url 'frontend_api:admin_content_detail' video.id %}" 
+                                   class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill" 
+                                   title="{% trans 'Edit' %}">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'frontend_api:video_detail' video.id %}" 
+                                   class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                                   title="{% trans 'Preview' %}" target="_blank">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'frontend_api:content_delete_confirm' video.id %}" 
+                                   class="btn btn-sm btn-outline-danger px-3 py-2 rounded-pill" 
+                                   title="{% trans 'Delete' %}">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5">
+                            <div class="empty-state">
+                                <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                                     style="width: 80px; height: 80px; background: var(--color-maroon-10); border-radius: 50%;">
+                                    <i class="bi bi-camera-video text-maroon" style="font-size: 2.5rem;"></i>
+                                </div>
+                                <h5 class="heading-font text-maroon mb-2">{% trans "No videos found" %}</h5>
+                                <p class="body-font text-muted mb-3">{% trans "Start by uploading your first video content" %}</p>
+                                <a href="{% url 'frontend_api:upload_content' %}?type=video" class="btn btn-primary px-4 py-2 rounded-pill">
+                                    <i class="bi bi-plus-lg me-2"></i>{% trans "Add Video" %}
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

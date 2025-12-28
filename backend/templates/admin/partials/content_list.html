@@ -1,53 +1,178 @@
-<!-- templates/admin/partials/content_list.html -->
+<!-- templates/admin/partials/content_list.html - Coptic Orthodox Content Table -->
 {% load i18n %}
 
 <div class="table-responsive" style="border-radius: 15px; overflow: hidden;">
-    <table class="table table-hover align-middle mb-0">
-        <thead style="background: linear-gradient(135deg, rgba(184,134,11,0.1), rgba(245,222,179,0.1));">
+    <table class="table admin-table mb-0">
+        <thead>
             <tr>
-                <th class="ps-4 py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Content" %}</th>
-                <th class="py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Type" %}</th>
-                <th class="py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Tags" %}</th>
-                <th class="py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Status" %}</th>
-                <th class="py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Date" %}</th>
-                <th class="text-center py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Actions" %}</th>
+                <th class="ps-4 py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-card-heading me-2 text-golden"></i>
+                        <span class="heading-font">{% trans "Content" %}</span>
+                    </div>
+                </th>
+                <th class="py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-tags me-2 text-golden"></i>
+                        <span class="heading-font">{% trans "Type" %}</span>
+                    </div>
+                </th>
+                <th class="py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-hash me-2 text-golden"></i>
+                        <span class="heading-font">{% trans "Tags" %}</span>
+                    </div>
+                </th>
+                <th class="py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-toggles me-2 text-golden"></i>
+                        <span class="heading-font">{% trans "Status" %}</span>
+                    </div>
+                </th>
+                <th class="py-3">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-calendar3 me-2 text-golden"></i>
+                        <span class="heading-font">{% trans "Date" %}</span>
+                    </div>
+                </th>
+                <th class="text-center py-3">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <i class="bi bi-gear me-2 text-golden"></i>
+                        <span class="heading-font">{% trans "Actions" %}</span>
+                    </div>
+                </th>
             </tr>
         </thead>
         <tbody>
             {% for item in content_data.content_items %}
-            <tr style="transition: all 0.3s ease;" onmouseover="this.style.background='rgba(184,134,11,0.03)'" onmouseout="this.style.background='transparent'">
+            <tr class="hover-row">
                 <td class="ps-4 py-3">
                     <div class="d-flex align-items-center">
-                        <div class="p-2 rounded-circle me-3" style="background: 
-                            {% if item.content_type == 'video' %}rgba(135,206,235,0.2)
-                            {% elif item.content_type == 'audio' %}rgba(230,230,250,0.2)
-                            {% else %}rgba(245,222,179,0.2){% endif %};">
-                            {% if item.content_type == 'video' %}<i class="bi bi-play-circle" style="color: #87CEEB;"></i>
-                            {% elif item.content_type == 'audio' %}<i class="bi bi-music-note" style="color: #E6E6FA;"></i>
-                            {% else %}<i class="bi bi-file-text" style="color: #F5DEB3;"></i>{% endif %}
+                        <div class="d-flex align-items-center justify-content-center me-3" 
+                             style="width: 45px; height: 45px; border-radius: 12px;
+                             {% if item.content_type == 'video' %}background: var(--color-maroon-10);{% elif item.content_type == 'audio' %}background: var(--color-golden-ochre-10);{% else %}background: var(--color-maroon-20);{% endif %}">
+                            {% if item.content_type == 'video' %}
+                                <i class="bi bi-play-circle text-maroon" style="font-size: 1.2rem;"></i>
+                            {% elif item.content_type == 'audio' %}
+                                <i class="bi bi-music-note text-golden" style="font-size: 1.2rem;"></i>
+                            {% else %}
+                                <i class="bi bi-file-text text-maroon" style="font-size: 1.2rem;"></i>
+                            {% endif %}
                         </div>
                         <div>
-                            <div class="fw-bold" style="color: var(--bs-primary);">{% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}</div>
-                            <div class="small text-muted">ID: {{ item.id }}</div>
+                            <div class="body-font fw-bold text-maroon mb-1">
+                                {% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}
+                            </div>
+                            <div class="small text-muted">
+                                <i class="bi bi-hash me-1"></i>{{ item.id }}
+                            </div>
                         </div>
                     </div>
                 </td>
                 <td class="py-3">
                     {% if item.content_type == 'video' %}
-                        <span class="badge px-3 py-2 rounded-pill fw-medium" style="background: linear-gradient(135deg, #87CEEB, #5F9FDB); color: white; border: 1px solid rgba(0,0,0,0.1);">
-                            <i class="bi bi-play-circle me-1"></i>{{ item.get_content_type_display }}
+                        <span class="badge px-3 py-2 rounded-pill admin-badge-primary">
+                            <i class="bi bi-camera-video me-1"></i>{{ item.get_content_type_display }}
                         </span>
                     {% elif item.content_type == 'audio' %}
-                        <span class="badge px-3 py-2 rounded-pill fw-medium" style="background: linear-gradient(135deg, #9370DB, #8A2BE2); color: white; border: 1px solid rgba(0,0,0,0.1);">
-                            <i class="bi bi-music-note me-1"></i>{{ item.get_content_type_display }}
+                        <span class="badge px-3 py-2 rounded-pill admin-badge-secondary">
+                            <i class="bi bi-mic me-1"></i>{{ item.get_content_type_display }}
                         </span>
                     {% else %}
-                        <span class="badge px-3 py-2 rounded-pill fw-medium" style="background: linear-gradient(135deg, #DEB887, #CD853F); color: white; border: 1px solid rgba(0,0,0,0.1);">
-                            <i class="bi bi-file-text me-1"></i>{{ item.get_content_type_display }}
+                        <span class="badge px-3 py-2 rounded-pill admin-badge-primary">
+                            <i class="bi bi-file-earmark-pdf me-1"></i>{{ item.get_content_type_display }}
                         </span>
                     {% endif %}
                 </td>
                 <td class="py-3">
+                    {% if item.tags.exists %}
+                        {% for tag in item.tags.all %}
+                            <span class="badge px-2 py-1 rounded-pill me-1 small" 
+                                  style="background: var(--color-maroon-20); color: var(--color-maroon); border: 1px solid var(--color-maroon-30);">
+                                <i class="bi bi-tag me-1"></i>{% if current_language == 'ar' %}{{ tag.name_ar }}{% else %}{{ tag.name_en }}{% endif %}
+                            </span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted small body-font">{% trans "No tags" %}</span>
+                    {% endif %}
+                </td>
+                <td class="py-3">
+                    {% if item.is_active %}
+                        <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
+                            <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-warning bg-opacity-15 text-warning px-3 py-2 rounded-pill">
+                            <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
+                        </span>
+                    {% endif %}
+                    {% if item.processing_status %}
+                        <div class="small text-muted mt-1 body-font">{{ item.processing_status }}</div>
+                    {% endif %}
+                </td>
+                <td class="py-3 body-font text-muted">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-calendar3 me-2"></i>
+                        <div>
+                            <div>{{ item.created_at|date:"M d, Y" }}</div>
+                            <div class="small">{{ item.created_at|date:"H:i" }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="py-3 text-center">
+                    <div class="d-flex gap-1 justify-content-center flex-wrap">
+                        <a href="{% url 'frontend_api:admin_content_detail' item.id %}" 
+                           class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill" 
+                           title="{% trans 'Edit' %}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        {% if item.content_type == 'video' %}
+                        <a href="{% url 'frontend_api:video_detail' item.id %}" 
+                           class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                           title="{% trans 'Preview' %}" target="_blank">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% elif item.content_type == 'audio' %}
+                        <a href="{% url 'frontend_api:audio_detail' item.id %}" 
+                           class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                           title="{% trans 'Preview' %}" target="_blank">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% else %}
+                        <a href="{% url 'frontend_api:pdf_detail' item.id %}" 
+                           class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                           title="{% trans 'Preview' %}" target="_blank">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% endif %}
+                        <button class="btn btn-sm btn-outline-danger px-3 py-2 rounded-pill" 
+                                title="{% trans 'Delete' %}" 
+                                onclick="confirmDelete('{{ item.id }}', '{{ item.title_ar|escapejs }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center py-5">
+                    <div class="empty-state">
+                        <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                             style="width: 80px; height: 80px; background: var(--color-maroon-10); border-radius: 50%;">
+                            <i class="bi bi-inbox text-maroon" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h5 class="heading-font text-maroon mb-2">{% trans "No content found" %}</h5>
+                        <p class="body-font text-muted mb-3">{% trans "No content matches your current filters" %}</p>
+                        <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary px-4 py-2 rounded-pill">
+                            <i class="bi bi-plus-lg me-2"></i>{% trans "Add Content" %}
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
                     {% if item.tags.exists %}
                         {% for tag in item.tags.all %}
                             <span class="badge px-2 py-1 rounded-pill me-1 small fw-medium" 
@@ -121,37 +246,48 @@
 
 <!-- Pagination -->
 {% if content_data.has_pagination %}
-<div class="d-flex justify-content-between align-items-center mt-4">
-    <div class="text-muted small">
+<div class="d-flex justify-content-between align-items-center mt-4 flex-wrap">
+    <div class="text-muted small body-font">
         {% trans "Showing" %} {{ content_data.start_index }}-{{ content_data.end_index }} {% trans "of" %} {{ content_data.total_count }} {% trans "items" %}
     </div>
     <nav>
         <ul class="pagination pagination-sm mb-0">
             {% if content_data.has_previous %}
             <li class="page-item">
-                <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}" style="border-radius: 10px;">
+                <a class="page-link rounded-pill me-1" 
+                   href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
+                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
                     <i class="bi bi-chevron-double-left"></i>
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link" href="?page={{ content_data.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}" style="border-radius: 10px;">
+                <a class="page-link rounded-pill me-1" 
+                   href="?page={{ content_data.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
+                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
                     <i class="bi bi-chevron-left"></i>
                 </a>
             </li>
             {% endif %}
             
             <li class="page-item active">
-                <span class="page-link" style="border-radius: 10px; background: #B8860B; border-color: #B8860B;">{{ content_data.number }}</span>
+                <span class="page-link rounded-pill me-1" 
+                      style="background: var(--color-maroon); border: 2px solid var(--color-maroon); color: white;">
+                    {{ content_data.number }}
+                </span>
             </li>
             
             {% if content_data.has_next %}
             <li class="page-item">
-                <a class="page-link" href="?page={{ content_data.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}" style="border-radius: 10px;">
+                <a class="page-link rounded-pill me-1" 
+                   href="?page={{ content_data.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
+                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
                     <i class="bi bi-chevron-right"></i>
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link" href="?page={{ content_data.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}" style="border-radius: 10px;">
+                <a class="page-link rounded-pill" 
+                   href="?page={{ content_data.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
+                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
                     <i class="bi bi-chevron-double-right"></i>
                 </a>
             </li>
@@ -163,6 +299,8 @@
 
 <script>
 function confirmDelete(itemId, itemTitle) {
-    window.location.href = `/{{ LANGUAGE_CODE }}/admin/content/delete/${itemId}/`;
+    if (confirm('{% trans "Are you sure you want to delete" %} "' + itemTitle + '"?')) {
+        window.location.href = `/{{ LANGUAGE_CODE }}/admin/content/delete/${itemId}/`;
+    }
 }
 </script>

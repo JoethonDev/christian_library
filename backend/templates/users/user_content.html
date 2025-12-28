@@ -1,32 +1,156 @@
-<!-- templates/users/user_content.html -->
+<!-- templates/users/user_content.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
 
 {% block content %}
+<!-- User Library Header -->
+<div class="mb-4">
+    <div class="card card-coptic p-4">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center text-md-start">
+                <div class="d-inline-flex align-items-center justify-content-center sacred-shadow mb-3" 
+                     style="width: 80px; height: 80px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
+                    <i class="bi bi-collection-play text-white" style="font-size: 2.5rem;"></i>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h2 class="heading-font text-maroon fw-bold mb-2">{% trans "My Spiritual Library" %}</h2>
+                <p class="body-font text-muted mb-0">{% trans "Your personal collection of saved spiritual content and learning progress" %}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4">
+    <!-- Sidebar Navigation -->
     <div class="col-lg-3">
-        <div class="list-group shadow-sm">
-            <a href="{% url 'profile' %}" class="list-group-item list-group-item-action">
-                <i class="bi bi-person-gear me-2"></i> {% trans "Profile Settings" %}
-            </a>
-            <a href="#" class="list-group-item list-group-item-action active">
-                <i class="bi bi-collection-play me-2"></i> {% trans "My Library" %}
-            </a>
+        <div class="card card-coptic">
+            <div class="card-header-coptic">
+                <h5 class="heading-font text-white mb-0 text-center">
+                    <i class="bi bi-person-gear me-2"></i>{% trans "Account" %}
+                </h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'profile' %}" class="list-group-item list-group-item-action border-0 d-flex align-items-center py-3 hover-maroon-glow">
+                    <i class="bi bi-person-gear text-maroon me-3" style="font-size: 1.2rem;"></i>
+                    <span class="body-font text-maroon">{% trans "Profile Settings" %}</span>
+                </a>
+                <a href="#" class="list-group-item list-group-item-action border-0 d-flex align-items-center py-3" 
+                   style="background: var(--color-golden-ochre-10); border-left: 4px solid var(--color-golden-ochre) !important;">
+                    <i class="bi bi-collection-play text-golden me-3" style="font-size: 1.2rem;"></i>
+                    <span class="heading-font text-maroon fw-bold">{% trans "My Library" %}</span>
+                </a>
+            </div>
+        </div>
+        
+        <!-- Library Stats -->
+        <div class="card card-coptic mt-4">
+            <div class="card-body p-4">
+                <h6 class="heading-font text-maroon mb-3 text-center">{% trans "Library Statistics" %}</h6>
+                <div class="row g-3 text-center">
+                    <div class="col-12">
+                        <div class="p-3 rounded-3" style="background: var(--color-maroon-10);">
+                            <i class="bi bi-bookmark-heart text-maroon mb-2" style="font-size: 1.8rem;"></i>
+                            <h6 class="body-font text-maroon mb-1">0</h6>
+                            <small class="text-muted">{% trans "Saved Items" %}</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded-3" style="background: var(--color-golden-ochre-10);">
+                            <i class="bi bi-play-circle text-golden mb-1" style="font-size: 1.2rem;"></i>
+                            <h6 class="body-font text-maroon small mb-0">0</h6>
+                            <small class="text-muted" style="font-size: 0.7rem;">{% trans "Videos" %}</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded-3" style="background: var(--color-golden-ochre-10);">
+                            <i class="bi bi-music-note text-golden mb-1" style="font-size: 1.2rem;"></i>
+                            <h6 class="body-font text-maroon small mb-0">0</h6>
+                            <small class="text-muted" style="font-size: 0.7rem;">{% trans "Audio" %}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Main Content -->
     <div class="col-lg-9">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-bold">{% trans "My Saved Content" %}</h5>
+        <div class="card card-coptic">
+            <div class="card-header-coptic">
+                <h5 class="heading-font text-white mb-0">
+                    <i class="bi bi-collection me-2"></i>{% trans "My Saved Content" %}
+                </h5>
             </div>
-            <div class="card-body">
-                <div class="alert alert-info border-0 d-flex align-items-center">
-                    <i class="bi bi-info-circle me-2"></i>
-                    {% trans "Track your learning progress here." %}
+            <div class="card-body p-4 p-md-5">
+                <!-- Welcome Message -->
+                <div class="alert border-0 d-flex align-items-center mb-4" style="background: var(--color-golden-ochre-10); border-left: 4px solid var(--color-golden-ochre) !important;">
+                    <i class="bi bi-info-circle text-golden me-3" style="font-size: 1.5rem;"></i>
+                    <div>
+                        <h6 class="heading-font text-maroon mb-1">{% trans "Welcome to Your Spiritual Library" %}</h6>
+                        <p class="body-font text-muted small mb-0">{% trans "Save your favorite content to track your spiritual learning journey and easily revisit meaningful teachings." %}</p>
+                    </div>
                 </div>
-                <!-- Placeholder for user history -->
-                <p class="text-center text-muted py-5">{% trans "You haven't saved any content yet." %}</p>
+                
+                <!-- Empty State -->
+                <div class="text-center py-5">
+                    <div class="d-inline-flex align-items-center justify-content-center mb-4 sacred-shadow" 
+                         style="width: 120px; height: 120px; background: var(--color-maroon); border-radius: 50%; border: 4px solid var(--color-golden-ochre);">
+                        <i class="bi bi-bookmark-plus text-white" style="font-size: 3.5rem;"></i>
+                    </div>
+                    <h4 class="heading-font text-maroon mb-3">{% trans "Your Library is Empty" %}</h4>
+                    <p class="body-font text-muted mb-4 col-md-8 mx-auto">
+                        {% trans "Start building your personal spiritual library by saving videos, audio, and books that inspire your faith journey." %}
+                    </p>
+                    
+                    <!-- Quick Access Buttons -->
+                    <div class="d-flex flex-wrap gap-3 justify-content-center">
+                        <a href="{% url 'frontend_api:videos' %}" class="btn btn-primary rounded-pill px-4 py-2">
+                            <i class="bi bi-play-circle me-2"></i>{% trans "Browse Videos" %}
+                        </a>
+                        <a href="{% url 'frontend_api:audios' %}" class="btn btn-secondary rounded-pill px-4 py-2">
+                            <i class="bi bi-music-note me-2"></i>{% trans "Listen to Audio" %}
+                        </a>
+                        <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-outline-primary rounded-pill px-4 py-2">
+                            <i class="bi bi-journal-bookmark me-2"></i>{% trans "Read Books" %}
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Instructions -->
+                <div class="mt-5">
+                    <div class="card card-coptic p-4">
+                        <h6 class="heading-font text-maroon mb-3">
+                            <i class="bi bi-lightbulb text-golden me-2"></i>{% trans "How to Save Content" %}
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4 text-center">
+                                <div class="d-inline-flex align-items-center justify-content-center mb-2" 
+                                     style="width: 50px; height: 50px; background: var(--color-golden-ochre-10); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                                    <span class="heading-font text-golden fw-bold">1</span>
+                                </div>
+                                <h6 class="body-font text-maroon small mb-1">{% trans "Browse Content" %}</h6>
+                                <p class="text-muted small mb-0">{% trans "Find videos, audio, or books" %}</p>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="d-inline-flex align-items-center justify-content-center mb-2" 
+                                     style="width: 50px; height: 50px; background: var(--color-golden-ochre-10); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                                    <span class="heading-font text-golden fw-bold">2</span>
+                                </div>
+                                <h6 class="body-font text-maroon small mb-1">{% trans "Save Items" %}</h6>
+                                <p class="text-muted small mb-0">{% trans "Click the bookmark icon" %}</p>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="d-inline-flex align-items-center justify-content-center mb-2" 
+                                     style="width: 50px; height: 50px; background: var(--color-golden-ochre-10); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                                    <span class="heading-font text-golden fw-bold">3</span>
+                                </div>
+                                <h6 class="body-font text-maroon small mb-1">{% trans "Access Here" %}</h6>
+                                <p class="text-muted small mb-0">{% trans "View your saved library" %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

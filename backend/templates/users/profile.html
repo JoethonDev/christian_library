@@ -1,53 +1,166 @@
-<!-- templates/users/profile.html -->
+<!-- templates/users/profile.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
 
 {% block content %}
+<!-- User Header -->
+<div class="mb-4">
+    <div class="card card-coptic p-4">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center text-md-start">
+                <div class="d-inline-flex align-items-center justify-content-center sacred-shadow mb-3" 
+                     style="width: 100px; height: 100px; background: var(--color-maroon); border-radius: 50%; border: 4px solid var(--color-golden-ochre);">
+                    <i class="bi bi-person text-white" style="font-size: 3rem;"></i>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <h2 class="heading-font text-maroon fw-bold mb-2">{% trans "Welcome," %} {{ user.get_full_name|default:user.username }}</h2>
+                <p class="body-font text-muted mb-3">{% trans "Manage your spiritual library and account settings" %}</p>
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="d-flex align-items-center text-muted">
+                        <i class="bi bi-envelope text-golden me-2"></i>
+                        <span class="body-font small">{{ user.email }}</span>
+                    </div>
+                    <div class="d-flex align-items-center text-muted">
+                        <i class="bi bi-calendar3 text-golden me-2"></i>
+                        <span class="body-font small">{% trans "Member since" %} {{ user.date_joined|date:"F Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4">
-    <!-- Sidebar -->
+    <!-- Sidebar Navigation -->
     <div class="col-lg-3">
-        <div class="list-group shadow-sm">
-            <a href="#" class="list-group-item list-group-item-action active">
-                <i class="bi bi-person-gear me-2"></i> {% trans "Profile Settings" %}
-            </a>
-            <a href="{% url 'user_content' %}" class="list-group-item list-group-item-action">
-                <i class="bi bi-collection-play me-2"></i> {% trans "My Library" %}
-            </a>
-            {% if user.is_staff %}
-                <a href="{% url 'frontend_api:admin_dashboard' %}" class="list-group-item list-group-item-action text-danger">
-                    <i class="bi bi-shield-lock me-2"></i> {% trans "Admin Panel" %}
+        <div class="card card-coptic">
+            <div class="card-header-coptic">
+                <h5 class="heading-font text-white mb-0 text-center">
+                    <i class="bi bi-person-gear me-2"></i>{% trans "Account" %}
+                </h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="#" class="list-group-item list-group-item-action border-0 d-flex align-items-center py-3" 
+                   style="background: var(--color-golden-ochre-10); border-left: 4px solid var(--color-golden-ochre) !important;">
+                    <i class="bi bi-person-gear text-golden me-3" style="font-size: 1.2rem;"></i>
+                    <span class="heading-font text-maroon fw-bold">{% trans "Profile Settings" %}</span>
                 </a>
-            {% endif %}
+                <a href="{% url 'user_content' %}" class="list-group-item list-group-item-action border-0 d-flex align-items-center py-3 hover-maroon-glow">
+                    <i class="bi bi-collection-play text-maroon me-3" style="font-size: 1.2rem;"></i>
+                    <span class="body-font text-maroon">{% trans "My Library" %}</span>
+                </a>
+                {% if user.is_staff %}
+                    <a href="{% url 'frontend_api:admin_dashboard' %}" class="list-group-item list-group-item-action border-0 d-flex align-items-center py-3 hover-maroon-glow">
+                        <i class="bi bi-shield-lock text-danger me-3" style="font-size: 1.2rem;"></i>
+                        <span class="body-font text-danger fw-bold">{% trans "Admin Panel" %}</span>
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card card-coptic mt-4">
+            <div class="card-body p-4 text-center">
+                <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                     style="width: 60px; height: 60px; background: var(--color-golden-ochre-10); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
+                    <i class="bi bi-bookmark-heart text-golden" style="font-size: 1.5rem;"></i>
+                </div>
+                <h6 class="heading-font text-maroon mb-1">{% trans "Spiritual Journey" %}</h6>
+                <p class="body-font text-muted small mb-0">{% trans "Your personal library awaits" %}</p>
+            </div>
         </div>
     </div>
 
-    <!-- Content -->
+    <!-- Main Content -->
     <div class="col-lg-9">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-bold">{% trans "Edit Profile" %}</h5>
+        <div class="card card-coptic">
+            <div class="card-header-coptic">
+                <h5 class="heading-font text-white mb-0">
+                    <i class="bi bi-pencil-square me-2"></i>{% trans "Edit Profile" %}
+                </h5>
             </div>
-            <div class="card-body p-4">
+            <div class="card-body p-4 p-md-5">
                 <form method="post">
                     {% csrf_token %}
-                    <div class="row g-3">
+                    
+                    <div class="row g-4">
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "First Name" %}</label>
-                            <input type="text" name="first_name" value="{{ user.first_name }}" class="form-control">
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "First Name" %}</label>
+                            <div class="position-relative">
+                                <input type="text" name="first_name" value="{{ user.first_name }}" class="form-control form-control-lg border-0 ps-5" 
+                                       style="background: var(--color-golden-ochre-10); border-radius: 12px; border: 2px solid transparent; transition: all 0.3s ease;"
+                                       onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'"
+                                       onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'">
+                                <i class="bi bi-person position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                            </div>
                         </div>
+                        
                         <div class="col-md-6">
-                            <label class="form-label">{% trans "Last Name" %}</label>
-                            <input type="text" name="last_name" value="{{ user.last_name }}" class="form-control">
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "Last Name" %}</label>
+                            <div class="position-relative">
+                                <input type="text" name="last_name" value="{{ user.last_name }}" class="form-control form-control-lg border-0 ps-5" 
+                                       style="background: var(--color-golden-ochre-10); border-radius: 12px; border: 2px solid transparent; transition: all 0.3s ease;"
+                                       onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'"
+                                       onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'">
+                                <i class="bi bi-person position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                            </div>
                         </div>
+                        
                         <div class="col-12">
-                            <label class="form-label">{% trans "Email" %}</label>
-                            <input type="email" value="{{ user.email }}" class="form-control" disabled>
-                            <div class="form-text">{% trans "Email cannot be changed." %}</div>
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "Email" %}</label>
+                            <div class="position-relative">
+                                <input type="email" value="{{ user.email }}" class="form-control form-control-lg border-0 ps-5" 
+                                       style="background: var(--color-maroon-10); border-radius: 12px; cursor: not-allowed;" disabled>
+                                <i class="bi bi-envelope position-absolute text-muted" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                            </div>
+                            <div class="d-flex align-items-center mt-2">
+                                <i class="bi bi-info-circle text-golden me-2"></i>
+                                <small class="body-font text-muted">{% trans "Email cannot be changed for security reasons" %}</small>
+                            </div>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary mt-4">{% trans "Save Changes" %}</button>
+                    
+                    <div class="text-center text-md-start mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 py-3">
+                            <i class="bi bi-check-circle me-2"></i>{% trans "Save Changes" %}
+                        </button>
+                    </div>
                 </form>
             </div>
+        </div>
+        
+        <!-- Account Information -->
+        <div class="card card-coptic mt-4">
+            <div class="card-body p-4">
+                <h6 class="heading-font text-maroon mb-3">
+                    <i class="bi bi-shield-check text-golden me-2"></i>{% trans "Account Security" %}
+                </h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center p-3 rounded-3" style="background: var(--color-golden-ochre-10);">
+                            <i class="bi bi-key text-golden me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h6 class="body-font text-maroon mb-1">{% trans "Password" %}</h6>
+                                <small class="text-muted">{% trans "Last updated" %}: {% trans "Not available" %}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center p-3 rounded-3" style="background: var(--color-maroon-10);">
+                            <i class="bi bi-clock text-maroon me-3" style="font-size: 1.5rem;"></i>
+                            <div>
+                                <h6 class="body-font text-maroon mb-1">{% trans "Last Login" %}</h6>
+                                <small class="text-muted">{{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
         </div>
     </div>
 </div>

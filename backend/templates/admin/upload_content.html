@@ -7,12 +7,15 @@
     <!-- Header Section -->
     <div class="mb-5">
         <div class="d-flex align-items-center mb-3">
-            <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #B8860B, #F5DEB3); backdrop-filter: blur(10px);">
-                <i class="bi bi-cloud-upload" style="font-size: 2rem; color: white;"></i>
+            <div class="p-3 rounded-circle me-3" 
+                 style="background: linear-gradient(135deg, #800000, #DD9933); backdrop-filter: blur(10px); box-shadow: 0 6px 20px rgba(128,0,0,0.25);">
+                <i class="bi bi-cloud-upload" style="font-size: 2rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
             </div>
             <div>
-                <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Upload New Content" %}</h1>
-                <p class="text-muted mb-0">{% trans "Add videos, audio messages, and documents to your library" %}</p>
+                <h1 class="h2 mb-1 fw-bold" style="color: #800000; text-shadow: 1px 1px 2px rgba(128,0,0,0.1);">
+                    <i class="bi bi-cross me-2" style="color: #DD9933;"></i>{% trans "Upload Sacred Content" %}
+                </h1>
+                <p class="mb-0" style="color: #5a4037;">{% trans "Share the wisdom and beauty of our Orthodox heritage with the faithful community" %}</p>
             </div>
         </div>
     </div>
@@ -20,100 +23,99 @@
     <!-- Upload Form -->
     <div class="row justify-content-center">
         <div class="col-lg-10">
-            <div class="card border-0 shadow-lg" style="border-radius: 30px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+            <div class="card border-0 shadow-lg" style="border-radius: 30px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
                 <div class="card-body p-4 p-md-5">
                     <form id="upload-form" method="post" enctype="multipart/form-data" action="{% url 'frontend_api:handle_upload' %}">
                         {% csrf_token %}
 
                         <!-- Progress Bar -->
                         <div id="progress-container" class="mb-4 d-none">
-                            <div class="progress" style="height: 24px; border-radius: 12px;">
-                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%; border-radius: 12px; background: linear-gradient(135deg, #B8860B, #F5DEB3); color: #222; font-weight: bold;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            <div class="progress" style="height: 24px; border-radius: 12px; background: rgba(128,0,0,0.1);">
+                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     style="width: 0%; border-radius: 12px; background: linear-gradient(135deg, #800000, #DD9933); color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3);" 
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                             </div>
-                            <div id="progress-status" class="small mt-2 text-center text-muted"></div>
+                            <div id="progress-status" class="small mt-2 text-center" style="color: #5a4037; font-weight: 500;"></div>
                         </div>
 
                         <!-- Type Selection -->
                         <div class="mb-5 px-1 px-md-3">
-                            <h4 class="fw-bold mb-4 text-center" style="color: var(--bs-primary);">{% trans "Select Content Type" %}</h4>
+                            <h4 class="fw-bold mb-4 text-center" style="color: #800000;">
+                                <i class="bi bi-bookmark-star me-2" style="color: #DD9933;"></i>{% trans "Select Sacred Content Type" %}
+                            </h4>
                             <div class="d-none d-md-flex w-100 gap-3 justify-content-center">
                                 <div class="flex-fill" style="min-width: 180px;">
-                                    <!-- ...existing code for first card... -->
                                     <input type="radio" class="btn-check" name="content_type" id="type_video" value="video" {% if content_type == 'video' %}checked{% endif %} onclick="window.location.href='?type=video'">
-                                    <label class="btn btn-outline-primary w-100 py-3" for="type_video" style="border-radius: 16px; border: 2px solid; transition: all 0.3s ease; min-width: 110px;">
+                                    <label class="btn w-100 py-3" for="type_video" style="border-radius: 16px; border: 2px solid #800000; transition: all 0.3s ease; min-width: 110px; background: rgba(128,0,0,0.05);">
                                         <div class="text-center">
-                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(135,206,235,0.1); width: 48px; height: 48px;">
-                                                <i class="bi bi-play-circle" style="font-size: 1.5rem; color: #87CEEB;"></i>
+                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(128,0,0,0.1); width: 48px; height: 48px;">
+                                                <i class="bi bi-play-circle-fill" style="font-size: 1.5rem; color: #800000;"></i>
                                             </div>
-                                            <div class="fw-bold" style="font-size:1rem;">{% trans "Video" %}</div>
-                                            <div class="text-muted small mb-0">{% trans "Sermons & teachings" %}</div>
+                                            <div class="fw-bold" style="font-size:1rem; color: #800000;">{% trans "Video" %}</div>
+                                            <div class="small mb-0" style="color: #5a4037;">{% trans "Sacred sermons & teachings" %}</div>
                                         </div>
                                     </label>
                                 </div>
                                 <div class="flex-fill" style="min-width: 180px;">
-                                    <!-- ...existing code for second card... -->
                                     <input type="radio" class="btn-check" name="content_type" id="type_audio" value="audio" {% if content_type == 'audio' %}checked{% endif %} onclick="window.location.href='?type=audio'">
-                                    <label class="btn btn-outline-primary w-100 py-3" for="type_audio" style="border-radius: 16px; border: 2px solid; transition: all 0.3s ease; min-width: 110px;">
+                                    <label class="btn w-100 py-3" for="type_audio" style="border-radius: 16px; border: 2px solid #DD9933; transition: all 0.3s ease; min-width: 110px; background: rgba(221,153,51,0.05);">
                                         <div class="text-center">
-                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(230,230,250,0.1); width: 48px; height: 48px;">
-                                                <i class="bi bi-music-note-beamed" style="font-size: 1.5rem; color: #E6E6FA;"></i>
+                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(221,153,51,0.1); width: 48px; height: 48px;">
+                                                <i class="bi bi-music-note-list" style="font-size: 1.5rem; color: #DD9933;"></i>
                                             </div>
-                                            <div class="fw-bold" style="font-size:1rem;">{% trans "Audio" %}</div>
-                                            <div class="text-muted small mb-0">{% trans "Messages & podcasts" %}</div>
+                                            <div class="fw-bold" style="font-size:1rem; color: #DD9933;">{% trans "Audio" %}</div>
+                                            <div class="small mb-0" style="color: #5a4037;">{% trans "Hymns & spiritual messages" %}</div>
                                         </div>
                                     </label>
                                 </div>
                                 <div class="flex-fill" style="min-width: 180px;">
-                                    <!-- ...existing code for third card... -->
                                     <input type="radio" class="btn-check" name="content_type" id="type_pdf" value="pdf" {% if content_type == 'pdf' %}checked{% endif %} onclick="window.location.href='?type=pdf'">
-                                    <label class="btn btn-outline-primary w-100 py-3" for="type_pdf" style="border-radius: 16px; border: 2px solid; transition: all 0.3s ease; min-width: 110px;">
+                                    <label class="btn w-100 py-3" for="type_pdf" style="border-radius: 16px; border: 2px solid #8B4513; transition: all 0.3s ease; min-width: 110px; background: rgba(139,69,19,0.05);">
                                         <div class="text-center">
-                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(245,222,179,0.1); width: 48px; height: 48px;">
-                                                <i class="bi bi-journal-bookmark" style="font-size: 1.5rem; color: #F5DEB3;"></i>
+                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(139,69,19,0.1); width: 48px; height: 48px;">
+                                                <i class="bi bi-book-half" style="font-size: 1.5rem; color: #8B4513;"></i>
                                             </div>
-                                            <div class="fw-bold" style="font-size:1rem;">{% trans "Document" %}</div>
-                                            <div class="text-muted small mb-0">{% trans "Books & PDFs" %}</div>
+                                            <div class="fw-bold" style="font-size:1rem; color: #8B4513;">{% trans "Document" %}</div>
+                                            <div class="small mb-0" style="color: #5a4037;">{% trans "Sacred texts & books" %}</div>
                                         </div>
                                     </label>
                                 </div>
                             </div>
                             <div class="d-flex d-md-none flex-column gap-3 w-100 align-items-center">
                                 <div class="w-100" style="max-width: 350px;">
-                                    <!-- ...existing code for first card... -->
                                     <input type="radio" class="btn-check" name="content_type" id="type_video_m" value="video" {% if content_type == 'video' %}checked{% endif %} onclick="window.location.href='?type=video'">
-                                    <label class="btn btn-outline-primary w-100 py-3" for="type_video_m" style="border-radius: 16px; border: 2px solid; transition: all 0.3s ease; min-width: 110px;">
+                                    <label class="btn w-100 py-3" for="type_video_m" style="border-radius: 16px; border: 2px solid #800000; transition: all 0.3s ease; min-width: 110px; background: rgba(128,0,0,0.05);">
                                         <div class="text-center">
-                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(135,206,235,0.1); width: 48px; height: 48px;">
-                                                <i class="bi bi-play-circle" style="font-size: 1.5rem; color: #87CEEB;"></i>
+                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(128,0,0,0.1); width: 48px; height: 48px;">
+                                                <i class="bi bi-play-circle-fill" style="font-size: 1.5rem; color: #800000;"></i>
                                             </div>
-                                            <div class="fw-bold" style="font-size:1rem;">{% trans "Video" %}</div>
-                                            <div class="text-muted small mb-0">{% trans "Sermons & teachings" %}</div>
+                                            <div class="fw-bold" style="font-size:1rem; color: #800000;">{% trans "Video" %}</div>
+                                            <div class="small mb-0" style="color: #5a4037;">{% trans "Sacred sermons & teachings" %}</div>
                                         </div>
                                     </label>
                                 </div>
                                 <div class="w-100" style="max-width: 350px;">
-                                    <!-- ...existing code for second card... -->
                                     <input type="radio" class="btn-check" name="content_type" id="type_audio_m" value="audio" {% if content_type == 'audio' %}checked{% endif %} onclick="window.location.href='?type=audio'">
-                                    <label class="btn btn-outline-primary w-100 py-3" for="type_audio_m" style="border-radius: 16px; border: 2px solid; transition: all 0.3s ease; min-width: 110px;">
+                                    <label class="btn w-100 py-3" for="type_audio_m" style="border-radius: 16px; border: 2px solid #DD9933; transition: all 0.3s ease; min-width: 110px; background: rgba(221,153,51,0.05);">
                                         <div class="text-center">
-                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(230,230,250,0.1); width: 48px; height: 48px;">
-                                                <i class="bi bi-music-note-beamed" style="font-size: 1.5rem; color: #E6E6FA;"></i>
+                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(221,153,51,0.1); width: 48px; height: 48px;">
+                                                <i class="bi bi-music-note-list" style="font-size: 1.5rem; color: #DD9933;"></i>
                                             </div>
-                                            <div class="fw-bold" style="font-size:1rem;">{% trans "Audio" %}</div>
-                                            <div class="text-muted small mb-0">{% trans "Messages & podcasts" %}</div>
+                                            <div class="fw-bold" style="font-size:1rem; color: #DD9933;">{% trans "Audio" %}</div>
+                                            <div class="small mb-0" style="color: #5a4037;">{% trans "Hymns & spiritual messages" %}</div>
                                         </div>
                                     </label>
                                 </div>
                                 <div class="w-100" style="max-width: 350px;">
-                                    <!-- ...existing code for third card... -->
                                     <input type="radio" class="btn-check" name="content_type" id="type_pdf_m" value="pdf" {% if content_type == 'pdf' %}checked{% endif %} onclick="window.location.href='?type=pdf'">
-                                    <label class="btn btn-outline-primary w-100 py-3" for="type_pdf_m" style="border-radius: 16px; border: 2px solid; transition: all 0.3s ease; min-width: 110px;">
+                                    <label class="btn w-100 py-3" for="type_pdf_m" style="border-radius: 16px; border: 2px solid #8B4513; transition: all 0.3s ease; min-width: 110px; background: rgba(139,69,19,0.05);">
                                         <div class="text-center">
-                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(245,222,179,0.1); width: 48px; height: 48px;">
-                                                <i class="bi bi-journal-bookmark" style="font-size: 1.5rem; color: #F5DEB3;"></i>
+                                            <div class="p-2 rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="background: rgba(139,69,19,0.1); width: 48px; height: 48px;">
+                                                <i class="bi bi-book-half" style="font-size: 1.5rem; color: #8B4513;"></i>
                                             </div>
-                                            <div class="fw-bold" style="font-size:1rem;">{% trans "Document" %}</div>
-                                            <div class="text-muted small mb-0">{% trans "Books & PDFs" %}</div>
+                                            <div class="fw-bold" style="font-size:1rem; color: #8B4513;">{% trans "Document" %}</div>
+                                            <div class="small mb-0" style="color: #5a4037;">{% trans "Sacred texts & books" %}</div>
                                         </div>
                                     </label>
                                 </div>
@@ -123,23 +125,30 @@
 
                         <!-- File Upload Section -->
                         <div class="mb-5 px-1 px-md-3">
-                            <h5 class="fw-bold mb-3" style="color: var(--bs-primary);">{% trans "Upload File" %}</h5>
-                            <div class="upload-zone p-5 text-center rounded-4" style="background: rgba(184,134,11,0.05); border: 3px dashed rgba(184,134,11,0.3); transition: all 0.3s ease;" onclick="document.getElementById('file-input').click()" ondragover="this.style.background='rgba(184,134,11,0.1)'; this.style.borderColor='#B8860B'" ondragleave="this.style.background='rgba(184,134,11,0.05)'; this.style.borderColor='rgba(184,134,11,0.3)'">
+                            <h5 class="fw-bold mb-3" style="color: #800000;">
+                                <i class="bi bi-upload me-2" style="color: #DD9933;"></i>{% trans "Upload Sacred File" %}
+                            </h5>
+                            <div class="upload-zone p-5 text-center rounded-4" 
+                                 style="background: rgba(128,0,0,0.05); border: 3px dashed rgba(128,0,0,0.3); transition: all 0.3s ease; position: relative;" 
+                                 onclick="document.getElementById('file-input').click()" 
+                                 ondragover="this.style.background='rgba(128,0,0,0.1)'; this.style.borderColor='#800000'" 
+                                 ondragleave="this.style.background='rgba(128,0,0,0.05)'; this.style.borderColor='rgba(128,0,0,0.3)'">
                                 <input type="file" id="file-input" name="file" class="d-none" required 
                                        accept="{% if content_type == 'video' %}.mp4,.avi,.mov{% elif content_type == 'audio' %}.mp3,.wav{% else %}.pdf{% endif %}"
                                        onchange="updateFileName(this)">
-                                <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: rgba(184,134,11,0.1); width: 100px; height: 100px;">
-                                    <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #B8860B;"></i>
+                                <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                                     style="background: linear-gradient(135deg, #800000, #DD9933); width: 100px; height: 100px; box-shadow: 0 6px 20px rgba(128,0,0,0.25);">
+                                    <i class="bi bi-cloud-upload" style="font-size: 3rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
                                 </div>
-                                <h5 class="fw-bold mb-2" style="color: var(--bs-primary);">{% trans "Drag & drop your file here" %}</h5>
-                                <p class="text-muted mb-3">{% trans "or click to browse" %}</p>
-                                <div class="small text-muted">
+                                <h5 class="fw-bold mb-2" style="color: #800000;">{% trans "Drag & drop your sacred file here" %}</h5>
+                                <p class="mb-3" style="color: #5a4037;">{% trans "or click to browse your files" %}</p>
+                                <div class="small" style="color: #666;">
                                     {% if content_type == 'video' %}{% trans "Supports MP4, AVI, MOV files (Max 2GB)" %}
                                     {% elif content_type == 'audio' %}{% trans "Supports MP3, WAV files (Max 100MB)" %}
                                     {% else %}{% trans "Supports PDF documents (Max 50MB)" %}{% endif %}
                                 </div>
                                 <div id="file-name-display" class="mt-3 d-none">
-                                    <div class="badge bg-success p-2">
+                                    <div class="badge p-2" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; border-radius: 20px;">
                                         <i class="bi bi-file-check me-2"></i>
                                         <span id="selected-file-name"></span>
                                     </div>
@@ -150,9 +159,11 @@
                         <!-- Content Details -->
                         <div class="mb-5 px-1 px-md-3">
                             <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="fw-bold mb-0" style="color: var(--bs-primary);">{% trans "Content Information" %}</h5>
+                                <h5 class="fw-bold mb-0" style="color: #800000;">
+                                    <i class="bi bi-info-circle me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Information" %}
+                                </h5>
                                 <button type="button" id="generate-ai-btn" class="btn btn-sm" 
-                                        style="background: linear-gradient(135deg, #6A5ACD, #9370DB); border: none; color: white; border-radius: 20px; padding: 8px 16px;"
+                                        style="background: linear-gradient(135deg, #6A5ACD, #9370DB); border: none; color: white; border-radius: 20px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(106,90,205,0.3);"
                                         title="{% trans 'Generate metadata using AI' %}">
                                     <i class="bi bi-sparkles me-1"></i>{% trans "Generate with AI" %}
                                 </button>
@@ -160,20 +171,20 @@
                             <div class="row g-4">
                                 <!-- Arabic Metadata -->
                                 <div class="col-md-6">
-                                    <div class="card border-0 h-100" style="background: rgba(139,0,0,0.05); border-radius: 15px;">
+                                    <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); border-radius: 20px; border: 1px solid rgba(128,0,0,0.15);">
                                         <div class="card-body p-4">
-                                            <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #8B0000;">
-                                                <i class="bi bi-translate me-2"></i>{% trans "Arabic Details" %}
+                                            <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #800000;">
+                                                <i class="bi bi-translate me-2" style="color: #DD9933;"></i>{% trans "Arabic Details" %}
                                             </h6>
                                             <div class="mb-3">
-                                                <label class="form-label fw-medium">{% trans "Title (Arabic)" %}</label>
+                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Title (Arabic)" %}</label>
                                                 <input type="text" name="title_ar" class="form-control" required dir="rtl" 
-                                                       style="border-radius: 10px; border: 2px solid rgba(139,0,0,0.2);">
+                                                       style="border-radius: 12px; border: 2px solid rgba(128,0,0,0.25); background: rgba(255,255,255,0.9); padding: 12px;">
                                             </div>
                                             <div class="mb-0">
-                                                <label class="form-label fw-medium">{% trans "Description (Arabic)" %}</label>
+                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Description (Arabic)" %}</label>
                                                 <textarea name="description_ar" class="form-control" rows="4" dir="rtl" 
-                                                          style="border-radius: 10px; border: 2px solid rgba(139,0,0,0.2);"></textarea>
+                                                          style="border-radius: 12px; border: 2px solid rgba(128,0,0,0.25); background: rgba(255,255,255,0.9); padding: 12px;"></textarea>
                                             </div>
                                         </div>
                                     </div>
@@ -181,20 +192,20 @@
 
                                 <!-- English Metadata -->
                                 <div class="col-md-6">
-                                    <div class="card border-0 h-100" style="background: rgba(135,206,235,0.05); border-radius: 15px;">
+                                    <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border-radius: 20px; border: 1px solid rgba(221,153,51,0.15);">
                                         <div class="card-body p-4">
-                                            <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #87CEEB;">
-                                                <i class="bi bi-globe me-2"></i>{% trans "English Details" %}
+                                            <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #DD9933;">
+                                                <i class="bi bi-globe me-2" style="color: #800000;"></i>{% trans "English Details" %}
                                             </h6>
                                             <div class="mb-3">
-                                                <label class="form-label fw-medium">{% trans "Title (English)" %}</label>
+                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Title (English)" %}</label>
                                                 <input type="text" name="title_en" class="form-control" dir="ltr" 
-                                                       style="border-radius: 10px; border: 2px solid rgba(135,206,235,0.3);">
+                                                       style="border-radius: 12px; border: 2px solid rgba(221,153,51,0.25); background: rgba(255,255,255,0.9); padding: 12px;">
                                             </div>
                                             <div class="mb-0">
-                                                <label class="form-label fw-medium">{% trans "Description (English)" %}</label>
+                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Description (English)" %}</label>
                                                 <textarea name="description_en" class="form-control" rows="4" dir="ltr" 
-                                                          style="border-radius: 10px; border: 2px solid rgba(135,206,235,0.3);"></textarea>
+                                                          style="border-radius: 12px; border: 2px solid rgba(221,153,51,0.25); background: rgba(255,255,255,0.9); padding: 12px;"></textarea>
                                             </div>
                                         </div>
                                     </div>
@@ -204,16 +215,22 @@
 
                         <!-- Organization Section -->
                         <div class="mb-5 px-1 px-md-3">
-                            <h5 class="fw-bold mb-4" style="color: var(--bs-primary);">{% trans "Tags & Categories" %}</h5>
-                            <div class="card border-0" style="background: rgba(245,222,179,0.05); border-radius: 15px;">
+                            <h5 class="fw-bold mb-4" style="color: #800000;">
+                                <i class="bi bi-tags me-2" style="color: #DD9933;"></i>{% trans "Tags & Sacred Categories" %}
+                            </h5>
+                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(139,69,19,0.05), rgba(139,69,19,0.08)); border-radius: 20px; border: 1px solid rgba(139,69,19,0.15);">
                                 <div class="card-body p-4">
                                     <div class="row g-3">
                                         <div class="col-12">
-                                            <label class="form-label fw-medium">{% trans "Tags" %}</label>
+                                            <label class="form-label fw-medium" style="color: #5a4037;">
+                                                <i class="bi bi-bookmark me-1" style="color: #8B4513;"></i>{% trans "Sacred Tags" %}
+                                            </label>
                                             <input type="text" name="tags" class="form-control form-control-lg" 
-                                                   style="border-radius: 15px; border: 2px solid rgba(245,222,179,0.3);"
-                                                   placeholder="{% trans 'e.g. liturgy, hymns, history (comma separated)' %}">
-                                            <div class="form-text small">{% trans "Use commas to separate multiple tags. Tags will be created automatically if they don't exist." %}</div>
+                                                   style="border-radius: 15px; border: 2px solid rgba(139,69,19,0.25); background: rgba(255,255,255,0.9); padding: 15px;"
+                                                   placeholder="{% trans 'e.g. liturgy, hymns, history, saints, prayers (comma separated)' %}">
+                                            <div class="form-text small" style="color: #666; margin-top: 8px;">
+                                                <i class="bi bi-info-circle me-1"></i>{% trans "Use commas to separate multiple tags. Tags will be created automatically if they don't exist." %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -222,10 +239,13 @@
 
                         <!-- Submit Button -->
                         <div class="text-center px-1 px-md-3">
-                            <button id="upload-btn" type="submit" class="btn btn-lg px-5 py-3 fw-bold" style="border-radius: 25px; background: linear-gradient(135deg, #B8860B, #F5DEB3); border: none; color: white; box-shadow: 0 8px 32px rgba(184,134,11,0.3);">
-                                <i class="bi bi-cloud-arrow-up me-3"></i>{% trans "Upload and Process Content" %}
+                            <button id="upload-btn" type="submit" class="btn btn-lg px-5 py-3 fw-bold" 
+                                    style="border-radius: 25px; background: linear-gradient(135deg, #800000, #DD9933); border: none; color: white; box-shadow: 0 8px 32px rgba(128,0,0,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.3s ease;">
+                                <i class="bi bi-cloud-arrow-up me-3"></i>{% trans "Upload Sacred Content" %}
                             </button>
-                            <p class="text-muted small mt-3 mb-0">{% trans "Processing may take a few minutes depending on file size" %}</p>
+                            <p class="small mt-3 mb-0" style="color: #5a4037;">
+                                <i class="bi bi-hourglass-half me-1"></i>{% trans "Processing may take a few minutes depending on file size and complexity" %}
+                            </p>
                         </div>
                     </form>
                 </div>
@@ -236,20 +256,56 @@
 
 <style>
 .upload-zone:hover {
-    background: rgba(184,134,11,0.1) !important;
-    border-color: #B8860B !important;
+    background: rgba(128,0,0,0.1) !important;
+    border-color: #800000 !important;
     cursor: pointer;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(128,0,0,0.15);
 }
 
 .btn-check:checked + .btn {
-    background: linear-gradient(135deg, #B8860B, #F5DEB3);
-    border-color: #B8860B;
+    background: linear-gradient(135deg, #800000, #DD9933);
+    border-color: #800000;
     color: white;
+    box-shadow: 0 4px 15px rgba(128,0,0,0.3);
+    transform: translateY(-1px);
+}
+
+.btn-check:not(:checked) + .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(128,0,0,0.15);
 }
 
 .form-control:focus, .form-select:focus {
-    border-color: #B8860B;
-    box-shadow: 0 0 0 0.25rem rgba(184, 134, 11, 0.25);
+    border-color: #800000;
+    box-shadow: 0 0 0 0.25rem rgba(128, 0, 0, 0.25);
+}
+
+.form-control:focus[dir="rtl"] {
+    border-color: #800000;
+    box-shadow: 0 0 0 0.25rem rgba(128, 0, 0, 0.25);
+}
+
+#upload-btn:hover {
+    background: linear-gradient(135deg, #660000, #BB7711);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(128,0,0,0.5);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(128,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.upload-zone {
+    transition: all 0.3s ease;
+}
+
+.upload-zone[dragging="true"] {
+    background: rgba(128,0,0,0.15) !important;
+    border-color: #800000 !important;
+    transform: scale(1.02);
 }
 </style>
 
@@ -263,16 +319,20 @@ function updateFileName(input) {
         const fileSize = (input.files[0].size / (1024 * 1024)).toFixed(2); // Convert to MB
         selectedFileName.textContent = `${fileName} (${fileSize} MB)`;
         fileNameDisplay.classList.remove('d-none');
-        // Update upload zone appearance
+        // Update upload zone appearance with Coptic theme
         const uploadZone = document.querySelector('.upload-zone');
         uploadZone.style.borderColor = '#28a745';
         uploadZone.style.background = 'rgba(40, 167, 69, 0.05)';
+        uploadZone.style.transform = 'translateY(-2px)';
+        uploadZone.style.boxShadow = '0 8px 25px rgba(40, 167, 69, 0.2)';
     } else {
         fileNameDisplay.classList.add('d-none');
         // Reset upload zone appearance
         const uploadZone = document.querySelector('.upload-zone');
-        uploadZone.style.borderColor = 'rgba(184,134,11,0.3)';
-        uploadZone.style.background = 'rgba(184,134,11,0.05)';
+        uploadZone.style.borderColor = 'rgba(128,0,0,0.3)';
+        uploadZone.style.background = 'rgba(128,0,0,0.05)';
+        uploadZone.style.transform = '';
+        uploadZone.style.boxShadow = '';
     }
 }
 

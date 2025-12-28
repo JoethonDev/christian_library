@@ -1,85 +1,405 @@
-<!-- templates/frontend_api/home.html -->
+<!-- templates/frontend_api/home.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block content %}
-<!-- Hero Section with Search -->
-<div class="text-center py-5 mb-4">
-    <div class="mb-4">
-        <h1 class="display-4 fw-bold mb-3" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Christian Library" %}</h1>
-        <p class="lead" style="color: #4B0082; opacity: 0.8;">{% trans "Discover the Word of God through Videos, Audio, and Books" %}</p>
+
+<!-- Main Title Section -->
+<section class="hero-coptic py-5 mb-5">
+    <div class="text-center">
+        <h1 class="hero-title-coptic">
+            {% get_current_language as LANGUAGE_CODE %}
+            {% if LANGUAGE_CODE == 'ar' %}
+                مكتبه الحبر الجليل المطران الانبا ابرام مطران الفيوم و رئيس دير الملاك غبريال النقلون
+            {% else %}
+                Library of His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of Archangel Gabriel Monastery, Naqlun
+            {% endif %}
+        </h1>
+    </div>
+</section>
+
+<!-- Hero Image & Bullet Points -->
+<section class="mb-5">
+    <!-- Always Image Above Text -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card card-coptic">
+                <img src="{% static 'images/hero_section.jpg' %}" 
+                     class="card-img img-fluid rounded" 
+                     alt="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرام{% else %}Bishop Abram Library{% endif %}"
+                     style="aspect-ratio: 4/3; object-fit: cover; width: 100%;"
+                     onerror="this.src='https://via.placeholder.com/800x600/800000/FFFFFF?text=Bishop+Abram+Library';">
+            </div>
+        </div>
+        
+        <div class="col-12">
+            <div class="card card-coptic">
+                <div class="card-body p-4">
+                    <h4 class="heading-font text-maroon mb-4 text-center">
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            نبذة عن المكتبة
+                        {% else %}
+                            About the Library
+                        {% endif %}
+                    </h4>
+                    <div class="row">
+                        <div class="col-12">
+                            <ul class="list-unstyled body-font">
+                                <li class="mb-3 d-flex align-items-start">
+                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
+                                    <span>
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            مجموعة ثرية من الكتب الروحية والتعليمية
+                                        {% else %}
+                                            Rich collection of spiritual and educational books
+                                        {% endif %}
+                                    </span>
+                                </li>
+                                <li class="mb-3 d-flex align-items-start">
+                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
+                                    <span>
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            محاضرات صوتية ومرئية للأنبا أبرام
+                                        {% else %}
+                                            Audio and video lectures by Bishop Abram
+                                        {% endif %}
+                                    </span>
+                                </li>
+                                <li class="mb-3 d-flex align-items-start">
+                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
+                                    <span>
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            تراث الكنيسة القبطية الأرثوذكسية
+                                        {% else %}
+                                            Coptic Orthodox Church heritage
+                                        {% endif %}
+                                    </span>
+                                </li>
+                                <li class="mb-3 d-flex align-items-start">
+                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
+                                    <span>
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            مخطوطات ووثائق تاريخية نادرة
+                                        {% else %}
+                                            Rare historical manuscripts and documents
+                                        {% endif %}
+                                    </span>
+                                </li>
+                                <li class="mb-3 d-flex align-items-start">
+                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
+                                    <span>
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            متاح باللغتين العربية والإنجليزية
+                                        {% else %}
+                                            Available in Arabic and English
+                                        {% endif %}
+                                    </span>
+                                </li>
+                                <li class="mb-3 d-flex align-items-start">
+                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
+                                    <span>
+                                        {% if LANGUAGE_CODE == 'ar' %}
+                                            محتوى روحي للنمو في الإيمان
+                                        {% else %}
+                                            Spiritual content for faith growth
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Gallery Section -->
+<section class="mb-5">
+    <div class="text-center mb-4">
+        <h3 class="heading-font text-maroon">
+            {% if LANGUAGE_CODE == 'ar' %}
+                معرض الصور
+            {% else %}
+                Photo Gallery
+            {% endif %}
+        </h3>
+        <p class="body-font text-muted">
+            {% if LANGUAGE_CODE == 'ar' %}
+                لقطات من المكتبة ودير الملاك غبريال
+            {% else %}
+                Glimpses of the library and Archangel Gabriel Monastery
+            {% endif %}
+        </p>
     </div>
     
-    <!-- Search Section -->
-    <div class="row justify-content-center mb-4">
-        <div class="col-lg-6">
-            <form action="{% url 'frontend_api:search' %}" method="get" class="position-relative">
-                <div class="input-group input-group-lg">
-                    <input type="text" name="q" class="form-control border-0 rounded-pill ps-4 pe-5" 
-                           placeholder="{% trans 'Search videos, audio, books...' %}" 
-                           style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(184, 134, 11, 0.15);">
-                    <button class="btn btn-primary rounded-pill px-4 ms-2" type="submit" 
-                            style="box-shadow: 0 4px 16px rgba(184, 134, 11, 0.3);">
-                        <i class="bi bi-search me-2"></i>{% trans "Search" %}
-                    </button>
+    <div class="gallery-grid">
+        <div class="gallery-item">
+            <div class="card card-coptic h-100">
+                <img src="https://via.placeholder.com/400x300/DD9933/FFFFFF?text=Library+Interior" 
+                     class="card-img-top" 
+                     alt="{% if LANGUAGE_CODE == 'ar' %}داخل المكتبة{% else %}Library Interior{% endif %}"
+                     style="aspect-ratio: 4/3; object-fit: cover;">
+                <div class="card-body p-3">
+                    <h6 class="heading-font text-maroon mb-0">
+                        {% if LANGUAGE_CODE == 'ar' %}داخل المكتبة{% else %}Library Interior{% endif %}
+                    </h6>
+                </div>
+            </div>
+        </div>
+        
+        <div class="gallery-item">
+            <div class="card card-coptic h-100">
+                <img src="https://via.placeholder.com/400x300/800000/FFFFFF?text=Bishop+Abram" 
+                     class="card-img-top" 
+                     alt="{% if LANGUAGE_CODE == 'ar' %}الأنبا أبرام{% else %}Bishop Abram{% endif %}"
+                     style="aspect-ratio: 4/3; object-fit: cover;">
+                <div class="card-body p-3">
+                    <h6 class="heading-font text-maroon mb-0">
+                        {% if LANGUAGE_CODE == 'ar' %}الأنبا أبرام{% else %}Bishop Abram{% endif %}
+                    </h6>
+                </div>
+            </div>
+        </div>
+        
+        <div class="gallery-item">
+            <div class="card card-coptic h-100">
+                <img src="https://via.placeholder.com/400x300/DD9933/FFFFFF?text=Monastery+View" 
+                     class="card-img-top" 
+                     alt="{% if LANGUAGE_CODE == 'ar' %}منظر للدير{% else %}Monastery View{% endif %}"
+                     style="aspect-ratio: 4/3; object-fit: cover;">
+                <div class="card-body p-3">
+                    <h6 class="heading-font text-maroon mb-0">
+                        {% if LANGUAGE_CODE == 'ar' %}دير الملاك غبريال{% else %}Archangel Gabriel Monastery{% endif %}
+                    </h6>
+                </div>
+            </div>
+        </div>
+        
+        <div class="gallery-item">
+            <div class="card card-coptic h-100">
+                <img src="https://via.placeholder.com/400x300/800000/FFFFFF?text=Ancient+Manuscripts" 
+                     class="card-img-top" 
+                     alt="{% if LANGUAGE_CODE == 'ar' %}المخطوطات القديمة{% else %}Ancient Manuscripts{% endif %}"
+                     style="aspect-ratio: 4/3; object-fit: cover;">
+                <div class="card-body p-3">
+                    <h6 class="heading-font text-maroon mb-0">
+                        {% if LANGUAGE_CODE == 'ar' %}المخطوطات القديمة{% else %}Ancient Manuscripts{% endif %}
+                    </h6>
+                </div>
+            </div>
+        </div>
+        
+        <div class="gallery-item">
+            <div class="card card-coptic h-100">
+                <img src="https://via.placeholder.com/400x300/DD9933/FFFFFF?text=Study+Area" 
+                     class="card-img-top" 
+                     alt="{% if LANGUAGE_CODE == 'ar' %}منطقة الدراسة{% else %}Study Area{% endif %}"
+                     style="aspect-ratio: 4/3; object-fit: cover;">
+                <div class="card-body p-3">
+                    <h6 class="heading-font text-maroon mb-0">
+                        {% if LANGUAGE_CODE == 'ar' %}منطقة الدراسة{% else %}Study Area{% endif %}
+                    </h6>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Statistics Section -->
+<section class="mb-5">
+    <div class="text-center mb-4">
+        <h3 class="heading-font text-maroon">
+            {% if LANGUAGE_CODE == 'ar' %}
+                إحصائيات المكتبة
+            {% else %}
+                Library Statistics
+            {% endif %}
+        </h3>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-3 col-md-6">
+            <div class="card card-coptic text-center h-100">
+                <div class="card-body py-4">
+                    <div class="mb-3">
+                        <div class="d-inline-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
+                            <i class="bi bi-play-circle text-white fs-2"></i>
+                        </div>
+                    </div>
+                    <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_videos|floatformat:0 }}</h3>
+                    <p class="body-font text-muted mb-0">{% trans "Videos" %}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card card-coptic text-center h-100">
+                <div class="card-body py-4">
+                    <div class="mb-3">
+                        <div class="d-inline-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
+                            <i class="bi bi-music-note text-white fs-2"></i>
+                        </div>
+                    </div>
+                    <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_audios|floatformat:0 }}</h3>
+                    <p class="body-font text-muted mb-0">{% trans "Audio" %}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card card-coptic text-center h-100">
+                <div class="card-body py-4">
+                    <div class="mb-3">
+                        <div class="d-inline-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
+                            <i class="bi bi-journal-bookmark text-white fs-2"></i>
+                        </div>
+                    </div>
+                    <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_pdfs|floatformat:0 }}</h3>
+                    <p class="body-font text-muted mb-0">{% trans "Books" %}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6">
+            <div class="card card-coptic text-center h-100">
+                <div class="card-body py-4">
+                    <div class="mb-3">
+                        <div class="d-inline-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
+                            <i class="bi bi-tags text-white fs-2"></i>
+                        </div>
+                    </div>
+                    <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_tags|floatformat:0 }}</h3>
+                    <p class="body-font text-muted mb-0">{% trans "Categories" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Quick Access Section -->
+<section class="mb-5">
+    <div class="text-center mb-4">
+        <h3 class="heading-font text-maroon">
+            {% if LANGUAGE_CODE == 'ar' %}
+                تصفح المحتوى
+            {% else %}
+                Browse Content
+            {% endif %}
+        </h3>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-4 col-md-6">
+            <a href="{% url 'frontend_api:videos' %}" class="text-decoration-none">
+                <div class="card card-coptic hover-maroon-glow h-100">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-3">
+                            <i class="bi bi-play-circle text-maroon" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="heading-font text-maroon">{% trans "Video Library" %}</h5>
+                        <p class="body-font text-muted small">
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                محاضرات ومواعظ روحية
+                            {% else %}
+                                Spiritual lectures and sermons
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-lg-4 col-md-6">
+            <a href="{% url 'frontend_api:audios' %}" class="text-decoration-none">
+                <div class="card card-coptic hover-golden-glow h-100">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-3">
+                            <i class="bi bi-music-note text-golden" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="heading-font text-maroon">{% trans "Audio Library" %}</h5>
+                        <p class="body-font text-muted small">
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                تسجيلات صوتية وتراتيل
+                            {% else %}
+                                Audio recordings and hymns
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col-lg-4 col-md-6">
+            <a href="{% url 'frontend_api:pdfs' %}" class="text-decoration-none">
+                <div class="card card-coptic hover-maroon-glow h-100">
+                    <div class="card-body text-center py-5">
+                        <div class="mb-3">
+                            <i class="bi bi-journal-bookmark text-maroon" style="font-size: 3rem;"></i>
+                        </div>
+                        <h5 class="heading-font text-maroon">{% trans "Digital Books" %}</h5>
+                        <p class="body-font text-muted small">
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                كتب ومخطوطات رقمية
+                            {% else %}
+                                Digital books and manuscripts
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Search Section -->
+<section class="mb-5">
+    <div class="card card-coptic">
+        <div class="card-header-coptic">
+            <h4 class="heading-font text-white text-center mb-0">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    البحث في المكتبة
+                {% else %}
+                    Search the Library
+                {% endif %}
+            </h4>
+        </div>
+        <div class="card-body p-4">
+            <form action="{% url 'frontend_api:search' %}" method="get">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <input type="text" name="q" class="form-control form-control-lg" 
+                               placeholder="{% trans 'Search videos, audio, books...' %}"
+                               style="border-color: var(--color-golden-ochre);">
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-primary btn-lg w-100" type="submit">
+                            <i class="bi bi-search me-2"></i>{% trans "Search" %}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
-</div>
-
-<!-- Statistics Section -->
-<div class="row g-4 mb-5">
-    <div class="col-md-3 col-6">
-        <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #87CEEB, #5F9FDB); border-radius: 16px; box-shadow: 0 4px 16px rgba(135, 206, 235, 0.3);">
-            <div class="card-body py-4">
-                <i class="bi bi-play-circle text-white display-4 mb-3"></i>
-                <h3 class="text-white fw-bold mb-1">{{ stats.total_videos|floatformat:0 }}</h3>
-                <p class="text-white mb-0 fw-medium">{% trans "Videos" %}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #E6E6FA, #C8A2C8); border-radius: 16px; box-shadow: 0 4px 16px rgba(230, 230, 250, 0.3);">
-            <div class="card-body py-4">
-                <i class="bi bi-music-note text-white display-4 mb-3"></i>
-                <h3 class="text-white fw-bold mb-1">{{ stats.total_audios|floatformat:0 }}</h3>
-                <p class="text-white mb-0 fw-medium">{% trans "Audio" %}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #DEB887, #CD853F); border-radius: 16px; box-shadow: 0 4px 16px rgba(245, 222, 179, 0.3);">
-            <div class="card-body py-4">
-                <i class="bi bi-journal-bookmark text-white display-4 mb-3"></i>
-                <h3 class="text-white fw-bold mb-1">{{ stats.total_pdfs|floatformat:0 }}</h3>
-                <p class="text-white mb-0 fw-medium">{% trans "Books" %}</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card border-0 text-center h-100" style="background: linear-gradient(135deg, #B8860B, #8B6914); border-radius: 16px; box-shadow: 0 4px 16px rgba(184, 134, 11, 0.3);">
-            <div class="card-body py-4">
-                <i class="bi bi-tags text-white display-4 mb-3"></i>
-                <h3 class="text-white fw-bold mb-1">{{ stats.total_tags|floatformat:0 }}</h3>
-                <p class="text-white mb-0 fw-medium">{% trans "Tags" %}</p>
-            </div>
-        </div>
-    </div>
-</div>
+</section>
 
 <!-- Featured Content Sections (Conditional) -->
 {% if latest_videos %}
 <section class="mb-5">
     <div class="d-flex align-items-center mb-4">
-        <div class="p-2 me-3" style="background: #87CEEB; border-radius: 12px;">
+        <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+             style="width: 50px; height: 50px; background: var(--color-maroon); border-radius: 12px; border: 2px solid var(--color-golden-ochre);">
             <i class="bi bi-play-circle text-white fs-4"></i>
         </div>
         <div>
-            <h3 class="mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Latest Videos" %}</h3>
-            <p class="text-muted mb-0 small">{% trans "Recently added spiritual content" %}</p>
+            <h3 class="heading-font text-maroon mb-1">{% trans "Latest Videos" %}</h3>
+            <p class="body-font text-muted mb-0 small">{% trans "Recently added spiritual content" %}</p>
         </div>
-        <a href="{% url 'frontend_api:videos' %}" class="btn btn-outline-primary ms-auto rounded-pill px-4">
+        <a href="{% url 'frontend_api:videos' %}" class="btn btn-secondary ms-auto rounded-pill px-4">
             {% trans "View All" %} <i class="bi bi-arrow-right ms-1"></i>
         </a>
     </div>
@@ -94,14 +414,15 @@
 {% if latest_audios %}
 <section class="mb-5">
     <div class="d-flex align-items-center mb-4">
-        <div class="p-2 me-3" style="background: #E6E6FA; border-radius: 12px;">
+        <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+             style="width: 50px; height: 50px; background: var(--color-golden-ochre); border-radius: 12px; border: 2px solid var(--color-maroon);">
             <i class="bi bi-music-note text-white fs-4"></i>
         </div>
         <div>
-            <h3 class="mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Latest Audio" %}</h3>
-            <p class="text-muted mb-0 small">{% trans "Inspiring sermons and teachings" %}</p>
+            <h3 class="heading-font text-maroon mb-1">{% trans "Latest Audio" %}</h3>
+            <p class="body-font text-muted mb-0 small">{% trans "Inspiring sermons and teachings" %}</p>
         </div>
-        <a href="{% url 'frontend_api:audios' %}" class="btn btn-outline-primary ms-auto rounded-pill px-4">
+        <a href="{% url 'frontend_api:audios' %}" class="btn btn-secondary ms-auto rounded-pill px-4">
             {% trans "View All" %} <i class="bi bi-arrow-right ms-1"></i>
         </a>
     </div>
@@ -116,14 +437,15 @@
 {% if latest_pdfs %}
 <section class="mb-5">
     <div class="d-flex align-items-center mb-4">
-        <div class="p-2 me-3" style="background: #F5DEB3; border-radius: 12px;">
+        <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+             style="width: 50px; height: 50px; background: var(--color-maroon); border-radius: 12px; border: 2px solid var(--color-golden-ochre);">
             <i class="bi bi-journal-bookmark text-white fs-4"></i>
         </div>
         <div>
-            <h3 class="mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Recent Books" %}</h3>
-            <p class="text-muted mb-0 small">{% trans "Sacred texts and study materials" %}</p>
+            <h3 class="heading-font text-maroon mb-1">{% trans "Recent Books" %}</h3>
+            <p class="body-font text-muted mb-0 small">{% trans "Sacred texts and study materials" %}</p>
         </div>
-        <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-outline-primary ms-auto rounded-pill px-4">
+        <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-secondary ms-auto rounded-pill px-4">
             {% trans "View All" %} <i class="bi bi-arrow-right ms-1"></i>
         </a>
     </div>
@@ -139,27 +461,38 @@
 {% if popular_tags %}
 <section class="mb-5">
     <div class="d-flex align-items-center mb-4">
-        <div class="p-2 me-3" style="background: #B8860B; border-radius: 12px;">
+        <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+             style="width: 50px; height: 50px; background: var(--color-golden-ochre); border-radius: 12px; border: 2px solid var(--color-maroon);">
             <i class="bi bi-tags text-white fs-4"></i>
         </div>
         <div>
-            <h3 class="mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif;">{% trans "Popular Categories" %}</h3>
-            <p class="text-muted mb-0 small">{% trans "Explore content by topics" %}</p>
+            <h3 class="heading-font text-maroon mb-1">{% trans "Popular Categories" %}</h3>
+            <p class="body-font text-muted mb-0 small">{% trans "Explore content by topics" %}</p>
         </div>
     </div>
     <div class="row g-4">
         {% for tag in popular_tags %}
-        <div class="col-md-6 col-lg-3">
-            <div class="card border-0 h-100" style="background: rgba(255, 255, 255, 0.98); backdrop-filter: blur(10px); border-radius: 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); transition: all 0.3s ease; border: 1px solid rgba(139, 0, 0, 0.1);" onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 16px 48px rgba(139, 0, 0, 0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 32px rgba(0, 0, 0, 0.1)'">
+        <div class="col-lg-3 col-md-6">
+            <div class="card card-coptic h-100 hover-golden-glow">
                 <div class="card-body p-4 text-center">
                     <div class="mb-3">
-                        <div class="d-flex align-items-center justify-content-center" style="width: 60px; height: 60px; background: linear-gradient(135deg, #8B0000, #B22222); border-radius: 16px; margin: 0 auto;">
+                        <div class="d-inline-flex align-items-center justify-content-center" 
+                             style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 16px; border: 2px solid var(--color-golden-ochre);">
                             <i class="bi bi-tag text-white fs-3"></i>
                         </div>
                     </div>
-                    <h5 class="fw-bold mb-2" style="color: #8B0000;">{{ tag.name_ar }}</h5>
-                    <p class="text-muted small mb-3 fw-medium">{{ tag.content_count }} {% trans "items" %}</p>
-                    <a href="{% url 'frontend_api:search' %}?tag={{ tag.id }}" class="btn btn-primary rounded-pill px-4" style="background: #8B0000; border: none; font-weight: 500;">{% trans "Explore" %}</a>
+                    <h5 class="heading-font text-maroon mb-2">
+                        {% get_current_language as LANGUAGE_CODE %}
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            {{ tag.name_ar|default:tag.name_en }}
+                        {% else %}
+                            {{ tag.name_en|default:tag.name_ar }}
+                        {% endif %}
+                    </h5>
+                    <p class="body-font text-muted small mb-3">{{ tag.content_count }} {% trans "items" %}</p>
+                    <a href="{% url 'frontend_api:search' %}?tag={{ tag.id }}" class="btn btn-primary rounded-pill px-4">
+                        {% trans "Explore" %}
+                    </a>
                 </div>
             </div>
         </div>
@@ -170,17 +503,21 @@
 
 <!-- Empty State Message -->
 {% if not latest_videos and not latest_audios and not latest_pdfs %}
-<div class="text-center py-5">
+<section class="text-center py-5">
     <div class="mb-4">
-        <i class="bi bi-collection text-muted" style="font-size: 4rem;"></i>
+        <div class="d-inline-flex align-items-center justify-content-center" 
+             style="width: 80px; height: 80px; background: var(--color-off-white); border: 3px solid var(--color-golden-ochre); border-radius: 50%;">
+            <i class="bi bi-collection text-muted" style="font-size: 2.5rem;"></i>
+        </div>
     </div>
-    <h3 class="text-muted mb-3">{% trans "No Content Available" %}</h3>
-    <p class="text-muted">{% trans "Content will appear here once it's uploaded." %}</p>
+    <h3 class="heading-font text-maroon mb-3">{% trans "No Content Available" %}</h3>
+    <p class="body-font text-muted mb-4">{% trans "Content will appear here once it's uploaded." %}</p>
     {% if user.is_staff %}
-        <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary rounded-pill px-4 mt-3">
+        <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary rounded-pill px-4">
             <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Content" %}
         </a>
     {% endif %}
-</div>
+</section>
 {% endif %}
+
 {% endblock %}

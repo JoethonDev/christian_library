@@ -1,113 +1,159 @@
-<!-- templates/admin/audio_management.html -->
+<!-- templates/admin/audio_management.html - Coptic Orthodox Audio Management -->
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
 {% block admin_content %}
 <div class="container-fluid px-0">
-    <!-- Header Section -->
-    <div class="mb-5">
+    <!-- Audio Management Header -->
+    <div class="admin-content-header mb-5">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #E6E6FA, #8B0000); backdrop-filter: blur(10px);">
-                        <i class="bi bi-music-note-beamed" style="font-size: 2rem; color: white;"></i>
+                <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center justify-content-center me-4 sacred-shadow" 
+                         style="width: 70px; height: 70px; background: var(--color-golden-ochre); border-radius: 16px;">
+                        <i class="bi bi-music-note-beamed text-white" style="font-size: 2rem;"></i>
                     </div>
                     <div>
-                        <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Audio Manager" %}</h1>
-                        <p class="text-muted mb-0">{% trans "Manage audio messages, sermons, and spiritual teachings" %}</p>
+                        <h1 class="heading-font text-maroon mb-2 fw-bold">{% trans "Audio Manager" %}</h1>
+                        <p class="body-font text-muted mb-0">{% trans "Manage audio messages, sermons, and spiritual teachings" %}</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-4 text-end">
-                <a href="{% url 'frontend_api:upload_content' %}?type=audio" class="btn btn-primary px-4 py-3 fw-medium" style="border-radius: 25px; background: linear-gradient(135deg, #E6E6FA, #8B0000); border: none;">
+                <a href="{% url 'frontend_api:upload_content' %}?type=audio" class="btn btn-secondary px-4 py-3 rounded-pill">
                     <i class="bi bi-plus-lg me-2"></i>{% trans "Add Audio" %}
                 </a>
             </div>
         </div>
     </div>
 
-    <!-- Audio Table -->
-    <div class="card border-0 shadow-lg" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
+    <!-- Audio Management Table -->
+    <div class="card card-coptic">
+        <div class="card-header-coptic py-4">
+            <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center justify-content-center me-3" 
+                     style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px;">
+                    <i class="bi bi-mic text-white"></i>
+                </div>
+                <h3 class="heading-font text-white mb-0 fw-bold">{% trans "Audio Content" %}</h3>
+            </div>
+        </div>
+        
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead style="background: linear-gradient(135deg, rgba(230,230,250,0.1), rgba(139,0,0,0.05));">
+            <table class="table admin-table mb-0">
+                <thead>
                     <tr>
-                        <th class="ps-5 py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Audio Content" %}</th>
-                        <th class="py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Course" %}</th>
-                        <th class="py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Duration" %}</th>
-                        <th class="py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Status" %}</th>
-                        <th class="text-center py-3 fw-bold" style="color: var(--bs-primary);">{% trans "Actions" %}</th>
+                        <th class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-mic me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Audio Content" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-collection me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Course" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-clock me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Duration" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-toggles me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Status" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3 text-center">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="bi bi-gear me-2 text-golden"></i>
+                                <span class="heading-font">{% trans "Actions" %}</span>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for audio in audios %}
-                    <tr style="transition: all 0.3s ease;" onmouseover="this.style.background='rgba(230,230,250,0.05)'" onmouseout="this.style.background='transparent'">
-                        <td class="ps-5 py-4">
+                    <tr class="hover-row">
+                        <td class="ps-4 py-3">
                             <div class="d-flex align-items-center">
-                                <div class="p-3 rounded-circle me-3" style="background: rgba(230,230,250,0.2); width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="bi bi-music-note" style="color: #E6E6FA; font-size: 1.2rem;"></i>
+                                <div class="d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 50px; height: 50px; border-radius: 12px; background: var(--color-golden-ochre-10);">
+                                    <i class="bi bi-music-note text-golden" style="font-size: 1.2rem;"></i>
                                 </div>
                                 <div>
-                                    <div class="fw-bold" style="color: var(--bs-primary);">{{ audio.title_ar }}</div>
+                                    <div class="body-font fw-bold text-maroon mb-1">{{ audio.title_ar }}</div>
                                     {% if audio.title_en %}
-                                    <div class="small text-muted">{{ audio.title_en }}</div>
+                                        <div class="small text-muted body-font">{{ audio.title_en }}</div>
                                     {% endif %}
                                 </div>
                             </div>
                         </td>
-                        <td class="py-4">
+                        <td class="py-3">
                             {% if audio.module %}
-                                <div class="fw-medium" style="color: var(--bs-primary);">{{ audio.module.course.title_ar }}</div>
-                                <div class="small text-muted">{{ audio.module.title_ar }}</div>
+                                <div class="body-font fw-medium text-maroon">{{ audio.module.course.title_ar }}</div>
+                                <div class="small text-muted body-font">{{ audio.module.title_ar }}</div>
                             {% else %}
-                                <span class="text-muted">{% trans "No course assigned" %}</span>
+                                <span class="text-muted body-font">{% trans "No course assigned" %}</span>
                             {% endif %}
                         </td>
-                        <td class="py-4">
+                        <td class="py-3">
                             {% if audio.audiometa.duration %}
-                                <span class="badge bg-info bg-opacity-10 text-info px-3 py-2 rounded-pill">
+                                <span class="badge bg-info bg-opacity-15 text-info px-3 py-2 rounded-pill">
                                     <i class="bi bi-clock me-1"></i>{{ audio.audiometa.duration }}
                                 </span>
                             {% else %}
-                                <span class="text-muted small">{% trans "Unknown" %}</span>
+                                <span class="text-muted small body-font">{% trans "Unknown" %}</span>
                             {% endif %}
                         </td>
-                        <td class="py-4">
+                        <td class="py-3">
                             {% if audio.is_active %}
-                                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
                                     <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
                                 </span>
                             {% else %}
-                                <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2 rounded-pill">
+                                <span class="badge bg-warning bg-opacity-15 text-warning px-3 py-2 rounded-pill">
                                     <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
                                 </span>
                             {% endif %}
                         </td>
-                        <td class="py-4 text-center">
-                            <div class="d-flex gap-2 justify-content-center">
-                                <a href="{% url 'frontend_api:admin_content_detail' audio.id %}" class="btn btn-sm btn-outline-primary px-3" style="border-radius: 15px;" title="{% trans 'Edit' %}">
+                        <td class="py-3 text-center">
+                            <div class="d-flex gap-1 justify-content-center flex-wrap">
+                                <a href="{% url 'frontend_api:admin_content_detail' audio.id %}" 
+                                   class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill" 
+                                   title="{% trans 'Edit' %}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                <a href="{% url 'frontend_api:audio_detail' audio.id %}" class="btn btn-sm btn-outline-secondary px-3" style="border-radius: 15px;" title="{% trans 'Preview' %}" target="_blank">
+                                <a href="{% url 'frontend_api:audio_detail' audio.id %}" 
+                                   class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                                   title="{% trans 'Preview' %}" target="_blank">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                    <a href="{% url 'frontend_api:content_delete_confirm' audio.id %}" class="btn btn-sm btn-danger ms-2">
-                                        <i class="bi bi-trash"></i> {% trans "Delete" %}
-                                    </a>
+                                <a href="{% url 'frontend_api:content_delete_confirm' audio.id %}" 
+                                   class="btn btn-sm btn-outline-danger px-3 py-2 rounded-pill" 
+                                   title="{% trans 'Delete' %}">
+                                    <i class="bi bi-trash"></i>
+                                </a>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
                         <td colspan="5" class="text-center py-5">
-                            <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: rgba(230,230,250,0.2); width: 100px; height: 100px;">
-                                <i class="bi bi-music-note-beamed" style="font-size: 2.5rem; color: #E6E6FA;"></i>
+                            <div class="empty-state">
+                                <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                                     style="width: 80px; height: 80px; background: var(--color-golden-ochre-10); border-radius: 50%;">
+                                    <i class="bi bi-music-note-beamed text-golden" style="font-size: 2.5rem;"></i>
+                                </div>
+                                <h5 class="heading-font text-maroon mb-2">{% trans "No audio content found" %}</h5>
+                                <p class="body-font text-muted mb-3">{% trans "Start by uploading your first audio message" %}</p>
+                                <a href="{% url 'frontend_api:upload_content' %}?type=audio" class="btn btn-secondary px-4 py-2 rounded-pill">
+                                    <i class="bi bi-plus-lg me-2"></i>{% trans "Add Audio" %}
+                                </a>
                             </div>
-                            <h5 class="text-muted mb-2">{% trans "No audio content found" %}</h5>
-                            <p class="text-muted mb-3">{% trans "Start by uploading your first audio message" %}</p>
-                            <a href="{% url 'frontend_api:upload_content' %}?type=audio" class="btn btn-primary px-4 py-2" style="border-radius: 20px;">
-                                <i class="bi bi-plus-lg me-2"></i>{% trans "Add Audio" %}
-                            </a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -116,4 +162,26 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Audio-specific enhancements */
+.audio-waveform {
+    background: linear-gradient(45deg, var(--color-golden-ochre), var(--color-maroon));
+    opacity: 0.1;
+    height: 2px;
+    margin: 0.25rem 0;
+}
+
+@media (max-width: 768px) {
+    .admin-content-header .d-flex {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .admin-content-header .col-md-4 {
+        text-align: center !important;
+    }
+}
+</style>
 {% endblock %}

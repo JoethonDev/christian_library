@@ -1,25 +1,26 @@
-<!-- templates/admin/dashboard.html -->
+<!-- templates/admin/dashboard.html - Coptic Orthodox Admin Dashboard -->
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
 {% block admin_content %}
 <div class="container-fluid px-0">
-    <!-- Header Section -->
-    <div class="mb-5">
+    <!-- Admin Header Section -->
+    <div class="admin-content-header mb-5">
         <div class="row align-items-center">
             <div class="col-md-8">
-                <div class="d-flex align-items-center mb-3">
-                    <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #B8860B, #F5DEB3); backdrop-filter: blur(10px);">
-                        <i class="bi bi-speedometer2" style="font-size: 2rem; color: white;"></i>
+                <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center justify-content-center me-4 sacred-shadow" 
+                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
+                        <i class="bi bi-speedometer2 text-white" style="font-size: 2rem;"></i>
                     </div>
                     <div>
-                        <h1 class="h2 mb-1 fw-bold" style="color: var(--bs-primary);">{% trans "Admin Dashboard" %}</h1>
-                        <p class="text-muted mb-0">{% trans "Manage your Christian Library content and monitor system performance" %}</p>
+                        <h1 class="heading-font text-maroon mb-2 fw-bold">{% trans "Admin Dashboard" %}</h1>
+                        <p class="body-font text-muted mb-0">{% trans "Manage your Christian Library content and monitor system performance" %}</p>
                     </div>
                 </div>
             </div>
             <div class="col-md-4 text-end">
-                <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary px-4 py-3 fw-medium" style="border-radius: 25px; background: linear-gradient(135deg, #B8860B, #F5DEB3); border: none;">
+                <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary btn-lg px-4 py-3 rounded-pill">
                     <i class="bi bi-plus-lg me-2"></i>{% trans "Upload Content" %}
                 </a>
             </div>
@@ -29,27 +30,35 @@
     <!-- Statistics Cards -->
     <div class="row g-4 mb-5">
         <div class="col-lg-3 col-md-6">
-            <div class="card border-0 h-100" style="background: rgba(135,206,235,0.1); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(135,206,235,0.2);">
+            <div class="admin-stat-card h-100">
                 <div class="card-body p-4 text-center">
-                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: #87CEEB; width: 80px; height: 80px;">
-                        <i class="bi bi-collection" style="font-size: 2rem; color: white;"></i>
+                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
+                        <i class="bi bi-collection text-white" style="font-size: 1.8rem;"></i>
                     </div>
-                    <h2 class="h3 fw-bold mb-2" style="color: var(--bs-primary);">{{ stats.total_content }}</h2>
-                    <p class="text-muted mb-0 fw-medium">{% trans "Total Content" %}</p>
+                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_content|default:"0" }}</h2>
+                    <p class="body-font text-muted mb-0 fw-medium">{% trans "Total Content" %}</p>
+                    <div class="mt-2">
+                        <small class="text-golden">
+                            <i class="bi bi-trending-up me-1"></i>{% trans "All types" %}
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
+        
         <div class="col-lg-3 col-md-6">
-            <div class="card border-0 h-100" style="background: rgba(135,206,235,0.1); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(135,206,235,0.2);">
+            <div class="admin-stat-card h-100">
                 <div class="card-body p-4 text-center">
-                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: #87CEEB; width: 80px; height: 80px;">
-                        <i class="bi bi-play-circle" style="font-size: 2rem; color: white;"></i>
+                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                         style="width: 70px; height: 70px; background: var(--color-golden-ochre); border-radius: 16px;">
+                        <i class="bi bi-play-circle text-white" style="font-size: 1.8rem;"></i>
                     </div>
-                    <h2 class="h3 fw-bold mb-2" style="color: var(--bs-primary);">{{ stats.total_videos }}</h2>
-                    <p class="text-muted mb-2 fw-medium">{% trans "Videos" %}</p>
-                    <small class="text-muted">
+                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_videos|default:"0" }}</h2>
+                    <p class="body-font text-muted mb-2 fw-medium">{% trans "Videos" %}</p>
+                    <small class="text-maroon">
                         {% if processing_videos > 0 %}
-                            <i class="bi bi-arrow-repeat spin me-1"></i>{{ processing_videos }} {% trans "Processing" %}
+                            <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ processing_videos }} {% trans "Processing" %}
                         {% else %}
                             <i class="bi bi-check-all me-1"></i>{% trans "All Processed" %}
                         {% endif %}
@@ -57,102 +66,163 @@
                 </div>
             </div>
         </div>
+        
         <div class="col-lg-3 col-md-6">
-            <div class="card border-0 h-100" style="background: rgba(230,230,250,0.1); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(230,230,250,0.2);">
+            <div class="admin-stat-card h-100">
                 <div class="card-body p-4 text-center">
-                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: #E6E6FA; width: 80px; height: 80px;">
-                        <i class="bi bi-music-note-beamed" style="font-size: 2rem; color: white;"></i>
+                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
+                        <i class="bi bi-music-note-beamed text-white" style="font-size: 1.8rem;"></i>
                     </div>
-                    <h2 class="h3 fw-bold mb-2" style="color: var(--bs-primary);">{{ stats.total_audios }}</h2>
-                    <p class="text-muted mb-0 fw-medium">{% trans "Audio Messages" %}</p>
+                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_audios|default:"0" }}</h2>
+                    <p class="body-font text-muted mb-0 fw-medium">{% trans "Audio Messages" %}</p>
+                    <div class="mt-2">
+                        <small class="text-golden">
+                            <i class="bi bi-broadcast me-1"></i>{% trans "Sermons & Teachings" %}
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
+        
         <div class="col-lg-3 col-md-6">
-            <div class="card border-0 h-100" style="background: rgba(245,222,179,0.1); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 8px 32px rgba(245,222,179,0.2);">
+            <div class="admin-stat-card h-100">
                 <div class="card-body p-4 text-center">
-                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: #F5DEB3; width: 80px; height: 80px;">
-                        <i class="bi bi-journal-bookmark" style="font-size: 2rem; color: white;"></i>
+                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
+                         style="width: 70px; height: 70px; background: var(--color-golden-ochre); border-radius: 16px;">
+                        <i class="bi bi-journal-bookmark text-white" style="font-size: 1.8rem;"></i>
                     </div>
-                    <h2 class="h3 fw-bold mb-2" style="color: var(--bs-primary);">{{ stats.total_pdfs }}</h2>
-                    <p class="text-muted mb-0 fw-medium">{% trans "Books & PDFs" %}</p>
+                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_pdfs|default:"0" }}</h2>
+                    <p class="body-font text-muted mb-0 fw-medium">{% trans "Books & PDFs" %}</p>
+                    <div class="mt-2">
+                        <small class="text-maroon">
+                            <i class="bi bi-book me-1"></i>{% trans "Sacred Texts" %}
+                        </small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-    <!-- Recent Content Table -->
-    <div class="card border-0 shadow-lg" style="border-radius: 20px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px);">
-        <div class="card-header bg-transparent py-4 px-5 border-0">
+    <!-- Recent Content Section -->
+    <div class="card card-coptic">
+        <div class="card-header-coptic py-4">
             <div class="d-flex justify-content-between align-items-center">
-                <h3 class="mb-0 fw-bold" style="color: var(--bs-primary);">
-                    <i class="bi bi-clock-history me-2"></i>{% trans "Recent Uploads" %}
-                </h3>
-                <a href="{% url 'frontend_api:admin_content_list' %}" class="btn btn-outline-primary px-3 py-2" style="border-radius: 20px;">
-                    {% trans "View All" %}
+                <div class="d-flex align-items-center">
+                    <div class="d-flex align-items-center justify-content-center me-3" 
+                         style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px;">
+                        <i class="bi bi-clock-history text-white"></i>
+                    </div>
+                    <h3 class="heading-font text-white mb-0 fw-bold">{% trans "Recent Uploads" %}</h3>
+                </div>
+                <a href="{% url 'frontend_api:admin_content_list' %}" class="btn btn-outline-light btn-sm px-4 py-2 rounded-pill">
+                    <i class="bi bi-arrow-right me-1"></i>{% trans "View All" %}
                 </a>
             </div>
         </div>
+        
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead style="background: rgba(184,134,11,0.05);">
+            <table class="table admin-table mb-0">
+                <thead>
                     <tr>
-                        <th class="ps-5 fw-bold" style="color: var(--bs-primary);">{% trans "Title" %}</th>
-                        <th class="fw-bold" style="color: var(--bs-primary);">{% trans "Type" %}</th>
-                        <th class="fw-bold" style="color: var(--bs-primary);">{% trans "Module" %}</th>
-                        <th class="fw-bold" style="color: var(--bs-primary);">{% trans "Status" %}</th>
-                        <th class="fw-bold" style="color: var(--bs-primary);">{% trans "Date" %}</th>
-                        <th class="fw-bold" style="color: var(--bs-primary);">{% trans "Actions" %}</th>
+                        <th class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-card-heading me-2"></i>
+                                <span class="heading-font">{% trans "Title" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-tags me-2"></i>
+                                <span class="heading-font">{% trans "Type" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-collection me-2"></i>
+                                <span class="heading-font">{% trans "Module" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-toggles me-2"></i>
+                                <span class="heading-font">{% trans "Status" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-calendar3 me-2"></i>
+                                <span class="heading-font">{% trans "Date" %}</span>
+                            </div>
+                        </th>
+                        <th class="py-3 text-center">
+                            <div class="d-flex align-items-center justify-content-center">
+                                <i class="bi bi-gear me-2"></i>
+                                <span class="heading-font">{% trans "Actions" %}</span>
+                            </div>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for item in recent_content %}
-                    <tr style="transition: all 0.3s ease;" onmouseover="this.style.background='rgba(184,134,11,0.02)'" onmouseout="this.style.background='transparent'">
-                        <td class="ps-5">
+                    <tr class="hover-row">
+                        <td class="ps-4 py-3">
                             <div class="d-flex align-items-center">
-                                <div class="p-2 rounded-circle me-3" style="background: 
-                                    {% if item.content_type == 'video' %}rgba(135,206,235,0.2)
-                                    {% elif item.content_type == 'audio' %}rgba(230,230,250,0.2)
-                                    {% else %}rgba(245,222,179,0.2){% endif %};">
-                                    {% if item.content_type == 'video' %}<i class="bi bi-play-circle" style="color: #87CEEB;"></i>
-                                    {% elif item.content_type == 'audio' %}<i class="bi bi-music-note" style="color: #E6E6FA;"></i>
-                                    {% else %}<i class="bi bi-file-text" style="color: #F5DEB3;"></i>{% endif %}
+                                <div class="d-flex align-items-center justify-content-center me-3" 
+                                     style="width: 40px; height: 40px; border-radius: 10px;
+                                     {% if item.content_type == 'video' %}background: var(--color-maroon-10);{% elif item.content_type == 'audio' %}background: var(--color-golden-ochre-10);{% else %}background: var(--color-maroon-20);{% endif %}">
+                                    {% if item.content_type == 'video' %}
+                                        <i class="bi bi-play-circle text-maroon"></i>
+                                    {% elif item.content_type == 'audio' %}
+                                        <i class="bi bi-music-note text-golden"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-text text-maroon"></i>
+                                    {% endif %}
                                 </div>
                                 <div>
-                                    <div class="fw-semibold" style="color: var(--bs-primary);">{% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}</div>
-                                    <div class="small text-muted">ID: {{ item.id }}</div>
+                                    <div class="body-font fw-semibold text-maroon mb-1">
+                                        {% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}
+                                    </div>
+                                    <div class="small text-muted">
+                                        <i class="bi bi-hash me-1"></i>{{ item.id }}
+                                    </div>
                                 </div>
                             </div>
                         </td>
-                        <td>
-                            <span class="badge px-3 py-2 rounded-pill" style="
-                                {% if item.content_type == 'video' %}background: #87CEEB; color: white;
-                                {% elif item.content_type == 'audio' %}background: #E6E6FA; color: white;
-                                {% else %}background: #F5DEB3; color: white;{% endif %}">
-                                {% if item.content_type == 'video' %}Video
-                                {% elif item.content_type == 'audio' %}Audio
-                                {% else %}PDF{% endif %}
+                        <td class="py-3">
+                            <span class="badge px-3 py-2 rounded-pill admin-badge-{% if item.content_type == 'video' %}primary{% elif item.content_type == 'audio' %}secondary{% else %}primary{% endif %}">
+                                {% if item.content_type == 'video' %}
+                                    <i class="bi bi-camera-video me-1"></i>Video
+                                {% elif item.content_type == 'audio' %}
+                                    <i class="bi bi-mic me-1"></i>Audio
+                                {% else %}
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+                                {% endif %}
                             </span>
                         </td>
-                        <td class="text-muted">{{ item.module.title_ar|default:"-" }}</td>
-                        <td>
+                        <td class="py-3 body-font text-muted">
+                            {{ item.module.title_ar|default:"-" }}
+                        </td>
+                        <td class="py-3">
                             {% if item.is_active %}
-                                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
                                     <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
                                 </span>
                             {% else %}
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary px-3 py-2 rounded-pill">
+                                <span class="badge bg-secondary bg-opacity-15 text-secondary px-3 py-2 rounded-pill">
                                     <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
                                 </span>
                             {% endif %}
                         </td>
-                        <td class="text-muted small">{{ item.created_at|date:"M d, Y" }}</td>
-                        <td>
-                            <a href="{% url 'frontend_api:admin_content_detail' item.id %}" class="btn btn-sm btn-outline-primary px-3" style="border-radius: 15px;">
+                        <td class="py-3 body-font text-muted">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-calendar3 me-2"></i>
+                                {{ item.created_at|date:"M d, Y" }}
+                            </div>
+                        </td>
+                        <td class="py-3 text-center">
+                            <a href="{% url 'frontend_api:admin_content_detail' item.id %}" 
+                               class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill">
                                 <i class="bi bi-pencil me-1"></i>{% trans "Edit" %}
                             </a>
                         </td>
@@ -160,10 +230,16 @@
                     {% empty %}
                     <tr>
                         <td colspan="6" class="text-center py-5">
-                            <div class="text-muted">
-                                <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                                <h5 class="mt-3 mb-2">{% trans "No recent content" %}</h5>
-                                <p class="mb-0">{% trans "Start by uploading your first content" %}</p>
+                            <div class="empty-state">
+                                <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                                     style="width: 80px; height: 80px; background: var(--color-maroon-10); border-radius: 50%;">
+                                    <i class="bi bi-inbox text-maroon" style="font-size: 2.5rem;"></i>
+                                </div>
+                                <h5 class="heading-font text-maroon mb-2">{% trans "No recent content" %}</h5>
+                                <p class="body-font text-muted mb-3">{% trans "Start by uploading your first content" %}</p>
+                                <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary btn-sm px-4 py-2 rounded-pill">
+                                    <i class="bi bi-plus me-1"></i>{% trans "Upload Now" %}
+                                </a>
                             </div>
                         </td>
                     </tr>
@@ -173,4 +249,50 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Coptic Orthodox Dashboard Enhancements */
+.hover-row {
+    transition: all 0.3s ease;
+}
+
+.hover-row:hover {
+    background: var(--color-golden-ochre-5) !important;
+    transform: translateX(2px);
+}
+
+.empty-state {
+    padding: 3rem 2rem;
+}
+
+.spin {
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Dashboard */
+@media (max-width: 768px) {
+    .admin-content-header .d-flex {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .admin-content-header .col-md-4 {
+        text-align: center !important;
+        margin-top: 1rem;
+    }
+    
+    .admin-stat-card h2 {
+        font-size: 2rem !important;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+}
+</style>
 {% endblock %}
