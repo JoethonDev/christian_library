@@ -20,9 +20,10 @@
 
 <!-- Hero Image & Bullet Points -->
 <section class="mb-5">
-    <!-- Always Image Above Text -->
-    <div class="row">
-        <div class="col-12 mb-4">
+    <!-- Responsive Layout: Image above text on mobile, side-by-side on desktop -->
+    <div class="row align-items-center">
+        <!-- Image Column -->
+        <div class="col-12 col-lg-6 mb-4 mb-lg-0 order-1 order-lg-1">
             <div class="card card-coptic">
                 <img src="{% static 'images/hero_section.jpg' %}" 
                      class="card-img img-fluid rounded" 
@@ -32,7 +33,8 @@
             </div>
         </div>
         
-        <div class="col-12">
+        <!-- Text Column -->
+        <div class="col-12 col-lg-6 order-2 order-lg-2">
             <div class="card card-coptic">
                 <div class="card-body p-4">
                     <h4 class="heading-font text-maroon mb-4 text-center">
@@ -293,8 +295,8 @@
         </h3>
     </div>
     
-    <div class="row g-4">
-        <div class="col-lg-4 col-md-6">
+    <div class="row g-4 justify-content-center">
+        <div class="col-lg-4 col-md-6 col-sm-8">
             <a href="{% url 'frontend_api:videos' %}" class="text-decoration-none">
                 <div class="card card-coptic hover-maroon-glow h-100">
                     <div class="card-body text-center py-5">
@@ -314,7 +316,7 @@
             </a>
         </div>
         
-        <div class="col-lg-4 col-md-6">
+        <div class="col-lg-4 col-md-6 col-sm-8">
             <a href="{% url 'frontend_api:audios' %}" class="text-decoration-none">
                 <div class="card card-coptic hover-golden-glow h-100">
                     <div class="card-body text-center py-5">
@@ -334,7 +336,7 @@
             </a>
         </div>
         
-        <div class="col-lg-4 col-md-6">
+        <div class="col-lg-4 col-md-6 col-sm-8">
             <a href="{% url 'frontend_api:pdfs' %}" class="text-decoration-none">
                 <div class="card card-coptic hover-maroon-glow h-100">
                     <div class="card-body text-center py-5">

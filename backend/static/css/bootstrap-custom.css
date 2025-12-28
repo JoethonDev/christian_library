@@ -534,6 +534,8 @@ h2, .h2 {
     padding: 0.75rem 1rem;
     font-size: 1rem;
     border-bottom: 1px solid rgba(128, 0, 0, 0.1);
+    margin: 0;
+    text-align: left;
   }
 }
 
