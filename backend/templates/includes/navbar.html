@@ -6,7 +6,7 @@
     <div class="container-boxed">
         <div class="row w-100 align-items-center">
             <!-- Left: Logo/Header Image -->
-            <div class="col-md-3">
+            <div class="col-md-3 col-3">
                 <div class="d-flex align-items-center">
                     <img src="{% static 'images/icon.png' %}" alt="Library Icon" 
                          style="height: 80px; width: auto;" 
@@ -19,8 +19,8 @@
             </div>
             
             <!-- Center: Brand Title with 3D Golden Effect -->
-            <div class="col-md-6 text-center">
-                <div class="golden-3d-text" style="font-size: 2.2rem; line-height: 1.1;">
+            <div class="col-md-6 text-center col-6">
+                <div class="golden-3d-text">
                     {% get_current_language as LANGUAGE_CODE %}
                     {% if LANGUAGE_CODE == 'ar' %}
                         المكتبه الشخصيه
@@ -28,7 +28,7 @@
                         Personal Library
                     {% endif %}
                 </div>
-                <div class="text-muted" style="font-size: 0.9rem; font-family: var(--font-sans); margin-top: 0.5rem;">
+                <div class="text-muted golden-subtitle">
                     {% if LANGUAGE_CODE == 'ar' %}
                         الحبر الجليل المطران الانبا ابرام مطران الفيوم و رئيس دير الملاك غبريال النقلون
                     {% else %}
@@ -38,7 +38,7 @@
             </div>
             
             <!-- Right: Navigation Controls -->
-            <div class="col-md-3 text-end">
+            <div class="col-md-3 text-end col-3">
                 <!-- Mobile Toggle Button -->
                 <button class="navbar-toggler border-0 p-2 d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#navContent" 
                         style="background: rgba(221, 153, 51, 0.1); border-radius: 8px;">
@@ -88,7 +88,7 @@
     <div class="container-boxed">
         <!-- Navigation Links -->
         <div class="collapse navbar-collapse" id="navContent">
-            <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+            <ul class="navbar-nav mx-auto mb-2 mb-lg-0 text-center">
                 <li class="nav-item">
                     <a class="nav-link fw-medium px-4 py-3 text-white hover-text-secondary d-none d-lg-block" href="{% url 'frontend_api:home' %}">
                         <i class="bi bi-house me-2"></i>{% trans "Home" %}

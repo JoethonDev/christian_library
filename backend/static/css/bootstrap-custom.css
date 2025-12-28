@@ -157,6 +157,43 @@ h2, .h2 {
   }
 }
 
+/* Golden Subtitle Styling */
+.golden-subtitle {
+  font-family: var(--font-sans);
+  margin-top: 0.5rem;
+}
+
+/* Mobile Subtitle */
+@media (max-width: 767px) {
+  .golden-subtitle {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+  }
+}
+
+/* Tablet Subtitle */
+@media (min-width: 768px) and (max-width: 991px) {
+  .golden-subtitle {
+    font-size: 0.85rem;
+    margin-top: 0.375rem;
+  }
+}
+
+/* Desktop Subtitle */
+@media (min-width: 992px) {
+  .golden-subtitle {
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .golden-subtitle {
+    font-size: 1rem;
+    margin-top: 0.6rem;
+  }
+}
+
 /* Boxed/Contained Layout - Enhanced for Desktop vs Mobile */
 .container-boxed {
   width: 100%;
@@ -511,7 +548,7 @@ h2, .h2 {
   background-attachment: fixed;
   border-bottom: 3px solid var(--color-golden-ochre);
   box-shadow: 0 2px 10px rgba(128, 0, 0, 0.1);
-  padding: 1rem 0;
+  padding: 1rem 0 0;
   transition: all 0.3s ease;
   position: relative;
 }
@@ -519,7 +556,7 @@ h2, .h2 {
 /* Mobile Navbar */
 @media (max-width: 991px) {
   .navbar-coptic {
-    padding: 0.75rem 0;
+    padding: 0.75rem 0 0;
   }
   
   .navbar-brand-coptic {
@@ -542,7 +579,7 @@ h2, .h2 {
 /* Desktop Navbar */
 @media (min-width: 992px) {
   .navbar-coptic {
-    padding: 1.5rem 0;
+    padding: 1.5rem 0 0;
   }
   
   .navbar-brand-coptic {
@@ -875,8 +912,6 @@ h2, .h2 {
 /* Mobile Navigation Improvements */
 @media (max-width: 991px) {
   .navbar-collapse {
-    margin-top: 1rem;
-    padding-top: 1rem;
     border-top: 1px solid rgba(128, 0, 0, 0.1);
   }
   
@@ -941,7 +976,6 @@ h2, .h2 {
   /* Mobile touch targets */
   .btn, .nav-link, a {
     min-height: 44px;
-    display: inline-flex;
     align-items: center;
   }
 }
