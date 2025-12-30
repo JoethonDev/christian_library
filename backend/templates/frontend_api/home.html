@@ -10,7 +10,7 @@
         <h1 class="hero-title-coptic">
             {% get_current_language as LANGUAGE_CODE %}
             {% if LANGUAGE_CODE == 'ar' %}
-                مكتبه الحبر الجليل المطران الانبا ابرام مطران الفيوم و رئيس دير الملاك غبريال النقلون
+                مكتبة الحبر الجليل الانبا ابرام مطران الفيوم و رئيس دير الملاك غبريال النقلون
             {% else %}
                 Library of His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of Archangel Gabriel Monastery, Naqlun
             {% endif %}
@@ -46,68 +46,29 @@
                     </h4>
                     <div class="row">
                         <div class="col-12">
-                            <ul class="list-unstyled body-font">
-                                <li class="mb-3 d-flex align-items-start">
-                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
-                                    <span>
-                                        {% if LANGUAGE_CODE == 'ar' %}
-                                            مجموعة ثرية من الكتب الروحية والتعليمية
-                                        {% else %}
-                                            Rich collection of spiritual and educational books
-                                        {% endif %}
-                                    </span>
-                                </li>
-                                <li class="mb-3 d-flex align-items-start">
-                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
-                                    <span>
-                                        {% if LANGUAGE_CODE == 'ar' %}
-                                            محاضرات صوتية ومرئية للأنبا أبرام
-                                        {% else %}
-                                            Audio and video lectures by Bishop Abram
-                                        {% endif %}
-                                    </span>
-                                </li>
-                                <li class="mb-3 d-flex align-items-start">
-                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
-                                    <span>
-                                        {% if LANGUAGE_CODE == 'ar' %}
-                                            تراث الكنيسة القبطية الأرثوذكسية
-                                        {% else %}
-                                            Coptic Orthodox Church heritage
-                                        {% endif %}
-                                    </span>
-                                </li>
-                                <li class="mb-3 d-flex align-items-start">
-                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
-                                    <span>
-                                        {% if LANGUAGE_CODE == 'ar' %}
-                                            مخطوطات ووثائق تاريخية نادرة
-                                        {% else %}
-                                            Rare historical manuscripts and documents
-                                        {% endif %}
-                                    </span>
-                                </li>
-                                <li class="mb-3 d-flex align-items-start">
-                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
-                                    <span>
-                                        {% if LANGUAGE_CODE == 'ar' %}
-                                            متاح باللغتين العربية والإنجليزية
-                                        {% else %}
-                                            Available in Arabic and English
-                                        {% endif %}
-                                    </span>
-                                </li>
-                                <li class="mb-3 d-flex align-items-start">
-                                    <i class="bi bi-check-circle-fill text-golden me-3 mt-1"></i>
-                                    <span>
-                                        {% if LANGUAGE_CODE == 'ar' %}
-                                            محتوى روحي للنمو في الإيمان
-                                        {% else %}
-                                            Spiritual content for faith growth
-                                        {% endif %}
-                                    </span>
-                                </li>
-                            </ul>
+                            <!-- Bishop Abram Biography Section -->
+                            <div class="body-font lh-lg">
+                                <h6 class="heading-font text-golden mb-3 text-center">
+                                    {% if LANGUAGE_CODE == 'ar' %}
+                                        نيافة الحبر الجليل
+                                    {% else %}
+                                        His Grace the Bishop
+                                    {% endif %}
+                                </h6>
+                                <div class="body-font text-muted">
+                                    {% if LANGUAGE_CODE == 'ar' %}
+                                        <p class="mb-3"><strong>الأنبا أبرام الثالث مطران الفيوم ورئيس دير الملاك غبريال العامر بجبل النقلون (1985- م.)</strong></p>
+                                        <p class="mb-3">ترهب في دير الأنبا بيشوي، وادي النطرون، باسم أبونا الراهب القمص تيموثاوس الأنبا بيشوي</p>
+                                        <p class="mb-3"><strong>تاريخ الرسامة أسقفًا:</strong><br> 2 يونيو 1985 م. رُسِمَ بيد صاحب الغبطة قداسة البابا المعظم الأنبا شنوده الثالث 117</p>
+                                        <p class="mb-0"><strong>المطرانية:</strong> 25 نوفمبر 2018 م. بيد صاحب الغبطة والقداسة البابا تاوضروس الثاني</p>
+                                    {% else %}
+                                        <p class="mb-3"><strong>Bishop Abram III, Metropolitan of Fayoum and Abbot of Archangel Gabriel Monastery, Naqlun (1985- )</strong></p>
+                                        <p class="mb-3">Became a monk at Saint Bishoy Monastery, Wadi El-Natrun, with the monastic name Fr. Monk Archimandrite Timothy of Saint Bishoy</p>
+                                        <p class="mb-3"><strong>Episcopal Ordination:</strong><br> June 2, 1985. Ordained by His Holiness Pope Shenouda III (117th Pope)</p>
+                                        <p class="mb-0"><strong>Metropolitan Rank:</strong> November 25, 2018. By His Holiness Pope Tawadros II</p>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
