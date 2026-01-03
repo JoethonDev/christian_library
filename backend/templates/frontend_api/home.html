@@ -127,7 +127,7 @@
         {% for i in "1234567" %}
         <div class="gallery-item">
             <div class="card card-coptic h-100">
-                <img src="{% static 'images/gallery_' %}{{ forloop.counter }}.png"
+                <img src="{% static 'images/gallery_' %}{{ forloop.counter }}.jpg"
                      class="card-img-top"
                      alt="{% if LANGUAGE_CODE == 'ar' %}صورة رقم {{ forloop.counter }}{% else %}Gallery Image {{ forloop.counter }}{% endif %}"
                      style="aspect-ratio: 4/3; object-fit: cover;">
