@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 import traceback
 import functools
-from django.conf import settings
 from django.core.cache import cache
 import uuid
 

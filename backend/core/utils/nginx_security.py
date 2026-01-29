@@ -2,7 +2,6 @@
 Nginx X-Accel-Redirect integration for secure media serving.
 This module provides secure media delivery using nginx's internal routing.
 """
-import os
 import mimetypes
 from pathlib import Path
 from django.conf import settings

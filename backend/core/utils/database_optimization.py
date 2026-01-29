@@ -8,9 +8,7 @@ import logging
 from django.db import connection, reset_queries
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Prefetch
 from typing import Any, Callable, List, Dict
-import json
 
 logger = logging.getLogger(__name__)
 

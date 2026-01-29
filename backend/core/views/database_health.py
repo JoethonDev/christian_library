@@ -7,10 +7,8 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.db import connection
 from django.conf import settings
-from django.core.cache import cache
-from core.utils.database_optimization import DatabaseOptimizer, QueryAnalyzer
+from core.utils.database_optimization import QueryAnalyzer
 import logging
-import time
 import psutil
 import os
 
