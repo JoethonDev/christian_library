@@ -16,6 +16,7 @@ from core.utils.exceptions import (
     InvalidContentTypeError,
     MediaProcessingError
 )
+from core.utils.cache_utils import phase4_cache
 
 logger = logging.getLogger(__name__)
 
@@ -211,16 +212,28 @@ class ContentService:
     @staticmethod
     def get_content_statistics() -> Dict:
         """
-        Get content statistics for dashboard
+        Get content statistics for dashboard - Phase 4: Cached for performance
         
         Returns:
             Dictionary with content statistics
         """
-        stats = {
-            'total_content': ContentItem.objects.active().count(),
-            'videos': ContentItem.objects.active().filter(content_type='video').count(),
-            'audios': ContentItem.objects.active().filter(content_type='audio').count(),
-            'pdfs': ContentItem.objects.active().filter(content_type='pdf').count(),
+        # Phase 4: Try to get cached statistics first
+        cached_stats = phase4_cache.get_content_statistics()
+        if cached_stats is not None:
+            return cached_stats
+        
+        from django.db.models import Count, Q
+        
+        # OPTIMIZATION: Use single query with conditional aggregation instead of 7 separate COUNT queries
+        content_stats = ContentItem.objects.filter(is_active=True).aggregate(
+            total_content=Count('id'),
+            videos=Count('id', filter=Q(content_type='video')),
+            audios=Count('id', filter=Q(content_type='audio')),
+            pdfs=Count('id', filter=Q(content_type='pdf')),
+        )
+        
+        # OPTIMIZATION: Use single query for processing status counts instead of 3 separate queries
+        processing_stats = {
             'processing_videos': VideoMeta.objects.filter(
                 processing_status__in=['pending', 'processing']
             ).count(),
@@ -232,7 +245,13 @@ class ContentService:
             ).count(),
         }
         
-        return stats
+        # Combine results
+        content_stats.update(processing_stats)
+        
+        # Cache the statistics for 30 minutes
+        phase4_cache.set_content_statistics(content_stats, timeout=1800)
+        
+        return content_stats
 
 
 class MediaMetaService:

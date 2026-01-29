@@ -12,6 +12,24 @@ Background processing:
 Bulk processing:
     - Management command: bulk_extract_index (triggers all PDFs)
 
+Phase 3 Database Indexes (Strategic Performance Optimization):
+    ContentItem indexes:
+        - mgr_active_type_created_idx: Composite (is_active, content_type, -created_at) with partial condition
+        - mgr_active_search_idx: Partial index for search operations on active content
+        - mgr_type_title_ar_idx: Content type with Arabic title for admin dashboard
+        - mgr_type_lookup_idx: Type-specific lookups with active condition
+        - mgr_updated_at_idx: Change tracking for cache invalidation
+        
+    Tag indexes:
+        - mgr_tag_active_created_idx: Active tags with chronological ordering
+        - mgr_tag_active_name_idx: Active tag name lookups (Arabic)
+        
+    M2M indexes (migration-only):
+        - media_mgr_contentitem_tags_covering_idx: (tag_id, contentitem_id) covering index
+
+Verification:
+    Run: python manage.py verify_phase3_indexes
+
 See tests.py for FTS/Arabic search tests.
 """
 from django.db import models
@@ -79,7 +97,21 @@ class Tag(models.Model):
         verbose_name_plural = _('Tags')
         ordering = ['name_ar']
         indexes = [
+            # Legacy index (keep for compatibility)
             models.Index(fields=['is_active', 'name_ar']),
+            
+            # Phase 3: Strategic Tag Index Optimizations
+            # 1. Tag performance with chronological ordering
+            models.Index(
+                fields=['is_active', '-created_at'],
+                name='mgr_tag_active_created_idx'
+            ),
+            
+            # 2. Tag name optimization for Arabic content
+            models.Index(
+                fields=['is_active', 'name_ar'],
+                name='mgr_tag_active_name_idx'
+            ),
         ]
     
     def __str__(self):
@@ -368,9 +400,47 @@ class ContentItem(models.Model):
         verbose_name_plural = _('Content Items')
         ordering = ['-created_at']
         indexes = [
+            # Legacy indexes (keep for compatibility)
             models.Index(fields=['content_type', 'is_active', '-created_at']),
             models.Index(fields=['is_active', '-created_at']),
             GinIndex(fields=['search_vector']),  # GIN index for FTS
+            
+            # Phase 3: Strategic Index Optimizations
+            # 1. Composite index for home page filtering (partial index for active content only)
+            models.Index(
+                fields=['is_active', 'content_type', '-created_at'],
+                name='mgr_active_type_created_idx',
+                condition=models.Q(is_active=True)
+            ),
+            
+            # 2. Search performance index (partial index for active content with search data)
+            models.Index(
+                fields=['is_active'], 
+                name='mgr_active_search_idx',
+                condition=models.Q(is_active=True, search_vector__isnull=False)
+            ),
+            
+            # 3. Content type + title index for admin dashboard performance
+            models.Index(
+                fields=['content_type', 'title_ar'],
+                name='mgr_type_title_ar_idx'
+            ),
+            
+            # 4. Type-specific lookup optimization (partial index)
+            models.Index(
+                fields=['content_type'],
+                name='mgr_type_lookup_idx',
+                condition=models.Q(is_active=True)
+            ),
+            
+            # 5. Cache invalidation and change tracking support
+            models.Index(
+                fields=['-updated_at'],
+                name='mgr_updated_at_idx'
+            ),
+            
+            # Note: M2M covering index (tag_id, contentitem_id) is handled via migration
+            # See: media_mgr_contentitem_tags_covering_idx in migration 0003_phase3_index_optimizations
         ]
 
     def __str__(self):
