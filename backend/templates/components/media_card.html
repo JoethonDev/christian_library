@@ -4,8 +4,8 @@
 <div class="col-md-6 col-lg-4">
     <div class="card card-coptic h-100 hover-maroon-glow media-card" style="overflow: hidden; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
         <div class="ratio ratio-16x9 position-relative overflow-hidden">
-            {% if item.videometa.thumbnail %}
-                <img src="{{ item.videometa.thumbnail.url }}" class="object-fit-cover w-100 h-100" loading="lazy" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+            {% if item.meta and item.meta.thumbnail %}
+                <img src="{{ item.meta.thumbnail.url }}" class="object-fit-cover w-100 h-100" loading="lazy" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
             {% elif item.thumbnail %}
                 <img src="{{ item.thumbnail.url }}" class="object-fit-cover w-100 h-100" loading="lazy" style="transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
             {% else %}

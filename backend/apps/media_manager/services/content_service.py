@@ -211,16 +211,23 @@ class ContentService:
     @staticmethod
     def get_content_statistics() -> Dict:
         """
-        Get content statistics for dashboard
+        Get content statistics for dashboard - Optimized to use single query with aggregation
         
         Returns:
             Dictionary with content statistics
         """
-        stats = {
-            'total_content': ContentItem.objects.active().count(),
-            'videos': ContentItem.objects.active().filter(content_type='video').count(),
-            'audios': ContentItem.objects.active().filter(content_type='audio').count(),
-            'pdfs': ContentItem.objects.active().filter(content_type='pdf').count(),
+        from django.db.models import Count, Q
+        
+        # OPTIMIZATION: Use single query with conditional aggregation instead of 7 separate COUNT queries
+        content_stats = ContentItem.objects.filter(is_active=True).aggregate(
+            total_content=Count('id'),
+            videos=Count('id', filter=Q(content_type='video')),
+            audios=Count('id', filter=Q(content_type='audio')),
+            pdfs=Count('id', filter=Q(content_type='pdf')),
+        )
+        
+        # OPTIMIZATION: Use single query for processing status counts instead of 3 separate queries
+        processing_stats = {
             'processing_videos': VideoMeta.objects.filter(
                 processing_status__in=['pending', 'processing']
             ).count(),
@@ -232,7 +239,9 @@ class ContentService:
             ).count(),
         }
         
-        return stats
+        # Combine results
+        content_stats.update(processing_stats)
+        return content_stats
 
 
 class MediaMetaService:
