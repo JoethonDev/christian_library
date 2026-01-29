@@ -21,9 +21,8 @@ Cache Keys Format:
 from django.core.cache import cache, caches
 from django.core.cache.utils import make_template_fragment_key
 from django.utils.translation import get_language
-from django.conf import settings
 from functools import wraps
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Callable
 import logging
 import time
 import hashlib

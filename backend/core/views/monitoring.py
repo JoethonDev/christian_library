@@ -9,10 +9,9 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.cache import never_cache
 from django.core.cache import cache
 from django.db import connection
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import psutil
-import logging
 
 from core.utils.monitoring import StructuredLogger
 from core.utils.log_analysis import log_analyzer, alert_manager

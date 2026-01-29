@@ -14,7 +14,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Prefetch, Q
 from functools import wraps
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, Any, Callable
 import logging
 import time
 import threading
@@ -311,14 +311,14 @@ class QueryOptimizer:
     #     """Get optimized queryset for courses"""
     #     # Course functionality has been removed
     #     return None
-                        is_active=True
-                    ).prefetch_related('contentitem_set__tags')
-                )
-            )
-        else:
-            queryset = queryset.prefetch_related('modules')
+        #                 is_active=True
+        #             ).prefetch_related('contentitem_set__tags')
+        #         )
+        #     )
+        # else:
+        #     queryset = queryset.prefetch_related('modules')
         
-        return queryset
+        # return queryset
     
     @staticmethod
     def optimize_media_processing_queries():

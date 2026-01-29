@@ -1,7 +1,6 @@
 import os
 import json
 import csv
-from datetime import datetime
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils.dateparse import parse_date

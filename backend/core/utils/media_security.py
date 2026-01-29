@@ -1,10 +1,8 @@
 import hashlib
 import hmac
 import time
-from urllib.parse import urlencode, quote
+from urllib.parse import urlencode
 from django.conf import settings
-from django.utils import timezone
-from datetime import timedelta
 import secrets
 
 

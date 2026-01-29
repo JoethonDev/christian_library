@@ -2,14 +2,11 @@
 Log analysis utilities for monitoring application health and performance.
 """
 
-import json
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 from django.core.cache import cache
-from django.db.models import Q
 from collections import defaultdict, Counter
-import re
 
 
 class LogAnalyzer:

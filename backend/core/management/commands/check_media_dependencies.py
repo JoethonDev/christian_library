@@ -1,11 +1,8 @@
 """
 Management command to check media processing dependencies
 """
-import shutil
-import subprocess
 import platform
 from django.core.management.base import BaseCommand
-from django.utils.text import slugify
 
 from core.utils.media_processing import check_dependency, get_platform_command
 
