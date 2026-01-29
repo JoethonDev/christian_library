@@ -150,10 +150,61 @@ CACHES = {
         'LOCATION': REDIS_URL,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+                'socket_keepalive_options': {},
+            },
+            'IGNORE_EXCEPTIONS': True,  # Fail silently if Redis is down
         },
         'KEY_PREFIX': 'christian_library',
         'TIMEOUT': 300,  # 5 minutes default timeout
-    }
+    },
+    # Separate cache for query results (longer TTL)
+    'query_cache': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f"{REDIS_URL}/1",  # Different Redis DB
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+            },
+            'IGNORE_EXCEPTIONS': True,
+        },
+        'KEY_PREFIX': 'query_cache',
+        'TIMEOUT': 900,  # 15 minutes for query results
+    },
+    # Cache for statistics and aggregations (medium TTL)
+    'stats_cache': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f"{REDIS_URL}/2",  # Different Redis DB  
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+            },
+            'IGNORE_EXCEPTIONS': True,
+        },
+        'KEY_PREFIX': 'stats_cache',
+        'TIMEOUT': 1800,  # 30 minutes for statistics
+    },
+    # Cache for search results (shorter TTL due to frequent updates)
+    'search_cache': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': f"{REDIS_URL}/3",  # Different Redis DB
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {
+                'retry_on_timeout': True,
+                'socket_keepalive': True,
+            },
+            'IGNORE_EXCEPTIONS': True,
+        },
+        'KEY_PREFIX': 'search_cache', 
+        'TIMEOUT': 600,  # 10 minutes for search results
+    },
 }
 
 # Session configuration

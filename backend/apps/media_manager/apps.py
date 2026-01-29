@@ -8,3 +8,5 @@ class MediaManagerConfig(AppConfig):
     
     def ready(self):
         import apps.media_manager.signals
+        # Phase 4: Import cache invalidation signals
+        import apps.media_manager.signals.cache_invalidation

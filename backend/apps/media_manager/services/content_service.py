@@ -16,6 +16,7 @@ from core.utils.exceptions import (
     InvalidContentTypeError,
     MediaProcessingError
 )
+from core.utils.cache_utils import phase4_cache
 
 logger = logging.getLogger(__name__)
 
@@ -211,11 +212,16 @@ class ContentService:
     @staticmethod
     def get_content_statistics() -> Dict:
         """
-        Get content statistics for dashboard - Optimized to use single query with aggregation
+        Get content statistics for dashboard - Phase 4: Cached for performance
         
         Returns:
             Dictionary with content statistics
         """
+        # Phase 4: Try to get cached statistics first
+        cached_stats = phase4_cache.get_content_statistics()
+        if cached_stats is not None:
+            return cached_stats
+        
         from django.db.models import Count, Q
         
         # OPTIMIZATION: Use single query with conditional aggregation instead of 7 separate COUNT queries
@@ -241,6 +247,10 @@ class ContentService:
         
         # Combine results
         content_stats.update(processing_stats)
+        
+        # Cache the statistics for 30 minutes
+        phase4_cache.set_content_statistics(content_stats, timeout=1800)
+        
         return content_stats
 
 

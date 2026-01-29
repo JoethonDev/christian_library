@@ -13,23 +13,55 @@ from rest_framework.decorators import api_view
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchHeadline
 
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
+from core.utils.cache_utils import phase4_cache
 
 
 def home(request):
-    """Homepage with featured content and categories - Optimized for performance"""
+    """Homepage with featured content and categories - Phase 4: Cached for performance"""
     current_language = get_language()
     
-    # OPTIMIZATION: Use single query with subquery to get aggregate stats efficiently  
-    from django.db.models import Case, When, IntegerField
-    stats_query = ContentItem.objects.filter(is_active=True).aggregate(
-        total_videos=Count('id', filter=Q(content_type='video')),
-        total_audios=Count('id', filter=Q(content_type='audio')),
-        total_pdfs=Count('id', filter=Q(content_type='pdf')),
-    )
+    # Phase 4: Try to get cached statistics first
+    stats = phase4_cache.get_home_statistics()
+    if stats is None:
+        # OPTIMIZATION: Use single query with subquery to get aggregate stats efficiently  
+        from django.db.models import Case, When, IntegerField
+        stats_query = ContentItem.objects.filter(is_active=True).aggregate(
+            total_videos=Count('id', filter=Q(content_type='video')),
+            total_audios=Count('id', filter=Q(content_type='audio')),
+            total_pdfs=Count('id', filter=Q(content_type='pdf')),
+        )
+        
+        # Get tag count separately (one additional query vs 4 separate COUNT queries)
+        tag_count = Tag.objects.filter(is_active=True).count()
+        stats_query['total_tags'] = tag_count
+        stats = stats_query
+        
+        # Cache the statistics for 15 minutes
+        phase4_cache.set_home_statistics(stats, timeout=900)
     
-    # Get tag count separately (one additional query vs 4 separate COUNT queries)
-    tag_count = Tag.objects.filter(is_active=True).count()
-    stats_query['total_tags'] = tag_count
+    # Phase 4: Try to get cached popular tags
+    popular_tags = phase4_cache.get_popular_tags(limit=8)
+    if popular_tags is None:
+        # OPTIMIZATION: More efficient popular tags query with better indexing hint
+        popular_tags = Tag.objects.filter(
+            is_active=True
+        ).annotate(
+            content_count=Count('contentitem', filter=Q(contentitem__is_active=True))
+        ).order_by('-content_count')[:8]
+        
+        # Convert to list and add language support
+        popular_tags_list = []
+        for tag in popular_tags:
+            tag.name = tag.get_name(current_language)
+            popular_tags_list.append(tag)
+        
+        # Cache popular tags for 1 hour
+        phase4_cache.set_popular_tags(popular_tags_list, limit=8, timeout=3600)
+        popular_tags = popular_tags_list
+    else:
+        # Apply language preferences to cached tags
+        for tag in popular_tags:
+            tag.name = tag.get_name(current_language)
     
     # OPTIMIZATION: Properly prefetch all required relationships to avoid N+1
     latest_videos = ContentItem.objects.filter(
@@ -75,18 +107,7 @@ def home(request):
         else:
             item.meta = None
     
-    # OPTIMIZATION: More efficient popular tags query with better indexing hint
-    popular_tags = Tag.objects.filter(
-        is_active=True
-    ).annotate(
-        content_count=Count('contentitem', filter=Q(contentitem__is_active=True))
-    ).order_by('-content_count')[:8]
-    
-    for tag in popular_tags:
-        tag.name = tag.get_name(current_language)
-    
-    # Use the optimized stats
-    stats = stats_query
+    # Phase 4: Popular tags already cached above
     
     context = {
         'latest_videos': latest_videos,
@@ -351,7 +372,7 @@ def pdfs(request):
 
 
 def pdf_detail(request, pdf_uuid):
-    """Individual PDF detail page - Optimized to fix 232ms query"""
+    """Individual PDF detail page - Phase 4: Cached related content for performance"""
     # OPTIMIZATION: Use select_related to get PDF meta in single query and prefetch tags to avoid duplicates
     pdf = get_object_or_404(
         ContentItem.objects.select_related('pdfmeta').prefetch_related('tags'),
@@ -364,28 +385,41 @@ def pdf_detail(request, pdf_uuid):
     pdf.title = pdf.get_title(current_language)
     pdf.description = pdf.get_description(current_language)
     
-    # OPTIMIZATION: More efficient related PDFs query - avoid complex subquery from metrics  
-    # Get tag IDs first, then use them in a simpler query
-    pdf_tag_ids = list(pdf.tags.values_list('id', flat=True))
-    
-    if pdf_tag_ids:
-        # Use EXISTS subquery instead of complex JOIN for better performance
-        related_pdfs = ContentItem.objects.filter(
-            content_type='pdf',
-            is_active=True,
-            tags__id__in=pdf_tag_ids
-        ).exclude(id=pdf.id).select_related('pdfmeta').prefetch_related('tags').distinct()[:4]
+    # Phase 4: Try to get cached related content first
+    related_pdfs = phase4_cache.get_related_content(str(pdf_uuid), 'pdf')
+    if related_pdfs is None:
+        # OPTIMIZATION: More efficient related PDFs query - avoid complex subquery from metrics  
+        # Get tag IDs first, then use them in a simpler query
+        pdf_tag_ids = list(pdf.tags.values_list('id', flat=True))
+        
+        if pdf_tag_ids:
+            # Use EXISTS subquery instead of complex JOIN for better performance
+            related_pdfs_query = ContentItem.objects.filter(
+                content_type='pdf',
+                is_active=True,
+                tags__id__in=pdf_tag_ids
+            ).exclude(id=pdf.id).select_related('pdfmeta').prefetch_related('tags').distinct()[:4]
+        else:
+            # Fallback to recent PDFs if no tags
+            related_pdfs_query = ContentItem.objects.filter(
+                content_type='pdf',
+                is_active=True
+            ).exclude(id=pdf.id).select_related('pdfmeta').prefetch_related('tags').order_by('-created_at')[:4]
+        
+        # Convert to list and add language support
+        related_pdfs = []
+        for item in related_pdfs_query:
+            item.title = item.get_title(current_language)
+            item.description = item.get_description(current_language)
+            related_pdfs.append(item)
+        
+        # Cache related content for 30 minutes
+        phase4_cache.set_related_content(str(pdf_uuid), 'pdf', related_pdfs, timeout=1800)
     else:
-        # Fallback to recent PDFs if no tags
-        related_pdfs = ContentItem.objects.filter(
-            content_type='pdf',
-            is_active=True
-        ).exclude(id=pdf.id).select_related('pdfmeta').prefetch_related('tags').order_by('-created_at')[:4]
-    
-    # Add unified metadata for related PDFs
-    for item in related_pdfs:
-        item.title = item.get_title(current_language)
-        item.description = item.get_description(current_language)
+        # Apply language preferences to cached items
+        for item in related_pdfs:
+            item.title = item.get_title(current_language)
+            item.description = item.get_description(current_language)
     
     context = {
         'pdf': pdf,

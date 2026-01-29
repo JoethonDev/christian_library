@@ -1,15 +1,24 @@
 """
-Caching strategy and utilities for the Christian Library project.
+Phase 4: Caching Implementation - Enhanced Utilities
 
-This module provides:
-1. Centralized cache key management
-2. Template fragment caching utilities  
-3. Per-view caching decorators
-4. Cache invalidation utilities
-5. Performance monitoring helpers
+This module provides comprehensive caching utilities for the Christian Library application,
+implementing strategic caching for expensive queries identified in Phase 1-3.
+
+Cache Strategy:
+- Query results: 15 minutes TTL (query_cache)
+- Statistics: 30 minutes TTL (stats_cache)  
+- Search results: 10 minutes TTL (search_cache)
+- Sessions: 24 hours TTL (default cache)
+
+Cache Keys Format:
+- content_stats:v1
+- home_stats:v1  
+- content_list:{type}:{page}:v1
+- tag_content:{tag_id}:{page}:v1
+- search_results:{query_hash}:v1
 """
 
-from django.core.cache import cache
+from django.core.cache import cache, caches
 from django.core.cache.utils import make_template_fragment_key
 from django.utils.translation import get_language
 from django.conf import settings
@@ -17,8 +26,13 @@ from functools import wraps
 from typing import List, Dict, Any, Optional, Callable
 import logging
 import time
+import hashlib
+import json
 
 logger = logging.getLogger(__name__)
+
+# Cache version for invalidation (Phase 4)
+CACHE_VERSION = 1
 
 
 class CacheKeys:
@@ -358,3 +372,161 @@ def cache_unless_authenticated(timeout: int = CacheConfig.CONTENT_TIMEOUT):
             return response
         return wrapper
     return decorator
+
+
+# =====================================
+# Phase 4: Enhanced Cache Manager
+# =====================================
+
+class Phase4CacheManager:
+    """
+    Enhanced cache manager for Phase 4 implementation.
+    Provides strategic caching for expensive queries identified in Phase 1-3.
+    """
+    
+    def __init__(self):
+        self.query_cache = caches['query_cache']
+        self.stats_cache = caches['stats_cache'] 
+        self.search_cache = caches['search_cache']
+        self.default_cache = caches['default']
+    
+    def _make_key(self, key_pattern: str, **kwargs) -> str:
+        """Create consistent cache key with version"""
+        key_data = f"{key_pattern}:{':'.join(str(v) for v in kwargs.values())}:v{CACHE_VERSION}"
+        return key_data
+    
+    def _hash_query(self, query_params: Dict) -> str:
+        """Create hash for complex query parameters"""
+        query_str = json.dumps(query_params, sort_keys=True, default=str)
+        return hashlib.md5(query_str.encode()).hexdigest()[:12]
+    
+    # Statistics Caching (addresses Phase 1 COUNT query problems)
+    def get_home_statistics(self) -> Optional[Dict]:
+        """Get cached home page statistics (Phase 2 optimization target)"""
+        key = self._make_key("home_stats")
+        return self.stats_cache.get(key)
+    
+    def set_home_statistics(self, stats: Dict, timeout: int = 900) -> None:
+        """Cache home page statistics for 15 minutes"""
+        key = self._make_key("home_stats")
+        self.stats_cache.set(key, stats, timeout)
+        logger.info(f"Cached home statistics: {key}")
+    
+    def get_content_statistics(self) -> Optional[Dict]:
+        """Get cached admin dashboard statistics"""
+        key = self._make_key("content_stats")
+        return self.stats_cache.get(key)
+    
+    def set_content_statistics(self, stats: Dict, timeout: int = 1800) -> None:
+        """Cache admin statistics for 30 minutes"""
+        key = self._make_key("content_stats")
+        self.stats_cache.set(key, stats, timeout)
+        logger.info(f"Cached content statistics: {key}")
+    
+    # Query Results Caching (addresses Phase 1 slow queries)  
+    def get_related_content(self, content_id: str, content_type: str) -> Optional[List]:
+        """Get cached related content (Phase 1: 232ms PDF detail optimization)"""
+        key = self._make_key("related_content", id=content_id, type=content_type)
+        return self.query_cache.get(key)
+    
+    def set_related_content(self, content_id: str, content_type: str, items: List, timeout: int = 1800) -> None:
+        """Cache related content for 30 minutes"""
+        key = self._make_key("related_content", id=content_id, type=content_type)
+        self.query_cache.set(key, items, timeout)
+        logger.info(f"Cached related content: {key} ({len(items)} items)")
+    
+    def get_popular_tags(self, limit: int = 10) -> Optional[List]:
+        """Get cached popular tags (Phase 1: slow tag counting)"""
+        key = self._make_key("popular_tags", limit=limit)
+        return self.stats_cache.get(key)
+    
+    def set_popular_tags(self, tags: List, limit: int = 10, timeout: int = 3600) -> None:
+        """Cache popular tags for 1 hour"""
+        key = self._make_key("popular_tags", limit=limit)
+        self.stats_cache.set(key, tags, timeout)
+        logger.info(f"Cached popular tags: {key} ({len(tags)} tags)")
+    
+    # Search Results Caching
+    def get_search_results(self, query: str, filters: Dict = None) -> Optional[Dict]:
+        """Get cached search results"""
+        query_data = {'query': query, 'filters': filters or {}}
+        query_hash = self._hash_query(query_data)
+        key = self._make_key("search_results", hash=query_hash)
+        return self.search_cache.get(key)
+    
+    def set_search_results(self, query: str, filters: Dict, results: Dict, timeout: int = 600) -> None:
+        """Cache search results for 10 minutes"""
+        query_data = {'query': query, 'filters': filters or {}}
+        query_hash = self._hash_query(query_data)
+        key = self._make_key("search_results", hash=query_hash)
+        self.search_cache.set(key, results, timeout)
+        logger.info(f"Cached search results: {key} ({len(results.get('items', []))} results)")
+    
+    # Cache Invalidation (Phase 4 critical feature)
+    def invalidate_content_caches(self, content_type: Optional[str] = None) -> None:
+        """Invalidate content-related caches when content changes"""
+        try:
+            # Clear statistics (home page, admin dashboard)
+            stats_patterns = ["home_stats:*", "content_stats:*"]
+            for pattern in stats_patterns:
+                self.stats_cache.delete_pattern(f"*{pattern}*")
+            
+            # Clear related content queries
+            self.query_cache.delete_pattern("*related_content:*")
+            
+            # Clear search results (content changes affect search)
+            self.search_cache.delete_pattern("*search_results:*")
+            
+            logger.info(f"Invalidated caches for content_type: {content_type or 'ALL'}")
+        except Exception as e:
+            logger.error(f"Cache invalidation error: {e}")
+    
+    def invalidate_tag_caches(self) -> None:
+        """Invalidate tag-related caches when tags change"""
+        try:
+            # Clear popular tags
+            self.stats_cache.delete_pattern("*popular_tags:*")
+            
+            # Clear home stats (includes tag counts)
+            self.stats_cache.delete_pattern("*home_stats:*")
+            
+            logger.info("Invalidated tag-related caches")
+        except Exception as e:
+            logger.error(f"Tag cache invalidation error: {e}")
+    
+    def get_cache_stats(self) -> Dict:
+        """Get cache performance statistics"""
+        try:
+            from django_redis import get_redis_connection
+            
+            stats = {}
+            for cache_name in ['query_cache', 'stats_cache', 'search_cache']:
+                try:
+                    conn = get_redis_connection(cache_name)
+                    redis_info = conn.info()
+                    stats[cache_name] = {
+                        'keys': conn.dbsize(),
+                        'memory_usage': redis_info.get('used_memory_human', 'N/A'),
+                        'hits': redis_info.get('keyspace_hits', 0),
+                        'misses': redis_info.get('keyspace_misses', 0),
+                    }
+                    
+                    # Calculate hit ratio
+                    hits = stats[cache_name]['hits']
+                    misses = stats[cache_name]['misses']
+                    if hits + misses > 0:
+                        stats[cache_name]['hit_ratio'] = round(hits / (hits + misses) * 100, 2)
+                    else:
+                        stats[cache_name]['hit_ratio'] = 0
+                        
+                except Exception as e:
+                    stats[cache_name] = {'error': str(e)}
+            
+            return stats
+        except Exception as e:
+            logger.error(f"Cache stats error: {e}")
+            return {'error': str(e)}
+
+
+# Global Phase 4 cache manager instance
+phase4_cache = Phase4CacheManager()
