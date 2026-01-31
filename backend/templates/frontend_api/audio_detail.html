@@ -3,7 +3,17 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{{ audio.title }} - {% trans "Audio" %} - {% trans "Christian Library" %}{% endblock %}
+{% block title %}
+{% if LANGUAGE_CODE == 'ar' %}
+{{ audio.title_ar_display }} - {% trans "Audio" %} - {% trans "Christian Library" %}
+{% else %}
+{{ audio.title_en_display }} - {% trans "Audio" %} - {% trans "Christian Library" %}
+{% endif %}
+{% endblock %}
+
+{% block meta %}
+    {% include "includes/seo_meta.html" with content_item=audio %}
+{% endblock %}
 
 {% block content %}
 <!-- Back Navigation -->
@@ -38,11 +48,13 @@
                     <!-- Content -->
                     <div class="col-lg-8">
                         <h1 class="heading-font text-maroon mb-3 fw-bold">
-                            {{ audio.title }}
+                            {% if LANGUAGE_CODE == 'ar' %}{{ audio.title_ar_display }}{% else %}{{ audio.title_en_display }}{% endif %}
                         </h1>
                         
-                        {% if audio.description %}
-                        <p class="body-font text-muted mb-4 fs-5 lh-base">{{ audio.description }}</p>
+                        {% if LANGUAGE_CODE == 'ar' and audio.description_ar_display or LANGUAGE_CODE == 'en' and audio.description_en_display %}
+                        <p class="body-font text-muted mb-4 fs-5 lh-base">
+                            {% if LANGUAGE_CODE == 'ar' %}{{ audio.description_ar_display }}{% else %}{{ audio.description_en_display }}{% endif %}
+                        </p>
                         {% endif %}
                         
                         <!-- Audio Metadata -->

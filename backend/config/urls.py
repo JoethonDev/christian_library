@@ -50,9 +50,18 @@ urlpatterns = [
 
 # Sitemap
 from django.contrib.sitemaps.views import sitemap
-from apps.frontend_api.sitemaps import HomeSitemap, PdfListSitemap, PdfDetailSitemap
+from apps.frontend_api.sitemaps import (
+    HomeSitemap, ContentListSitemap, VideoSitemap, AudioSitemap, 
+    PdfSitemap, SEOOptimizedSitemap, PdfListSitemap, PdfDetailSitemap
+)
 sitemaps = {
     'home': HomeSitemap(),
+    'content-lists': ContentListSitemap(),
+    'videos': VideoSitemap(),
+    'audios': AudioSitemap(),
+    'pdfs': PdfSitemap(),
+    'seo-optimized': SEOOptimizedSitemap(),
+    # Legacy sitemaps for backward compatibility
     'pdf-list': PdfListSitemap(),
     'pdf-detail': PdfDetailSitemap(),
 }

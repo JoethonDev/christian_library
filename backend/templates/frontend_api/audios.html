@@ -4,6 +4,10 @@
 
 {% block title %}{% trans "Audio Library" %} - {% trans "Christian Library" %}{% endblock %}
 
+{% block meta %}
+    {% include "includes/seo_listing_meta.html" with content_type="audio" page_title="Audio Library - Christian Orthodox Recordings" page_description="Listen to spiritual teachings, sermons, and religious audio content from the Coptic Orthodox Church. High-quality audio recordings with Arabic and English support." content_items=audios %}
+{% endblock %}
+
 {% block content %}
 <!-- Header Section -->
 <div class="d-flex align-items-center mb-5">

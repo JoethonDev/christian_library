@@ -1,0 +1,109 @@
+<!-- templates/includes/seo_listing_meta.html -->
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+
+{% comment %}
+    SEO Meta Tags Template for Listing Pages (Videos, Audio, PDFs)
+    Usage: {% include "includes/seo_listing_meta.html" with content_type="video" page_title="Video Library" page_description="..." %}
+{% endcomment %}
+
+<!-- Primary SEO Meta Tags -->
+<meta name="description" content="{{ page_description|default:'Christian Orthodox content library with spiritual teachings, sermons, and religious materials.' }}">
+
+<!-- Keywords from active content on this page -->
+{% if content_items %}
+    {% with all_keywords='' %}
+        {% for item in content_items %}
+            {% if LANGUAGE_CODE == 'ar' and item.seo_keywords_ar_string %}
+                {% with all_keywords=all_keywords|add:item.seo_keywords_ar_string|add:', ' %}{% endwith %}
+            {% elif LANGUAGE_CODE == 'en' and item.seo_keywords_en_string %}
+                {% with all_keywords=all_keywords|add:item.seo_keywords_en_string|add:', ' %}{% endwith %}
+            {% endif %}
+        {% endfor %}
+        {% if all_keywords %}
+            <meta name="keywords" content="{{ all_keywords|slice:':300' }}">
+        {% endif %}
+    {% endwith %}
+{% endif %}
+
+<!-- Canonical URL -->
+<link rel="canonical" href="{{ request.build_absolute_uri }}">
+
+<!-- Open Graph Meta Tags -->
+<meta property="og:title" content="{{ page_title|default:'Christian Library' }}">
+<meta property="og:description" content="{{ page_description|default:'Christian Orthodox content library' }}">
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{% trans 'Christian Library' %}">
+<meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_EG{% else %}en_US{% endif %}">
+
+<!-- Twitter Card Meta Tags -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{ page_title|default:'Christian Library' }}">
+<meta name="twitter:description" content="{{ page_description|default:'Christian Orthodox content library' }}">
+
+<!-- Content Type Specific Meta -->
+{% if content_type %}
+    <meta name="content-type" content="{{ content_type }}">
+{% endif %}
+
+<!-- Structured Data for Listing Page -->
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "{{ page_title|default:'Christian Library' }}",
+    "description": "{{ page_description|default:'Christian Orthodox content library' }}",
+    "url": "{{ request.build_absolute_uri }}",
+    "mainEntity": {
+        "@type": "ItemList",
+        "name": "{{ page_title|default:'Content Items' }}",
+        "numberOfItems": {{ content_items|length|default:0 }}{% if content_items %},
+        "itemListElement": [
+            {% for item in content_items|slice:":10" %}
+            {
+                "@type": "ListItem",
+                "position": {{ forloop.counter }},
+                "item": {
+                    "@type": "{{ item.get_schema_type }}",
+                {% if LANGUAGE_CODE == 'ar' %}
+                    "name": "{{ item.title_ar_display|escapejs }}",
+                {% else %}
+                    "name": "{{ item.title_en_display|escapejs }}",
+                {% endif %}
+                {% if LANGUAGE_CODE == 'ar' %}
+                    "description": "{{ item.description_ar_display|truncatechars:160|escapejs }}",
+                {% else %}
+                    "description": "{{ item.description_en_display|truncatechars:160|escapejs }}",
+                {% endif %}
+                    "url": "{{ item.get_canonical_url }}"{% if item.content_type == 'video' and item.videometa.duration_seconds %},
+                    "duration": "PT{{ item.videometa.duration_seconds }}S"{% elif item.content_type == 'audio' and item.audiometa.duration_seconds %},
+                    "duration": "PT{{ item.audiometa.duration_seconds }}S"{% endif %}
+                }
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]{% endif %}
+    },
+    "publisher": {
+        "@type": "Organization",
+        "name": "{% trans 'Coptic Orthodox Church' %}",
+        "url": "{{ request.scheme }}://{{ request.get_host }}"
+    },
+    "inLanguage": "{{ LANGUAGE_CODE }}"
+}
+</script>
+
+<!-- Additional SEO -->
+<meta name="author" content="{% trans 'Coptic Orthodox Church' %}">
+<meta name="robots" content="index, follow, max-snippet:-1">
+<meta name="content-language" content="{{ LANGUAGE_CODE }}">
+
+<!-- Pagination Meta (if applicable) -->
+{% if is_paginated %}
+    {% if page_obj.has_previous %}
+        <link rel="prev" href="?page={{ page_obj.previous_page_number }}">
+    {% endif %}
+    {% if page_obj.has_next %}
+        <link rel="next" href="?page={{ page_obj.next_page_number }}">
+    {% endif %}
+{% endif %}

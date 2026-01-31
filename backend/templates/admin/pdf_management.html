@@ -108,7 +108,7 @@
                         </td>
                         <td class="py-3">
                             {% if pdf.pdfmeta.page_count %}
-                                <span class="badge bg-info bg-opacity-15 text-info px-3 py-2 rounded-pill">
+                                <span class="badge bg-info bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-file-earmark-text me-1"></i>{{ pdf.pdfmeta.page_count }} {% trans "pages" %}
                                 </span>
                             {% else %}
@@ -117,7 +117,7 @@
                         </td>
                         <td class="py-3">
                             {% if pdf.file.size %}
-                                <span class="badge bg-secondary bg-opacity-15 text-secondary px-3 py-2 rounded-pill">
+                                <span class="badge bg-secondary bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-hdd me-1"></i>{{ pdf.file.size|filesizeformat }}
                                 </span>
                             {% else %}
@@ -126,11 +126,11 @@
                         </td>
                         <td class="py-3">
                             {% if pdf.is_active %}
-                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
+                                <span class="badge bg-success bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
                                 </span>
                             {% else %}
-                                <span class="badge bg-warning bg-opacity-15 text-warning px-3 py-2 rounded-pill">
+                                <span class="badge bg-warning bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
                                 </span>
                             {% endif %}

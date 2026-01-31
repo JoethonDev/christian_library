@@ -90,7 +90,13 @@ class MediaUploadService:
         title_en: str = "",
         description_ar: str = "",
         description_en: str = "",
-        tag_ids: Optional[list] = None
+        tag_ids: Optional[list] = None,
+        seo_keywords_ar: str = "",
+        seo_keywords_en: str = "",
+        seo_meta_description_ar: str = "",
+        seo_meta_description_en: str = "",
+        seo_title_suggestions: str = "",
+        structured_data: str = ""
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process video file
@@ -102,6 +108,12 @@ class MediaUploadService:
             description_ar: Arabic description
             description_en: English description
             tag_ids: List of tag UUIDs
+            seo_keywords_ar: Arabic SEO keywords
+            seo_keywords_en: English SEO keywords
+            seo_meta_description_ar: Arabic meta description
+            seo_meta_description_en: English meta description
+            seo_title_suggestions: JSON string of title suggestions
+            structured_data: JSON string of structured data
             
         Returns:
             Tuple of (success, message, content_item)
@@ -120,7 +132,13 @@ class MediaUploadService:
                     description_ar=description_ar,
                     title_en=title_en,
                     description_en=description_en,
-                    tag_ids=tag_ids
+                    tag_ids=tag_ids,
+                    seo_keywords_ar=seo_keywords_ar,
+                    seo_keywords_en=seo_keywords_en,
+                    seo_meta_description_ar=seo_meta_description_ar,
+                    seo_meta_description_en=seo_meta_description_en,
+                    seo_title_suggestions=seo_title_suggestions,
+                    structured_data=structured_data
                 )
                 
                 # Save file and get or create video meta
@@ -162,7 +180,13 @@ class MediaUploadService:
         description_ar: str = "",
         title_en: str = "",
         description_en: str = "",
-        tag_ids: Optional[list] = None
+        tag_ids: Optional[list] = None,
+        seo_keywords_ar: str = "",
+        seo_keywords_en: str = "",
+        seo_meta_description_ar: str = "",
+        seo_meta_description_en: str = "",
+        seo_title_suggestions: str = "",
+        structured_data: str = ""
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process audio file
@@ -191,7 +215,13 @@ class MediaUploadService:
                     description_ar=description_ar,
                     title_en=title_en,
                     description_en=description_en,
-                    tag_ids=tag_ids
+                    tag_ids=tag_ids,
+                    seo_keywords_ar=seo_keywords_ar,
+                    seo_keywords_en=seo_keywords_en,
+                    seo_meta_description_ar=seo_meta_description_ar,
+                    seo_meta_description_en=seo_meta_description_en,
+                    seo_title_suggestions=seo_title_suggestions,
+                    structured_data=structured_data
                 )
                 print(f"Created content item with ID: {content_item.id}")
                 # Save file and get or create audio meta
@@ -236,7 +266,13 @@ class MediaUploadService:
         description_ar: str = "",
         title_en: str = "",
         description_en: str = "",
-        tag_ids: Optional[list] = None
+        tag_ids: Optional[list] = None,
+        seo_keywords_ar: str = "",
+        seo_keywords_en: str = "",
+        seo_meta_description_ar: str = "",
+        seo_meta_description_en: str = "",
+        seo_title_suggestions: str = "",
+        structured_data: str = ""
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process PDF file
@@ -266,7 +302,13 @@ class MediaUploadService:
                     description_ar=description_ar,
                     title_en=title_en,
                     description_en=description_en,
-                    tag_ids=tag_ids
+                    tag_ids=tag_ids,
+                    seo_keywords_ar=seo_keywords_ar,
+                    seo_keywords_en=seo_keywords_en,
+                    seo_meta_description_ar=seo_meta_description_ar,
+                    seo_meta_description_en=seo_meta_description_en,
+                    seo_title_suggestions=seo_title_suggestions,
+                    structured_data=structured_data
                 )
                 
                 # Save file and get or create PDF meta

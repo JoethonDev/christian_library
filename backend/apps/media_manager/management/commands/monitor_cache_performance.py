@@ -5,7 +5,7 @@ Usage: python manage.py monitor_cache_performance
 
 from django.core.management.base import BaseCommand
 from django.core.cache import caches
-from core.utils.cache_utils import phase4_cache
+from core.utils.cache_utils import cache_invalidator
 import json
 from datetime import datetime
 
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         
         if options['clear']:
             self.stdout.write(self.style.WARNING('Clearing all caches...'))
-            phase4_cache.clear_all_caches()
+            cache_invalidator.clear_all_caches()
             self.stdout.write(self.style.SUCCESS('All caches cleared'))
             return
         
@@ -41,7 +41,7 @@ class Command(BaseCommand):
         )
         
         # Get cache statistics
-        cache_stats = phase4_cache.get_cache_stats()
+        cache_stats = cache_invalidator.get_cache_stats()
         
         if options['format'] == 'json':
             self._output_json(cache_stats)

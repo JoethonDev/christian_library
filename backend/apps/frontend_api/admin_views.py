@@ -3,6 +3,8 @@ Admin Views for Content Management
 Handles all administrative operations with full RTL/LTR and localization support
 """
 import json
+import os
+import tempfile
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, Http404
 from django.contrib import messages
@@ -19,7 +21,7 @@ from apps.media_manager.services.content_service import ContentService
 from apps.media_manager.services.upload_service import MediaUploadService
 from apps.media_manager.services.delete_service import MediaProcessingService
 from apps.media_manager.services.gemini_service import get_gemini_service
-# Save file temporarily
+import json
 import tempfile
 import os
 
@@ -85,11 +87,22 @@ def content_list(request):
     content_data = {
         'content_items': content_page,
         'total_count': paginator.count,
-        'current_page': content_page.number,
-        'total_pages': paginator.num_pages,
+        'number': content_page.number,
+        'num_pages': paginator.num_pages,
         'has_previous': content_page.has_previous(),
         'has_next': content_page.has_next(),
+        'has_pagination': paginator.num_pages > 1,
     }
+    
+    if content_page.has_previous():
+        content_data['previous_page_number'] = content_page.previous_page_number()
+    
+    if content_page.has_next():
+        content_data['next_page_number'] = content_page.next_page_number()
+        
+    # Add pagination indexes for display
+    content_data['start_index'] = (content_page.number - 1) * 20 + 1
+    content_data['end_index'] = min(content_page.number * 20, paginator.count)
     
     context = {
         'content_data': content_data,
@@ -131,6 +144,9 @@ def upload_content(request):
 @login_required
 def handle_content_upload(request):
     """Handle file upload with validation and processing"""
+    # Check if this is an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     try:
         # Extract form data
         title_ar = request.POST.get('title_ar', '').strip()
@@ -140,13 +156,27 @@ def handle_content_upload(request):
         content_type = request.POST.get('content_type', 'video')
         tags_str = request.POST.get('tags', '').strip()
         
+        # Extract SEO metadata
+        seo_keywords_ar = request.POST.get('seo_keywords_ar', '').strip()
+        seo_keywords_en = request.POST.get('seo_keywords_en', '').strip()
+        seo_meta_description_ar = request.POST.get('seo_meta_description_ar', '').strip()
+        seo_meta_description_en = request.POST.get('seo_meta_description_en', '').strip()
+        seo_title_suggestions = request.POST.get('seo_title_suggestions', '').strip()
+        structured_data = request.POST.get('structured_data', '').strip()
+        
         # Validate required fields
         if not title_ar:
-            messages.error(request, _('Arabic title is required'))
+            error_msg = str(_('Arabic title is required'))
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
             return redirect('frontend_api:upload_content')
         
         if 'file' not in request.FILES:
-            messages.error(request, _('Please select a file to upload'))
+            error_msg = str(_('Please select a file to upload'))
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
             return redirect('frontend_api:upload_content')
         
         file = request.FILES['file']
@@ -160,53 +190,81 @@ def handle_content_upload(request):
         
         file_ext = file.name.lower().split('.')[-1]
         if f'.{file_ext}' not in valid_extensions.get(content_type, []):
-            messages.error(request, _('Invalid file type for selected content type'))
+            error_msg = str(_('Invalid file type for selected content type'))
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
             return redirect('frontend_api:upload_content')
         
         # Process tags - convert tag names to tag IDs
         tags = [tag.strip() for tag in tags_str.split(',') if tag.strip()] if tags_str else []
         tag_ids = []
         if tags:
+            from ..media_manager.models import Tag
             for tag_name in tags:
                 tag_name = tag_name.strip()
                 if tag_name:
                     tag, created = Tag.objects.get_or_create(
                         name_ar=tag_name,
-                        defaults={'name_en': tag_name, 'color': '#B8860B'}
+                        defaults={'name_en': tag_name, 'is_active': True, 'color': '#B8860B'}
                     )
                     tag_ids.append(str(tag.id))
+        
         # Upload based on content type
         if content_type == 'video':
             success, message, content_item = MediaUploadService.upload_video(
-                file, title_ar, title_en, description_ar, description_en, tag_ids
+                file, title_ar, title_en, description_ar, description_en, tag_ids,
+                seo_keywords_ar, seo_keywords_en, seo_meta_description_ar, 
+                seo_meta_description_en, seo_title_suggestions, structured_data
             )
         elif content_type == 'audio':
             success, message, content_item = MediaUploadService.upload_audio(
-                file, title_ar, description_ar, title_en, description_en, tag_ids
+                file, title_ar, description_ar, title_en, description_en, tag_ids,
+                seo_keywords_ar, seo_keywords_en, seo_meta_description_ar, 
+                seo_meta_description_en, seo_title_suggestions, structured_data
             )
         elif content_type == 'pdf':
             success, message, content_item = MediaUploadService.upload_pdf(
-                file, title_ar, description_ar, title_en, description_en, tag_ids
+                file, title_ar, description_ar, title_en, description_en, tag_ids,
+                seo_keywords_ar, seo_keywords_en, seo_meta_description_ar, 
+                seo_meta_description_en, seo_title_suggestions, structured_data
             )
         else:
-            success, message, content_item = False, _('Invalid content type'), None
+            error_msg = str(_('Invalid content type'))
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg})
+            messages.error(request, error_msg)
+            return redirect('frontend_api:upload_content')
         
         if success:
+            if is_ajax:
+                return JsonResponse({
+                    'success': True, 
+                    'message': str(message),
+                    'redirect_url': f'/admin/content/{content_item.id}/'
+                })
             messages.success(request, message)
             return redirect('frontend_api:admin_content_detail', content_id=content_item.id)
         else:
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': str(message)})
             messages.error(request, message)
             
     except Exception as e:
-        messages.error(request, f"{_('Upload failed')}: {str(e)}")
+        error_msg = f"{str(_('Upload failed'))}: {str(e)}"
+        if is_ajax:
+            return JsonResponse({'success': False, 'error': error_msg})
+        messages.error(request, error_msg)
     
+    if is_ajax:
+        return JsonResponse({'success': False, 'error': str(_('Unknown error occurred'))})
     return redirect('frontend_api:upload_content')
 
 
 @login_required
 @require_POST  
 def generate_content_metadata(request):
-    """Generate content metadata using Gemini AI"""
+    """Generate complete content and SEO metadata using Gemini AI"""
     try:
         # Get uploaded file from request
         if 'file' not in request.FILES:
@@ -235,7 +293,7 @@ def generate_content_metadata(request):
             temp_file_path = temp_file.name
         
         try:
-            # Get Gemini service and generate metadata
+            # Get Gemini service and generate complete metadata
             gemini_service = get_gemini_service()
             
             if not gemini_service.is_available():
@@ -244,7 +302,7 @@ def generate_content_metadata(request):
                     'error': _('AI service is not available. Please try again later.')
                 })
             
-            success, metadata = gemini_service.generate_content_metadata(temp_file_path, content_type)
+            success, metadata = gemini_service.generate_complete_metadata(temp_file_path, content_type)
             
             if success:
                 return JsonResponse({
@@ -320,6 +378,11 @@ def handle_content_update(request, content_item):
             content_item.tags.clear()
             tags = [tag.strip() for tag in tags_str.split(',') if tag.strip()]
             for tag_name in tags:
+                tag, created = Tag.objects.get_or_create(
+                    name_ar=tag_name,
+                    defaults={'name_en': tag_name, 'is_active': True}
+                )
+                content_item.tags.add(tag)
                 tag, created = Tag.objects.get_or_create(
                     name_ar=tag_name,
                     defaults={'name_en': tag_name}
@@ -517,7 +580,11 @@ def bulk_operations(request):
     if request.method == 'POST':
         return handle_bulk_operation(request)
     
+    # Get all content for bulk operations
+    content_items = ContentItem.objects.filter(is_active=True).prefetch_related('tags')
+    
     context = {
+        'content_items': content_items,
         'current_language': current_language,
     }
     
@@ -538,32 +605,29 @@ def handle_bulk_operation(request):
     success_count = 0
     error_count = 0
     
-    from apps.media_manager.services import MediaProcessingService
     try:
-        if operation == 'delete':
-            media_service = MediaProcessingService()
-            for content_id in content_ids:
-                try:
-                    content_item = ContentItem.objects.get(id=content_id)
-                    success, _ = media_service.delete_content(content_item)
-                    if success:
-                        success_count += 1
-                    else:
-                        error_count += 1
-                except:
-                    error_count += 1
+        if operation == 'activate':
+            updated = ContentItem.objects.filter(id__in=content_ids).update(is_active=True)
+            success_count = updated
+            messages.success(request, f'Activated {success_count} items')
+            
         elif operation == 'deactivate':
-            ContentItem.objects.filter(id__in=content_ids).update(is_active=False)
-            success_count = len(content_ids)
-        elif operation == 'activate':
-            ContentItem.objects.filter(id__in=content_ids).update(is_active=True)
-            success_count = len(content_ids)
-        if success_count > 0:
-            messages.success(request, f"{_('Operation completed')}: {success_count} {_('items processed')}")
-        if error_count > 0:
-            messages.warning(request, f"{error_count} {_('items failed to process')}")
+            updated = ContentItem.objects.filter(id__in=content_ids).update(is_active=False)
+            success_count = updated
+            messages.success(request, f'Deactivated {success_count} items')
+            
+        elif operation == 'delete':
+            # Soft delete by marking as inactive
+            updated = ContentItem.objects.filter(id__in=content_ids).update(is_active=False)
+            success_count = updated
+            messages.success(request, f'Deleted {success_count} items')
+            
+        else:
+            messages.error(request, _('Invalid operation'))
+            
     except Exception as e:
-        messages.error(request, f"{_('Bulk operation failed')}: {str(e)}")
+        messages.error(request, f'Operation failed: {str(e)}')
+    
     return redirect('frontend_api:bulk_operations')
 
 

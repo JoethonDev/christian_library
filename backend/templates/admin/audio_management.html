@@ -102,7 +102,7 @@
                         </td>
                         <td class="py-3">
                             {% if audio.audiometa.duration %}
-                                <span class="badge bg-info bg-opacity-15 text-info px-3 py-2 rounded-pill">
+                                <span class="badge bg-info bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-clock me-1"></i>{{ audio.audiometa.duration }}
                                 </span>
                             {% else %}
@@ -111,11 +111,11 @@
                         </td>
                         <td class="py-3">
                             {% if audio.is_active %}
-                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
+                                <span class="badge bg-success bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
                                 </span>
                             {% else %}
-                                <span class="badge bg-warning bg-opacity-15 text-warning px-3 py-2 rounded-pill">
+                                <span class="badge bg-warning bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
                                 </span>
                             {% endif %}

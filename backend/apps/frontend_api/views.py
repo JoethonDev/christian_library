@@ -13,7 +13,7 @@ from rest_framework.decorators import api_view
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchHeadline
 
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
-from core.utils.cache_utils import phase4_cache
+from core.utils.cache_utils import cache_invalidator
 
 
 def home(request):
@@ -21,7 +21,7 @@ def home(request):
     current_language = get_language()
     
     # Phase 4: Try to get cached statistics first
-    stats = phase4_cache.get_home_statistics()
+    stats = cache_invalidator.get_home_statistics()
     if stats is None:
         # OPTIMIZATION: Use single query with subquery to get aggregate stats efficiently  
         from django.db.models import Case, When, IntegerField
@@ -36,11 +36,11 @@ def home(request):
         stats_query['total_tags'] = tag_count
         stats = stats_query
         
-        # Cache the statistics for 15 minutes
-        phase4_cache.set_home_statistics(stats, timeout=900)
+        # Cache the statistics using new caching approach
+        cache_invalidator.set_home_statistics(stats)
     
     # Phase 4: Try to get cached popular tags
-    popular_tags = phase4_cache.get_popular_tags(limit=8)
+    popular_tags = cache_invalidator.get_popular_tags(limit=8)
     if popular_tags is None:
         # OPTIMIZATION: More efficient popular tags query with better indexing hint
         popular_tags = Tag.objects.filter(
@@ -55,8 +55,8 @@ def home(request):
             tag.name = tag.get_name(current_language)
             popular_tags_list.append(tag)
         
-        # Cache popular tags for 1 hour
-        phase4_cache.set_popular_tags(popular_tags_list, limit=8, timeout=3600)
+        # Cache popular tags using new caching approach
+        cache_invalidator.set_popular_tags(popular_tags_list, limit=8)
         popular_tags = popular_tags_list
     else:
         # Apply language preferences to cached tags
@@ -386,7 +386,7 @@ def pdf_detail(request, pdf_uuid):
     pdf.description = pdf.get_description(current_language)
     
     # Phase 4: Try to get cached related content first
-    related_pdfs = phase4_cache.get_related_content(str(pdf_uuid), 'pdf')
+    related_pdfs = cache_invalidator.get_related_content(str(pdf_uuid), 'pdf')
     if related_pdfs is None:
         # OPTIMIZATION: More efficient related PDFs query - avoid complex subquery from metrics  
         # Get tag IDs first, then use them in a simpler query
@@ -413,8 +413,8 @@ def pdf_detail(request, pdf_uuid):
             item.description = item.get_description(current_language)
             related_pdfs.append(item)
         
-        # Cache related content for 30 minutes
-        phase4_cache.set_related_content(str(pdf_uuid), 'pdf', related_pdfs, timeout=1800)
+        # Cache related content using new caching approach
+        cache_invalidator.set_related_content(str(pdf_uuid), 'pdf', related_pdfs)
     else:
         # Apply language preferences to cached items
         for item in related_pdfs:

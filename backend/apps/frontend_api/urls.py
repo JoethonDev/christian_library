@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import admin_views
+from . import seo_views
 
 app_name = 'frontend_api'
 
@@ -53,6 +54,12 @@ urlpatterns = [
     # System management
     path('admin/system/', admin_views.system_monitor, name='system_monitor'),
     path('admin/bulk/', admin_views.bulk_operations, name='bulk_operations'),
+    
+    # SEO Dashboard (New)
+    path('admin/seo/', seo_views.SEODashboardView.as_view(), name='seo_dashboard'),
+    path('admin/seo/analytics-api/', seo_views.seo_analytics_api, name='seo_analytics_api'),
+    path('admin/seo/content-analysis-api/', seo_views.seo_content_analysis_api, name='seo_content_analysis_api'),
+    path('admin/seo/bulk-actions-api/', seo_views.bulk_seo_actions_api, name='bulk_seo_actions_api'),
     
     # Legacy admin interfaces (keeping for backward compatibility)
     path('admin-dashboard/', admin_views.admin_dashboard, name='admin_dashboard_legacy'),

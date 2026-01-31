@@ -109,7 +109,7 @@
                         </td>
                         <td class="py-3">
                             {% if video.videometa.duration_seconds %}
-                                <span class="badge bg-info bg-opacity-15 text-info px-3 py-2 rounded-pill">
+                                <span class="badge bg-info bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-stopwatch me-1"></i>{{ video.videometa.duration_seconds }}s
                                 </span>
                             {% else %}
@@ -118,11 +118,11 @@
                         </td>
                         <td class="py-3">
                             {% if video.videometa.processing_status == 'completed' %}
-                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
+                                <span class="badge bg-success bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
                                 </span>
                             {% elif video.videometa.processing_status == 'processing' %}
-                                <span class="badge bg-warning bg-opacity-15 text-warning px-3 py-2 rounded-pill">
+                                <span class="badge bg-warning bg-opacity-15 text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-arrow-clockwise me-1 spin"></i>{% trans "Processing" %}
                                 </span>
                             {% else %}

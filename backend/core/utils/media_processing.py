@@ -58,6 +58,18 @@ def validate_dependencies(required_commands: list) -> None:
         )
 
 
+def check_dependencies() -> list:
+    """Check all media processing dependencies and return list of missing ones"""
+    required_deps = ['ffmpeg', 'ffprobe', 'gs', 'pdfinfo', 'convert']
+    missing = []
+    
+    for cmd in required_deps:
+        if not check_dependency(cmd):
+            missing.append(cmd)
+    
+    return missing
+
+
 class MediaProcessor:
     """Base class for media processing operations"""
     

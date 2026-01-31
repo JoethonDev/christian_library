@@ -2,7 +2,11 @@
 {% extends "base.html" %}
 {% load i18n %}
 
-{% block title %}{% trans "Books & PDFs" %} - {% trans "Christian Library" %}{% endblock %}
+{% block title %}{% trans "PDF Library" %} - {% trans "Christian Library" %}{% endblock %}
+
+{% block meta %}
+    {% include "includes/seo_listing_meta.html" with content_type="pdf" page_title="PDF Library - Christian Orthodox Books" page_description="Read spiritual books, religious texts, and theological documents from the Coptic Orthodox Church. Downloadable PDFs with Arabic and English support." content_items=pdfs %}
+{% endblock %}
 
 {% block content %}
 <!-- Header Section -->

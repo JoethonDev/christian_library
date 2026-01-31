@@ -6,7 +6,7 @@ Usage: python manage.py warmup_caches
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from apps.media_manager.services.content_service import ContentService
-from core.utils.cache_utils import phase4_cache
+from core.utils.cache_utils import cache_invalidator
 import time
 
 
@@ -50,7 +50,7 @@ class Command(BaseCommand):
         """Warm up statistics caches"""
         
         # Home page statistics
-        if force or phase4_cache.get_home_statistics() is None:
+        if force or cache_invalidator.get_home_statistics() is None:
             # Trigger the cached function to populate cache
             from apps.frontend_api.views import home
             from django.test import RequestFactory
@@ -79,7 +79,7 @@ class Command(BaseCommand):
             
             for pdf in recent_pdfs:
                 cache_key = f"related_content:{pdf.id}:pdf"
-                if force or phase4_cache.query_cache.get(cache_key) is None:
+                if force or cache_invalidator.query_cache.get(cache_key) is None:
                     # This would populate related content cache in a real view call
                     pass
             
@@ -91,7 +91,7 @@ class Command(BaseCommand):
         """Warm up tag-related caches"""
         try:
             # Warm up popular tags cache
-            if force or phase4_cache.get_popular_tags() is None:
+            if force or cache_invalidator.get_popular_tags() is None:
                 from apps.media_manager.models import Tag
                 from django.db.models import Count, Q
                 
@@ -102,7 +102,7 @@ class Command(BaseCommand):
                 ).order_by('-content_count')[:8]
                 
                 tags_list = list(popular_tags)  # Convert to list
-                phase4_cache.set_popular_tags(tags_list, limit=8, timeout=3600)
+                cache_invalidator.set_popular_tags(tags_list, limit=8, timeout=3600)
                 
                 self.stdout.write(f'  ✓ Popular tags cached ({len(tags_list)} tags)')
         except Exception as e:

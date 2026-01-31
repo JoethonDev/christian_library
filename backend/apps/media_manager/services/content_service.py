@@ -16,7 +16,7 @@ from core.utils.exceptions import (
     InvalidContentTypeError,
     MediaProcessingError
 )
-from core.utils.cache_utils import phase4_cache
+from core.utils.cache_utils import cache_invalidator, CacheInvalidation
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +103,13 @@ class ContentService:
         description_ar: str = "",
         title_en: str = "",
         description_en: str = "",
-        tag_ids: Optional[List[str]] = None
+        tag_ids: Optional[List[str]] = None,
+        seo_keywords_ar: str = "",
+        seo_keywords_en: str = "",
+        seo_meta_description_ar: str = "",
+        seo_meta_description_en: str = "",
+        seo_title_suggestions: str = "",
+        structured_data: str = ""
     ) -> ContentItem:
         """
         Create a new content item
@@ -115,6 +121,12 @@ class ContentService:
             title_en: English title
             description_en: English description
             tag_ids: List of tag UUIDs
+            seo_keywords_ar: Arabic SEO keywords (comma-separated)
+            seo_keywords_en: English SEO keywords (comma-separated)
+            seo_meta_description_ar: Arabic meta description for SEO
+            seo_meta_description_en: English meta description for SEO
+            seo_title_suggestions: JSON string of title suggestions
+            structured_data: JSON string of structured data
             
         Returns:
             ContentItem instance
@@ -130,7 +142,13 @@ class ContentService:
                     title_en=title_en,
                     description_ar=description_ar,
                     description_en=description_en,
-                    content_type=content_type
+                    content_type=content_type,
+                    seo_keywords_ar=seo_keywords_ar,
+                    seo_keywords_en=seo_keywords_en,
+                    seo_meta_description_ar=seo_meta_description_ar,
+                    seo_meta_description_en=seo_meta_description_en,
+                    seo_title_suggestions=seo_title_suggestions,
+                    structured_data=structured_data
                 )
                 
                 # Add tags if provided
@@ -212,13 +230,18 @@ class ContentService:
     @staticmethod
     def get_content_statistics() -> Dict:
         """
-        Get content statistics for dashboard - Phase 4: Cached for performance
+        Get content statistics for dashboard - Phase 4: High-value cache only
+        
+        PURPOSE: Expensive aggregate queries for admin dashboard
+        READ_FREQUENCY: Moderate (admin dashboard usage)  
+        INVALIDATION: On content create/update/delete via signals
+        TTL: 30 minutes (admin data, less critical freshness)
         
         Returns:
             Dictionary with content statistics
         """
         # Phase 4: Try to get cached statistics first
-        cached_stats = phase4_cache.get_content_statistics()
+        cached_stats = cache_invalidator.get_content_statistics()
         if cached_stats is not None:
             return cached_stats
         
@@ -248,10 +271,30 @@ class ContentService:
         # Combine results
         content_stats.update(processing_stats)
         
-        # Cache the statistics for 30 minutes
-        phase4_cache.set_content_statistics(content_stats, timeout=1800)
+        # Cache with explicit TTL using new caching approach
+        cache_invalidator.set_content_statistics(content_stats)
         
         return content_stats
+    
+    @staticmethod
+    def delete_content_item(content_id: str) -> bool:
+        """
+        Soft delete content item and invalidate related caches
+        """
+        try:
+            content_item = ContentService.get_content_by_id(content_id)
+            content_item.is_active = False
+            content_item.save()
+            
+            # Invalidate caches when content changes
+            CacheInvalidation.invalidate_content_stats(content_id)
+            
+            logger.info(f"Deleted content item {content_item.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error deleting content item {content_id}: {str(e)}")
+            raise
 
 
 class MediaMetaService:

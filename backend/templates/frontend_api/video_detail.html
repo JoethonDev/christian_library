@@ -3,7 +3,17 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{{ video.title }} - {% trans "Videos" %} - {% trans "Christian Library" %}{% endblock %}
+{% block title %}
+{% if LANGUAGE_CODE == 'ar' %}
+{{ video.title_ar_display }} - {% trans "Videos" %} - {% trans "Christian Library" %}
+{% else %}
+{{ video.title_en_display }} - {% trans "Videos" %} - {% trans "Christian Library" %}
+{% endif %}
+{% endblock %}
+
+{% block meta %}
+    {% include "includes/seo_meta.html" with content_item=video %}
+{% endblock %}
 
 {% block content %}
 <!-- Back Navigation -->
@@ -28,11 +38,13 @@
                     </div>
                     <div class="flex-grow-1">
                         <h1 class="heading-font text-maroon mb-3 fw-bold">
-                            {{ video.title }}
+                            {% if LANGUAGE_CODE == 'ar' %}{{ video.title_ar_display }}{% else %}{{ video.title_en_display }}{% endif %}
                         </h1>
                         
-                        {% if video.description %}
-                        <p class="body-font text-muted mb-4 lh-base">{{ video.description }}</p>
+                        {% if LANGUAGE_CODE == 'ar' and video.description_ar_display or LANGUAGE_CODE == 'en' and video.description_en_display %}
+                        <p class="body-font text-muted mb-4 lh-base">
+                            {% if LANGUAGE_CODE == 'ar' %}{{ video.description_ar_display }}{% else %}{{ video.description_en_display }}{% endif %}
+                        </p>
                         {% endif %}
                         
                         <!-- Video Metadata -->
@@ -127,10 +139,10 @@
                                     <div class="d-flex gap-3">
                                         <div class="flex-shrink-0">
                                             {% if item.videometa.thumbnail %}
-                                                <img src="{{ item.videometa.thumbnail.url }}" alt="{{ item.title }}" 
+                                                <img src="{{ item.videometa.thumbnail.url }}" alt="{% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}" 
                                                      class="rounded" style="width: 80px; height: 60px; object-fit: cover; border: 1px solid var(--color-golden-ochre);">
                                             {% elif item.thumbnail %}
-                                                <img src="{{ item.thumbnail.url }}" alt="{{ item.title }}" 
+                                                <img src="{{ item.thumbnail.url }}" alt="{% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}" 
                                                      class="rounded" style="width: 80px; height: 60px; object-fit: cover; border: 1px solid var(--color-golden-ochre);">
                                             {% else %}
                                                 <div class="d-flex align-items-center justify-content-center rounded" 
@@ -140,8 +152,12 @@
                                             {% endif %}
                                         </div>
                                         <div class="flex-grow-1 min-w-0">
-                                            <h6 class="heading-font text-maroon fw-bold mb-2 text-truncate">{{ item.title }}</h6>
-                                            <p class="body-font text-muted small mb-1 text-truncate">{{ item.description|truncatewords:8 }}</p>
+                                            <h6 class="heading-font text-maroon fw-bold mb-2 text-truncate">
+                                                {% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}
+                                            </h6>
+                                            <p class="body-font text-muted small mb-1 text-truncate">
+                                                {% if LANGUAGE_CODE == 'ar' %}{{ item.description_ar_display|truncatewords:8 }}{% else %}{{ item.description_en_display|truncatewords:8 }}{% endif %}
+                                            </p>
                                             {% if item.videometa.duration_seconds %}
                                             <div class="body-font text-muted small">
                                                 <i class="bi bi-clock text-golden me-1"></i>{{ item.videometa.get_duration_formatted }}
