@@ -6,7 +6,7 @@
 <div class="container-fluid px-2">
     <div class="row g-3">
         <!-- Admin Sidebar -->
-        <div class="col-lg-3 col-xl-2">
+        <div class="col-lg-4 col-xl-3">
             <div class="sticky-top" style="top: 20px; z-index: 1020;">
                 <div class="card card-coptic">
                     <!-- Admin Header -->
@@ -69,6 +69,12 @@
                             <small class="heading-font text-maroon fw-bold">{% trans "System" %}</small>
                         </div>
                         
+                        <a href="{% url 'frontend_api:seo_dashboard' %}" 
+                           class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center {% if 'seo' in request.path %}admin-active{% endif %}">
+                            <i class="bi bi-search me-3 text-golden" style="font-size: 1.1rem;"></i>
+                            <span class="body-font">{% trans "SEO Dashboard" %}</span>
+                        </a>
+                        
                         <a href="{% url 'frontend_api:bulk_operations' %}" 
                            class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center {% if 'bulk' in request.path %}admin-active{% endif %}">
                             <i class="bi bi-list-check me-3 text-golden" style="font-size: 1.1rem;"></i>
@@ -100,7 +106,7 @@
         </div>
 
         <!-- Admin Content Area -->
-        <div class="col-lg-9 col-xl-10">
+        <div class="col-lg-8 col-xl-9">
             <div class="card card-coptic h-100">
                 <div class="card-body p-4 p-md-5">
                     {% block admin_content %}{% endblock %}

@@ -5,7 +5,7 @@ Cache invalidation signals for automatic cache management.
 from django.db.models.signals import post_save, post_delete, pre_delete
 from django.dispatch import receiver
 from django.core.cache import cache
-from core.utils.cache_utils import CacheInvalidator
+from core.utils.cache_utils import cache_invalidator
 import logging
 
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
@@ -22,14 +22,14 @@ def invalidate_content_cache_on_save(sender, instance, created, **kwargs):
     logger.debug(f"Invalidating content caches for content item {instance.id}")
     
     # Invalidate content-specific caches
-    CacheInvalidator.invalidate_content_caches(instance.id)
+    cache_invalidator.invalidate_content_caches(instance.content_type)
     
     # Module functionality has been removed
     # if instance.module:
-    #     CacheInvalidator.invalidate_course_caches(instance.module.course.id)
+    #     cache_invalidator.invalidate_course_caches(instance.module.course.id)
     
     # Clear general navigation caches
-    CacheInvalidator.invalidate_navigation_caches()
+    cache_invalidator.invalidate_navigation_caches()
 
 
 @receiver(post_delete, sender=ContentItem)
@@ -37,11 +37,11 @@ def invalidate_content_cache_on_delete(sender, instance, **kwargs):
     """Invalidate content-related caches when content is deleted"""
     logger.debug(f"Invalidating content caches after deletion of content item {instance.id}")
     
-    CacheInvalidator.invalidate_content_caches()
+    cache_invalidator.invalidate_content_caches()
     
     # Module functionality has been removed
     # if instance.module:
-    #     CacheInvalidator.invalidate_course_caches(instance.module.course.id)
+    #     cache_invalidator.invalidate_course_caches(instance.module.course.id)
 
 
 # Media Meta Signals
@@ -79,7 +79,7 @@ def invalidate_tag_cache_on_save(sender, instance, created, **kwargs):
     cache.delete('tag_list_False_en')
     
     # Clear navigation caches
-    CacheInvalidator.invalidate_navigation_caches()
+    cache_invalidator.invalidate_navigation_caches()
 
 
 @receiver(post_delete, sender=Tag)
@@ -91,7 +91,7 @@ def invalidate_tag_cache_on_delete(sender, instance, **kwargs):
     cache.delete('tag_list_True_en') 
     cache.delete('tag_list_False_ar')
     cache.delete('tag_list_False_en')
-    CacheInvalidator.invalidate_navigation_caches()
+    cache_invalidator.invalidate_navigation_caches()
 
 
 # User Signals
@@ -99,9 +99,10 @@ def invalidate_tag_cache_on_delete(sender, instance, **kwargs):
 @receiver(post_save, sender=User)
 def invalidate_user_cache_on_save(sender, instance, created, **kwargs):
     """Invalidate user-related caches when user is saved"""
-    logger.debug(f"Invalidating user caches for user {instance.id}")
+    logger.debug(f"User {instance.id} saved - per-user caching disabled")
     
-    CacheInvalidator.invalidate_user_caches(instance.id)
+    # Note: Per-user caching removed in Phase 4 refactoring
+    # Use whole-view caching with @cache_page decorator instead
     
     # If content manager status changed, clear content manager cache
     if hasattr(instance, '_state') and not instance._state.adding:
@@ -117,9 +118,10 @@ def invalidate_user_cache_on_save(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=User)
 def invalidate_user_cache_on_delete(sender, instance, **kwargs):
     """Invalidate user-related caches when user is deleted"""
-    logger.debug(f"Invalidating user caches after deletion of user {instance.id}")
+    logger.debug(f"User {instance.id} deleted - per-user caching disabled")
     
-    CacheInvalidator.invalidate_user_caches()
+    # Note: Per-user caching removed in Phase 4 refactoring
+    # Use whole-view caching with @cache_page decorator instead
 
 
 # Bulk Operations Signals
@@ -138,11 +140,11 @@ def prepare_content_deletion(sender, instance, **kwargs):
 
 def warm_critical_caches():
     """Warm up critical application caches"""
-    from core.utils.cache_utils import CacheMonitor
+    from core.utils.cache_utils import CacheMonitoring
     
     logger.info("Starting cache warm-up process")
     try:
-        CacheMonitor.warm_up_caches()
+        CacheMonitoring.warm_up_caches()
         logger.info("Cache warm-up completed successfully")
     except Exception as e:
         logger.error(f"Cache warm-up failed: {str(e)}")

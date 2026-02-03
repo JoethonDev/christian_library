@@ -109,7 +109,7 @@
                         </td>
                         <td class="py-3">
                             {% if video.videometa.duration_seconds %}
-                                <span class="badge bg-info bg-opacity-15 text-info px-3 py-2 rounded-pill">
+                                <span class="badge bg-info text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-stopwatch me-1"></i>{{ video.videometa.duration_seconds }}s
                                 </span>
                             {% else %}
@@ -117,17 +117,33 @@
                             {% endif %}
                         </td>
                         <td class="py-3">
-                            {% if video.videometa.processing_status == 'completed' %}
-                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
+                            {% if video.live_task %}
+                                <div class="mb-1 d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ video.live_task.progress }}%
+                                    </span>
+                                    <span class="text-muted" style="font-size: 0.7rem;">{{ video.live_task.step }}</span>
+                                </div>
+                                <div class="progress" style="height: 4px; background-color: rgba(255,255,255,0.1);">
+                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                         style="width: {{ video.live_task.progress }}%" 
+                                         aria-valuenow="{{ video.live_task.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            {% elif video.processing_status == 'completed' %}
+                                <span class="badge bg-success text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
                                 </span>
-                            {% elif video.videometa.processing_status == 'processing' %}
-                                <span class="badge bg-warning bg-opacity-15 text-warning px-3 py-2 rounded-pill">
+                            {% elif video.processing_status == 'processing' %}
+                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
                                     <i class="bi bi-arrow-clockwise me-1 spin"></i>{% trans "Processing" %}
                                 </span>
+                            {% elif video.processing_status == 'failed' %}
+                                <span class="badge bg-danger text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Failed" %}
+                                </span>
                             {% else %}
-                                <span class="badge bg-secondary bg-opacity-15 text-secondary px-3 py-2 rounded-pill">
-                                    <i class="bi bi-pause-circle me-1"></i>{{ video.videometa.processing_status }}
+                                <span class="badge bg-secondary text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-pause-circle me-1"></i>{{ video.processing_status|title }}
                                 </span>
                             {% endif %}
                         </td>

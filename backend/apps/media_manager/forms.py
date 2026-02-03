@@ -10,7 +10,7 @@ class ContentItemForm(forms.ModelForm):
     class Meta:
         model = ContentItem
         fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 
-                 'content_type', 'module', 'tags', 'is_active']
+                 'content_type', 'tags', 'is_active']
         widgets = {
             'description_ar': forms.Textarea(attrs={'rows': 4}),
             'description_en': forms.Textarea(attrs={'rows': 4}),
@@ -24,6 +24,17 @@ class ContentItemForm(forms.ModelForm):
             if 'ar' in field_name:
                 field.widget.attrs['dir'] = 'rtl'
                 field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' text-right'
+
+    def clean_is_active(self):
+        is_active = self.cleaned_data.get('is_active')
+        if is_active:
+            # Check if processing is completed
+            if self.instance and self.instance.pk:
+                if self.instance.processing_status != 'completed':
+                    raise ValidationError(
+                        "This item cannot be activated until background processing is successfully completed."
+                    )
+        return is_active
 
 
 class VideoUploadForm(forms.ModelForm):

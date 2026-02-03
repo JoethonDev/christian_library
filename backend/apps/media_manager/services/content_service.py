@@ -16,7 +16,7 @@ from core.utils.exceptions import (
     InvalidContentTypeError,
     MediaProcessingError
 )
-from core.utils.cache_utils import phase4_cache
+from core.utils.cache_utils import cache_invalidator, CacheInvalidation
 
 logger = logging.getLogger(__name__)
 
@@ -27,20 +27,21 @@ class ContentService:
     @staticmethod
     def get_content_by_id(content_id: str, content_type: Optional[str] = None) -> ContentItem:
         """
-        Retrieve content by ID with optional type validation
+        Retrieve content by ID with optional type validation - optimized for zero N+1 queries
         
         Args:
             content_id: UUID string of the content item
             content_type: Optional type validation ('video', 'audio', 'pdf')
             
         Returns:
-            ContentItem instance
+            ContentItem instance with meta relationships loaded
             
         Raises:
             ContentNotFoundError: If content doesn't exist
             InvalidContentTypeError: If content type doesn't match
         """
         try:
+            # Use optimized QuerySet that loads meta relationships
             content_item = ContentItem.objects.with_meta().get(id=content_id, is_active=True)
             
             if content_type and content_item.content_type != content_type:
@@ -61,7 +62,7 @@ class ContentService:
         language: str = 'ar'
     ) -> List[ContentItem]:
         """
-        Get filtered list of content items
+        Get filtered list of content items - optimized for zero N+1 queries
         
         Args:
             content_type: Filter by content type
@@ -70,31 +71,71 @@ class ContentService:
             language: Language for search ('ar' or 'en')
             
         Returns:
-            List of ContentItem instances
+            List of ContentItem instances with meta relationships loaded
         """
-        queryset = ContentItem.objects.with_meta().filter(is_active=True)
+        # Start with optimized QuerySet that includes all relations
+        queryset = ContentItem.objects.for_listing(content_type)
         
-        if content_type:
-            queryset = queryset.filter(content_type=content_type)
-            
         if tag_ids:
             queryset = queryset.filter(tags__id__in=tag_ids).distinct()
             
         if search_query:
-            if language == 'ar':
-                queryset = queryset.filter(
-                    title_ar__icontains=search_query
-                ) | queryset.filter(
-                    description_ar__icontains=search_query
-                )
-            else:
-                queryset = queryset.filter(
-                    title_en__icontains=search_query
-                ) | queryset.filter(
-                    description_en__icontains=search_query
-                )
+            queryset = ContentItem.objects.search_optimized(search_query, content_type)
         
-        return queryset
+        return list(queryset)
+    
+    @staticmethod
+    def get_content_for_media_serving(content_id: str, content_type: str) -> ContentItem:
+        """
+        Get content optimized for media serving with all necessary relations loaded
+        
+        Args:
+            content_id: UUID string of the content item
+            content_type: Type of content for validation
+            
+        Returns:
+            ContentItem with meta relationships optimized for serving
+        """
+        try:
+            return ContentItem.objects.for_media_serving().get(
+                id=content_id, 
+                content_type=content_type,
+                is_active=True
+            )
+        except ContentItem.DoesNotExist:
+            raise ContentNotFoundError(f"Content with ID {content_id} not found for serving")
+    
+    @staticmethod
+    def get_ready_content_by_type(content_type: str):
+        """
+        Get all ready content of specific type in single optimized query
+        
+        Args:
+            content_type: Type of content ('video', 'audio', 'pdf')
+            
+        Returns:
+            QuerySet of ready content items
+        """
+        if content_type == 'video':
+            return ContentItem.objects.filter(
+                content_type='video',
+                videometa__processing_status='completed',
+                is_active=True
+            ).select_related('videometa').prefetch_related('tags')
+        elif content_type == 'audio':
+            return ContentItem.objects.filter(
+                content_type='audio',
+                audiometa__processing_status='completed',
+                is_active=True
+            ).select_related('audiometa').prefetch_related('tags')
+        elif content_type == 'pdf':
+            return ContentItem.objects.filter(
+                content_type='pdf',
+                pdfmeta__processing_status='completed',
+                is_active=True
+            ).select_related('pdfmeta').prefetch_related('tags')
+        else:
+            raise InvalidContentTypeError(f"Invalid content type: {content_type}")
     
     @staticmethod
     def create_content_item(
@@ -103,7 +144,13 @@ class ContentService:
         description_ar: str = "",
         title_en: str = "",
         description_en: str = "",
-        tag_ids: Optional[List[str]] = None
+        tag_ids: Optional[List[str]] = None,
+        seo_keywords_ar: str = "",
+        seo_keywords_en: str = "",
+        seo_meta_description_ar: str = "",
+        seo_meta_description_en: str = "",
+        seo_title_suggestions: str = "",
+        structured_data: str = ""
     ) -> ContentItem:
         """
         Create a new content item
@@ -115,6 +162,12 @@ class ContentService:
             title_en: English title
             description_en: English description
             tag_ids: List of tag UUIDs
+            seo_keywords_ar: Arabic SEO keywords (comma-separated)
+            seo_keywords_en: English SEO keywords (comma-separated)
+            seo_meta_description_ar: Arabic meta description for SEO
+            seo_meta_description_en: English meta description for SEO
+            seo_title_suggestions: JSON string of title suggestions
+            structured_data: JSON string of structured data
             
         Returns:
             ContentItem instance
@@ -130,7 +183,13 @@ class ContentService:
                     title_en=title_en,
                     description_ar=description_ar,
                     description_en=description_en,
-                    content_type=content_type
+                    content_type=content_type,
+                    seo_keywords_ar=seo_keywords_ar,
+                    seo_keywords_en=seo_keywords_en,
+                    seo_meta_description_ar=seo_meta_description_ar,
+                    seo_meta_description_en=seo_meta_description_en,
+                    seo_title_suggestions=seo_title_suggestions,
+                    structured_data=structured_data
                 )
                 
                 # Add tags if provided
@@ -212,13 +271,18 @@ class ContentService:
     @staticmethod
     def get_content_statistics() -> Dict:
         """
-        Get content statistics for dashboard - Phase 4: Cached for performance
+        Get content statistics for dashboard - Phase 4: High-value cache only
+        
+        PURPOSE: Expensive aggregate queries for admin dashboard
+        READ_FREQUENCY: Moderate (admin dashboard usage)  
+        INVALIDATION: On content create/update/delete via signals
+        TTL: 30 minutes (admin data, less critical freshness)
         
         Returns:
             Dictionary with content statistics
         """
         # Phase 4: Try to get cached statistics first
-        cached_stats = phase4_cache.get_content_statistics()
+        cached_stats = cache_invalidator.get_content_statistics()
         if cached_stats is not None:
             return cached_stats
         
@@ -248,41 +312,103 @@ class ContentService:
         # Combine results
         content_stats.update(processing_stats)
         
-        # Cache the statistics for 30 minutes
-        phase4_cache.set_content_statistics(content_stats, timeout=1800)
+        # Cache with explicit TTL using new caching approach
+        cache_invalidator.set_content_statistics(content_stats)
         
         return content_stats
+    
+    @staticmethod
+    def delete_content_item(content_id: str) -> bool:
+        """
+        Soft delete content item and invalidate related caches
+        """
+        try:
+            content_item = ContentService.get_content_by_id(content_id)
+            content_item.is_active = False
+            content_item.save()
+            
+            # Invalidate caches when content changes
+            CacheInvalidation.invalidate_content_stats(content_id)
+            
+            logger.info(f"Deleted content item {content_item.id}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error deleting content item {content_id}: {str(e)}")
+            raise
 
 
 class MediaMetaService:
-    """Service for managing media metadata"""
+    """Optimized service for managing media metadata with zero N+1 queries"""
     
     @staticmethod
     def get_video_meta(content_id: str) -> VideoMeta:
-        """Get video metadata for content item"""
+        """Get video metadata for content item with optimized query"""
         try:
-            content_item = ContentService.get_content_by_id(content_id, 'video')
-            return content_item.videometa
-        except AttributeError:
+            return VideoMeta.objects.with_content().get(content_item_id=content_id)
+        except VideoMeta.DoesNotExist:
             raise MediaProcessingError(f"Video metadata not found for content {content_id}")
     
     @staticmethod
     def get_audio_meta(content_id: str) -> AudioMeta:
-        """Get audio metadata for content item"""
+        """Get audio metadata for content item with optimized query"""
         try:
-            content_item = ContentService.get_content_by_id(content_id, 'audio')
-            return content_item.audiometa
-        except AttributeError:
+            return AudioMeta.objects.with_content().get(content_item_id=content_id)
+        except AudioMeta.DoesNotExist:
             raise MediaProcessingError(f"Audio metadata not found for content {content_id}")
     
     @staticmethod
     def get_pdf_meta(content_id: str) -> PdfMeta:
-        """Get PDF metadata for content item"""
+        """Get PDF metadata for content item with optimized query"""
         try:
-            content_item = ContentService.get_content_by_id(content_id, 'pdf')
-            return content_item.pdfmeta
-        except AttributeError:
+            return PdfMeta.objects.with_content().get(content_item_id=content_id)
+        except PdfMeta.DoesNotExist:
             raise MediaProcessingError(f"PDF metadata not found for content {content_id}")
+    
+    @staticmethod
+    def get_meta_by_content_type(content_id: str, content_type: str):
+        """Get meta object by content type - eliminates separate service calls"""
+        if content_type == 'video':
+            return MediaMetaService.get_video_meta(content_id)
+        elif content_type == 'audio':
+            return MediaMetaService.get_audio_meta(content_id)
+        elif content_type == 'pdf':
+            return MediaMetaService.get_pdf_meta(content_id)
+        else:
+            raise InvalidContentTypeError(f"Invalid content type: {content_type}")
+    
+    @staticmethod
+    def get_ready_for_streaming_videos():
+        """Get all videos ready for streaming in single query"""
+        return VideoMeta.objects.ready_for_streaming().with_content()
+    
+    @staticmethod
+    def get_ready_for_playback_audio():
+        """Get all audio ready for playback in single query"""
+        return AudioMeta.objects.ready_for_playback().with_content()
+    
+    @staticmethod
+    def get_ready_for_viewing_pdfs():
+        """Get all PDFs ready for viewing in single query"""
+        return PdfMeta.objects.ready_for_viewing().with_content()
+    
+    @staticmethod
+    def get_processing_statistics():
+        """Get comprehensive processing statistics in minimal queries"""
+        video_stats = VideoMeta.objects.get_streaming_stats()
+        audio_stats = AudioMeta.objects.get_audio_stats() 
+        pdf_stats = PdfMeta.objects.get_pdf_stats()
+        
+        return {
+            'videos': video_stats,
+            'audio': audio_stats,
+            'pdfs': pdf_stats,
+            'total_processing': (
+                video_stats['processing_videos'] + 
+                audio_stats['processing_audio'] + 
+                pdf_stats['processing_pdfs']
+            )
+        }
     
     @staticmethod
     def update_processing_status(

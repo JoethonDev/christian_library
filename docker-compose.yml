@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   #============================================================================
   # Database Service
@@ -14,7 +12,6 @@ services:
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -104,21 +101,9 @@ services:
       dockerfile: Dockerfile
       target: application
     restart: unless-stopped
+    env_file:
+      - .env
     command: ["worker"]
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
-      SECRET_KEY: ${SECRET_KEY:-your-very-secret-key-change-in-production}
-      DB_NAME: ${DB_NAME:-christian_library_db}
-      DB_USER: ${DB_USER:-christian_library_user}
-      DB_PASSWORD: ${DB_PASSWORD:-ChristianLibrary2024!}
-      DB_HOST: db
-      DB_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      MEDIA_ROOT: /app/media
     volumes:
       - media_data:/app/media
       - logs_data:/app/logs
@@ -137,20 +122,9 @@ services:
       dockerfile: Dockerfile
       target: application
     restart: unless-stopped
+    env_file:
+      - .env
     command: ["beat"]
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
-      SECRET_KEY: ${SECRET_KEY:-your-very-secret-key-change-in-production}
-      DB_NAME: ${DB_NAME:-christian_library_db}
-      DB_USER: ${DB_USER:-christian_library_user}
-      DB_PASSWORD: ${DB_PASSWORD:-ChristianLibrary2024!}
-      DB_HOST: db
-      DB_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
     volumes:
       - logs_data:/app/logs
     depends_on:

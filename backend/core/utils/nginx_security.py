@@ -38,15 +38,13 @@ class SecureMediaMixin:
     def serve_secure_media(self, file_path, download=False):
         """
         Serve media file securely using nginx X-Accel-Redirect.
+        Support serving from R2 via nginx proxy when local files are deleted.
         """
-        full_path = self.get_media_file_path(file_path)
+        # Security: Validate path
+        self.get_media_file_path(file_path)
         
-        # Check if file exists
-        if not full_path.exists():
-            raise Http404("File not found")
-        
-        # Get content type
-        content_type, _ = mimetypes.guess_type(str(full_path))
+        # Get content type (guess from filename)
+        content_type, _ = mimetypes.guess_type(str(file_path))
         if content_type is None:
             content_type = 'application/octet-stream'
         
@@ -56,26 +54,22 @@ class SecureMediaMixin:
         # Set nginx internal redirect header
         response['X-Accel-Redirect'] = self.get_nginx_internal_path(file_path)
         
-        # Get file size for Content-Length header
-        file_size = full_path.stat().st_size
-        
         # Set filename for downloads
+        filename = Path(file_path).name
         if download:
-            filename = full_path.name
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
         else:
             # For inline display (videos, audio, PDFs)
-            response['Content-Disposition'] = f'inline; filename="{full_path.name}"'
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
         
         # Set additional security headers
         response['X-Content-Type-Options'] = 'nosniff'
         response['X-Frame-Options'] = 'SAMEORIGIN'
         
-        # For streaming media, set proper headers for chunked delivery
+        # For streaming media
         if content_type.startswith(('video/', 'audio/')):
             response['Accept-Ranges'] = 'bytes'
             response['Cache-Control'] = 'private, max-age=3600'
-            response['Content-Length'] = str(file_size)
             
             # Enable chunked transfer encoding for streaming
             if not download:
@@ -83,7 +77,6 @@ class SecureMediaMixin:
         else:
             # For PDFs and other documents
             response['Cache-Control'] = 'private, max-age=7200'
-            response['Content-Length'] = str(file_size)
         
         return response
 
@@ -110,13 +103,11 @@ class SecureStreamView(SecureMediaMixin, View):
     
     def get(self, request, file_path):
         """Serve streaming media with range support."""
-        full_path = self.get_media_file_path(file_path)
-        
-        if not full_path.exists():
-            raise Http404("File not found")
+        # Security: Validate path
+        self.get_media_file_path(file_path)
         
         # Get content type
-        content_type, _ = mimetypes.guess_type(str(full_path))
+        content_type, _ = mimetypes.guess_type(str(file_path))
         
         # Allow HLS files (.m3u8 and .ts) and standard video/audio files
         if not content_type or not (content_type.startswith(('audio/', 'video/')) or 
@@ -134,9 +125,6 @@ class SecureStreamView(SecureMediaMixin, View):
         elif file_path.endswith('.ts'):
             content_type = 'video/mp2t'
         
-        # Get file size
-        file_size = full_path.stat().st_size
-        
         # Create response with streaming headers
         response = HttpResponse(content_type=content_type)
         
@@ -144,18 +132,17 @@ class SecureStreamView(SecureMediaMixin, View):
         response['X-Accel-Redirect'] = self.get_nginx_internal_path(file_path)
         
         # Different handling for HLS playlist vs segments
+        filename = Path(file_path).name
         if file_path.endswith('.m3u8'):
             # HLS playlists should be served complete without range requests
             response['Accept-Ranges'] = 'none'
             response['Cache-Control'] = 'private, no-cache, no-store, must-revalidate'
-            response['Content-Disposition'] = f'inline; filename="{full_path.name}"'
-            response['Content-Length'] = str(file_size)
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
         else:
             # For .ts segments and regular media files, enable range requests
             response['Accept-Ranges'] = 'bytes'
-            response['Content-Disposition'] = f'inline; filename="{full_path.name}"'
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
             response['Cache-Control'] = 'private, max-age=3600'
-            response['Content-Length'] = str(file_size)
             
             # Enable chunked transfer encoding for better streaming
             response['Transfer-Encoding'] = 'chunked'

@@ -9,6 +9,7 @@ from django.core.cache import cache
 import logging
 
 from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
+from .forms import ContentItemForm
 from .services import ContentService, MediaUploadService
 
 logger = logging.getLogger(__name__)
@@ -70,8 +71,15 @@ class TagAdmin(admin.ModelAdmin):
 class VideoMetaInline(admin.StackedInline):
     model = VideoMeta
     extra = 0
-    fields = ['original_file', 'duration_display', 'file_size_display', 'processing_status', 'hls_paths_display']
-    readonly_fields = ['duration_display', 'file_size_display', 'processing_status', 'hls_paths_display']
+    fields = [
+        'original_file', 'duration_display', 'file_size_display', 
+        'processing_status', 'hls_paths_display',
+        'r2_status_display', 'r2_files_display'
+    ]
+    readonly_fields = [
+        'duration_display', 'file_size_display', 'processing_status', 
+        'hls_paths_display', 'r2_status_display', 'r2_files_display'
+    ]
     
     def duration_display(self, obj):
         """Display formatted duration"""
@@ -86,6 +94,23 @@ class VideoMetaInline(admin.StackedInline):
             return f"{obj.file_size_mb} MB"
         return _('Unknown')
     file_size_display.short_description = _('File Size')
+    
+    def r2_status_display(self, obj):
+        """Display R2 upload status"""
+        return obj.get_r2_status_display()
+    r2_status_display.short_description = _('R2 Status')
+    
+    def r2_files_display(self, obj):
+        """Display R2 files status"""
+        files = []
+        if obj.r2_original_file_url:
+            files.append(f"<strong>Original:</strong> ✓")
+        if obj.r2_hls_720p_url:
+            files.append(f"<strong>720p HLS:</strong> ✓")
+        if obj.r2_hls_480p_url:
+            files.append(f"<strong>480p HLS:</strong> ✓")
+        return mark_safe("<br>".join(files)) if files else "No R2 files"
+    r2_files_display.short_description = _('R2 Files')
     
     def hls_paths_display(self, obj):
         """Display HLS paths with status"""
@@ -109,8 +134,15 @@ class VideoMetaInline(admin.StackedInline):
 class AudioMetaInline(admin.StackedInline):
     model = AudioMeta
     extra = 0
-    fields = ['original_file', 'compression_display', 'duration_display', 'bitrate_display', 'processing_status']
-    readonly_fields = ['compression_display', 'duration_display', 'bitrate_display', 'processing_status']
+    fields = [
+        'original_file', 'compression_display', 'duration_display', 
+        'bitrate_display', 'processing_status',
+        'r2_status_display', 'r2_files_display'
+    ]
+    readonly_fields = [
+        'compression_display', 'duration_display', 'bitrate_display', 
+        'processing_status', 'r2_status_display', 'r2_files_display'
+    ]
     
     def compression_display(self, obj):
         """Display compression status"""
@@ -124,6 +156,21 @@ class AudioMetaInline(admin.StackedInline):
             _('Original only')
         )
     compression_display.short_description = _('Compression Status')
+    
+    def r2_status_display(self, obj):
+        """Display R2 upload status"""
+        return obj.get_r2_status_display()
+    r2_status_display.short_description = _('R2 Status')
+    
+    def r2_files_display(self, obj):
+        """Display R2 files status"""
+        files = []
+        if obj.r2_original_file_url:
+            files.append(f"<strong>Original:</strong> ✓")
+        if obj.r2_compressed_file_url:
+            files.append(f"<strong>Compressed:</strong> ✓")
+        return mark_safe("<br>".join(files)) if files else "No R2 files"
+    r2_files_display.short_description = _('R2 Files')
     
     def duration_display(self, obj):
         """Display formatted duration"""
@@ -143,8 +190,14 @@ class AudioMetaInline(admin.StackedInline):
 class PdfMetaInline(admin.StackedInline):
     model = PdfMeta
     extra = 0
-    fields = ['original_file', 'optimization_display', 'file_info_display', 'processing_status']
-    readonly_fields = ['optimization_display', 'file_info_display', 'processing_status']
+    fields = [
+        'original_file', 'optimization_display', 'file_info_display', 
+        'processing_status', 'r2_status_display', 'r2_files_display'
+    ]
+    readonly_fields = [
+        'optimization_display', 'file_info_display', 'processing_status',
+        'r2_status_display', 'r2_files_display'
+    ]
     
     def optimization_display(self, obj):
         """Display optimization status"""
@@ -159,6 +212,21 @@ class PdfMetaInline(admin.StackedInline):
         )
     optimization_display.short_description = _('Optimization Status')
     
+    def r2_status_display(self, obj):
+        """Display R2 upload status"""
+        return obj.get_r2_status_display()
+    r2_status_display.short_description = _('R2 Status')
+    
+    def r2_files_display(self, obj):
+        """Display R2 files status"""
+        files = []
+        if obj.r2_original_file_url:
+            files.append(f"<strong>Original:</strong> ✓")
+        if obj.r2_optimized_file_url:
+            files.append(f"<strong>Optimized:</strong> ✓")
+        return mark_safe("<br>".join(files)) if files else "No R2 files"
+    r2_files_display.short_description = _('R2 Files')
+    
     def file_info_display(self, obj):
         """Display file information"""
         info = []
@@ -172,10 +240,11 @@ class PdfMetaInline(admin.StackedInline):
 
 @admin.register(ContentItem)
 class ContentItemAdmin(admin.ModelAdmin):
-    list_display = ['title_display', 'content_type_display', 'tags_display', 'status_display', 'is_active', 'created_at']
+    form = ContentItemForm
+    list_display = ['title_display', 'content_type_display', 'tags_display', 'seo_status_display', 'status_display', 'is_active', 'created_at']
     list_filter = ['content_type', 'is_active', 'created_at', 'tags']
-    search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en']
-    readonly_fields = ['id', 'created_at', 'updated_at', 'content_url']
+    search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 'seo_keywords_ar', 'seo_keywords_en']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'content_url', 'seo_metadata_preview']
     
     fieldsets = (
         (_('Basic Information'), {
@@ -183,6 +252,21 @@ class ContentItemAdmin(admin.ModelAdmin):
         }),
         (_('Classification'), {
             'fields': ('content_type', 'tags')
+        }),
+        (_('SEO Metadata (AI Generated)'), {
+            'fields': (
+                'tags_en', 
+                'seo_keywords_ar', 'seo_keywords_en',
+                'seo_meta_description_ar', 'seo_meta_description_en',
+                'seo_title_suggestions',
+                'seo_metadata_preview'
+            ),
+            'classes': ('collapse',),
+        }),
+        (_('Structured Data'), {
+            'fields': ('structured_data',),
+            'classes': ('collapse',),
+            'description': _('JSON-LD structured data for search engines. This field is automatically generated by AI.')
         }),
         (_('Status'), {
             'fields': ('is_active',)
@@ -300,7 +384,76 @@ class ContentItemAdmin(admin.ModelAdmin):
             _(f'Content item "{obj.get_title()}" has been {action} successfully.')
         )
     
-    actions = ['make_active', 'make_inactive', 'reprocess_media']
+    def seo_status_display(self, obj):
+        """Display SEO metadata status"""
+        if obj.has_seo_metadata():
+            keyword_count = len(obj.seo_keywords_ar) + len(obj.seo_keywords_en)
+            return format_html(
+                '<span style="color: green; font-weight: bold;">✓ SEO Ready</span><br>'
+                '<small>{} keywords</small>',
+                keyword_count
+            )
+        else:
+            return format_html(
+                '<span style="color: orange;">⚠ SEO Pending</span><br>'
+                '<small><a href="#" onclick="generateSEO({});">Generate</a></small>',
+                obj.pk
+            )
+    seo_status_display.short_description = _('SEO Status')
+    seo_status_display.allow_tags = True
+    
+    def seo_metadata_preview(self, obj):
+        """Display SEO metadata preview for admin"""
+        if not obj.has_seo_metadata():
+            return format_html(
+                '<div style="padding: 10px; background: #f9f9f9; border-radius: 4px;">'
+                '<p><strong>No SEO metadata generated yet</strong></p>'
+                '<p><em>Upload media files and they will be automatically processed by Gemini AI</em></p>'
+                '</div>'
+            )
+        
+        html_parts = []
+        
+        # Keywords
+        if obj.seo_keywords_ar:
+            html_parts.append(f'<h4>Arabic Keywords ({len(obj.seo_keywords_ar)})</h4>')
+            html_parts.append(f'<p>{", ".join(obj.seo_keywords_ar[:10])}{"..." if len(obj.seo_keywords_ar) > 10 else ""}</p>')
+        
+        if obj.seo_keywords_en:
+            html_parts.append(f'<h4>English Keywords ({len(obj.seo_keywords_en)})</h4>')
+            html_parts.append(f'<p>{", ".join(obj.seo_keywords_en[:10])}{"..." if len(obj.seo_keywords_en) > 10 else ""}</p>')
+        
+        # Meta descriptions
+        if obj.seo_meta_description_ar:
+            html_parts.append(f'<h4>Arabic Meta Description</h4>')
+            html_parts.append(f'<p><em>"{obj.seo_meta_description_ar}"</em> ({len(obj.seo_meta_description_ar)} chars)</p>')
+        
+        if obj.seo_meta_description_en:
+            html_parts.append(f'<h4>English Meta Description</h4>')
+            html_parts.append(f'<p><em>"{obj.seo_meta_description_en}"</em> ({len(obj.seo_meta_description_en)} chars)</p>')
+        
+        # Title suggestions
+        if obj.seo_title_suggestions:
+            html_parts.append(f'<h4>Title Suggestions</h4>')
+            html_parts.append('<ul>')
+            for title in obj.seo_title_suggestions:
+                html_parts.append(f'<li>{title}</li>')
+            html_parts.append('</ul>')
+        
+        # Structured data
+        if obj.structured_data:
+            html_parts.append(f'<h4>Structured Data</h4>')
+            html_parts.append(f'<p>Schema Type: <code>{obj.structured_data.get("@type", "Unknown")}</code></p>')
+            html_parts.append(f'<p>Fields: {", ".join(obj.structured_data.keys())}</p>')
+        
+        return format_html(
+            '<div style="max-width: 600px; font-size: 12px;">{}</div>',
+            ''.join(html_parts)
+        )
+    seo_metadata_preview.short_description = _('SEO Metadata Preview')
+    seo_metadata_preview.allow_tags = True
+
+    actions = ['make_active', 'make_inactive', 'reprocess_media', 'generate_seo_metadata']
     
     def make_active(self, request, queryset):
         """Bulk activate content"""
@@ -342,6 +495,26 @@ class ContentItemAdmin(admin.ModelAdmin):
         else:
             messages.warning(request, _('No items could be queued for reprocessing.'))
     reprocess_media.short_description = _('Reprocess selected media')
+    
+    def generate_seo_metadata(self, request, queryset):
+        """Generate SEO metadata for selected items"""
+        count = 0
+        for obj in queryset:
+            try:
+                # Check if media file exists
+                meta = obj.get_meta_object()
+                if meta and hasattr(meta, 'original_file') and meta.original_file:
+                    obj.generate_seo_metadata_async()
+                    count += 1
+                else:
+                    messages.warning(request, _(f'No media file found for "{obj.get_title()}"'))
+            except Exception as e:
+                logger.error(f"Error queuing SEO generation for {obj.id}: {str(e)}")
+                messages.error(request, _(f'Error queuing SEO for "{obj.get_title()}": {str(e)}'))
+                
+        if count > 0:
+            messages.success(request, _(f'{count} items queued for SEO metadata generation.'))
+    generate_seo_metadata.short_description = _('Generate SEO metadata')
 
 
 # Register individual meta models for direct access if needed

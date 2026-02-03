@@ -71,14 +71,8 @@
             <div class="coptic-audio-wrapper">
                 <audio id="audio-{{ audio.id }}" class="w-100" controls preload="metadata" controlsList="nodownload"
                        style="border-radius: 12px; height: 60px; background: var(--color-maroon-10); outline: none;">
-                    <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/mpeg">
-                    <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/wav">
-                    <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/ogg">
-                    <source src="{% url 'core_utils:secure_stream' file_path=audio.audiometa.get_playback_file %}" type="audio/mp4">
-                    <p class="body-font text-muted mb-0">{% trans "Your browser does not support the audio element. Please" %} 
-                       <a href="{% url 'core_utils:secure_media' file_path=audio.audiometa.get_playback_file %}?download=true" 
-                          class="text-golden text-decoration-none fw-medium">{% trans "download the audio file" %}</a>.
-                    </p>
+                    <source src="{{ audio.audiometa.get_best_streaming_url }}" type="audio/mpeg">
+                    <p class="body-font text-muted mb-0">{% trans "Your browser does not support the audio element." %}</p>
                 </audio>
                 
                 <!-- Audio Info -->

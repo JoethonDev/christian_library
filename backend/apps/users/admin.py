@@ -65,9 +65,7 @@ class UserAdmin(BaseUserAdmin):
     def get_queryset(self, request):
         """Optimize queryset with content statistics"""
         return super().get_queryset(request).annotate(
-            content_count=Count('contentitem', filter=Q(contentitem__is_active=True)),
-            course_count=Count('course', filter=Q(course__is_active=True)),
-            module_count=Count('module', filter=Q(module__is_active=True))
+            content_count=Count('contentitem', filter=Q(contentitem__is_active=True))
         )
     
     def name_display(self, obj):
@@ -112,23 +110,13 @@ class UserAdmin(BaseUserAdmin):
     def content_stats(self, obj):
         """Display content creation statistics"""
         content_count = getattr(obj, 'content_count', 0)
-        course_count = getattr(obj, 'course_count', 0)
-        module_count = getattr(obj, 'module_count', 0)
         
-        if not any([content_count, course_count, module_count]):
+        if not content_count:
             return format_html('<span style="color: gray;">-</span>')
         
-        stats = []
-        if course_count > 0:
-            stats.append(f"{course_count} {_('courses')}")
-        if module_count > 0:
-            stats.append(f"{module_count} {_('modules')}")
-        if content_count > 0:
-            stats.append(f"{content_count} {_('content')}")
-        
         return format_html(
-            '<span style="font-size: 11px;">{}</span>', 
-            ' | '.join(stats)
+            '<span style="font-size: 11px;">{} {}</span>', 
+            content_count, _('content')
         )
     content_stats.short_description = _('Content Statistics')
     

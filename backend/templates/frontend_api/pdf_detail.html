@@ -3,48 +3,16 @@
 {% load i18n %}
 {% get_current_language as LANGUAGE_CODE %}
 
-{% block title %}{{ pdf.title }} - {% trans "Books" %} - {% trans "Christian Library" %}{% endblock %}
+{% block title %}
+{% if LANGUAGE_CODE == 'ar' %}
+{{ pdf.title_ar_display }} - {% trans "Books" %} - {% trans "Christian Library" %}
+{% else %}
+{{ pdf.title_en_display }} - {% trans "Books" %} - {% trans "Christian Library" %}
+{% endif %}
+{% endblock %}
 
 {% block meta %}
-        {% if LANGUAGE_CODE == 'ar' %}
-                <meta name="description" content="{{ pdf.description|truncatechars:160 }}">
-                <meta name="keywords" content="{% if pdf.tags.all %}{% for tag in pdf.tags.all %}{{ tag.name }}, {% endfor %}{% endif %}كتاب, كتب, مكتبة, مسيحية">
-                <meta property="og:type" content="book" />
-                <meta property="og:title" content="{{ pdf.title }}" />
-                <meta property="og:description" content="{{ pdf.description|truncatechars:160 }}" />
-                <meta property="og:url" content="{{ request.build_absolute_uri }}" />
-                <meta property="og:site_name" content="{% trans 'Christian Library' %}" />
-                <script type="application/ld+json">
-                {
-                    "@context": "https://schema.org",
-                    "@type": "Book",
-                    "name": "{{ pdf.title }}",
-                    "description": "{{ pdf.description|truncatechars:160 }}",
-                    "inLanguage": "ar",
-                    "datePublished": "{{ pdf.created_at|date:'Y-m-d' }}",
-                    "url": "{{ request.build_absolute_uri }}"
-                }
-                </script>
-        {% else %}
-                <meta name="description" content="{{ pdf.description|truncatechars:160 }}">
-                <meta name="keywords" content="{% if pdf.tags.all %}{% for tag in pdf.tags.all %}{{ tag.name }}, {% endfor %}{% endif %}book, books, library, christian">
-                <meta property="og:type" content="book" />
-                <meta property="og:title" content="{{ pdf.title }}" />
-                <meta property="og:description" content="{{ pdf.description|truncatechars:160 }}" />
-                <meta property="og:url" content="{{ request.build_absolute_uri }}" />
-                <meta property="og:site_name" content="{% trans 'Christian Library' %}" />
-                <script type="application/ld+json">
-                {
-                    "@context": "https://schema.org",
-                    "@type": "Book",
-                    "name": "{{ pdf.title }}",
-                    "description": "{{ pdf.description|truncatechars:160 }}",
-                    "inLanguage": "en",
-                    "datePublished": "{{ pdf.created_at|date:'Y-m-d' }}",
-                    "url": "{{ request.build_absolute_uri }}"
-                }
-                </script>
-        {% endif %}
+    {% include "includes/seo_meta.html" with content_item=pdf %}
 {% endblock %}
 
 {% block content %}
@@ -67,29 +35,31 @@
             </div>
             <div class="col-md-8">
                 <h1 class="heading-font text-maroon mb-3 fw-bold">
-                    {{ pdf.title }}
+                    {% if LANGUAGE_CODE == 'ar' %}{{ pdf.title_ar_display }}{% else %}{{ pdf.title_en_display }}{% endif %}
                 </h1>
                 
-                {% if pdf.description %}
-                <p class="body-font text-muted mb-4 lh-base">{{ pdf.description }}</p>
+                {% if LANGUAGE_CODE == 'ar' and pdf.description_ar_display or LANGUAGE_CODE == 'en' and pdf.description_en_display %}
+                <p class="body-font text-muted mb-4 lh-base">
+                    {% if LANGUAGE_CODE == 'ar' %}{{ pdf.description_ar_display }}{% else %}{{ pdf.description_en_display }}{% endif %}
+                </p>
                 {% endif %}
                 
                 <!-- PDF Metadata -->
                 <div class="row g-3">
-                    {% if pdf.pdfs.first.pages %}
+                    {% if pdf.pdfmeta.page_count %}
                     <div class="col-auto">
                         <div class="d-flex align-items-center text-muted">
                             <i class="bi bi-file-earmark-text text-golden me-2"></i>
-                            <span class="body-font">{{ pdf.pdfs.first.pages }} {% trans "pages" %}</span>
+                            <span class="body-font">{{ pdf.pdfmeta.page_count }} {% trans "pages" %}</span>
                         </div>
                     </div>
                     {% endif %}
                     
-                    {% if pdf.file.size %}
+                    {% if pdf.pdfmeta.get_safe_file_size %}
                     <div class="col-auto">
                         <div class="d-flex align-items-center text-muted">
                             <i class="bi bi-hdd text-golden me-2"></i>
-                            <span class="body-font">{{ pdf.file.size|filesizeformat }}</span>
+                            <span class="body-font">{{ pdf.pdfmeta.get_safe_file_size|filesizeformat }}</span>
                         </div>
                     </div>
                     {% endif %}
@@ -123,8 +93,8 @@
                 </div>
             </div>
             <div class="col-md-2 text-end">
-                {% if pdf.file and pdf.file.name %}
-                    <a href="{% url 'core_utils:secure_media' file_path=pdf.file %}?download=true" target="_blank" 
+                {% if pdf.pdfmeta and pdf.pdfmeta.get_download_file %}
+                    <a href="{% url 'core_utils:secure_media' file_path=pdf.pdfmeta.get_download_file %}?download=true" target="_blank" 
                        class="btn btn-primary rounded-pill px-4 py-2">
                         <i class="bi bi-download me-2"></i>{% trans "Download" %}
                     </a>

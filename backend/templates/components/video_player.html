@@ -90,20 +90,22 @@
                    poster="{% if video.videometa.thumbnail %}{% url 'core_utils:secure_media' file_path=video.videometa.thumbnail %}{% endif %}">
                 
                 <!-- HLS and multiple source formats -->
-                {% if hls_playlist %}
-                    <source src="{% url 'core_utils:secure_stream' file_path=hls_playlist %}" type="application/vnd.apple.mpegurl">
-                {% elif video.videometa.original_file %}
-                    <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/mp4">
-                    <source src="{% url 'core_utils:secure_stream' file_path=video.videometa.original_file %}" type="video/webm">
-                {% endif %}
+                {% with best_url=video.videometa.get_best_streaming_url %}
+                <source src="{{ best_url }}" 
+                        type="{% if '.m3u8' in best_url or 'hls' in best_url %}application/vnd.apple.mpegurl{% else %}video/mp4{% endif %}">
+                {% endwith %}
                 
                 <!-- Accessibility and fallback -->
                 <p class="text-center text-muted p-4">
                     {% trans "Your browser does not support the video tag. Please" %}
+                    {% if video.videometa.get_playback_file %}
                     <a href="{% url 'core_utils:secure_media' file_path=video.videometa.get_playback_file %}?download=true" 
                        class="text-decoration-none" style="color: #B8860B;">
                         {% trans "download the video" %}
                     </a> {% trans "to view it offline." %}
+                    {% else %}
+                    {% trans "download the video manually." %}
+                    {% endif %}
                 </p>
             </video>
             
@@ -150,7 +152,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const videoSrc = video.querySelector('source[type="application/vnd.apple.mpegurl"]');
         
         if (videoSrc && typeof Hls !== 'undefined' && Hls.isSupported()) {
-            // HLS.js configuration optimized for mobile
             const hlsConfig = {
                 enableWorker: false,
                 defaultAudioCodec: 'mp4a.40.2',
@@ -172,7 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
             hls.attachMedia(video);
             
             hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
-                console.log('HLS manifest parsed for video {{ video.id }}');
                 if (hls.audioTracks && hls.audioTracks.length > 0) {
                     hls.audioTrack = 0;
                 }
@@ -181,7 +181,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
-            // Quality selector functionality
             if (qualitySelect) {
                 qualitySelect.addEventListener('change', function(e) {
                     const selectedQuality = this.value;
@@ -202,18 +201,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         newHls.loadSource(newSrc);
                         newHls.attachMedia(video);
                         hlsInstance = newHls;
-                        
-                        newHls.on(Hls.Events.MANIFEST_PARSED, function() {
-                            if (newHls.audioTracks && newHls.audioTracks.length > 0) {
-                                newHls.audioTrack = 0;
-                            }
-                        });
                     }
                 });
             }
             
             hls.on(Hls.Events.ERROR, function(event, data) {
-                console.error('HLS error for video {{ video.id }}:', data);
                 if (loadingOverlay) {
                     loadingOverlay.style.display = 'none';
                 }
@@ -232,14 +224,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } else if (videoSrc && video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS support
             video.src = videoSrc.src;
             if (qualitySelect) {
                 qualitySelect.disabled = true;
             }
         }
         
-        // Standard video event handlers
         video.addEventListener('loadeddata', function() {
             if (loadingOverlay) {
                 loadingOverlay.style.display = 'none';
@@ -247,21 +237,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         video.addEventListener('error', function() {
-            console.error('Video loading error for video {{ video.id }}');
             if (loadingOverlay) {
                 loadingOverlay.style.display = 'none';
             }
         });
-        
-        // Mobile-friendly touch controls
-        video.addEventListener('touchstart', function(e) {
-            // Prevent zoom on double-tap on mobile
-            e.preventDefault();
-        }, { passive: false });
     }
 });
 
-// Fullscreen toggle function
 function toggleFullscreen(videoId) {
     const video = document.getElementById(videoId);
     if (!video) return;
@@ -276,9 +258,7 @@ function toggleFullscreen(videoId) {
 }
 </script>
 
-<!-- Enhanced Video Player Styling -->
 <style>
-/* Mobile-first video player enhancements */
 .modern-video-player {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -293,7 +273,6 @@ function toggleFullscreen(videoId) {
     hyphens: auto;
 }
 
-/* Enhanced video controls */
 video::-webkit-media-controls-panel {
     background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
 }
@@ -302,215 +281,18 @@ video::-webkit-media-controls {
     border-radius: 0 0 24px 24px;
 }
 
-/* Quality selector styling */
 #quality-select option {
     background: #222;
     color: white;
     padding: 4px;
 }
 
-/* Responsive adjustments */
 @media (max-width: 768px) {
     .video-header {
         padding: 1rem !important;
     }
-    
-    .video-icon > div {
-        width: 48px !important;
-        height: 48px !important;
-        padding: 0.75rem !important;
-    }
-    
-    .video-icon i {
-        font-size: 1.2rem !important;
-    }
-    
-    .video-title {
-        font-size: 1rem !important;
-    }
-    
-    .video-metadata .small {
-        font-size: 0.75rem !important;
-    }
-    
     video {
         max-height: 60vh !important;
     }
 }
-
-@media (max-width: 576px) {
-    .video-metadata .d-flex {
-        flex-direction: column !important;
-        gap: 0.25rem !important;
-    }
-    
-    video {
-        max-height: 50vh !important;
-    }
-}
 </style>
-        
-        console.log('Video player loaded.', {
-            selectedQuality: '{{ selected_quality }}',
-            hlsPlaylist: '{{ hls_playlist }}'
-        });
-        
-        if (videoSrc && typeof Hls !== 'undefined') {
-            if (Hls.isSupported()) {
-                // Best-practice config for audio issues
-                const hlsConfig = {
-                    enableWorker: false, // Disable worker to avoid audio artifacts
-                    defaultAudioCodec: 'mp4a.40.2', // Force AAC-LC (change if your audio is different)
-                    lowLatencyMode: false,
-                    backBufferLength: 90,
-                    maxBufferLength: 300,
-                    maxMaxBufferLength: 600,
-                    manifestLoadingTimeOut: 20000,
-                    manifestLoadingMaxRetry: 3,
-                    manifestLoadingRetryDelay: 1000,
-                    levelLoadingTimeOut: 20000,
-                    levelLoadingMaxRetry: 3,
-                    levelLoadingRetryDelay: 1000,
-                    fragLoadingTimeOut: 20000,
-                    fragLoadingMaxRetry: 3,
-                    fragLoadingRetryDelay: 1000,
-                    startLevel: -1,
-                    abrEwmaDefaultEstimate: 500000
-                };
-                const hls = new Hls(hlsConfig);
-                hlsInstance = hls;
-                console.log('Loading HLS source:', videoSrc.src);
-                hls.loadSource(videoSrc.src);
-                hls.attachMedia(video);
-
-                hls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
-                    console.log('HLS manifest parsed:', data);
-                    console.log('Available levels:', data.levels);
-                    // Log audio tracks and force first if needed
-                    if (hls.audioTracks && hls.audioTracks.length > 0) {
-                        console.log('Available audio tracks:', hls.audioTracks);
-                        hls.audioTrack = 0; // Force first audio track (change if needed)
-                    }
-                    // More detailed level logging with null checks
-                    data.levels.forEach((level, index) => {
-                        console.log(`Level ${index}:`, {
-                            width: level.width,
-                            height: level.height,
-                            bitrate: level.bitrate,
-                            name: level.name,
-                            url: Array.isArray(level.url) ? level.url[0] : level.url
-                        });
-                    });
-                    console.log('HLS manifest loaded successfully');
-                });
-
-                if (qualitySelect) {
-                    qualitySelect.addEventListener('change', function(e) {
-                        const selectedQuality = this.value;
-                        console.log('Quality changed to:', selectedQuality);
-                        const currentSrc = videoSrc.src;
-                        console.log('Current source:', currentSrc);
-                        const urlPattern = /(.+\/hls\/videos\/[^\/]+\/)([^\/]+)(\/playlist\.m3u8)$/;
-                        const match = currentSrc.match(urlPattern);
-                        if (match) {
-                            const basePath = match[1];
-                            const filename = match[3];
-                            const newSrc = basePath + selectedQuality + filename;
-                            console.log('New source URL:', newSrc);
-                            if (hlsInstance) {
-                                hlsInstance.destroy();
-                            }
-                            const newHls = new Hls(hlsConfig);
-                            newHls.loadSource(newSrc);
-                            newHls.attachMedia(video);
-                            hlsInstance = newHls;
-                            newHls.on(Hls.Events.MANIFEST_PARSED, function(event, data) {
-                                if (newHls.audioTracks && newHls.audioTracks.length > 0) {
-                                    console.log('Available audio tracks:', newHls.audioTracks);
-                                    newHls.audioTrack = 0;
-                                }
-                            });
-                            console.log('Successfully switched to quality:', selectedQuality);
-                        } else {
-                            console.error('Could not parse current video URL for quality replacement');
-                        }
-                    });
-                }
-
-                hls.on(Hls.Events.ERROR, function(event, data) {
-                    console.error('HLS error:', data);
-                    if (data.fatal) {
-                        switch(data.type) {
-                            case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.warn('HLS network error, attempting recovery...');
-                                hls.startLoad();
-                                break;
-                            case Hls.ErrorTypes.MEDIA_ERROR:
-                                console.warn('HLS media error, attempting recovery...');
-                                hls.recoverMediaError();
-                                break;
-                            default:
-                                console.error('HLS fatal error:', data);
-                                hls.destroy();
-                                break;
-                        }
-                    }
-                });
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                console.log('Using native HLS support');
-                video.src = videoSrc.src;
-                if (qualitySelect) {
-                    qualitySelect.disabled = true;
-                }
-            }
-        } else {
-            console.log('HLS not available, using direct video source');
-        }
-        
-        return hlsInstance;
-    }
-    
-    // Initialize the video player immediately
-    initializeVideoPlayer();
-    </script>
-    
-    <style>
-    /* Quality selector styling */
-    #quality-select {
-        transition: all 0.2s ease;
-        backdrop-filter: blur(8px);
-        border-radius: 6px !important;
-        font-weight: 500;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    }
-    
-    #quality-select:hover {
-        background: rgba(0,0,0,0.95) !important;
-        border-color: rgba(255,255,255,0.5) !important;
-        transform: scale(1.02);
-    }
-    
-    #quality-select:focus {
-        background: rgba(0,0,0,0.95) !important;
-        border-color: #87CEEB !important;
-        box-shadow: 0 0 0 2px rgba(135, 206, 235, 0.3) !important;
-        outline: none;
-    }
-    
-    #quality-select option {
-        background: #222;
-        color: white;
-        padding: 4px;
-    }
-    </style>
-{% else %}
-    <div class="ratio ratio-16x9 w-100 d-flex align-items-center justify-content-center" style="background: #f8f9fa; min-height:60vh;">
-        <div class="text-center w-100">
-            <div class="mb-3">
-                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
-            </div>
-            <h6 class="text-muted mb-2">{% trans "Video file not available" %}</h6>
-            <p class="text-muted small mb-0">{% trans "This video has not been uploaded yet" %}</p>
-        </div>
-    </div>
-{% endif %}

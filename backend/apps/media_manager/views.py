@@ -47,8 +47,8 @@ class SecureMediaView(View):
                     'message': str(_('Invalid content type'))
                 }, status=400)
             
-            # Get content item using service
-            content_item = ContentService.get_content_by_id(content_uuid, content_type)
+            # Get content item using optimized service that loads meta relationships
+            content_item = ContentService.get_content_for_media_serving(content_uuid, content_type)
             
             # Get the appropriate meta object and file path
             file_path = self._get_media_file_path(content_item, content_type)
@@ -94,21 +94,24 @@ class SecureMediaView(View):
             }, status=500)
     
     def _get_media_file_path(self, content_item, content_type):
-        """Get the appropriate file path for the content type"""
+        """Get the appropriate file path for the content type - optimized to use loaded meta"""
         try:
             if content_type == 'video':
-                meta = MediaMetaService.get_video_meta(content_item.id)
+                # Use already loaded videometa to avoid N+1 query
+                meta = content_item.videometa
                 return meta.original_file.name if meta.original_file else None
                 
             elif content_type == 'audio':
-                meta = MediaMetaService.get_audio_meta(content_item.id)
+                # Use already loaded audiometa to avoid N+1 query
+                meta = content_item.audiometa
                 # Prefer compressed version if available
                 if meta.compressed_file:
                     return meta.compressed_file.name
                 return meta.original_file.name if meta.original_file else None
                 
             elif content_type == 'pdf':
-                meta = MediaMetaService.get_pdf_meta(content_item.id)
+                # Use already loaded pdfmeta to avoid N+1 query
+                meta = content_item.pdfmeta
                 # Prefer optimized version if available
                 if meta.optimized_file:
                     return meta.optimized_file.name
@@ -116,6 +119,23 @@ class SecureMediaView(View):
                 
             return None
             
+        except AttributeError:
+            # Fallback to service method if meta not loaded
+            logger.warning(f"Meta not loaded for content {content_item.id}, using fallback")
+            if content_type == 'video':
+                meta = MediaMetaService.get_video_meta(content_item.id)
+                return meta.original_file.name if meta.original_file else None
+            elif content_type == 'audio':
+                meta = MediaMetaService.get_audio_meta(content_item.id)
+                if meta.compressed_file:
+                    return meta.compressed_file.name
+                return meta.original_file.name if meta.original_file else None
+            elif content_type == 'pdf':
+                meta = MediaMetaService.get_pdf_meta(content_item.id)
+                if meta.optimized_file:
+                    return meta.optimized_file.name
+                return meta.original_file.name if meta.original_file else None
+            return None
         except Exception:
             return None
 
@@ -157,8 +177,8 @@ class DirectMediaServeView(View):
             if content_type not in ['video', 'audio', 'pdf']:
                 raise Http404('Invalid content type')
             
-            # Get content item
-            content_item = ContentService.get_content_by_id(content_uuid, content_type)
+            # Get content item using optimized service that loads meta relationships
+            content_item = ContentService.get_content_for_media_serving(content_uuid, content_type)
             
             # Get the appropriate meta object and file path
             file_path = self._get_media_file_path(content_item, content_type)
@@ -346,26 +366,47 @@ class DirectMediaServeView(View):
             return 131072  # 128KB chunks
     
     def _get_media_file_path(self, content_item, content_type):
-        """Get the appropriate file path for the content type"""
+        """Get the appropriate file path for the content type - optimized to use loaded meta"""
         try:
             if content_type == 'video':
-                meta = MediaMetaService.get_video_meta(content_item.id)
+                # Use already loaded videometa to avoid N+1 query
+                meta = content_item.videometa
                 return meta.original_file.name if meta.original_file else None
                 
             elif content_type == 'audio':
-                meta = MediaMetaService.get_audio_meta(content_item.id)
+                # Use already loaded audiometa to avoid N+1 query
+                meta = content_item.audiometa
                 # Prefer compressed version if available
                 if meta.compressed_file:
                     return meta.compressed_file.name
                 return meta.original_file.name if meta.original_file else None
                 
             elif content_type == 'pdf':
-                meta = MediaMetaService.get_pdf_meta(content_item.id)
+                # Use already loaded pdfmeta to avoid N+1 query
+                meta = content_item.pdfmeta
                 # Prefer optimized version if available
                 if meta.optimized_file:
                     return meta.optimized_file.name
                 return meta.original_file.name if meta.original_file else None
                 
+            return None
+            
+        except AttributeError:
+            # Fallback to service method if meta not loaded
+            logger.warning(f"Meta not loaded for content {content_item.id}, using fallback")
+            if content_type == 'video':
+                meta = MediaMetaService.get_video_meta(content_item.id)
+                return meta.original_file.name if meta.original_file else None
+            elif content_type == 'audio':
+                meta = MediaMetaService.get_audio_meta(content_item.id)
+                if meta.compressed_file:
+                    return meta.compressed_file.name
+                return meta.original_file.name if meta.original_file else None
+            elif content_type == 'pdf':
+                meta = MediaMetaService.get_pdf_meta(content_item.id)
+                if meta.optimized_file:
+                    return meta.optimized_file.name
+                return meta.original_file.name if meta.original_file else None
             return None
             
         except Exception:
@@ -389,9 +430,9 @@ class HLSStreamView(View):
                     'message': str(_('Invalid quality parameter'))
                 }, status=400)
             
-            # Get video content
-            content_item = ContentService.get_content_by_id(video_uuid, 'video')
-            video_meta = MediaMetaService.get_video_meta(video_uuid)
+            # Get video content using optimized service that loads meta relationships
+            content_item = ContentService.get_content_for_media_serving(video_uuid, 'video')
+            video_meta = content_item.videometa  # Use already loaded meta to avoid N+1 query
             
             # Check if video is ready for streaming
             if not video_meta.is_ready_for_streaming():
@@ -484,12 +525,12 @@ class MediaPlayerView(DetailView):
     context_object_name = 'content_item'
     
     def get_object(self, queryset=None):
-        """Get content item with proper validation"""
+        """Get content item with proper validation and optimized meta loading"""
         content_uuid = self.kwargs.get('content_uuid')
         content_type = self.kwargs.get('content_type')
         
         try:
-            return ContentService.get_content_by_id(content_uuid, content_type)
+            return ContentService.get_content_for_media_serving(content_uuid, content_type)
         except (ContentNotFoundError, InvalidContentTypeError):
             raise Http404(_("Content not found"))
     
@@ -504,21 +545,21 @@ class MediaPlayerView(DetailView):
         content_item = self.get_object()
         content_type = content_item.content_type
         
-        # Add meta object to context
+        # Add meta object to context using already loaded meta to avoid N+1 queries
         try:
             if content_type == 'video':
-                context['meta'] = MediaMetaService.get_video_meta(content_item.id)
+                context['meta'] = content_item.videometa
                 context['hls_720p_url'] = f'/api/media/hls/{content_item.id}/720p'
                 context['hls_480p_url'] = f'/api/media/hls/{content_item.id}/480p'
             elif content_type == 'audio':
-                context['meta'] = MediaMetaService.get_audio_meta(content_item.id)
+                context['meta'] = content_item.audiometa
                 context['audio_url'] = f'/api/media/secure/audio/{content_item.id}'
             elif content_type == 'pdf':
-                context['meta'] = MediaMetaService.get_pdf_meta(content_item.id)
+                context['meta'] = content_item.pdfmeta
                 context['pdf_url'] = f'/api/media/secure/pdf/{content_item.id}'
                 
-        except Exception as e:
-            logger.error(f"Error loading media metadata: {str(e)}")
+        except AttributeError as e:
+            logger.error(f"Error loading media metadata - meta not loaded: {str(e)}")
             context['meta'] = None
             
         return context
@@ -533,7 +574,6 @@ class ContentListAPIView(View):
         try:
             # Extract query parameters
             content_type = request.GET.get('type')
-            module_id = request.GET.get('module')
             search_query = request.GET.get('search', '').strip()
             language = request.GET.get('lang', 'ar')
             page = int(request.GET.get('page', 1))
@@ -542,7 +582,6 @@ class ContentListAPIView(View):
             # Get content using service
             content_items = ContentService.get_content_list(
                 content_type=content_type,
-                module_id=module_id,
                 search_query=search_query,
                 language=language
             )
@@ -560,11 +599,6 @@ class ContentListAPIView(View):
                     'title': item.get_title(language),
                     'description': item.get_description(language),
                     'content_type': item.content_type,
-                    # Module functionality has been removed
-                    # 'module': {
-                    #     'id': str(item.module.id),
-                    #     'title': item.module.get_title(language)
-                    # },
                     'created_at': item.created_at.isoformat(),
                     'tags': [
                         {'id': str(tag.id), 'name': tag.get_name(language)}
@@ -572,28 +606,34 @@ class ContentListAPIView(View):
                     ]
                 }
                 
-                # Add type-specific metadata
-                meta = item.get_meta_object()
-                if meta:
+                # Add type-specific metadata using already loaded meta to avoid N+1 queries
+                try:
                     if item.content_type == 'video':
+                        meta = item.videometa
                         content_data['meta'] = {
                             'duration': meta.get_duration_formatted(),
                             'processing_status': meta.processing_status,
                             'is_ready': meta.is_ready_for_streaming()
                         }
                     elif item.content_type == 'audio':
+                        meta = item.audiometa
                         content_data['meta'] = {
                             'duration': meta.get_duration_formatted(),
                             'processing_status': meta.processing_status,
                             'is_ready': meta.is_ready_for_playback()
                         }
                     elif item.content_type == 'pdf':
+                        meta = item.pdfmeta
                         content_data['meta'] = {
                             'page_count': meta.page_count,
                             'file_size_mb': meta.file_size_mb,
                             'processing_status': meta.processing_status,
                             'is_ready': meta.is_ready_for_viewing()
                         }
+                except AttributeError:
+                    # Fallback if meta not loaded (shouldn't happen with optimized service)
+                    logger.warning(f"Meta not loaded for content {item.id}")
+                    content_data['meta'] = None
                 
                 data.append(content_data)
             

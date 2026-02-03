@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Task Details" %}{% endblock %}
+
+{% block content %}
+{% if task %}
+<div class="module">
+    <h2>{% trans "Task Information" %}</h2>
+    <table class="table">
+        <tr>
+            <th>{% trans "Task ID" %}</th>
+            <td><code>{{ task.task_id }}</code></td>
+        </tr>
+        <tr>
+            <th>{% trans "Task Name" %}</th>
+            <td>{{ task.task_name }}</td>
+        </tr>
+        <tr>
+            <th>{% trans "Status" %}</th>
+            <td><span class="status-{{ task.current_status|lower }}">{{ task.current_status }}</span></td>
+        </tr>
+        <tr>
+            <th>{% trans "Created At" %}</th>
+            <td>{{ task.created_at|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% if task.updated_at %}
+        <tr>
+            <th>{% trans "Updated At" %}</th>
+            <td>{{ task.updated_at|date:"Y-m-d H:i:s" }}</td>
+        </tr>
+        {% endif %}
+        {% if task.user_id %}
+        <tr>
+            <th>{% trans "User ID" %}</th>
+            <td>{{ task.user_id }}</td>
+        </tr>
+        {% endif %}
+    </table>
+</div>
+
+{% if task.metadata %}
+<div class="module">
+    <h2>{% trans "Metadata" %}</h2>
+    <pre>{{ task.metadata|pprint }}</pre>
+</div>
+{% endif %}
+
+{% if task.result %}
+<div class="module">
+    <h2>{% trans "Result" %}</h2>
+    <pre>{{ task.result|pprint }}</pre>
+</div>
+{% endif %}
+
+{% if task.celery_result %}
+<div class="module">
+    <h2>{% trans "Celery Result" %}</h2>
+    <pre>{{ task.celery_result|pprint }}</pre>
+</div>
+{% endif %}
+
+{% if task.error %}
+<div class="module">
+    <h2>{% trans "Error" %}</h2>
+    <div class="error">{{ task.error }}</div>
+</div>
+{% endif %}
+
+{% else %}
+<div class="module">
+    <h2>{% trans "Task Not Found" %}</h2>
+    <p>{% trans "The requested task could not be found or has expired." %}</p>
+</div>
+{% endif %}
+
+<div class="submit-row">
+    <a href="{% url 'admin:admin_tasks' %}" class="button">{% trans "Back to Task Monitor" %}</a>
+</div>
+
+<style>
+.status-pending { color: #ffc107; }
+.status-started, .status-retry { color: #17a2b8; }
+.status-success { color: #28a745; }
+.status-failure { color: #dc3545; }
+.error { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 4px; }
+pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+</style>
+{% endblock %}

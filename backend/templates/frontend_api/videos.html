@@ -2,6 +2,12 @@
 {% extends "base.html" %}
 {% load i18n %}
 
+{% block title %}{% trans "Video Library" %} - {% trans "Christian Library" %}{% endblock %}
+
+{% block meta %}
+    {% include "includes/seo_listing_meta.html" with content_type="video" page_title="Video Library - Christian Orthodox Teachings" page_description="Watch spiritual teachings, sermons, and religious content from the Coptic Orthodox Church. High-quality videos with Arabic and English support." content_items=videos %}
+{% endblock %}
+
 {% block content %}
 <!-- Header Section -->
 <div class="d-flex align-items-center mb-5">

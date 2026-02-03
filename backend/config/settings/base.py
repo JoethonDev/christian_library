@@ -10,7 +10,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-chang
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
 
 # Application definition
 DJANGO_APPS = [
@@ -20,6 +20,7 @@ DJANGO_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
 ]
 
 THIRD_PARTY_APPS = [
@@ -31,6 +32,7 @@ LOCAL_APPS = [
     'apps.media_manager',
     'apps.users',
     'apps.frontend_api',
+    'apps.admin_django',  # Django admin enhancements
     'core.apps.CoreConfig',
 ]
 
@@ -120,7 +122,7 @@ LANGUAGES = [
 
 # Gemini AI Configuration
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.5-flash')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3-flash-preview')
 
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
@@ -136,6 +138,24 @@ STATICFILES_DIRS = [
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# --- Cloudflare R2 / S3-Compatible Storage Settings ---
+# These settings enable optional integration with Cloudflare R2 or any S3-compatible storage.
+# If not set, the system will use local storage as before (backward compatible).
+R2_ENABLED = os.environ.get('R2_ENABLED', 'False').lower() == 'true'
+R2_BUCKET_NAME = os.environ.get('R2_BUCKET_NAME', '')
+R2_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID', '')
+R2_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY', '')
+R2_ENDPOINT_URL = os.environ.get('R2_ENDPOINT_URL', '')  # e.g., 'https://<accountid>.r2.cloudflarestorage.com'
+R2_REGION_NAME = os.environ.get('R2_REGION_NAME', 'auto')
+R2_PUBLIC_MEDIA_URL = os.environ.get('R2_PUBLIC_MEDIA_URL', '')  # e.g., 'https://pub-<public-id>.r2.dev'
+
+# Optional: Use a custom storage backend if R2 is enabled (to be implemented)
+if R2_ENABLED:
+    DEFAULT_FILE_STORAGE = 'core.storage_backends.R2MediaStorage'
+    # MEDIA_URL should point to the public R2 bucket URL if using public access
+    if os.environ.get('R2_PUBLIC_MEDIA_URL'):
+        MEDIA_URL = os.environ['R2_PUBLIC_MEDIA_URL']
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -360,3 +380,5 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^http://localhost:\d+$',
     r'^http://127\.0\.0\.1:\d+$',
 ]
+
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyB286GvUw1X1yl8cwjMbGIZkFv40BMttTk')

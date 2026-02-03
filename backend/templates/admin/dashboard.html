@@ -38,9 +38,12 @@
                     </div>
                     <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_content|default:"0" }}</h2>
                     <p class="body-font text-muted mb-0 fw-medium">{% trans "Total Content" %}</p>
-                    <div class="mt-2">
-                        <small class="text-golden">
-                            <i class="bi bi-trending-up me-1"></i>{% trans "All types" %}
+                    <div class="mt-2 d-flex justify-content-center gap-2">
+                        <small class="badge bg-success text-white rounded-pill px-2">
+                            {{ stats.active_content|default:"0" }} {% trans "Active" %}
+                        </small>
+                        <small class="badge bg-warning text-dark rounded-pill px-2">
+                            {{ stats.processing_content|default:"0" }} {% trans "Processing" %}
                         </small>
                     </div>
                 </div>
@@ -98,6 +101,18 @@
                         <small class="text-maroon">
                             <i class="bi bi-book me-1"></i>{% trans "Sacred Texts" %}
                         </small>
+                        {% if stats.indexed_pdfs %}
+                        <br>
+                        <small class="text-success">
+                            <i class="bi bi-search me-1"></i>{{ stats.indexed_pdfs }}/{{ stats.total_pdfs }} {% trans "Indexed" %}
+                        </small>
+                        {% if stats.total_indexed_chars %}
+                        <br>
+                        <small class="text-info">
+                            <i class="bi bi-file-text me-1"></i>{{ stats.total_indexed_chars|floatformat:0 }} {% trans "chars" %}
+                        </small>
+                        {% endif %}
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -137,12 +152,7 @@
                                 <span class="heading-font">{% trans "Type" %}</span>
                             </div>
                         </th>
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-collection me-2"></i>
-                                <span class="heading-font">{% trans "Module" %}</span>
-                            </div>
-                        </th>
+
                         <th class="py-3">
                             <div class="d-flex align-items-center">
                                 <i class="bi bi-toggles me-2"></i>
@@ -185,6 +195,13 @@
                                     </div>
                                     <div class="small text-muted">
                                         <i class="bi bi-hash me-1"></i>{{ item.id }}
+                                        {% if item.content_type == 'pdf' and item.indexed_char_count > 0 %}
+                                        <br>
+                                        <i class="bi bi-file-text me-1 text-success"></i>{{ item.indexed_char_count|floatformat:0 }} {% trans "indexed chars" %}
+                                        {% elif item.content_type == 'pdf' %}
+                                        <br>
+                                        <i class="bi bi-exclamation-circle me-1 text-warning"></i>{% trans "Not indexed" %}
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -200,17 +217,34 @@
                                 {% endif %}
                             </span>
                         </td>
-                        <td class="py-3 body-font text-muted">
-                            {{ item.module.title_ar|default:"-" }}
-                        </td>
+
                         <td class="py-3">
-                            {% if item.is_active %}
-                                <span class="badge bg-success bg-opacity-15 text-success px-3 py-2 rounded-pill">
-                                    <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
+                            {% if item.live_task %}
+                                <div class="mb-1 d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ item.live_task.progress }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 4px; background-color: rgba(255,255,255,0.1); width: 100px;">
+                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                         style="width: {{ item.live_task.progress }}%" 
+                                         aria-valuenow="{{ item.live_task.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            {% elif item.processing_status == 'completed' %}
+                                <span class="badge bg-success text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
+                                </span>
+                            {% elif item.processing_status == 'processing' %}
+                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                                    <i class="bi bi-arrow-clockwise me-1 spin"></i>{% trans "Processing" %}
+                                </span>
+                            {% elif item.processing_status == 'failed' %}
+                                <span class="badge bg-danger text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Failed" %}
                                 </span>
                             {% else %}
-                                <span class="badge bg-secondary bg-opacity-15 text-secondary px-3 py-2 rounded-pill">
-                                    <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
+                                <span class="badge bg-secondary text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-pause-circle me-1"></i>{{ item.processing_status|title }}
                                 </span>
                             {% endif %}
                         </td>

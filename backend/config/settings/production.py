@@ -5,7 +5,8 @@ import os
 # DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 DEBUG = True
 print(f"Production settings loaded. DEBUG={DEBUG}")
-TEMPLATES[0]['APP_DIRS'] = False  # Disable APP_DIRS for performance in production
+# Keep APP_DIRS enabled for admin templates
+# TEMPLATES[0]['APP_DIRS'] = False  # Disable APP_DIRS for performance in production
 # Security
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY:

@@ -1,0 +1,331 @@
+<!-- templates/admin/seo_dashboard.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block title %}{% trans "SEO Analytics Dashboard" %}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.seo-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: white;
+}
+.seo-score-high { color: #198754; font-weight: bold; }
+.seo-score-medium { color: #856404; font-weight: bold; }
+.seo-score-low { color: #dc3545; font-weight: bold; }
+.priority-high { background-color: rgba(220, 53, 69, 0.1); border-left: 4px solid #dc3545; }
+.priority-medium { background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; }
+.priority-low { background-color: rgba(25, 135, 84, 0.1); border-left: 4px solid #198754; }
+</style>
+{% endblock %}
+
+{% block content_title %}
+<h1>{% trans "SEO Analytics Dashboard" %}</h1>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- SEO Coverage Overview -->
+    <div class="col-md-3">
+        <div class="seo-card text-center">
+            <h3>{{ seo_coverage_percent }}%</h3>
+            <p>{% trans "SEO Coverage" %}</p>
+            <small>{{ seo_complete }}/{{ total_content }} {% trans "items optimized" %}</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="seo-card text-center">
+            <h3>{{ total_content }}</h3>
+            <p>{% trans "Total Content Items" %}</p>
+            <small>{{ seo_pending }} {% trans "pending SEO" %}</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="seo-card text-center">
+            <h3 id="avg-seo-score">-</h3>
+            <p>{% trans "Average SEO Score" %}</p>
+            <small id="seo-score-trend">{% trans "Loading..." %}</small>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="seo-card text-center">
+            <h3 id="structured-data-count">-</h3>
+            <p>{% trans "Structured Data" %}</p>
+            <small>{% trans "JSON-LD enabled" %}</small>
+        </div>
+    </div>
+</div>
+
+<!-- Content Type Breakdown -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="seo-card">
+            <h4>{% trans "SEO Coverage by Content Type" %}</h4>
+            <canvas id="contentTypeChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="seo-card">
+            <h4>{% trans "Top SEO Keywords" %}</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>{% trans "Arabic Keywords" %}</h6>
+                    <ul id="top-keywords-ar" class="list-unstyled">
+                        <li>{% trans "Loading..." %}</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>{% trans "English Keywords" %}</h6>
+                    <ul id="top-keywords-en" class="list-unstyled">
+                        <li>{% trans "Loading..." %}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Analysis Table -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="seo-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>{% trans "Content SEO Analysis" %}</h4>
+                <div>
+                    <button id="bulk-generate-seo" class="btn btn-primary btn-sm">
+                        {% trans "Bulk Generate SEO" %}
+                    </button>
+                    <button id="refresh-analysis" class="btn btn-secondary btn-sm">
+                        {% trans "Refresh Analysis" %}
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped" id="content-analysis-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select-all"></th>
+                            <th>{% trans "Content" %}</th>
+                            <th>{% trans "Type" %}</th>
+                            <th>{% trans "SEO Score" %}</th>
+                            <th>{% trans "Priority" %}</th>
+                            <th>{% trans "Issues" %}</th>
+                            <th>{% trans "Actions" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="content-analysis-body">
+                        <tr>
+                            <td colspan="7" class="text-center">{% trans "Loading content analysis..." %}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent SEO Updates -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="seo-card">
+            <h4>{% trans "Recent SEO Updates" %}</h4>
+            <div class="list-group">
+                {% for item in recent_seo_updates %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">{{ item.get_title }}</h6>
+                        <small>{{ item.updated_at|timesince }} {% trans "ago" %}</small>
+                    </div>
+                    <p class="mb-1">
+                        <span class="badge bg-primary text-white">{{ item.content_type|title }}</span>
+                        {% if item.seo_keywords_ar %}
+                        <span class="badge bg-success text-white">{{ item.seo_keywords_ar|length }} AR Keywords</span>
+                        {% endif %}
+                        {% if item.seo_keywords_en %}
+                        <span class="badge bg-success text-white">{{ item.seo_keywords_en|length }} EN Keywords</span>
+                        {% endif %}
+                    </p>
+                </div>
+                {% empty %}
+                <div class="list-group-item">
+                    <em>{% trans "No recent SEO updates" %}</em>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{{ content_types|json_script:"queryset-data" }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Load SEO analytics data
+    loadSEOAnalytics();
+    loadContentAnalysis();
+    
+    // Chart for content type breakdown
+    const contentTypeData = JSON.parse(document.getElementById('queryset-data').textContent);
+    const ctx = document.getElementById('contentTypeChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: contentTypeData.map(item => item.content_type.toUpperCase()),
+            datasets: [{
+                data: contentTypeData.map(item => item.seo_ready),
+                backgroundColor: ['#007bff', '#28a745', '#ffc107'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Refresh button
+    document.getElementById('refresh-analysis').addEventListener('click', function() {
+        loadContentAnalysis();
+        loadSEOAnalytics();
+    });
+    
+    // Bulk SEO generation
+    document.getElementById('bulk-generate-seo').addEventListener('click', function() {
+        const selectedIds = [];
+        document.querySelectorAll('input[name="content_id"]:checked').forEach(function(checkbox) {
+            selectedIds.push(checkbox.value);
+        });
+        
+        if (selectedIds.length === 0) {
+            alert('{% trans "Please select items to generate SEO for" %}');
+            return;
+        }
+        
+        if (confirm(`{% trans "Generate SEO metadata for" %} ${selectedIds.length} {% trans "items?" %}`)) {
+            bulkSEOAction('generate_seo', selectedIds);
+        }
+    });
+    
+    // Select all checkbox
+    document.getElementById('select-all').addEventListener('change', function() {
+        document.querySelectorAll('input[name="content_id"]').forEach(function(checkbox) {
+            checkbox.checked = this.checked;
+        }, this);
+    });
+});
+
+function loadSEOAnalytics() {
+    fetch('{% url "frontend_api:seo_analytics_api" %}')
+        .then(response => response.json())
+        .then(data => {
+        // Update summary metrics
+        document.getElementById('avg-seo-score').textContent = Math.round(data.quality_metrics.avg_seo_score || 0);
+        document.getElementById('structured-data-count').textContent = data.structured_data_coverage;
+        
+        // Update top keywords
+        const topKeywordsAr = data.top_keywords.arabic.slice(0, 10);
+        const topKeywordsEn = data.top_keywords.english.slice(0, 10);
+        
+        document.getElementById('top-keywords-ar').innerHTML = 
+            topKeywordsAr.map(([keyword, count]) => 
+                `<li><strong>${keyword}</strong> <span class="text-muted">(${count})</span></li>`
+            ).join('') || '<li><em>{% trans "No keywords yet" %}</em></li>';
+        
+        document.getElementById('top-keywords-en').innerHTML = 
+            topKeywordsEn.map(([keyword, count]) => 
+                `<li><strong>${keyword}</strong> <span class="text-muted">(${count})</span></li>`
+            ).join('') || '<li><em>{% trans "No keywords yet" %}</em></li>';
+    });
+}
+
+function loadContentAnalysis() {
+    fetch('{% url "frontend_api:seo_content_analysis_api" %}')
+        .then(response => response.json())
+        .then(data => {
+        const tbody = document.getElementById('content-analysis-body');
+        tbody.innerHTML = '';
+        
+        data.content_analysis.forEach(function(item) {
+            const scoreClass = item.seo_score >= 75 ? 'seo-score-high' : 
+                             item.seo_score >= 50 ? 'seo-score-medium' : 'seo-score-low';
+            
+            const priorityClass = `priority-${item.priority}`;
+            
+            const row = `
+                <tr class="${priorityClass}">
+                    <td><input type="checkbox" name="content_id" value="${item.id}"></td>
+                    <td>
+                        <strong>${item.title}</strong><br>
+                        <small class="text-muted">${item.id}</small>
+                    </td>
+                    <td><span class="badge bg-secondary text-white">${item.content_type.toUpperCase()}</span></td>
+                    <td><span class="${scoreClass}">${item.seo_score}%</span></td>
+                    <td><span class="badge ${item.priority === 'high' ? 'bg-danger text-white' : item.priority === 'medium' ? 'bg-warning text-dark' : 'bg-success text-white'}">${item.priority.toUpperCase()}</span></td>
+                    <td>
+                        ${item.issues.slice(0, 3).map(issue => `<small class="text-muted d-block">• ${issue}</small>`).join('')}
+                        ${item.issues.length > 3 ? `<small class="text-muted">... +${item.issues.length - 3} more</small>` : ''}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="generateSEOForItem('${item.id}')">
+                            {% trans "Generate SEO" %}
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+        
+        // Update summary
+        document.getElementById('seo-score-trend').textContent = `${data.summary.high_priority} {% trans "high priority items" %}`;
+    });
+}
+
+function generateSEOForItem(contentId) {
+    if (confirm('{% trans "Generate SEO metadata for this item?" %}')) {
+        bulkSEOAction('generate_seo', [contentId]);
+    }
+}
+
+function bulkSEOAction(action, contentIds) {
+    const formData = new FormData();
+    formData.append('action', action);
+    contentIds.forEach(id => formData.append('content_ids', id));
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
+    .then(data => {
+        alert(`{% trans "Success:" %} ${data.success} {% trans "items processed" %}. ${data.messages.join(' ')}`);
+        loadContentAnalysis();
+        loadSEOAnalytics();
+    })
+    .catch(error => {
+        alert('{% trans "Error:" %} ' + (error.error || 'Network error'));
+    });
+}
+</script>
+
+<!-- Add CSRF token for AJAX requests -->
+{% csrf_token %}
+
+{% endblock %}

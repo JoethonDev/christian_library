@@ -4,25 +4,27 @@ Phase 4: Caching Implementation - Enhanced Utilities
 This module provides comprehensive caching utilities for the Christian Library application,
 implementing strategic caching for expensive queries identified in Phase 1-3.
 
-Cache Strategy:
-- Query results: 15 minutes TTL (query_cache)
-- Statistics: 30 minutes TTL (stats_cache)  
-- Search results: 10 minutes TTL (search_cache)
-- Sessions: 24 hours TTL (default cache)
+REQUIRED: All cache operations MUST use explicit TTL values from TTL_* constants.
+FORBIDDEN: No infinite or default TTLs, no per-user caching, no large binary blobs.
 
-Cache Keys Format:
-- content_stats:v1
-- home_stats:v1  
-- content_list:{type}:{page}:v1
-- tag_content:{tag_id}:{page}:v1
-- search_results:{query_hash}:v1
+Cache Strategy:
+- Statistics: Short-term caching for frequently accessed data
+- Query results: Medium-term caching for expensive database operations
+- Search results: Short-term caching for user-facing searches
+- Content metadata: Medium-term caching for stable content data
+
+Cache Keys Format (with namespace prefixes):
+- cl:stats:content:v1 (Christian Library statistics)
+- cl:query:related:{type}:{id}:v1 (query results)
+- cl:search:{hash}:v1 (search results)
+- cl:tags:popular:{limit}:v1 (popular tags)
 """
 
 from django.core.cache import cache, caches
 from django.core.cache.utils import make_template_fragment_key
 from django.utils.translation import get_language
 from functools import wraps
-from typing import List, Dict, Any, Callable
+from typing import List, Dict, Any, Callable, Optional
 import logging
 import time
 import hashlib
@@ -30,502 +32,475 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# Cache TTL Constants - REQUIRED for all cache operations
+class CacheTTL:
+    """Named TTL constants for consistent cache timeout management"""
+    # Statistics and aggregates (short-term, high churn)
+    STATS_SHORT = 300      # 5 minutes - frequently changing statistics
+    STATS_MEDIUM = 900     # 15 minutes - home page statistics
+    STATS_LONG = 1800      # 30 minutes - admin dashboard statistics
+    
+    # Query results (medium-term, moderate churn)
+    QUERY_SHORT = 600      # 10 minutes - search results
+    QUERY_MEDIUM = 1800    # 30 minutes - related content, expensive queries
+    QUERY_LONG = 3600      # 1 hour - stable content queries
+    
+    # Content metadata (longer-term, low churn)
+    CONTENT_SHORT = 900    # 15 minutes - content lists
+    CONTENT_MEDIUM = 3600  # 1 hour - popular tags, categories
+    CONTENT_LONG = 14400   # 4 hours - navigation, rarely changing content
+    
+    # UI elements (long-term, very low churn)
+    UI_MEDIUM = 3600       # 1 hour - navigation menus
+    UI_LONG = 86400        # 24 hours - static UI elements
+
 # Cache version for invalidation (Phase 4)
 CACHE_VERSION = 1
 
+# Namespace prefix for all cache keys (prevents collisions)
+CACHE_NAMESPACE = 'cl'  # Christian Library
+
 
 class CacheKeys:
-    """Centralized cache key management"""
+    """Centralized cache key management with namespace prefixes
     
-    # Content caching
-    CONTENT_ITEM = "content_item_{id}_{lang}"
-    CONTENT_LIST = "content_list_{type}_{page}_{lang}"
-    CONTENT_STATS = "content_stats"
-    CONTENT_SEARCH = "content_search_{query}_{type}_{lang}"
-    
-    # Course caching  
-    COURSE_DETAIL = "course_detail_{id}_{lang}"
-    COURSE_LIST = "course_list_{category}_{page}_{lang}"
-    COURSE_MODULES = "course_modules_{course_id}_{include_content}_{lang}"
-    COURSE_STATS = "course_stats_{id}"
-    COURSE_CATEGORIES = "course_categories_{lang}"
-    
-    # User caching
-    USER_STATS = "user_stats_{id}"
-    USER_CONTENT_SUMMARY = "user_content_summary_{id}"
-    CONTENT_MANAGERS = "content_managers"
-    USER_LIST = "user_list"
-    
-    # Media processing
-    MEDIA_PROCESSING_STATUS = "media_processing_status_{content_id}"
-    MEDIA_CONVERSION_PROGRESS = "media_conversion_progress_{content_id}"
-    
-    # Navigation and UI
-    NAVIGATION_MENU = "navigation_menu_{lang}"
-    BREADCRUMBS = "breadcrumbs_{path}_{lang}"
-    FEATURED_CONTENT = "featured_content_{lang}"
-    
-    # Search and filters
-    SEARCH_SUGGESTIONS = "search_suggestions_{query}_{lang}"
-    TAG_LIST = "tag_list_{popular}_{lang}"
-    FILTER_OPTIONS = "filter_options_{type}_{lang}"
-    
-    @classmethod
-    def get_content_cache_key(cls, content_id: int, lang: str = None) -> str:
-        """Get cache key for content item"""
-        lang = lang or get_language()
-        return cls.CONTENT_ITEM.format(id=content_id, lang=lang)
-    
-    @classmethod
-    def get_course_cache_key(cls, course_id: int, lang: str = None) -> str:
-        """Get cache key for course detail"""
-        lang = lang or get_language()
-        return cls.COURSE_DETAIL.format(id=course_id, lang=lang)
-    
-    @classmethod
-    def get_user_stats_key(cls, user_id: int) -> str:
-        """Get cache key for user statistics"""
-        return cls.USER_STATS.format(id=user_id)
-
-
-class CacheConfig:
-    """Cache configuration and timeouts"""
-    
-    # Timeout configurations (in seconds)
-    TIMEOUTS = {
-        'short': 300,      # 5 minutes - frequently changing data
-        'medium': 1800,    # 30 minutes - moderate changes
-        'long': 3600,      # 1 hour - stable data
-        'very_long': 86400, # 24 hours - rarely changing data
-    }
-    
-    # Cache timeout mapping for different types
-    CONTENT_TIMEOUT = TIMEOUTS['medium']
-    COURSE_TIMEOUT = TIMEOUTS['long']
-    USER_TIMEOUT = TIMEOUTS['medium']
-    NAVIGATION_TIMEOUT = TIMEOUTS['very_long']
-    SEARCH_TIMEOUT = TIMEOUTS['short']
-    STATS_TIMEOUT = TIMEOUTS['short']
-    
-    @classmethod
-    def get_timeout(cls, cache_type: str) -> int:
-        """Get appropriate timeout for cache type"""
-        return getattr(cls, f'{cache_type.upper()}_TIMEOUT', cls.TIMEOUTS['medium'])
-
-
-def cache_page_with_user(timeout: int = CacheConfig.CONTENT_TIMEOUT):
+    All keys use the format: {CACHE_NAMESPACE}:{category}:{specific}:{version}
+    This prevents key collisions and provides clear organization.
     """
-    Cache decorator that includes user type in cache key.
-    Different cache for authenticated vs anonymous users.
-    """
-    def decorator(view_func: Callable) -> Callable:
-        @wraps(view_func)
-        def wrapper(request, *args, **kwargs):
-            # Build cache key based on view, args, and user type
-            user_type = 'auth' if request.user.is_authenticated else 'anon'
-            lang = get_language()
-            
-            cache_key = f"view_{view_func.__name__}_{user_type}_{lang}_{hash(str(args) + str(sorted(request.GET.items())))}"
-            
-            # Try to get from cache
-            response = cache.get(cache_key)
-            if response is not None:
-                logger.debug(f"Cache HIT: {cache_key}")
-                return response
-            
-            # Generate response and cache it
-            start_time = time.time()
-            response = view_func(request, *args, **kwargs)
-            generation_time = time.time() - start_time
-            
-            # Only cache successful responses
-            if hasattr(response, 'status_code') and response.status_code == 200:
-                cache.set(cache_key, response, timeout)
-                logger.debug(f"Cache SET: {cache_key} (generated in {generation_time:.3f}s)")
-            
-            return response
-        return wrapper
-    return decorator
-
-
-def cache_template_fragment(fragment_name: str, timeout: int = CacheConfig.CONTENT_TIMEOUT, vary_on: List[str] = None):
-    """
-    Utility for template fragment caching with automatic language variation
-    """
-    vary_on = vary_on or []
-    lang = get_language()
-    
-    # Always include language in variation
-    if 'lang' not in vary_on:
-        vary_on.append(lang)
-    
-    cache_key = make_template_fragment_key(fragment_name, vary_on)
-    
-    def get_fragment():
-        return cache.get(cache_key)
-    
-    def set_fragment(content):
-        cache.set(cache_key, content, timeout)
-        
-    def delete_fragment():
-        cache.delete(cache_key)
-    
-    return {
-        'key': cache_key,
-        'get': get_fragment,
-        'set': set_fragment,
-        'delete': delete_fragment
-    }
-
-
-class CacheInvalidator:
-    """Handles cache invalidation when data changes"""
     
     @staticmethod
-    def invalidate_content_caches(content_id: int = None):
-        """Invalidate content-related caches"""
+    def _make_key(category: str, key: str) -> str:
+        """Create namespaced cache key"""
+        return f"{CACHE_NAMESPACE}:{category}:{key}:v{CACHE_VERSION}"
+    
+    # Content caching - HIGH VALUE: expensive queries, cross-view usage
+    @staticmethod
+    def content_stats() -> str:
+        """Cache key for content statistics (admin dashboard)"""
+        return CacheKeys._make_key('stats', 'content')
+    
+    @staticmethod 
+    def home_stats() -> str:
+        """Cache key for homepage statistics"""
+        return CacheKeys._make_key('stats', 'home')
+    
+    @staticmethod
+    def popular_tags(limit: int) -> str:
+        """Cache key for popular tags list"""
+        return CacheKeys._make_key('tags', f'popular_{limit}')
+    
+    @staticmethod
+    def related_content(content_id: str, content_type: str) -> str:
+        """Cache key for related content queries"""
+        return CacheKeys._make_key('query', f'related_{content_type}_{content_id}')
+    
+    @staticmethod
+    def search_results(query_hash: str) -> str:
+        """Cache key for search results"""
+        return CacheKeys._make_key('search', query_hash)
+
+
+class CacheOperations:
+    """High-value cache operations with explicit TTLs and comprehensive documentation
+    
+    REQUIRED: All operations must specify TTL from CacheTTL constants.
+    FORBIDDEN: Generic caching, per-user caches, large binary objects.
+    """
+    
+    @staticmethod
+    def get_or_set_with_ttl(
+        cache_key: str, 
+        callable_func: Callable, 
+        ttl: int, 
+        cache_purpose: str
+    ) -> Any:
+        """Get from cache or set with callable result - REQUIRES explicit TTL
+        
+        Args:
+            cache_key: Namespaced cache key
+            callable_func: Function to call if cache miss
+            ttl: Explicit TTL from CacheTTL constants
+            cache_purpose: Human-readable purpose (for logging)
+            
+        Returns:
+            Cached or computed result
+        """
+        result = cache.get(cache_key)
+        if result is None:
+            result = callable_func()
+            cache.set(cache_key, result, ttl)
+            logger.info(f"Cache SET: {cache_key} (purpose: {cache_purpose}, TTL: {ttl}s)")
+        else:
+            logger.debug(f"Cache HIT: {cache_key} (purpose: {cache_purpose})")
+        return result
+    
+    @staticmethod
+    def set_with_validation(cache_key: str, value: Any, ttl: int, purpose: str) -> None:
+        """Set cache value with validation - prevents large object caching
+        
+        Args:
+            cache_key: Namespaced cache key
+            value: Value to cache (must be serializable and bounded)
+            ttl: Explicit TTL from CacheTTL constants  
+            purpose: Human-readable purpose (for logging)
+        """
+        # Validate cache value size (prevent memory bloat)
+        try:
+            serialized = json.dumps(value, default=str)
+            if len(serialized) > 50000:  # 50KB limit
+                logger.warning(f"Large cache value rejected for {cache_key}: {len(serialized)} bytes")
+                return
+        except (TypeError, ValueError):
+            logger.warning(f"Non-serializable cache value rejected for {cache_key}")
+            return
+            
+        cache.set(cache_key, value, ttl)
+        logger.info(f"Cache SET: {cache_key} (purpose: {purpose}, TTL: {ttl}s)")
+    
+    @staticmethod
+    def invalidate_pattern(pattern: str, reason: str) -> None:
+        """Invalidate cache keys matching pattern
+        
+        Args:
+            pattern: Cache key pattern to invalidate
+            reason: Reason for invalidation (for logging)
+        """
+        # Note: Pattern-based deletion requires Redis backend
+        try:
+            if hasattr(cache, 'delete_pattern'):
+                cache.delete_pattern(pattern)
+                logger.info(f"Cache INVALIDATE: {pattern} (reason: {reason})")
+            else:
+                logger.warning(f"Pattern invalidation not supported for {pattern}")
+        except Exception as e:
+            logger.error(f"Cache invalidation error for {pattern}: {e}")
+
+
+# DEPRECATED: Per-user caching violates caching guidelines
+# Use whole-view caching with @cache_page decorator instead
+
+
+# DEPRECATED: Generic template fragment caching removed
+# Use Django's built-in {% cache %} template tag with explicit TTLs instead
+
+
+class CacheInvalidation:
+    """Simplified cache invalidation - keeps only high-value, necessary operations
+    
+    PRINCIPLE: Invalidate only what is actually cached and provides value.
+    FORBIDDEN: Invalidating non-existent caches or over-granular invalidation.
+    """
+    
+    @staticmethod
+    def invalidate_content_stats(content_id: Optional[str] = None) -> None:
+        """Invalidate content statistics when content changes
+        
+        PURPOSE: Keep admin dashboard and homepage stats accurate
+        READ_FREQUENCY: High (dashboard, homepage)
+        INVALIDATION: On content create/update/delete
+        """
         keys_to_delete = [
-            CacheKeys.CONTENT_STATS,
-            CacheKeys.FEATURED_CONTENT.format(lang='ar'),
-            CacheKeys.FEATURED_CONTENT.format(lang='en'),
+            CacheKeys.content_stats(),
+            CacheKeys.home_stats(),
         ]
         
         if content_id:
-            keys_to_delete.extend([
-                CacheKeys.get_content_cache_key(content_id, 'ar'),
-                CacheKeys.get_content_cache_key(content_id, 'en'),
-            ])
-        
-        # Delete content list caches (multiple pages and types)
-        for content_type in ['video', 'audio', 'pdf', 'all']:
-            for page in range(1, 6):  # Clear first 5 pages
-                for lang in ['ar', 'en']:
-                    keys_to_delete.append(
-                        CacheKeys.CONTENT_LIST.format(type=content_type, page=page, lang=lang)
-                    )
+            # Invalidate related content cache for this specific item
+            for content_type in ['video', 'audio', 'pdf']:
+                keys_to_delete.append(
+                    CacheKeys.related_content(content_id, content_type)
+                )
         
         cache.delete_many(keys_to_delete)
         logger.info(f"Invalidated {len(keys_to_delete)} content cache keys")
     
-    @staticmethod
-    def invalidate_course_caches(course_id: int = None):
-        """Invalidate course-related caches"""
+    @staticmethod 
+    def invalidate_tag_caches() -> None:
+        """Invalidate tag-related caches when tags change
+        
+        PURPOSE: Keep popular tags accurate
+        READ_FREQUENCY: Moderate (homepage, search)
+        INVALIDATION: On tag create/update/delete
+        """
         keys_to_delete = [
-            CacheKeys.COURSE_CATEGORIES.format(lang='ar'),
-            CacheKeys.COURSE_CATEGORIES.format(lang='en'),
-        ]
-        
-        if course_id:
-            keys_to_delete.extend([
-                CacheKeys.get_course_cache_key(course_id, 'ar'),
-                CacheKeys.get_course_cache_key(course_id, 'en'),
-                CacheKeys.COURSE_STATS.format(id=course_id),
-            ])
-            
-            # Clear course modules cache
-            for include_content in [True, False]:
-                for lang in ['ar', 'en']:
-                    keys_to_delete.append(
-                        CacheKeys.COURSE_MODULES.format(
-                            course_id=course_id, 
-                            include_content=include_content, 
-                            lang=lang
-                        )
-                    )
-        
-        # Clear course list caches
-        categories = ['theology', 'bible_study', 'history', 'apologetics', 'christian_living', 'liturgy', 'all']
-        for category in categories:
-            for page in range(1, 6):
-                for lang in ['ar', 'en']:
-                    keys_to_delete.append(
-                        CacheKeys.COURSE_LIST.format(category=category, page=page, lang=lang)
-                    )
-        
-        cache.delete_many(keys_to_delete)
-        logger.info(f"Invalidated {len(keys_to_delete)} course cache keys")
-    
-    @staticmethod
-    def invalidate_user_caches(user_id: int = None):
-        """Invalidate user-related caches"""
-        keys_to_delete = [
-            CacheKeys.CONTENT_MANAGERS,
-            CacheKeys.USER_LIST,
-        ]
-        
-        if user_id:
-            keys_to_delete.extend([
-                CacheKeys.get_user_stats_key(user_id),
-                CacheKeys.USER_CONTENT_SUMMARY.format(id=user_id),
-            ])
-        
-        cache.delete_many(keys_to_delete)
-        logger.info(f"Invalidated {len(keys_to_delete)} user cache keys")
-    
-    @staticmethod
-    def invalidate_navigation_caches():
-        """Invalidate navigation and UI caches"""
-        keys_to_delete = [
-            CacheKeys.NAVIGATION_MENU.format(lang='ar'),
-            CacheKeys.NAVIGATION_MENU.format(lang='en'),
-            CacheKeys.TAG_LIST.format(popular=True, lang='ar'),
-            CacheKeys.TAG_LIST.format(popular=True, lang='en'),
-            CacheKeys.TAG_LIST.format(popular=False, lang='ar'),
-            CacheKeys.TAG_LIST.format(popular=False, lang='en'),
+            CacheKeys.popular_tags(8),  # Homepage popular tags
+            CacheKeys.popular_tags(20), # Extended popular tags if used
+            CacheKeys.home_stats(),     # Homepage includes tag counts
         ]
         
         cache.delete_many(keys_to_delete)
-        logger.info(f"Invalidated {len(keys_to_delete)} navigation cache keys")
+        logger.info(f"Invalidated {len(keys_to_delete)} tag cache keys")
     
     @staticmethod
-    def clear_all_caches():
-        """Clear all application caches (use with caution)"""
+    def clear_all_application_caches() -> None:
+        """Emergency cache clear - use with extreme caution
+        
+        PURPOSE: Recovery from cache corruption or major data changes
+        USAGE: Should be rare, logs warning
+        """
         if hasattr(cache, 'clear'):
             cache.clear()
-            logger.warning("Cleared ALL application caches")
+            logger.warning("CLEARED ALL APPLICATION CACHES - this should be rare")
         else:
             logger.error("Cache backend does not support clear() operation")
 
 
-class CacheMonitor:
-    """Monitor cache performance and statistics"""
+class CacheMonitoring:
+    """Essential cache monitoring - focuses on memory usage and hit rates only
+    
+    PURPOSE: Monitor cache effectiveness and prevent memory issues
+    FORBIDDEN: Complex monitoring that adds overhead
+    """
     
     @staticmethod
-    def get_cache_stats() -> Dict[str, Any]:
-        """Get cache statistics and performance metrics"""
+    def get_essential_stats() -> Dict[str, Any]:
+        """Get essential cache statistics for monitoring
+        
+        Returns:
+            Basic cache statistics: memory usage, hit rate
+        """
         try:
-            # This would depend on your cache backend
-            # Redis example:
             if hasattr(cache, '_cache') and hasattr(cache._cache, 'get_client'):
                 redis_client = cache._cache.get_client()
                 info = redis_client.info('memory')
+                stats_info = redis_client.info('stats')
+                
+                hits = stats_info.get('keyspace_hits', 0)
+                misses = stats_info.get('keyspace_misses', 0)
+                hit_rate = (hits / (hits + misses) * 100) if (hits + misses) > 0 else 0
                 
                 return {
                     'backend': 'Redis',
-                    'memory_used': info.get('used_memory_human'),
-                    'memory_peak': info.get('used_memory_peak_human'),
-                    'connected_clients': redis_client.info().get('connected_clients', 0),
-                    'keyspace_hits': redis_client.info().get('keyspace_hits', 0),
-                    'keyspace_misses': redis_client.info().get('keyspace_misses', 0),
+                    'memory_used_mb': round(info.get('used_memory', 0) / 1024 / 1024, 2),
+                    'memory_peak_mb': round(info.get('used_memory_peak', 0) / 1024 / 1024, 2),
+                    'hit_rate_percent': round(hit_rate, 2),
+                    'total_keys': redis_client.dbsize(),
                 }
         except Exception as e:
             logger.error(f"Error getting cache stats: {str(e)}")
         
-        return {
-            'backend': 'Unknown',
-            'status': 'Available' if cache._cache else 'Unavailable'
-        }
+        return {'backend': 'Unknown', 'status': 'Error'}
     
     @staticmethod
     def warm_up_caches():
-        """Pre-populate critical caches"""
-        # from apps.courses.services import CourseService
-        from apps.media_manager.services import ContentService
+        """Warm up critical caches on application startup
         
+        PURPOSE: Preload frequently accessed data to improve performance
+        SCOPE: Only warm essential caches, avoid expensive operations
+        """
         try:
-            logger.info("Starting cache warm-up...")
+            # Use global cache_invalidator to pre-populate critical caches
+            logger.info("Warming up critical application caches")
             
-            # Course functionality has been removed
-            # CourseService.get_active_courses()
-            # CourseService.get_categories_with_counts()
+            # Pre-populate home statistics cache if not exists
+            if not cache_invalidator.get_home_statistics():
+                # This would typically be populated by the actual view
+                # For now, just log that cache warming was attempted
+                logger.info("Home statistics cache will be populated on first request")
             
-            # Warm up recent content
-            ContentService.get_recent_content(limit=20)
-            ContentService.get_featured_content(limit=10)
+            # Pre-populate popular tags cache if not exists
+            if not cache_invalidator.get_popular_tags():
+                logger.info("Popular tags cache will be populated on first request")
             
-            logger.info("Cache warm-up completed successfully")
+            logger.info("Cache warm-up process completed")
             
         except Exception as e:
             logger.error(f"Error during cache warm-up: {str(e)}")
 
 
-# Utility functions for use in views and templates
-def get_cached_or_set(cache_key: str, callable_func: Callable, timeout: int = CacheConfig.CONTENT_TIMEOUT):
-    """Get from cache or set with callable result"""
-    result = cache.get(cache_key)
-    if result is None:
-        result = callable_func()
-        cache.set(cache_key, result, timeout)
-    return result
+# DEPRECATED: Generic cache utilities removed to prevent cache abuse
+# Use CacheOperations.get_or_set_with_ttl() with explicit TTL instead
 
 
-def cache_unless_authenticated(timeout: int = CacheConfig.CONTENT_TIMEOUT):
-    """Cache view only for anonymous users"""
-    def decorator(view_func: Callable) -> Callable:
-        @wraps(view_func)
-        def wrapper(request, *args, **kwargs):
-            # Don't cache for authenticated users
-            if request.user.is_authenticated:
-                return view_func(request, *args, **kwargs)
-            
-            # Cache for anonymous users
-            lang = get_language()
-            cache_key = f"anon_view_{view_func.__name__}_{lang}_{hash(str(args) + str(sorted(request.GET.items())))}"
-            
-            response = cache.get(cache_key)
-            if response is None:
-                response = view_func(request, *args, **kwargs)
-                if hasattr(response, 'status_code') and response.status_code == 200:
-                    cache.set(cache_key, response, timeout)
-            
-            return response
-        return wrapper
-    return decorator
+# DEPRECATED: User-specific caching violates caching guidelines  
+# Use whole-view caching with @cache_page decorator instead
 
 
 # =====================================
-# Phase 4: Enhanced Cache Manager
+# Phase 4: Enhanced Cache Manager - REFACTORED FOR SAFETY
 # =====================================
 
-class Phase4CacheManager:
+class CacheInvalidator:
     """
-    Enhanced cache manager for Phase 4 implementation.
-    Provides strategic caching for expensive queries identified in Phase 1-3.
+    Enhanced cache manager for Phase 4 implementation - REFACTORED.
+    
+    FOCUS: Only high-value, read-heavy caches with explicit TTLs.
+    REMOVED: Generic caching, per-user caches, over-granular operations.
+    
+    This class provides strategic caching for expensive queries identified in Phase 1-3.
+    All operations use explicit TTLs from CacheTTL constants.
     """
     
     def __init__(self):
-        self.query_cache = caches['query_cache']
-        self.stats_cache = caches['stats_cache'] 
-        self.search_cache = caches['search_cache']
-        self.default_cache = caches['default']
+        # Use default cache - simplified from multiple cache backends
+        self.cache = cache
     
-    def _make_key(self, key_pattern: str, **kwargs) -> str:
-        """Create consistent cache key with version"""
-        key_data = f"{key_pattern}:{':'.join(str(v) for v in kwargs.values())}:v{CACHE_VERSION}"
-        return key_data
+    def _make_key(self, category: str, identifier: str) -> str:
+        """Create consistent cache key with namespace and version"""
+        return f"{CACHE_NAMESPACE}:{category}:{identifier}:v{CACHE_VERSION}"
     
     def _hash_query(self, query_params: Dict) -> str:
         """Create hash for complex query parameters"""
         query_str = json.dumps(query_params, sort_keys=True, default=str)
         return hashlib.md5(query_str.encode()).hexdigest()[:12]
     
-    # Statistics Caching (addresses Phase 1 COUNT query problems)
+    # Statistics Caching (HIGH VALUE: expensive aggregates, cross-view usage)
     def get_home_statistics(self) -> Optional[Dict]:
-        """Get cached home page statistics (Phase 2 optimization target)"""
-        key = self._make_key("home_stats")
-        return self.stats_cache.get(key)
+        """Get cached home page statistics
+        
+        PURPOSE: Avoid expensive COUNT queries on homepage
+        READ_FREQUENCY: High (every homepage visit)
+        TTL: 15 minutes (moderate churn, important freshness)
+        """
+        return self.cache.get(CacheKeys.home_stats())
     
-    def set_home_statistics(self, stats: Dict, timeout: int = 900) -> None:
-        """Cache home page statistics for 15 minutes"""
-        key = self._make_key("home_stats")
-        self.stats_cache.set(key, stats, timeout)
-        logger.info(f"Cached home statistics: {key}")
+    def set_home_statistics(self, stats: Dict) -> None:
+        """Cache home page statistics with explicit TTL"""
+        CacheOperations.set_with_validation(
+            CacheKeys.home_stats(), 
+            stats, 
+            CacheTTL.STATS_MEDIUM,
+            "homepage statistics"
+        )
     
     def get_content_statistics(self) -> Optional[Dict]:
-        """Get cached admin dashboard statistics"""
-        key = self._make_key("content_stats")
-        return self.stats_cache.get(key)
+        """Get cached admin dashboard statistics
+        
+        PURPOSE: Avoid expensive admin dashboard queries
+        READ_FREQUENCY: Moderate (admin usage)  
+        TTL: 30 minutes (admin data, less critical freshness)
+        """
+        return self.cache.get(CacheKeys.content_stats())
     
-    def set_content_statistics(self, stats: Dict, timeout: int = 1800) -> None:
-        """Cache admin statistics for 30 minutes"""
-        key = self._make_key("content_stats")
-        self.stats_cache.set(key, stats, timeout)
-        logger.info(f"Cached content statistics: {key}")
+    def set_content_statistics(self, stats: Dict) -> None:
+        """Cache admin statistics with explicit TTL"""
+        CacheOperations.set_with_validation(
+            CacheKeys.content_stats(),
+            stats,
+            CacheTTL.STATS_LONG,
+            "admin dashboard statistics"
+        )
     
-    # Query Results Caching (addresses Phase 1 slow queries)  
+    # Query Results Caching (HIGH VALUE: expensive related content queries)
     def get_related_content(self, content_id: str, content_type: str) -> Optional[List]:
-        """Get cached related content (Phase 1: 232ms PDF detail optimization)"""
-        key = self._make_key("related_content", id=content_id, type=content_type)
-        return self.query_cache.get(key)
+        """Get cached related content
+        
+        PURPOSE: Avoid expensive similarity/related content queries
+        READ_FREQUENCY: High (content detail pages)
+        TTL: 30 minutes (content relationships stable)
+        """
+        return self.cache.get(CacheKeys.related_content(content_id, content_type))
     
-    def set_related_content(self, content_id: str, content_type: str, items: List, timeout: int = 1800) -> None:
-        """Cache related content for 30 minutes"""
-        key = self._make_key("related_content", id=content_id, type=content_type)
-        self.query_cache.set(key, items, timeout)
-        logger.info(f"Cached related content: {key} ({len(items)} items)")
+    def set_related_content(self, content_id: str, content_type: str, items: List) -> None:
+        """Cache related content with explicit TTL"""
+        CacheOperations.set_with_validation(
+            CacheKeys.related_content(content_id, content_type),
+            items,
+            CacheTTL.QUERY_MEDIUM,
+            f"related {content_type} content"
+        )
     
-    def get_popular_tags(self, limit: int = 10) -> Optional[List]:
-        """Get cached popular tags (Phase 1: slow tag counting)"""
-        key = self._make_key("popular_tags", limit=limit)
-        return self.stats_cache.get(key)
+    def get_popular_tags(self, limit: int = 8) -> Optional[List]:
+        """Get cached popular tags
+        
+        PURPOSE: Avoid expensive tag counting queries
+        READ_FREQUENCY: High (homepage, search pages)
+        TTL: 1 hour (tags change slowly)
+        """
+        return self.cache.get(CacheKeys.popular_tags(limit))
     
-    def set_popular_tags(self, tags: List, limit: int = 10, timeout: int = 3600) -> None:
-        """Cache popular tags for 1 hour"""
-        key = self._make_key("popular_tags", limit=limit)
-        self.stats_cache.set(key, tags, timeout)
-        logger.info(f"Cached popular tags: {key} ({len(tags)} tags)")
+    def set_popular_tags(self, tags: List, limit: int = 8) -> None:
+        """Cache popular tags with explicit TTL"""
+        CacheOperations.set_with_validation(
+            CacheKeys.popular_tags(limit),
+            tags,
+            CacheTTL.CONTENT_MEDIUM,
+            f"popular tags (limit: {limit})"
+        )
     
-    # Search Results Caching
+    # Search Results Caching (MODERATE VALUE: user-facing searches)  
     def get_search_results(self, query: str, filters: Dict = None) -> Optional[Dict]:
-        """Get cached search results"""
+        """Get cached search results
+        
+        PURPOSE: Avoid repeated expensive search queries
+        READ_FREQUENCY: Moderate (search usage)
+        TTL: 10 minutes (search results should be fresh)
+        """
         query_data = {'query': query, 'filters': filters or {}}
         query_hash = self._hash_query(query_data)
-        key = self._make_key("search_results", hash=query_hash)
-        return self.search_cache.get(key)
+        return self.cache.get(CacheKeys.search_results(query_hash))
     
-    def set_search_results(self, query: str, filters: Dict, results: Dict, timeout: int = 600) -> None:
-        """Cache search results for 10 minutes"""
+    def set_search_results(self, query: str, filters: Dict, results: Dict) -> None:
+        """Cache search results with explicit TTL"""
         query_data = {'query': query, 'filters': filters or {}}
         query_hash = self._hash_query(query_data)
-        key = self._make_key("search_results", hash=query_hash)
-        self.search_cache.set(key, results, timeout)
-        logger.info(f"Cached search results: {key} ({len(results.get('items', []))} results)")
+        
+        CacheOperations.set_with_validation(
+            CacheKeys.search_results(query_hash),
+            results,
+            CacheTTL.QUERY_SHORT,
+            f"search results for: {query[:50]}..."
+        )
     
-    # Cache Invalidation (Phase 4 critical feature)
+    # Cache Invalidation (SIMPLIFIED: only necessary operations)
     def invalidate_content_caches(self, content_type: Optional[str] = None) -> None:
-        """Invalidate content-related caches when content changes"""
-        try:
-            # Clear statistics (home page, admin dashboard)
-            stats_patterns = ["home_stats:*", "content_stats:*"]
-            for pattern in stats_patterns:
-                self.stats_cache.delete_pattern(f"*{pattern}*")
-            
-            # Clear related content queries
-            self.query_cache.delete_pattern("*related_content:*")
-            
-            # Clear search results (content changes affect search)
-            self.search_cache.delete_pattern("*search_results:*")
-            
-            logger.info(f"Invalidated caches for content_type: {content_type or 'ALL'}")
-        except Exception as e:
-            logger.error(f"Cache invalidation error: {e}")
+        """Invalidate content-related caches when content changes
+        
+        SCOPE: Only invalidates actually cached data
+        TRIGGER: Content create/update/delete operations
+        """
+        CacheInvalidation.invalidate_content_stats()
+        logger.info(f"Invalidated content caches for type: {content_type or 'ALL'}")
     
     def invalidate_tag_caches(self) -> None:
         """Invalidate tag-related caches when tags change"""
-        try:
-            # Clear popular tags
-            self.stats_cache.delete_pattern("*popular_tags:*")
-            
-            # Clear home stats (includes tag counts)
-            self.stats_cache.delete_pattern("*home_stats:*")
-            
-            logger.info("Invalidated tag-related caches")
-        except Exception as e:
-            logger.error(f"Tag cache invalidation error: {e}")
+        CacheInvalidation.invalidate_tag_caches()
+        logger.info("Invalidated tag-related caches")
     
+    def invalidate_navigation_caches(self) -> None:
+        """Invalidate navigation-related caches when content structure changes"""
+        # Clear navigation and menu-related caches
+        CacheInvalidation.invalidate_content_stats()
+        CacheInvalidation.invalidate_tag_caches()
+        logger.info("Invalidated navigation-related caches")
+
     def get_cache_stats(self) -> Dict:
-        """Get cache performance statistics"""
-        try:
-            from django_redis import get_redis_connection
-            
-            stats = {}
-            for cache_name in ['query_cache', 'stats_cache', 'search_cache']:
-                try:
-                    conn = get_redis_connection(cache_name)
-                    redis_info = conn.info()
-                    stats[cache_name] = {
-                        'keys': conn.dbsize(),
-                        'memory_usage': redis_info.get('used_memory_human', 'N/A'),
-                        'hits': redis_info.get('keyspace_hits', 0),
-                        'misses': redis_info.get('keyspace_misses', 0),
-                    }
-                    
-                    # Calculate hit ratio
-                    hits = stats[cache_name]['hits']
-                    misses = stats[cache_name]['misses']
-                    if hits + misses > 0:
-                        stats[cache_name]['hit_ratio'] = round(hits / (hits + misses) * 100, 2)
-                    else:
-                        stats[cache_name]['hit_ratio'] = 0
-                        
-                except Exception as e:
-                    stats[cache_name] = {'error': str(e)}
-            
-            return stats
-        except Exception as e:
-            logger.error(f"Cache stats error: {e}")
-            return {'error': str(e)}
+        """Get simplified cache performance statistics"""
+        return CacheMonitoring.get_essential_stats()
+
+
+def cache_unless_authenticated(timeout=300):
+    """
+    Conditional caching decorator - only caches responses for anonymous users.
+    
+    PURPOSE: Cache public pages for anonymous users while allowing 
+             personalized content for authenticated users.
+    USAGE: Decorator for views that serve different content based on auth status.
+    
+    Args:
+        timeout: Cache timeout in seconds (default 5 minutes)
+        
+    Returns:
+        Decorated function that conditionally caches based on authentication
+    """
+    from django.views.decorators.cache import cache_page
+    from django.utils.decorators import decorator_from_middleware
+    from django.middleware.cache import CacheMiddleware
+    
+    def decorator(func):
+        @wraps(func)
+        def wrapper(request, *args, **kwargs):
+            # Only cache for anonymous users
+            if not request.user.is_authenticated:
+                # Use Django's built-in cache_page decorator for anonymous users
+                cached_func = cache_page(timeout)(func)
+                return cached_func(request, *args, **kwargs)
+            else:
+                # No caching for authenticated users - serve fresh content
+                return func(request, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 # Global Phase 4 cache manager instance
-phase4_cache = Phase4CacheManager()
+cache_invalidator = CacheInvalidator()

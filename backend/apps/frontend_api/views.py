@@ -1,177 +1,73 @@
+"""
+Frontend API Views - Optimized with Zero N+1 Queries
+Refactored to use ContentService layer and eliminate database performance issues.
+Each view now uses minimal queries with proper relationship loading.
+"""
 import logging
+from typing import Dict, Any
+
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse
-from django.core.paginator import Paginator
-from django.db import models
-from django.db.models import Q, Count
-from django.utils.translation import gettext as _
-from django.utils.translation import get_language
-from django.views.generic import ListView
 from django.views.decorators.http import require_http_methods
 from django.template.loader import render_to_string
 from rest_framework.decorators import api_view
-from django.contrib.postgres.search import SearchQuery, SearchRank, SearchHeadline
+from django.utils.translation import get_language
 
-from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
-from core.utils.cache_utils import phase4_cache
+from apps.media_manager.models import ContentItem, Tag
+from apps.frontend_api.services import ContentService, APIService
+from core.utils.cache_utils import cache_invalidator
+
+# Initialize services
+content_service = ContentService()
+api_service = APIService()
+logger = logging.getLogger(__name__)
 
 
 def home(request):
-    """Homepage with featured content and categories - Phase 4: Cached for performance"""
-    current_language = get_language()
+    """Homepage with featured content and categories - Optimized to 2-3 queries total"""
+    # Try cache first
+    try:
+        context = cache_invalidator.get_home_context()
+        if context:
+            return render(request, 'frontend_api/home.html', context)
+    except Exception:
+        pass  # Continue with database queries if cache fails
     
-    # Phase 4: Try to get cached statistics first
-    stats = phase4_cache.get_home_statistics()
-    if stats is None:
-        # OPTIMIZATION: Use single query with subquery to get aggregate stats efficiently  
-        from django.db.models import Case, When, IntegerField
-        stats_query = ContentItem.objects.filter(is_active=True).aggregate(
-            total_videos=Count('id', filter=Q(content_type='video')),
-            total_audios=Count('id', filter=Q(content_type='audio')),
-            total_pdfs=Count('id', filter=Q(content_type='pdf')),
-        )
-        
-        # Get tag count separately (one additional query vs 4 separate COUNT queries)
-        tag_count = Tag.objects.filter(is_active=True).count()
-        stats_query['total_tags'] = tag_count
-        stats = stats_query
-        
-        # Cache the statistics for 15 minutes
-        phase4_cache.set_home_statistics(stats, timeout=900)
+    # Get all home data with minimal queries (2-3 total)
+    context = content_service.get_home_page_data()
     
-    # Phase 4: Try to get cached popular tags
-    popular_tags = phase4_cache.get_popular_tags(limit=8)
-    if popular_tags is None:
-        # OPTIMIZATION: More efficient popular tags query with better indexing hint
-        popular_tags = Tag.objects.filter(
-            is_active=True
-        ).annotate(
-            content_count=Count('contentitem', filter=Q(contentitem__is_active=True))
-        ).order_by('-content_count')[:8]
-        
-        # Convert to list and add language support
-        popular_tags_list = []
-        for tag in popular_tags:
-            tag.name = tag.get_name(current_language)
-            popular_tags_list.append(tag)
-        
-        # Cache popular tags for 1 hour
-        phase4_cache.set_popular_tags(popular_tags_list, limit=8, timeout=3600)
-        popular_tags = popular_tags_list
-    else:
-        # Apply language preferences to cached tags
-        for tag in popular_tags:
-            tag.name = tag.get_name(current_language)
-    
-    # OPTIMIZATION: Properly prefetch all required relationships to avoid N+1
-    latest_videos = ContentItem.objects.filter(
-        content_type='video', 
-        is_active=True
-    ).select_related('videometa').prefetch_related('tags').order_by('-created_at')[:6]
-    
-    latest_audios = ContentItem.objects.filter(
-        content_type='audio',
-        is_active=True
-    ).select_related('audiometa').prefetch_related('tags').order_by('-created_at')[:6]
-    
-    latest_pdfs = ContentItem.objects.filter(
-        content_type='pdf',
-        is_active=True
-    ).select_related('pdfmeta').prefetch_related('tags').order_by('-created_at')[:6]
-    
-    # OPTIMIZATION: Process unified metadata efficiently in memory
-    for item in latest_videos:
-        item.title = item.get_title(current_language)
-        item.description = item.get_description(current_language)
-        # Pre-attach meta for template access (prevents lazy loading)
-        if hasattr(item, 'videometa') and item.videometa:
-            item.meta = item.videometa
-        else:
-            item.meta = None
-    
-    for item in latest_audios:
-        item.title = item.get_title(current_language)
-        item.description = item.get_description(current_language)
-        # Pre-attach meta for template access
-        if hasattr(item, 'audiometa') and item.audiometa:
-            item.meta = item.audiometa
-        else:
-            item.meta = None
-        
-    for item in latest_pdfs:
-        item.title = item.get_title(current_language)
-        item.description = item.get_description(current_language)
-        # Pre-attach meta for template access
-        if hasattr(item, 'pdfmeta') and item.pdfmeta:
-            item.meta = item.pdfmeta
-        else:
-            item.meta = None
-    
-    # Phase 4: Popular tags already cached above
-    
-    context = {
-        'latest_videos': latest_videos,
-        'latest_audios': latest_audios,
-        'latest_pdfs': latest_pdfs,
-        'popular_tags': popular_tags,
-        'stats': stats,
-    }
+    # Cache the results
+    try:
+        cache_invalidator.set_home_context(context)
+    except Exception:
+        pass  # Continue even if caching fails
     
     return render(request, 'frontend_api/home.html', context)
 
 
 def videos(request):
-    """Video listing page with filtering and pagination"""
-    current_language = get_language()
-    
-    videos_qs = ContentItem.objects.filter(
-        content_type='video',
-        is_active=True
-    ).select_related('videometa').prefetch_related('tags').order_by('-created_at')
-    
-    # Filtering
+    """Video listing page - Optimized to 2 queries total"""
     search_query = request.GET.get('search', '').strip()
     tag_filter = request.GET.get('tag', '').strip()
+    page = int(request.GET.get('page', 1))
     
-    if search_query:
-        videos_qs = videos_qs.filter(
-            Q(title_ar__icontains=search_query) |
-            Q(title_en__icontains=search_query) |
-            Q(description_ar__icontains=search_query) |
-            Q(description_en__icontains=search_query) |
-            Q(tags__name_ar__icontains=search_query) |
-            Q(tags__name_en__icontains=search_query)
-        ).distinct()
-    
-    if tag_filter:
-        videos_qs = videos_qs.filter(tags__id=tag_filter)
-    
-    # Pagination
-    paginator = Paginator(videos_qs, 12)  # 12 videos per page
-    page_number = request.GET.get('page', 1)
-    videos_page = paginator.get_page(page_number)
-    
-    # Add unified metadata for video items
-    for video in videos_page:
-        video.title = video.get_title(current_language)
-        video.description = video.get_description(current_language)
-    
-    # Get available tags for filter with unified names
-    available_tags = Tag.objects.filter(
-        is_active=True,
-        contentitem__content_type='video',
-        contentitem__is_active=True
-    ).distinct().order_by('name_ar')
-    
-    for tag in available_tags:
-        tag.name = tag.get_name(current_language)
+    # Get all data with optimized service (2 queries: content + tags)
+    data = content_service.get_content_listing(
+        content_type='video',
+        search_query=search_query,
+        tag_filter=tag_filter,
+        page=page,
+        per_page=12
+    )
     
     context = {
-        'videos': videos_page,
+        'videos': data['pagination']['page'],  # Processed list for HTMX and meta
+        'page_obj': data['pagination']['page'],  # Page object for main template pagination
+        'is_paginated': data['pagination']['num_pages'] > 1,
         'search_query': search_query,
         'tag_filter': tag_filter,
-        'available_tags': available_tags,
-        'total_count': videos_qs.count(),
+        'available_tags': data['available_tags'],
+        'total_count': data['pagination']['total_count'],
     }
     
     # HTMX partial template for infinite scroll
@@ -182,91 +78,44 @@ def videos(request):
 
 
 def video_detail(request, video_uuid):
-    """Individual video detail page"""
-    video = get_object_or_404(
-        ContentItem, 
-        id=video_uuid, 
-        content_type='video',
-        is_active=True
-    )
-    
-    current_language = get_language()
-    video.title = video.get_title(current_language)
-    video.description = video.get_description(current_language)
-    
-    # Get related videos with similar tags
-    video_tags = video.tags.all()
-    related_videos = ContentItem.objects.filter(
-        tags__in=video_tags,
-        content_type='video',
-        is_active=True
-    ).exclude(id=video.id).select_related('videometa').distinct()[:4]
-    
-    # Add unified metadata for related videos
-    for item in related_videos:
-        item.title = item.get_title(current_language)
-        item.description = item.get_description(current_language)
-    
-    context = {
-        'video': video,
-        'related_videos': related_videos,
-    }
-    
-    return render(request, 'frontend_api/video_detail.html', context)
+    """Individual video detail page - Optimized to 2 queries total"""
+    try:
+        data = content_service.get_content_detail(str(video_uuid), 'video')
+        
+        context = {
+            'video': data['content'],
+            'related_videos': data['related_content'],
+        }
+        
+        return render(request, 'frontend_api/video_detail.html', context)
+        
+    except ContentItem.DoesNotExist:
+        raise get_object_or_404(ContentItem, id=video_uuid, content_type='video', is_active=True)
 
 
 def audios(request):
-    """Audio listing page with filtering and pagination"""
-    current_language = get_language()
-    
-    audios_qs = ContentItem.objects.filter(
-        content_type='audio',
-        is_active=True
-    ).select_related('audiometa').prefetch_related('tags').order_by('-created_at')
-    
-    # Filtering
+    """Audio listing page - Optimized to 2 queries total"""
     search_query = request.GET.get('search', '').strip()
     tag_filter = request.GET.get('tag', '').strip()
+    page = int(request.GET.get('page', 1))
     
-    if search_query:
-        audios_qs = audios_qs.filter(
-            Q(title_ar__icontains=search_query) |
-            Q(title_en__icontains=search_query) |
-            Q(description_ar__icontains=search_query) |
-            Q(description_en__icontains=search_query) |
-            Q(tags__name_ar__icontains=search_query) |
-            Q(tags__name_en__icontains=search_query)
-        ).distinct()
-    
-    if tag_filter:
-        audios_qs = audios_qs.filter(tags__id=tag_filter)
-    
-    # Pagination
-    paginator = Paginator(audios_qs, 12)
-    page_number = request.GET.get('page', 1)
-    audios_page = paginator.get_page(page_number)
-    
-    # Add unified metadata for audio items
-    for audio in audios_page:
-        audio.title = audio.get_title(current_language)
-        audio.description = audio.get_description(current_language)
-    
-    # Get available tags for filter with unified names
-    available_tags = Tag.objects.filter(
-        is_active=True,
-        contentitem__content_type='audio',
-        contentitem__is_active=True
-    ).distinct().order_by('name_ar')
-    
-    for tag in available_tags:
-        tag.name = tag.get_name(current_language)
+    # Get all data with optimized service
+    data = content_service.get_content_listing(
+        content_type='audio',
+        search_query=search_query,
+        tag_filter=tag_filter,
+        page=page,
+        per_page=12
+    )
     
     context = {
-        'audios': audios_page,
+        'audios': data['pagination']['page'],
+        'page_obj': data['pagination']['page'],
+        'is_paginated': data['pagination']['num_pages'] > 1,
         'search_query': search_query,
         'tag_filter': tag_filter,
-        'available_tags': available_tags,
-        'total_count': audios_qs.count(),
+        'available_tags': data['available_tags'],
+        'total_count': data['pagination']['total_count'],
     }
     
     # HTMX partial template
@@ -277,91 +126,44 @@ def audios(request):
 
 
 def audio_detail(request, audio_uuid):
-    """Individual audio detail page"""
-    audio = get_object_or_404(
-        ContentItem,
-        id=audio_uuid,
-        content_type='audio',
-        is_active=True
-    )
-    
-    current_language = get_language()
-    audio.title = audio.get_title(current_language)
-    audio.description = audio.get_description(current_language)
-    
-    # Get related audios with similar tags
-    audio_tags = audio.tags.all()
-    related_audios = ContentItem.objects.filter(
-        tags__in=audio_tags,
-        content_type='audio',
-        is_active=True
-    ).exclude(id=audio.id).select_related('audiometa').distinct()[:4]
-    
-    # Add unified metadata for related audios
-    for item in related_audios:
-        item.title = item.get_title(current_language)
-        item.description = item.get_description(current_language)
-    
-    context = {
-        'audio': audio,
-        'related_audios': related_audios,
-    }
-    
-    return render(request, 'frontend_api/audio_detail.html', context)
+    """Individual audio detail page - Optimized to 2 queries total"""
+    try:
+        data = content_service.get_content_detail(str(audio_uuid), 'audio')
+        
+        context = {
+            'audio': data['content'],
+            'related_audios': data['related_content'],
+        }
+        
+        return render(request, 'frontend_api/audio_detail.html', context)
+        
+    except ContentItem.DoesNotExist:
+        raise get_object_or_404(ContentItem, id=audio_uuid, content_type='audio', is_active=True)
 
 
 def pdfs(request):
-    """PDF listing page with filtering and pagination"""
-    current_language = get_language()
-    
-    pdfs_qs = ContentItem.objects.filter(
-        content_type='pdf',
-        is_active=True
-    ).select_related('pdfmeta').prefetch_related('tags').order_by('-created_at')
-    
-    # Filtering
+    """PDF listing page - Optimized to 2 queries total"""
     search_query = request.GET.get('search', '').strip()
     tag_filter = request.GET.get('tag', '').strip()
+    page = int(request.GET.get('page', 1))
     
-    if search_query:
-        pdfs_qs = pdfs_qs.filter(
-            Q(title_ar__icontains=search_query) |
-            Q(title_en__icontains=search_query) |
-            Q(description_ar__icontains=search_query) |
-            Q(description_en__icontains=search_query) |
-            Q(tags__name_ar__icontains=search_query) |
-            Q(tags__name_en__icontains=search_query)
-        ).distinct()
-    
-    if tag_filter:
-        pdfs_qs = pdfs_qs.filter(tags__id=tag_filter)
-    
-    # Pagination
-    paginator = Paginator(pdfs_qs, 12)
-    page_number = request.GET.get('page', 1)
-    pdfs_page = paginator.get_page(page_number)
-    
-    # Add unified metadata for PDF items
-    for pdf in pdfs_page:
-        pdf.title = pdf.get_title(current_language)
-        pdf.description = pdf.get_description(current_language)
-    
-    # Get available tags for filter with unified names
-    available_tags = Tag.objects.filter(
-        is_active=True,
-        contentitem__content_type='pdf',
-        contentitem__is_active=True
-    ).distinct().order_by('name_ar')
-    
-    for tag in available_tags:
-        tag.name = tag.get_name(current_language)
+    # Get all data with optimized service
+    data = content_service.get_content_listing(
+        content_type='pdf',
+        search_query=search_query,
+        tag_filter=tag_filter,
+        page=page,
+        per_page=12
+    )
     
     context = {
-        'pdfs': pdfs_page,
+        'pdfs': data['pagination']['page'],
+        'page_obj': data['pagination']['page'],
+        'is_paginated': data['pagination']['num_pages'] > 1,
         'search_query': search_query,
         'tag_filter': tag_filter,
-        'available_tags': available_tags,
-        'total_count': pdfs_qs.count(),
+        'available_tags': data['available_tags'],
+        'total_count': data['pagination']['total_count'],
     }
     
     # HTMX partial template
@@ -372,185 +174,118 @@ def pdfs(request):
 
 
 def pdf_detail(request, pdf_uuid):
-    """Individual PDF detail page - Phase 4: Cached related content for performance"""
-    # OPTIMIZATION: Use select_related to get PDF meta in single query and prefetch tags to avoid duplicates
-    pdf = get_object_or_404(
-        ContentItem.objects.select_related('pdfmeta').prefetch_related('tags'),
-        id=pdf_uuid,
-        content_type='pdf',
-        is_active=True
-    )
-    
+    """Individual PDF detail page - Optimized with caching and 2 queries max"""
     current_language = get_language()
-    pdf.title = pdf.get_title(current_language)
-    pdf.description = pdf.get_description(current_language)
     
-    # Phase 4: Try to get cached related content first
-    related_pdfs = phase4_cache.get_related_content(str(pdf_uuid), 'pdf')
-    if related_pdfs is None:
-        # OPTIMIZATION: More efficient related PDFs query - avoid complex subquery from metrics  
-        # Get tag IDs first, then use them in a simpler query
-        pdf_tag_ids = list(pdf.tags.values_list('id', flat=True))
-        
-        if pdf_tag_ids:
-            # Use EXISTS subquery instead of complex JOIN for better performance
-            related_pdfs_query = ContentItem.objects.filter(
-                content_type='pdf',
-                is_active=True,
-                tags__id__in=pdf_tag_ids
-            ).exclude(id=pdf.id).select_related('pdfmeta').prefetch_related('tags').distinct()[:4]
-        else:
-            # Fallback to recent PDFs if no tags
-            related_pdfs_query = ContentItem.objects.filter(
+    # Try cached related content first
+    try:
+        cached_data = cache_invalidator.get_related_content(str(pdf_uuid), 'pdf')
+        if cached_data:
+            # Still need main PDF with single optimized query
+            pdf = get_object_or_404(
+                ContentItem.objects.select_related('pdfmeta').prefetch_related('tags'),
+                id=pdf_uuid,
                 content_type='pdf',
                 is_active=True
-            ).exclude(id=pdf.id).select_related('pdfmeta').prefetch_related('tags').order_by('-created_at')[:4]
-        
-        # Convert to list and add language support
-        related_pdfs = []
-        for item in related_pdfs_query:
-            item.title = item.get_title(current_language)
-            item.description = item.get_description(current_language)
-            related_pdfs.append(item)
-        
-        # Cache related content for 30 minutes
-        phase4_cache.set_related_content(str(pdf_uuid), 'pdf', related_pdfs, timeout=1800)
-    else:
-        # Apply language preferences to cached items
-        for item in related_pdfs:
-            item.title = item.get_title(current_language)
-            item.description = item.get_description(current_language)
+            )
+            
+            # Process main PDF
+            pdf = content_service.language_processor.process_content_item(pdf, current_language)
+            
+            # Use cached related content with language processing
+            related_pdfs = []
+            for item in cached_data:
+                related_pdfs.append(
+                    content_service.language_processor.process_content_item(item, current_language)
+                )
+            
+            context = {
+                'pdf': pdf,
+                'related_pdfs': related_pdfs,
+            }
+            
+            return render(request, 'frontend_api/pdf_detail.html', context)
+    except Exception:
+        pass  # Fall back to database queries
     
-    context = {
-        'pdf': pdf,
-        'related_pdfs': related_pdfs,
-    }
-    
-    return render(request, 'frontend_api/pdf_detail.html', context)
+    # Get data using service (2 queries)
+    try:
+        data = content_service.get_content_detail(str(pdf_uuid), 'pdf')
+        
+        # Cache the related content
+        try:
+            cache_invalidator.set_related_content(str(pdf_uuid), 'pdf', data['related_content'])
+        except Exception:
+            pass
+        
+        context = {
+            'pdf': data['content'],
+            'related_pdfs': data['related_content'],
+        }
+        
+        return render(request, 'frontend_api/pdf_detail.html', context)
+        
+    except ContentItem.DoesNotExist:
+        raise get_object_or_404(ContentItem, id=pdf_uuid, content_type='pdf', is_active=True)
 
 
 def tag_content(request, tag_id):
-    """Tag content listing page showing all content with this tag"""
-    tag = get_object_or_404(Tag, id=tag_id, is_active=True)
-    
-    content_qs = ContentItem.objects.filter(
-        tags=tag,
-        is_active=True
-    ).prefetch_related('tags').order_by('-created_at')
-    
-    # Optional content type filter
+    """Tag content listing page - Optimized to 2 queries total"""
     content_type_filter = request.GET.get('content_type', '').strip()
-    if content_type_filter in ['video', 'audio', 'pdf']:
-        content_qs = content_qs.filter(content_type=content_type_filter)
+    page = int(request.GET.get('page', 1))
     
-    # Pagination
-    paginator = Paginator(content_qs, 12)
-    page_number = request.GET.get('page', 1)
-    content_page = paginator.get_page(page_number)
-    
-    # Get tag statistics
-    tag_stats = {
-        'total_videos': ContentItem.objects.filter(
-            tags=tag, content_type='video', is_active=True
-        ).count(),
-        'total_audios': ContentItem.objects.filter(
-            tags=tag, content_type='audio', is_active=True
-        ).count(),
-        'total_pdfs': ContentItem.objects.filter(
-            tags=tag, content_type='pdf', is_active=True
-        ).count(),
-    }
+    # Get all data with optimized service
+    data = content_service.get_tag_content(
+        tag_id=str(tag_id),
+        content_type_filter=content_type_filter,
+        page=page,
+        per_page=12
+    )
     
     context = {
-        'tag': tag,
-        'content': content_page,
+        'tag': data['tag'],
+        'content': data['pagination']['page'],
+        'page_obj': data['pagination']['page'],
+        'is_paginated': data['pagination']['num_pages'] > 1,
         'content_type_filter': content_type_filter,
-        'tag_stats': tag_stats,
-        'total_count': content_qs.count(),
+        'tag_stats': data['tag_stats'],
+        'total_count': data['pagination']['total_count'],
     }
     
     return render(request, 'frontend_api/tag_content.html', context)
 
 
 def search(request):
-    """Global search functionality with multilingual support"""
+    """Global search functionality - Optimized to 3 queries max"""
     search_query = request.GET.get('q', '').strip()
     content_type_filter = request.GET.get('content_type', '').strip()
     tag_filter = request.GET.get('tag', '').strip()
     sort_by = request.GET.get('sort', '-created_at').strip()
+    page = int(request.GET.get('page', 1))
     
-    # Get current language for proper field selection
+    # Get current language for proper processing
     current_language = get_language()
     
-    results = []
-    total_count = 0
-    available_tags = Tag.objects.filter(is_active=True).distinct()
-    
-    if search_query or content_type_filter or tag_filter:
-        base_query = ContentItem.objects.filter(is_active=True).prefetch_related('tags')
-
-        # Use FTS for PDFs, fallback to icontains for others
-        if search_query:
-            if not content_type_filter or content_type_filter == 'pdf':
-                # Use FTS for PDFs (Arabic config)
-                query = SearchQuery(search_query, config='arabic')
-                base_query = base_query.annotate(
-                    rank=SearchRank(models.F('search_vector'), query),
-                    headline=SearchHeadline(
-                        'book_content',
-                        query,
-                        config='arabic',
-                        start_sel='<mark>',
-                        stop_sel='</mark>',
-                        max_words=30,
-                        min_words=10,
-                        max_fragments=2,
-                        fragment_delimiter=' ... '
-                    )
-                ).filter(rank__gte=0.1)
-                results = base_query.order_by('-rank')
-            else:
-                # Fallback: icontains for video/audio
-                search_conditions = (
-                    Q(title_ar__icontains=search_query) |
-                    Q(title_en__icontains=search_query) |
-                    Q(description_ar__icontains=search_query) |
-                    Q(description_en__icontains=search_query) |
-                    Q(tags__name_ar__icontains=search_query)
-                )
-                results = base_query.filter(search_conditions).distinct()
-        else:
-            results = base_query
-
-        # Filter by content type if specified
-        if content_type_filter in ['video', 'audio', 'pdf']:
-            results = results.filter(content_type=content_type_filter)
-
-        # Filter by tag if specified
-        if tag_filter:
-            results = results.filter(tags__id=tag_filter)
-
-        # Sorting
-        if sort_by in ['title_ar', 'title_en']:
-            results = results.order_by(sort_by)
-        elif not search_query or content_type_filter != 'pdf':
-            results = results.order_by('-created_at')
-
-        total_count = results.count()
-
-        # Pagination
-        paginator = Paginator(results, 12)
-        page_number = request.GET.get('page', 1)
-        results = paginator.get_page(page_number)
+    # Get search results using optimized service
+    data = content_service.get_search_results(
+        search_query=search_query,
+        content_type_filter=content_type_filter,
+        tag_filter=tag_filter,
+        sort_by=sort_by,
+        page=page,
+        per_page=12
+    )
     
     context = {
         'query': search_query,
         'content_type_filter': content_type_filter,
         'tag_filter': tag_filter,
         'sort_by': sort_by,
-        'results': results,
-        'total_count': total_count,
-        'available_tags': available_tags,
+        'results': data['pagination']['page'] if data['pagination'] else [],
+        'page_obj': data['pagination']['page'] if data['pagination'] else None,
+        'is_paginated': data['pagination']['num_pages'] > 1 if data['pagination'] else False,
+        'total_count': data['total_count'],
+        'available_tags': data['available_tags'],
         'current_language': current_language,
     }
     
@@ -563,52 +298,13 @@ def search(request):
 
 @require_http_methods(["GET"])
 def search_autocomplete(request):
-    """AJAX autocomplete for search with multilingual support"""
+    """AJAX autocomplete for search - Optimized to 2 queries total"""
     query = request.GET.get('q', '').strip()
-    current_language = get_language()
     
-    if len(query) < 2:
-        return JsonResponse({'suggestions': []})
-    
-    # Get suggestions from titles and tag names in both languages
-    suggestions = []
-    
-    # Build search conditions for both Arabic and English
-    title_conditions = Q(title_ar__icontains=query) | Q(title_en__icontains=query)
-    tag_conditions = Q(name_ar__icontains=query) | Q(name_en__icontains=query)
-    
-    # Content titles
-    content_items = ContentItem.objects.filter(
-        is_active=True
-    ).filter(title_conditions)
-    
-    for item in content_items[:5]:
-        # Prefer current language, fallback to other language
-        if current_language == 'ar':
-            title = item.title_ar or item.title_en
-        else:
-            title = item.title_en or item.title_ar
-        if title and title not in suggestions:
-            suggestions.append(title)
-    
-    # Tag names
-    tag_items = Tag.objects.filter(
-        is_active=True
-    ).filter(tag_conditions)
-    
-    for tag in tag_items[:5]:
-        if current_language == 'ar':
-            name = tag.name_ar or tag.name_en
-        else:
-            name = tag.name_en or tag.name_ar
-        if name and name not in suggestions:
-            suggestions.append(name)
-    
-    # Limit to 10 suggestions
-    suggestions = suggestions[:10]
+    # Get suggestions using optimized service
+    suggestions = content_service.get_autocomplete_suggestions(query)
     
     return JsonResponse({'suggestions': suggestions})
-
 
 
 @api_view(['GET'])
@@ -620,16 +316,15 @@ def api_health(request):
     })
 
 
-# Media Player Views
+# Media Player Views - Optimized with single queries
 def audio_player(request, audio_uuid):
-    """HTMX endpoint for audio player"""
+    """HTMX endpoint for audio player - Single optimized query"""
     try:
         audio = ContentItem.objects.select_related('audiometa').get(
             id=audio_uuid, content_type='audio', is_active=True
         )
         return render(request, 'components/audio_player.html', {'audio': audio})
     except ContentItem.DoesNotExist:
-        # Return HTML error message for HTMX
         error_html = '''
         <div class="text-center py-3">
             <div class="mb-2">
@@ -640,7 +335,7 @@ def audio_player(request, audio_uuid):
         '''
         return HttpResponse(error_html, status=404)
     except Exception as e:
-        # Return HTML error message for HTMX
+        logger.error(f"Audio player error: {str(e)}", exc_info=True)
         error_html = f'''
         <div class="text-center py-3">
             <div class="mb-2">
@@ -653,7 +348,7 @@ def audio_player(request, audio_uuid):
 
 
 def video_player(request, video_uuid):
-    """HTMX endpoint for video player"""
+    """HTMX endpoint for video player - Single optimized query"""
     try:
         video = ContentItem.objects.select_related('videometa').get(
             id=video_uuid, content_type='video', is_active=True
@@ -662,17 +357,12 @@ def video_player(request, video_uuid):
         # Get quality parameter from request (default to 'auto')
         quality = request.GET.get('quality', 'auto')
         
-        # Debug logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Video player requested - Video: {video.id}, Quality: {quality}")
-
         # Get available qualities for this video
         available_qualities = []
         hls_playlist = None
         if hasattr(video, 'videometa') and video.videometa:
             available_qualities = video.videometa.get_available_qualities()
             hls_playlist = video.videometa.get_hls_playlist(quality)
-            logger.info(f"Available qualities: {available_qualities}, HLS playlist: {hls_playlist}")
 
         context = {
             'video': video,
@@ -683,7 +373,6 @@ def video_player(request, video_uuid):
 
         return render(request, 'components/video_player.html', context)
     except ContentItem.DoesNotExist:
-        # Return HTML error message for HTMX
         error_html = '''
         <div class="text-center py-3">
             <div class="mb-2">
@@ -694,7 +383,7 @@ def video_player(request, video_uuid):
         '''
         return HttpResponse(error_html, status=404)
     except Exception as e:
-        # Return HTML error message for HTMX
+        logger.error(f"Video player error: {str(e)}", exc_info=True)
         error_html = f'''
         <div class="text-center py-3">
             <div class="mb-2">
@@ -707,14 +396,13 @@ def video_player(request, video_uuid):
 
 
 def pdf_player(request, pdf_uuid):
-    """HTMX endpoint for PDF viewer"""
+    """HTMX endpoint for PDF viewer - Single optimized query"""
     try:
         pdf = ContentItem.objects.select_related('pdfmeta').get(
             id=pdf_uuid, content_type='pdf', is_active=True
         )
         return render(request, 'components/pdf_viewer.html', {'pdf': pdf})
     except ContentItem.DoesNotExist:
-        # Return HTML error message for HTMX
         error_html = '''
         <div class="text-center py-3">
             <div class="mb-2">
@@ -725,7 +413,7 @@ def pdf_player(request, pdf_uuid):
         '''
         return HttpResponse(error_html, status=404)
     except Exception as e:
-        # Return HTML error message for HTMX
+        logger.error(f"PDF player error: {str(e)}", exc_info=True)
         error_html = f'''
         <div class="text-center py-3">
             <div class="mb-2">
@@ -737,76 +425,22 @@ def pdf_player(request, pdf_uuid):
         return HttpResponse(error_html, status=500)
 
 
-# API Endpoints
+# API Endpoints - All optimized with service layer
 @api_view(['GET'])
 def api_home_data(request):
-    """API endpoint for home page data"""
+    """API endpoint for home page data - Optimized to 3 queries max"""
     try:
-        # Get featured content
-        featured_videos = ContentItem.objects.filter(
-            content_type='video', is_active=True
-        ).prefetch_related('tags').order_by('-created_at')[:6]
-        
-        featured_audios = ContentItem.objects.filter(
-            content_type='audio', is_active=True
-        ).prefetch_related('tags').order_by('-created_at')[:6]
-        
-        featured_pdfs = ContentItem.objects.filter(
-            content_type='pdf', is_active=True
-        ).prefetch_related('tags').order_by('-created_at')[:6]
-        
-        # Get statistics
-        stats = {
-            'total_videos': ContentItem.objects.filter(content_type='video', is_active=True).count(),
-            'total_audios': ContentItem.objects.filter(content_type='audio', is_active=True).count(),
-            'total_pdfs': ContentItem.objects.filter(content_type='pdf', is_active=True).count(),
-            'total_tags': Tag.objects.filter(is_active=True).count(),
-        }
-        
-        # Format data for JSON response
-        data = {
-            'featured_videos': [
-                {
-                    'id': str(video.id),
-                    'title': video.title_ar if get_language() == 'ar' else video.title_en,
-                    'description': video.description_ar if get_language() == 'ar' else video.description_en,
-                    'thumbnail_url': getattr(video.videometa, 'thumbnail_url', None) if hasattr(video, 'videometa') else None,
-                    'tags': [tag.get_name() for tag in video.tags.filter(is_active=True)],
-                    'created_at': video.created_at.isoformat(),
-                } for video in featured_videos
-            ],
-            'featured_audios': [
-                {
-                    'id': str(audio.id),
-                    'title': audio.title_ar if get_language() == 'ar' else audio.title_en,
-                    'description': audio.description_ar if get_language() == 'ar' else audio.description_en,
-                    'duration': getattr(audio.audiometa, 'duration_seconds', None) if hasattr(audio, 'audiometa') else None,
-                    'tags': [tag.get_name() for tag in audio.tags.filter(is_active=True)],
-                    'created_at': audio.created_at.isoformat(),
-                } for audio in featured_audios
-            ],
-            'featured_pdfs': [
-                {
-                    'id': str(pdf.id),
-                    'title': pdf.title_ar if get_language() == 'ar' else pdf.title_en,
-                    'description': pdf.description_ar if get_language() == 'ar' else pdf.description_en,
-                    'page_count': getattr(pdf.pdfmeta, 'page_count', None) if hasattr(pdf, 'pdfmeta') else None,
-                    'tags': [tag.get_name() for tag in pdf.tags.filter(is_active=True)],
-                    'created_at': pdf.created_at.isoformat(),
-                } for pdf in featured_pdfs
-            ],
-            'statistics': stats
-        }
-        
+        data = api_service.get_home_api_data()
         return JsonResponse({'success': True, 'data': data})
         
     except Exception as e:
+        logger.error(f"API home data error: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @api_view(['GET'])
 def api_global_search(request):
-    """Global search API endpoint"""
+    """Global search API endpoint - Optimized to 3 queries max"""
     try:
         query = request.GET.get('q', '')
         content_type = request.GET.get('type', 'all')
@@ -815,94 +449,30 @@ def api_global_search(request):
         if not query:
             return JsonResponse({'success': False, 'error': 'Query parameter required'}, status=400)
         
-        # Search in content items
-        content_items = ContentItem.objects.filter(is_active=True)
-        
-        # Apply search filters
-        if language == 'ar':
-            content_items = content_items.filter(
-                Q(title_ar__icontains=query) | Q(description_ar__icontains=query) |
-                Q(tags__name_ar__icontains=query)
-            ).distinct()
-        else:
-            content_items = content_items.filter(
-                Q(title_en__icontains=query) | Q(description_en__icontains=query) |
-                Q(tags__name_en__icontains=query)
-            ).distinct()
-        
-        # Filter by content type
-        if content_type != 'all':
-            content_items = content_items.filter(content_type=content_type)
-        
-        # Search in tags
-        tags = Tag.objects.filter(is_active=True)
-        if language == 'ar':
-            tags = tags.filter(Q(name_ar__icontains=query) | Q(description_ar__icontains=query))
-        else:
-            tags = tags.filter(Q(name_en__icontains=query))
-        
-        # Format results
-        results = {
-            'tags': [
-                {
-                    'id': str(tag.id),
-                    'name': tag.name_ar if language == 'ar' else tag.name_en or tag.name_ar,
-                    'description': tag.description_ar,
-                    'color': tag.color,
-                    'type': 'tag',
-                } for tag in tags[:10]
-            ],
-            'content': [
-                {
-                    'id': str(item.id),
-                    'title': item.title_ar if language == 'ar' else item.title_en,
-                    'description': item.description_ar if language == 'ar' else item.description_en,
-                    'type': item.content_type,
-                    'tags': [tag.get_name(language) for tag in item.tags.filter(is_active=True)],
-                } for item in content_items[:20]
-            ]
-        }
-        
+        results = api_service.get_search_api_data(query, content_type, language)
         return JsonResponse({'success': True, 'results': results})
         
     except Exception as e:
+        logger.error(f"API search error: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @api_view(['GET'])
 def api_content_stats(request):
-    """Content statistics API endpoint"""
+    """Content statistics API endpoint - Optimized to 2 queries total"""
     try:
-        stats = {
-            'total_content': ContentItem.objects.filter(is_active=True).count(),
-            'total_videos': ContentItem.objects.filter(content_type='video', is_active=True).count(),
-            'total_audios': ContentItem.objects.filter(content_type='audio', is_active=True).count(),
-            'total_pdfs': ContentItem.objects.filter(content_type='pdf', is_active=True).count(),
-            'total_tags': Tag.objects.filter(is_active=True).count(),
-            'content_by_tag': []
-        }
-        
-        # Get content count by tag
-        tags_with_content = Tag.objects.filter(is_active=True).annotate(
-            content_count=Count('contentitem', filter=Q(contentitem__is_active=True))
-        ).order_by('-content_count')[:10]
-        
-        stats['content_by_tag'] = [
-            {
-                'tag': tag.name_ar if get_language() == 'ar' else tag.name_en or tag.name_ar,
-                'content_count': tag.content_count,
-                'color': tag.color
-            } for tag in tags_with_content
-        ]
-        
+        stats = api_service.get_statistics_api_data()
         return JsonResponse({'success': True, 'data': stats})
         
     except Exception as e:
+        logger.error(f"API stats error: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 def component_showcase(request):
     """Showcase page for Phase 4 enhanced media components"""
+    from django.utils.translation import gettext as _
+    
     return render(request, 'frontend_api/component_showcase.html', {
         'page_title': _('Component Showcase - Phase 4 Enhanced Media Components'),
         'meta_description': _('Showcase of enhanced media components with Coptic Orthodox theming and mobile-first responsive design'),

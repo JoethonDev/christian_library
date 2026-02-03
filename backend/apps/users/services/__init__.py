@@ -42,8 +42,6 @@ class UserService:
         
         # Get content counts
         content_items = user.contentitem_set.filter(is_active=True)
-        courses = user.course_set.filter(is_active=True) if hasattr(user, 'course_set') else []
-        modules = user.module_set.filter(is_active=True) if hasattr(user, 'module_set') else []
         
         # Calculate file sizes (this would need to be implemented based on your file fields)
         total_upload_size = 0
@@ -54,8 +52,6 @@ class UserService:
         
         stats = {
             'content_count': content_items.count(),
-            'course_count': len(courses),
-            'module_count': len(modules),
             'video_count': content_items.filter(content_type='video').count(),
             'audio_count': content_items.filter(content_type='audio').count(),
             'pdf_count': content_items.filter(content_type='pdf').count(),

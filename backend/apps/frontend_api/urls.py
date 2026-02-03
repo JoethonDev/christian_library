@@ -1,6 +1,8 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 from . import admin_views
+from . import seo_views
 
 app_name = 'frontend_api'
 
@@ -33,32 +35,40 @@ urlpatterns = [
     path('player/video/<uuid:video_uuid>/', views.video_player, name='video_player'),
     path('player/pdf/<uuid:pdf_uuid>/', views.pdf_player, name='pdf_player'),
     
-    # Admin dashboard and main views
-    path('admin/', admin_views.admin_dashboard, name='admin_dashboard'),
-    path('admin/content/', admin_views.content_list, name='admin_content_list'),
-    path('admin/content/<uuid:content_id>/', admin_views.content_detail, name='admin_content_detail'),
-    path('admin/content/<uuid:content_id>/delete/', admin_views.content_delete_confirm, name='content_delete_confirm'),
-    path('admin/content/delete/<uuid:content_id>/', admin_views.content_delete_confirm, name='admin_content_delete'),
+    # Custom Admin dashboard and management views (at /en/dashboard/)
+    path('dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
+    path('dashboard/content/', admin_views.content_list, name='admin_content_list'),
+    path('dashboard/content/<uuid:content_id>/', admin_views.content_detail, name='admin_content_detail'),
+    path('dashboard/content/<uuid:content_id>/delete/', admin_views.content_delete_confirm, name='content_delete_confirm'),
+    path('dashboard/content/delete/<uuid:content_id>/', admin_views.content_delete_confirm, name='admin_content_delete'),
     
-    # Upload functionality
-    path('admin/upload/', admin_views.upload_content, name='upload_content'),
-    path('admin/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
-    path('admin/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
+    # Upload functionality (at /en/dashboard/upload/)
+    path('dashboard/upload/', admin_views.upload_content, name='upload_content'),
+    path('dashboard/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
+    path('dashboard/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
+    path('dashboard/upload/generate-from-file/', admin_views.generate_metadata_from_file, name='generate_metadata_from_file'),
     
-    # Content type specific management
-    path('admin/videos/', admin_views.video_management, name='video_management'),
-    path('admin/audios/', admin_views.audio_management, name='audio_management'),
-    path('admin/pdfs/', admin_views.pdf_management, name='pdf_management'),
+    # Content type specific management (at /en/dashboard/videos/, etc.)
+    path('dashboard/videos/', admin_views.video_management, name='video_management'),
+    path('dashboard/audios/', admin_views.audio_management, name='audio_management'),
+    path('dashboard/pdfs/', admin_views.pdf_management, name='pdf_management'),
     
-    # System management
-    path('admin/system/', admin_views.system_monitor, name='system_monitor'),
-    path('admin/bulk/', admin_views.bulk_operations, name='bulk_operations'),
+    # System management (at /en/dashboard/system/, etc.)
+    path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
+    path('dashboard/bulk/', admin_views.bulk_operations, name='bulk_operations'),
     
-    # Legacy admin interfaces (keeping for backward compatibility)
-    path('admin-dashboard/', admin_views.admin_dashboard, name='admin_dashboard_legacy'),
-    path('admin-content/', admin_views.content_list, name='admin_content_management'),
-    path('admin-system/', admin_views.system_monitor, name='admin_system_monitor'),
-    path('admin-bulk/', admin_views.bulk_operations, name='admin_bulk_operations'),
+    # SEO Dashboard (at /en/dashboard/seo/)
+    path('dashboard/seo/', seo_views.SEODashboardView.as_view(), name='seo_dashboard'),
+    path('dashboard/seo/analytics-api/', seo_views.seo_analytics_api, name='seo_analytics_api'),
+    path('dashboard/seo/content-analysis-api/', seo_views.seo_content_analysis_api, name='seo_content_analysis_api'),
+    path('dashboard/seo/bulk-actions-api/', seo_views.bulk_seo_actions_api, name='bulk_seo_actions_api'),
+    
+    # Legacy admin interfaces (redirects to dashboard for backward compatibility)
+    path('admin/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_redirect'),
+    path('admin-dashboard/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_dashboard_legacy'),
+    path('admin-content/', RedirectView.as_view(pattern_name='frontend_api:admin_content_list'), name='admin_content_management'),
+    path('admin-system/', RedirectView.as_view(pattern_name='frontend_api:system_monitor'), name='admin_system_monitor'),
+    path('admin-bulk/', RedirectView.as_view(pattern_name='frontend_api:bulk_operations'), name='admin_bulk_operations'),
     
     # API endpoints
     path('api/health/', views.api_health, name='api_health'),
