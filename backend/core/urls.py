@@ -1,10 +1,9 @@
 """
-URLs for core functionality including monitoring, health checks, and secure media serving.
+URLs for core functionality including monitoring and health checks.
 """
 
-from django.urls import path, re_path
+from django.urls import path
 from .views import monitoring
-from .utils.nginx_security import SecureMediaView, SecureStreamView
 
 app_name = 'core'
 
@@ -19,8 +18,4 @@ urlpatterns = [
     path('api/alerts/', monitoring.alerts_api, name='alerts_api'),
     path('api/query-analysis/', monitoring.query_analysis_api, name='query_analysis_api'),
     path('api/health-check/', monitoring.health_check_api, name='health_check_api'),
-    
-    # Secure media serving with nginx X-Accel-Redirect
-    re_path(r'^media/secure/(?P<file_path>.+)$', SecureMediaView.as_view(), name='secure_media'),
-    re_path(r'^media/stream/(?P<file_path>.+)$', SecureStreamView.as_view(), name='secure_stream'),
 ]

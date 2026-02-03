@@ -180,12 +180,3 @@ MEDIA_PROCESSING = {
     'THUMBNAIL_SIZE': (300, 300),
     'MAX_FILE_SIZE': 5 * 1024 * 1024 * 1024,  # 5GB
 }
-
-# Nginx media serving
-NGINX_MEDIA_SERVING = {
-    'ENABLE_X_ACCEL_REDIRECT': True,
-    'INTERNAL_MEDIA_URL': '/internal/media/',
-    'PUBLIC_MEDIA_PATH': '/media/public/',
-    'SECURE_DOWNLOAD_URL': '/core/media/secure/',
-    'SECURE_STREAM_URL': '/core/media/stream/',
-}
