@@ -136,11 +136,18 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
 def generate_seo_metadata_task(self, contentitem_id):
     """
     Generate SEO metadata for content using Gemini AI.
-    Retries up to 3 times with 2-minute delays on failure.
+    Retries up to 2 times with 2-minute delays on failure.
     Now decoupled from R2 upload and activation.
     """
     logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
+    
+    # Register task for monitoring
+    TaskMonitor.register_task(
+        task_id=self.request.id,
+        task_name='AI SEO Metadata Generation',
+        metadata={'content_id': contentitem_id, 'attempt': self.request.retries + 1}
+    )
     
     try:
         logger.info(f"Starting SEO metadata generation for ContentItem {contentitem_id}")
@@ -151,12 +158,24 @@ def generate_seo_metadata_task(self, contentitem_id):
         item.seo_processing_status = 'processing'
         item.save(update_fields=['seo_processing_status'])
         
+        TaskMonitor.update_progress(
+            self.request.id, 
+            10,
+            'Preparing content for AI analysis...', 
+            'Initialization'
+        )
+        
         # Get the media file path
         meta = item.get_meta_object()
         if not meta or not hasattr(meta, 'original_file') or not meta.original_file:
             logger.warning(f"No media file found for ContentItem {contentitem_id}")
             item.seo_processing_status = 'failed'
             item.save(update_fields=['seo_processing_status'])
+            TaskMonitor.update_task_status(
+                self.request.id, 
+                'FAILURE', 
+                {'message': 'No media file found', 'progress': 100}
+            )
             return
         
         file_path = meta.original_file.path
@@ -164,10 +183,22 @@ def generate_seo_metadata_task(self, contentitem_id):
              logger.warning(f"Media file not found at {file_path}")
              item.seo_processing_status = 'failed'
              item.save(update_fields=['seo_processing_status'])
+             TaskMonitor.update_task_status(
+                 self.request.id, 
+                 'FAILURE', 
+                 {'message': 'Media file not found on disk', 'progress': 100}
+             )
              return
 
         # Import Gemini service
         from apps.media_manager.services.gemini_service import get_gemini_service
+        
+        TaskMonitor.update_progress(
+            self.request.id, 
+            30,
+            'Connecting to AI service...', 
+            'AI Service'
+        )
         
         # Generate SEO metadata
         service = get_gemini_service()
@@ -175,9 +206,23 @@ def generate_seo_metadata_task(self, contentitem_id):
             logger.error("Gemini AI service not available")
             raise Exception("Gemini AI service not available")
         
+        TaskMonitor.update_progress(
+            self.request.id, 
+            50,
+            f'Generating SEO metadata with AI (attempt {self.request.retries + 1}/{self.max_retries + 1})...', 
+            'AI Processing'
+        )
+        
         success, seo_metadata = service.generate_seo_metadata(file_path, item.content_type)
         
         if success and seo_metadata:
+            TaskMonitor.update_progress(
+                self.request.id, 
+                80,
+                'Updating content with AI-generated metadata...', 
+                'Saving'
+            )
+            
             # Update the content item with SEO metadata
             success_update = item.update_seo_from_gemini(seo_metadata)
             
@@ -193,12 +238,23 @@ def generate_seo_metadata_task(self, contentitem_id):
                 
                 logger.info(f"Successfully generated and updated SEO metadata for ContentItem {contentitem_id}")
                 
+                TaskMonitor.update_task_status(
+                    self.request.id, 
+                    'SUCCESS', 
+                    {'message': 'AI SEO metadata generated successfully', 'progress': 100}
+                )
+                
                 # Check for cleanup
                 finalize_media_processing.delay(str(item.id))
             else:
                 logger.error(f"Failed to update SEO metadata for ContentItem {contentitem_id}")
                 item.seo_processing_status = 'failed'
                 item.save(update_fields=['seo_processing_status'])
+                TaskMonitor.update_task_status(
+                    self.request.id, 
+                    'FAILURE', 
+                    {'message': 'Failed to save AI-generated metadata', 'progress': 100}
+                )
         else:
             error_msg = seo_metadata.get('error', 'Unknown error') if isinstance(seo_metadata, dict) else 'Generation failed'
             logger.error(f"Failed to generate SEO metadata for ContentItem {contentitem_id}: {error_msg}")
@@ -206,20 +262,48 @@ def generate_seo_metadata_task(self, contentitem_id):
         
     except ContentItem.DoesNotExist:
         logger.error(f"ContentItem {contentitem_id} not found")
+        TaskMonitor.update_task_status(
+            self.request.id, 
+            'FAILURE', 
+            {'message': 'Content not found', 'progress': 100}
+        )
         return
         
     except Exception as exc:
         logger.error(f"Error generating SEO metadata for ContentItem {contentitem_id}: {str(exc)}", exc_info=True)
         
+        # Check if max retries exceeded (this is attempt self.request.retries + 1 of max_retries + 1)
+        is_last_attempt = self.request.retries >= self.max_retries
+        
+        # Update task monitor with retry status
+        TaskMonitor.update_task_status(
+            self.request.id, 
+            'RETRY' if not is_last_attempt else 'FAILURE',
+            {
+                'message': f'Attempt {self.request.retries + 1}/{self.max_retries + 1} failed: {str(exc)}',
+                'progress': 100 if is_last_attempt else 50
+            }
+        )
+        
         # Retry with exponential backoff
         try:
             self.retry(countdown=120 * (2 ** self.request.retries))
         except self.MaxRetriesExceededError:
-            logger.error(f"Max retries exceeded for SEO generation of ContentItem {contentitem_id}")
+            logger.error(f"Max retries (2) exceeded for SEO generation of ContentItem {contentitem_id}. Marking as failed with progress 100%.")
             try:
                 item = ContentItem.objects.get(id=contentitem_id)
                 item.seo_processing_status = 'failed'
                 item.save(update_fields=['seo_processing_status'])
+                # Ensure task is marked as failed with 100% progress to unblock UI
+                TaskMonitor.update_task_status(
+                    self.request.id, 
+                    'FAILURE', 
+                    {
+                        'message': f'AI service failed after 2 retries. Manual review required.',
+                        'progress': 100,
+                        'error': str(exc)
+                    }
+                )
             except:
                 pass
 
