@@ -71,11 +71,12 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if video.is_active %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">{% trans "Active" %}</span>
-                        {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-2">{% trans "Draft" %}</span>
-                        {% endif %}
+                        <div class="form-check form-switch px-0">
+                            <input class="form-check-input ms-0 toggle-status-btn" type="checkbox" 
+                                   data-id="{{ video.id }}"
+                                   {% if video.is_active %}checked{% endif %}
+                                   onchange="toggleStatus('{{ video.id }}', this)">
+                        </div>
                     </td>
                     <td>
                         {% if video.live_task %}
@@ -136,4 +137,38 @@
         </table>
     </div>
 </div>
+
+<script>
+function toggleStatus(contentId, checkbox) {
+    checkbox.disabled = true;
+    
+    fetch('{% url "frontend_api:api_toggle_content_status" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            content_id: contentId,
+            is_active: checkbox.checked
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        checkbox.disabled = false;
+        if (data.success) {
+            showToast(data.is_active ? '{% trans "Content activated" %}' : '{% trans "Content hidden" %}', 'success');
+        } else {
+            checkbox.checked = !checkbox.checked;
+            showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        checkbox.disabled = false;
+        checkbox.checked = !checkbox.checked;
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+</script>
 {% endblock %}
