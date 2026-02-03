@@ -1,148 +1,66 @@
-<!-- templates/admin/content_list.html - Coptic Orthodox Content Management -->
+<!-- templates/admin/content_list.html - Modern Content Management -->
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
 {% block admin_content %}
-<div class="container-fluid px-0">
-    <!-- Content Management Header -->
-    <div class="admin-content-header mb-5">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-4 sacred-shadow" 
-                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
-                        <i class="bi bi-collection text-white" style="font-size: 2rem;"></i>
-                    </div>
-                    <div>
-                        <h1 class="heading-font text-maroon mb-2 fw-bold">{% trans "Content Management" %}</h1>
-                        <p class="body-font text-muted mb-0">{% trans "Manage your library's videos, audio messages, and documents" %}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 text-end">
-                <div class="d-flex gap-2 justify-content-end">
-                    <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary px-4 py-2 rounded-pill">
-                        <i class="bi bi-plus-lg me-2"></i>{% trans "Upload" %}
-                    </a>
-                    <a href="{% url 'frontend_api:admin_bulk_operations' %}" class="btn btn-outline-secondary px-4 py-2 rounded-pill">
-                        <i class="bi bi-gear me-2"></i>{% trans "Bulk" %}
-                    </a>
-                </div>
-            </div>
-        </div>
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Content Management" %}</h1>
+        <p class="text-muted mb-0">{% trans "Manage your library's videos, audio messages, and documents" %}</p>
     </div>
-
-    <!-- Content Management Card -->
-    <div class="card card-coptic">
-        <div class="card-body p-4 p-md-5">
-            <!-- Search and Filter Section -->
-            <div class="row align-items-center mb-4">
-                <div class="col-md-8">
-                    <form hx-get="{% url 'frontend_api:admin_content_list' %}" 
-                          hx-target="#admin-content-table" 
-                          hx-trigger="change, keyup delay:300ms"
-                          class="d-flex gap-3 align-items-center flex-wrap">
-                        
-                        <div class="position-relative flex-grow-1">
-                            <input type="search" name="q" class="form-control form-control-lg ps-5 coptic-input" 
-                                   style="border-radius: 30px;"
-                                   placeholder="{% trans 'Search content by title, description, or ID...' %}" 
-                                   value="{{ search_query }}">
-                            <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-4 text-golden"></i>
-                        </div>
-                        
-                        <select name="type" class="form-select coptic-select" style="border-radius: 25px; width: auto; min-width: 150px;">
-                            <option value="">{% trans "All Types" %}</option>
-                            {% for type_code, type_name in content_types %}
-                                <option value="{{ type_code }}" {% if content_type_filter == type_code %}selected{% endif %}>
-                                    {{ type_name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </form>
-                </div>
-                <div class="col-md-4 text-end">
-                    <div class="d-flex gap-2 justify-content-end flex-wrap">
-                        <button class="btn btn-outline-maroon btn-sm px-3 py-2 rounded-pill" onclick="window.print()" title="{% trans 'Print' %}">
-                            <i class="bi bi-printer"></i>
-                        </button>
-                        <button class="btn btn-outline-golden btn-sm px-3 py-2 rounded-pill" title="{% trans 'Export' %}">
-                            <i class="bi bi-download"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Content Table -->
-            <div id="admin-content-table" style="border-radius: 15px; overflow: hidden;">
-                {% include "admin/partials/content_list.html" %}
-            </div>
-        </div>
+    <div class="col-auto">
+        <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary text-white rounded-pill px-4 shadow-sm">
+            <i class="bi bi-plus-lg me-2"></i>{% trans "Upload" %}
+        </a>
     </div>
 </div>
 
-<style>
-/* Coptic Orthodox Content Management Styles */
-.coptic-input:focus, .coptic-select:focus {
-    border-color: var(--color-golden-ochre);
-    box-shadow: 0 0 0 0.25rem rgba(221, 153, 51, 0.25);
-}
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-body p-4">
+        <!-- Search and Filter Section -->
+        <div class="row g-3 align-items-center mb-4">
+            <div class="col-lg-8">
+                <form hx-get="{% url 'frontend_api:admin_content_list' %}" 
+                      hx-target="#admin-content-table" 
+                      hx-trigger="change, keyup delay:300ms from:input"
+                      class="d-flex gap-2 flex-column flex-md-row">
+                    
+                    <div class="position-relative flex-grow-1">
+                        <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="search" name="q" class="form-control rounded-pill ps-5 bg-light border-0" 
+                               placeholder="{% trans 'Search content by title, description, or ID...' %}" 
+                               value="{{ search_query }}">
+                    </div>
+                    
+                    <select name="type" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;">
+                        <option value="">{% trans "All Types" %}</option>
+                        {% for type_code, type_name in content_types %}
+                            <option value="{{ type_code }}" {% if content_type_filter == type_code %}selected{% endif %}>
+                                {{ type_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="col-lg-4 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-light rounded-pill px-3" onclick="window.print()" title="{% trans 'Print' %}">
+                        <i class="bi bi-printer"></i>
+                    </button>
+                    <!-- Future Export Feature -->
+                    <!-- <button class="btn btn-light rounded-pill px-3 ms-2" title="{% trans 'Export' %}">
+                        <i class="bi bi-download"></i>
+                    </button> -->
+                </div>
+            </div>
+        </div>
 
-.coptic-input {
-    border: 2px solid var(--color-golden-ochre-30);
-    background: rgba(255, 255, 255, 0.95);
-    color: var(--color-maroon);
-}
-
-.coptic-select {
-    border: 2px solid var(--color-golden-ochre-30);
-    background: var(--color-golden-ochre-5);
-    color: var(--color-maroon);
-    font-weight: 600;
-}
-
-.btn-outline-maroon {
-    border: 2px solid var(--color-maroon);
-    color: var(--color-maroon);
-    transition: all 0.3s ease;
-}
-
-.btn-outline-maroon:hover {
-    background: var(--color-maroon);
-    color: white;
-}
-
-.btn-outline-golden {
-    border: 2px solid var(--color-golden-ochre);
-    color: var(--color-golden-ochre);
-    transition: all 0.3s ease;
-}
-
-.btn-outline-golden:hover {
-    background: var(--color-golden-ochre);
-    color: white;
-}
-
-/* Responsive Content Management */
-@media (max-width: 768px) {
-    .admin-content-header .d-flex {
-        flex-direction: column;
-        text-align: center;
-        gap: 1rem;
-    }
-    
-    .admin-content-header .col-md-4 {
-        text-align: center !important;
-    }
-    
-    .d-flex.gap-3.align-items-center {
-        flex-direction: column;
-        align-items: stretch !important;
-    }
-    
-    .position-relative.flex-grow-1 {
-        margin-bottom: 1rem;
-    }
-}
-</style>
+        <!-- Content Table Component -->
+        <div id="admin-content-table" class="table-responsive">
+            {% include "admin/partials/content_list.html" %}
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -3,182 +3,60 @@
 {% load i18n %}
 
 {% block admin_content %}
-<div class="container-fluid px-0">
-    <!-- Header Section -->
-    <div class="mb-5">
-        <div class="d-flex align-items-center mb-3">
-            <div class="p-3 rounded-circle me-3" 
-                 style="background: linear-gradient(135deg, #800000, #DD9933); backdrop-filter: blur(10px); box-shadow: 0 6px 20px rgba(128,0,0,0.25);">
-                <i class="bi bi-gear-wide-connected" style="font-size: 2rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            </div>
-            <div>
-                <h1 class="h2 mb-1 fw-bold" style="color: #800000; text-shadow: 1px 1px 2px rgba(128,0,0,0.1);">
-                    <i class="bi bi-collection me-2" style="color: #DD9933;"></i>{% trans "Sacred Bulk Operations" %}
-                </h1>
-                <p class="mb-0" style="color: #5a4037;">{% trans "Perform consecrated actions on multiple sacred content items simultaneously" %}</p>
-            </div>
-        </div>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Bulk Operations" %}</h1>
+        <p class="text-muted mb-0">{% trans "Perform actions on multiple content items simultaneously" %}</p>
     </div>
+</div>
 
-    <!-- Bulk Operations Card -->
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-lg" style="border-radius: 30px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
-                <div class="card-body p-5">
-                    <!-- Sacred Warning Alert -->
-                    <div class="alert border-0 mb-5" style="background: linear-gradient(135deg, rgba(255,193,7,0.08), rgba(255,193,7,0.12)); border-radius: 20px; border: 1px solid rgba(255,193,7,0.2);">
-                        <div class="d-flex align-items-center">
-                            <div class="p-3 rounded-circle me-3" style="background: linear-gradient(135deg, #ffc107, #ffca2c); box-shadow: 0 4px 12px rgba(255,193,7,0.3);">
-                                <i class="bi bi-shield-exclamation" style="color: white; font-size: 1.5rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-                            </div>
-                            <div>
-                                <h6 class="fw-bold mb-1" style="color: #e0950d;">{% trans "Sacred Content Warning" %}</h6>
-                                <p class="mb-0 small" style="color: #8d5e05;">{% trans "These operations affect sacred content and cannot be easily undone. Proceed with reverence and caution." %}</p>
-                            </div>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                
+                <div class="alert alert-warning border-0 rounded-3 d-flex align-items-center mb-4">
+                    <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+                    <div>
+                        <div class="fw-bold">{% trans "Warning" %}</div>
+                        <div class="small">{% trans "These operations affect multiple items and cannot be easily undone. Proceed with caution." %}</div>
+                    </div>
+                </div>
+
+                <form method="post" id="bulkForm">
+                    {% csrf_token %}
+                    
+                    <!-- Operation Selection -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark">{% trans "Select Action" %}</label>
+                        <select name="action" class="form-select form-select-lg shadow-sm">
+                            <option value="">{% trans "Choose an operation..." %}</option>
+                            <option value="publish">{% trans "Publish Selected Items" %}</option>
+                            <option value="unpublish">{% trans "Unpublish (Draft) Selected Items" %}</option>
+                            <option value="delete">{% trans "Delete Selected Items" %}</option>
+                            <option value="regenerate_seo">{% trans "Regenerate SEO Metadata" %}</option>
+                        </select>
+                    </div>
+
+                    <!-- Filter Selection (Mockup since logic depends on view) -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-dark">{% trans "Target Content" %}</label>
+                        <div class="p-3 bg-light rounded-3 border">
+                            <div class="form-text mb-2">{% trans "Select items from the Content List page to apply actions." %}</div>
+                            <div class="fw-bold small text-muted text-uppercase">{% trans "Currently Selected:" %}</div>
+                            <div class="h4 mt-1 fw-bold text-primary">0 {% trans "Items" %}</div>
                         </div>
                     </div>
 
-                    <form method="post" id="bulkForm">
-                        {% csrf_token %}
-                        
-                        <!-- Sacred Operation Selection -->
-                        <div class="mb-5">
-                            <h5 class="fw-bold mb-4" style="color: #800000;">
-                                <span class="badge rounded-pill me-2" style="background: linear-gradient(135deg, #800000, #DD9933); color: white; box-shadow: 0 3px 10px rgba(128,0,0,0.3);">1</span>
-                                <i class="bi bi-hand-thumbs-up me-2" style="color: #DD9933;"></i>{% trans "Select Sacred Operation" %}
-                            </h5>
-                            <div class="row g-3">
-                                <div class="col-md-4">
-                                    <input type="radio" class="btn-check" name="operation" id="op_activate" value="activate">
-                                    <label class="btn w-100 py-3" for="op_activate" style="border-radius: 15px; border: 2px solid #28a745; background: rgba(40,167,69,0.05); transition: all 0.3s ease;">
-                                        <i class="bi bi-check-circle-fill d-block mb-2" style="font-size: 2rem; color: #28a745;"></i>
-                                        <div class="fw-bold" style="color: #28a745;">{% trans "Sanctify" %}</div>
-                                        <small style="color: #1e5e29;">{% trans "Make content visible to faithful" %}</small>
-                                    </label>
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="radio" class="btn-check" name="operation" id="op_deactivate" value="deactivate">
-                                    <label class="btn w-100 py-3" for="op_deactivate" style="border-radius: 15px; border: 2px solid #ffc107; background: rgba(255,193,7,0.05); transition: all 0.3s ease;">
-                                        <i class="bi bi-pause-circle-fill d-block mb-2" style="font-size: 2rem; color: #ffc107;"></i>
-                                        <div class="fw-bold" style="color: #e0950d;">{% trans "Archive" %}</div>
-                                        <small style="color: #8d5e05;">{% trans "Hide from public view" %}</small>
-                                    </label>
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="radio" class="btn-check" name="operation" id="op_delete" value="delete">
-                                    <label class="btn w-100 py-3" for="op_delete" style="border-radius: 15px; border: 2px solid #dc3545; background: rgba(220,53,69,0.05); transition: all 0.3s ease;">
-                                        <i class="bi bi-x-circle-fill d-block mb-2" style="font-size: 2rem; color: #dc3545;"></i>
-                                        <div class="fw-bold" style="color: #dc3545;">{% trans "Remove" %}</div>
-                                        <small style="color: #721c24;">{% trans "Permanently delete content" %}</small>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sacred Content IDs -->
-                        <div class="mb-5">
-                            <h5 class="fw-bold mb-4" style="color: #800000;">
-                                <span class="badge rounded-pill me-2" style="background: linear-gradient(135deg, #800000, #DD9933); color: white; box-shadow: 0 3px 10px rgba(128,0,0,0.3);">2</span>
-                                <i class="bi bi-list-ol me-2" style="color: #DD9933;"></i>{% trans "Enter Sacred Content IDs" %}
-                            </h5>
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); border-radius: 20px; border: 1px solid rgba(128,0,0,0.15);">
-                                <div class="card-body p-4">
-                                    <textarea name="content_ids[]" class="form-control form-control-lg font-monospace" rows="6" 
-                                              style="border-radius: 15px; border: 2px solid rgba(128,0,0,0.25); background: rgba(255,255,255,0.9); padding: 15px;"
-                                              placeholder="101, 102, 103...&#10;or&#10;101&#10;102&#10;103" required></textarea>
-                                    <div class="mt-3">
-                                        <small style="color: #5a4037;">
-                                            <i class="bi bi-info-circle me-1" style="color: #DD9933;"></i>
-                                            {% trans "Enter sacred content IDs separated by commas or place each ID on a new line. You can find IDs in the content management table." %}
-                                        </small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sacred Submit Button -->
-                        <div class="text-center">
-                            <button type="submit" class="btn btn-lg px-5 py-3 fw-bold" 
-                                    style="border-radius: 25px; background: linear-gradient(135deg, #800000, #DD9933); border: none; color: white; box-shadow: 0 8px 32px rgba(128,0,0,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.3s ease;"
-                                    onclick="return confirmBulkAction()">
-                                <i class="bi bi-lightning-charge me-2"></i>{% trans "Execute Sacred Operation" %}
-                            </button>
-                            <p class="small mt-3 mb-0" style="color: #5a4037;">
-                                <i class="bi bi-shield-check me-1" style="color: #DD9933;"></i>{% trans "This sacred action will be applied to all specified content items with reverence" %}
-                            </p>
-                        </div>
-                    </form>
-                </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'frontend_api:admin_content_list' %}" class="btn btn-light rounded-pill px-4">{% trans "Cancel" %}</a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">
+                            {% trans "Apply Action" %}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-function confirmBulkAction() {
-    const selectedOperation = document.querySelector('input[name="operation"]:checked');
-    const contentIds = document.querySelector('textarea[name="content_ids[]"]').value;
-    
-    if (!selectedOperation) {
-        alert('{% trans "Please select an operation first." %}');
-        return false;
-    }
-    
-    if (!contentIds.trim()) {
-        alert('{% trans "Please enter at least one content ID." %}');
-        return false;
-    }
-    
-    const operationText = selectedOperation.nextElementSibling.querySelector('.fw-bold').textContent;
-    const idCount = contentIds.split(/[,\n]/).filter(id => id.trim()).length;
-    
-    return confirm(`{% trans "Are you sure you want to" %} ${operationText.toLowerCase()} ${idCount} {% trans "content item(s)?" %}\n\n{% trans "This action cannot be easily undone." %}`);
-}
-</script>
-
-<style>
-.btn-check:checked + .btn {
-    background: linear-gradient(135deg, #28a745, #20c997) !important;
-    border-color: #28a745 !important;
-    color: white !important;
-    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4) !important;
-    transform: translateY(-2px);
-}
-
-.btn-check:checked + .btn[for="op_deactivate"] {
-    background: linear-gradient(135deg, #ffc107, #ffca2c) !important;
-    border-color: #ffc107 !important;
-    color: white !important;
-    box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4) !important;
-}
-
-.btn-check:checked + .btn[for="op_delete"] {
-    background: linear-gradient(135deg, #dc3545, #bb2d3b) !important;
-    border-color: #dc3545 !important;
-    color: white !important;
-    box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4) !important;
-}
-
-.btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(128,0,0,0.15);
-    transition: all 0.3s ease;
-}
-
-.form-control:focus {
-    border-color: #800000;
-    box-shadow: 0 0 0 0.25rem rgba(128, 0, 0, 0.25);
-}
-
-button[type="submit"]:hover {
-    background: linear-gradient(135deg, #660000, #BB7711) !important;
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(128,0,0,0.5);
-}
-
-.card:hover {
-    transform: translateY(-2px);
-    transition: all 0.3s ease;
-}
-</style>
 {% endblock %}

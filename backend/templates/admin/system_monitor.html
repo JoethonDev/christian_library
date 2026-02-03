@@ -3,383 +3,212 @@
 {% load i18n %}
 
 {% block admin_content %}
-<div class="container-fluid px-0">
-    <!-- Header Section -->
-    <div class="mb-5">
-        <div class="d-flex align-items-center mb-3">
-            <div class="p-3 rounded-circle me-3" 
-                 style="background: linear-gradient(135deg, #800000, #DD9933); backdrop-filter: blur(10px); box-shadow: 0 6px 20px rgba(128,0,0,0.25);">
-                <i class="bi bi-activity" style="font-size: 2rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            </div>
-            <div>
-                <h1 class="h2 mb-1 fw-bold" style="color: #800000; text-shadow: 1px 1px 2px rgba(128,0,0,0.1);">
-                    <i class="bi bi-shield-check me-2" style="color: #DD9933;"></i>{% trans "Sacred System Monitor" %}
-                </h1>
-                <p class="mb-0" style="color: #5a4037;">{% trans "Monitor blessed system performance, sacred storage, and divine processing queues" %}</p>
-            </div>
-        </div>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "System Monitor" %}</h1>
+        <p class="text-muted mb-0">{% trans "Real-time system performance and resource usage metrics" %}</p>
     </div>
+    <div class="col-auto">
+        <button class="btn btn-white border shadow-sm rounded-pill" onclick="window.location.reload()">
+            <i class="bi bi-arrow-clockwise me-1"></i>{% trans "Refresh" %}
+        </button>
+    </div>
+</div>
 
-    <!-- System Status Cards -->
-    <div class="row g-4 mb-5">
-        <!-- Sacred Storage Usage Card -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-lg h-100" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
-                <div class="card-header bg-transparent border-0 py-4 px-4">
-                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
-                        <i class="bi bi-hdd-stack me-2" style="color: #DD9933;"></i>
-                        {% trans "Sacred Storage Usage" %}
-                    </h4>
-                </div>
-                <div class="card-body px-4 pb-4">
-                    <div class="row align-items-center mb-4">
-                        <div class="col-8">
-                            <div class="d-flex justify-content-between mb-2">
-                                <span class="fw-bold" style="color: #800000;">{{ disk_usage.percentage }}% {% trans "Used" %}</span>
-                                <span style="color: #5a4037;">{{ disk_usage.free|filesizeformat }} {% trans "Free" %}</span>
-                            </div>
-                            <div class="progress" style="height: 15px; border-radius: 12px; background: rgba(128,0,0,0.1);">
-                                <div class="progress-bar {% if disk_usage.percentage > 80 %}bg-danger{% elif disk_usage.percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
-                                     role="progressbar" 
-                                     style="width: {{ disk_usage.percentage }}%; border-radius: 12px; background: {% if disk_usage.percentage > 80 %}linear-gradient(135deg, #dc3545, #bb2d3b){% elif disk_usage.percentage > 60 %}linear-gradient(135deg, #ffc107, #e0a800){% else %}linear-gradient(135deg, #28a745, #20c997){% endif %};">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-4 text-center">
-                            <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center" 
-                                 style="background: {% if disk_usage.percentage > 80 %}linear-gradient(135deg, rgba(220,53,69,0.1), rgba(220,53,69,0.2)){% elif disk_usage.percentage > 60 %}linear-gradient(135deg, rgba(255,193,7,0.1), rgba(255,193,7,0.2)){% else %}linear-gradient(135deg, rgba(25,135,84,0.1), rgba(25,135,84,0.2)){% endif %}; width: 80px; height: 80px; box-shadow: 0 4px 15px {% if disk_usage.percentage > 80 %}rgba(220,53,69,0.2){% elif disk_usage.percentage > 60 %}rgba(255,193,7,0.2){% else %}rgba(25,135,84,0.2){% endif %};">
-                                <i class="bi bi-server" style="font-size: 2rem; color: {% if disk_usage.percentage > 80 %}#dc3545{% elif disk_usage.percentage > 60 %}#ffc107{% else %}#198754{% endif %};"></i>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(128,0,0,0.08), rgba(128,0,0,0.12)); border-radius: 15px; border: 1px solid rgba(128,0,0,0.15);">
-                                <div class="card-body text-center py-3">
-                                    <div class="fw-bold text-truncate" style="color: #800000;">{{ storage_breakdown.original|filesizeformat }}</div>
-                                    <small style="color: #5a4037;">{% trans "Sacred Original Files" %}</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(221,153,51,0.08), rgba(221,153,51,0.12)); border-radius: 15px; border: 1px solid rgba(221,153,51,0.15);">
-                                <div class="card-body text-center py-3">
-                                    <div class="fw-bold text-truncate" style="color: #DD9933;">{{ storage_breakdown.hls|filesizeformat }}</div>
-                                    <small style="color: #5a4037;">{% trans "Blessed HLS Segments" %}</small>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+<div class="row g-4 mb-4">
+    <!-- Storage Usage -->
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                    <i class="bi bi-hdd me-2 text-primary"></i>
+                    {% trans "Local Storage" %}
+                </h6>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-light rounded-pill px-3 dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-gear me-1"></i> {% trans "Maintenance Actions" %}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('clear_cache')"><i class="bi bi-trash me-2 text-danger"></i> {% trans "Clear Temporary Cache" %}</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('cleanup_orphaned')"><i class="bi bi-file-earmark-x me-2 text-warning"></i> {% trans "Cleanup Orphaned Files" %}</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('reindex_search')"><i class="bi bi-search me-2 text-primary"></i> {% trans "Rebuild Search Index" %}</a></li>
+                    </ul>
                 </div>
             </div>
-        </div>
-
-        <!-- Sacred Processing Queue Card -->
-        <div class="col-lg-6">
-            <div class="card border-0 shadow-lg h-100" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
-                <div class="card-header bg-transparent border-0 py-4 px-4">
-                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
-                        <i class="bi bi-list-check me-2" style="color: #DD9933;"></i>
-                        {% trans "Sacred Processing Queue" %}
-                    </h4>
+            <div class="card-body p-4 pt-0">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <span class="fw-bold display-6 text-dark">{{ disk_usage.percentage }}%</span>
+                    <span class="text-muted small">{{ disk_usage.free|filesizeformat }} {% trans "Free" %}</span>
                 </div>
-                <div class="card-body px-4 pb-4">
-                    <div class="row g-4 text-center">
-                        <div class="col-6">
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(139,69,19,0.08), rgba(139,69,19,0.12)); border-radius: 20px; border: 1px solid rgba(139,69,19,0.15);">
-                                <div class="card-body py-4">
-                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: linear-gradient(135deg, rgba(139,69,19,0.15), rgba(139,69,19,0.25)); width: 70px; height: 70px; box-shadow: 0 4px 15px rgba(139,69,19,0.2);">
-                                        <i class="bi bi-hourglass-split" style="font-size: 1.8rem; color: #8B4513;"></i>
-                                    </div>
-                                    <h2 class="fw-bold mb-1" style="color: #800000;">{{ processing_queue }}</h2>
-                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Sacred Jobs Pending" %}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="card border-0" style="background: {% if failed_processing > 0 %}linear-gradient(135deg, rgba(220,53,69,0.08), rgba(220,53,69,0.12)){% else %}linear-gradient(135deg, rgba(25,135,84,0.08), rgba(25,135,84,0.12)){% endif %}; border-radius: 20px; border: 1px solid {% if failed_processing > 0 %}rgba(220,53,69,0.15){% else %}rgba(25,135,84,0.15){% endif %};">
-                                <div class="card-body py-4">
-                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: {% if failed_processing > 0 %}linear-gradient(135deg, rgba(220,53,69,0.15), rgba(220,53,69,0.25)){% else %}linear-gradient(135deg, rgba(25,135,84,0.15), rgba(25,135,84,0.25)){% endif %}; width: 70px; height: 70px; box-shadow: 0 4px 15px {% if failed_processing > 0 %}rgba(220,53,69,0.2){% else %}rgba(25,135,84,0.2){% endif %};">
-                                        <i class="bi bi-{% if failed_processing > 0 %}exclamation-triangle-fill{% else %}check-circle-fill{% endif %}" 
-                                           style="font-size: 1.8rem; color: {% if failed_processing > 0 %}#dc3545{% else %}#198754{% endif %};"></i>
-                                    </div>
-                                    <h2 class="fw-bold mb-1" style="color: {% if failed_processing > 0 %}#dc3545{% else %}#198754{% endif %};">{{ failed_processing }}</h2>
-                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Sacred Jobs Failed" %}</p>
-                                </div>
-                            </div>
+                
+                <div class="progress mb-4" style="height: 8px; border-radius: 4px;">
+                    <div class="progress-bar {% if disk_usage.percentage > 80 %}bg-danger{% elif disk_usage.percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                         role="progressbar" 
+                         style="width: {{ disk_usage.percentage }}%"></div>
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 text-center">
+                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Originals" %}</div>
+                            <div class="fw-bold text-dark">{{ storage_breakdown.original|filesizeformat }}</div>
                         </div>
                     </div>
-                    
-                    {% if processing_queue > 0 %}
-                        <div class="alert border-0 mt-4 mb-0" style="background: linear-gradient(135deg, rgba(128,0,0,0.08), rgba(128,0,0,0.12)); border-radius: 20px; border: 1px solid rgba(128,0,0,0.15);">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-gear-wide-connected me-2" style="color: #800000;"></i>
-                                <small class="mb-0" style="color: #5a4037;">{% trans "Sacred background workers are currently processing blessed content." %}</small>
-                            </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 text-center">
+                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "HLS Media" %}</div>
+                            <div class="fw-bold text-dark">{{ storage_breakdown.hls|filesizeformat }}</div>
                         </div>
-                    {% elif failed_processing > 0 %}
-                        <div class="alert border-0 mt-4 mb-0" style="background: linear-gradient(135deg, rgba(220,53,69,0.08), rgba(220,53,69,0.12)); border-radius: 20px; border: 1px solid rgba(220,53,69,0.15);">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-exclamation-triangle-fill me-2" style="color: #dc3545;"></i>
-                                <small class="mb-0 text-danger">{% trans "Some sacred processing jobs have encountered divine challenges. Please check the blessed logs." %}</small>
-                            </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 text-center">
+                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Optimized" %}</div>
+                            <div class="fw-bold text-dark">{{ storage_breakdown.optimized|filesizeformat }}</div>
                         </div>
-                    {% else %}
-                        <div class="alert border-0 mt-4 mb-0" style="background: linear-gradient(135deg, rgba(25,135,84,0.08), rgba(25,135,84,0.12)); border-radius: 20px; border: 1px solid rgba(25,135,84,0.15);">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-check-circle-fill me-2" style="color: #198754;"></i>
-                                <small class="mb-0 text-success">{% trans "All sacred systems are running in divine harmony." %}</small>
-                            </div>
-                        </div>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<script>
+function runAction(action) {
+    if(!confirm('{% trans "Are you sure you want to run this maintenance action?" %}')) return;
     
-    <!-- R2 Cloud Storage Monitor Section -->
-    {% if r2_enabled %}
-    <div class="row g-4 mb-5">
-        <div class="col-12">
-            <div class="card border-0 shadow-lg" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
-                <div class="card-header bg-transparent border-0 py-4 px-4">
-                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
-                        <i class="bi bi-cloud-arrow-up me-2" style="color: #DD9933;"></i>
-                        {% trans "Cloudflare R2 Sacred Cloud Storage" %}
-                    </h4>
+    // In a real implementation, this would hit an API endpoint
+    showToast('{% trans "Maintenance action started: " %}' + action, 'info');
+    
+    // Example fetch:
+    /*
+    fetch('/api/system/action/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+        body: JSON.stringify({ action: action })
+    }).then(r => r.json()).then(data => showToast(data.message, data.success ? 'success' : 'danger'));
+    */
+}
+</script>
+
+<!-- R2 Storage -->
+{% if r2_enabled %}
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4">
+        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+            <i class="bi bi-cloud me-2 text-primary"></i>
+            {% trans "Cloud Storage (R2)" %}
+        </h6>
+    </div>
+    <div class="card-body p-4 pt-0">
+        <div class="row g-4 text-center">
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="h3 fw-bold text-success mb-1">{{ r2_stats.total.completed }}</div>
+                    <div class="small text-muted text-uppercase fw-bold">{% trans "Synced" %}</div>
                 </div>
-                <div class="card-body px-4 pb-4">
-                    <div class="row g-4">
-                        <!-- Overall R2 Status -->
-                        <div class="col-lg-3">
-                            <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(128,0,0,0.08), rgba(128,0,0,0.12)); border-radius: 20px; border: 1px solid rgba(128,0,0,0.15);">
-                                <div class="card-body text-center py-4">
-                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: linear-gradient(135deg, rgba(128,0,0,0.15), rgba(128,0,0,0.25)); width: 70px; height: 70px; box-shadow: 0 4px 15px rgba(128,0,0,0.2);">
-                                        <i class="bi bi-cloud-check" style="font-size: 1.8rem; color: #800000;"></i>
-                                    </div>
-                                    <h3 class="fw-bold mb-1" style="color: #800000;">{{ r2_stats.total.completed }}</h3>
-                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Files Blessed in Cloud" %}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Pending Uploads -->
-                        <div class="col-lg-3">
-                            <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(255,193,7,0.08), rgba(255,193,7,0.12)); border-radius: 20px; border: 1px solid rgba(255,193,7,0.15);">
-                                <div class="card-body text-center py-4">
-                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: linear-gradient(135deg, rgba(255,193,7,0.15), rgba(255,193,7,0.25)); width: 70px; height: 70px; box-shadow: 0 4px 15px rgba(255,193,7,0.2);">
-                                        <i class="bi bi-hourglass-split" style="font-size: 1.8rem; color: #ffc107;"></i>
-                                    </div>
-                                    <h3 class="fw-bold mb-1" style="color: #ffc107;">{{ r2_stats.total.pending }}</h3>
-                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Awaiting Sacred Upload" %}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Currently Uploading -->
-                        <div class="col-lg-3">
-                            <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(13,202,240,0.08), rgba(13,202,240,0.12)); border-radius: 20px; border: 1px solid rgba(13,202,240,0.15);">
-                                <div class="card-body text-center py-4">
-                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: linear-gradient(135deg, rgba(13,202,240,0.15), rgba(13,202,240,0.25)); width: 70px; height: 70px; box-shadow: 0 4px 15px rgba(13,202,240,0.2);">
-                                        <i class="bi bi-arrow-up-circle" style="font-size: 1.8rem; color: #0dcaf0;"></i>
-                                    </div>
-                                    <h3 class="fw-bold mb-1" style="color: #0dcaf0;">{{ r2_stats.total.uploading }}</h3>
-                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Ascending to Cloud" %}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Failed Uploads -->
-                        <div class="col-lg-3">
-                            <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(220,53,69,0.08), rgba(220,53,69,0.12)); border-radius: 20px; border: 1px solid rgba(220,53,69,0.15);">
-                                <div class="card-body text-center py-4">
-                                    <div class="p-3 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                         style="background: linear-gradient(135deg, rgba(220,53,69,0.15), rgba(220,53,69,0.25)); width: 70px; height: 70px; box-shadow: 0 4px 15px rgba(220,53,69,0.2);">
-                                        <i class="bi bi-exclamation-triangle" style="font-size: 1.8rem; color: #dc3545;"></i>
-                                    </div>
-                                    <h3 class="fw-bold mb-1" style="color: #dc3545;">{{ r2_stats.total.failed }}</h3>
-                                    <p class="small mb-0" style="color: #5a4037;">{% trans "Needs Divine Intervention" %}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Detailed Breakdown by Content Type -->
-                    <div class="row g-3 mt-3">
-                        <div class="col-md-4">
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(102,16,242,0.08), rgba(102,16,242,0.12)); border-radius: 15px; border: 1px solid rgba(102,16,242,0.15);">
-                                <div class="card-body py-3">
-                                    <h6 class="fw-bold mb-2" style="color: #6610f2;">
-                                        <i class="bi bi-play-circle me-1"></i>{% trans "Sacred Videos" %}
-                                    </h6>
-                                    <div class="d-flex justify-content-between">
-                                        <small style="color: #5a4037;">✓ {{ r2_stats.video.completed }}</small>
-                                        <small style="color: #5a4037;">⏳ {{ r2_stats.video.pending }}</small>
-                                        <small style="color: #5a4037;">📤 {{ r2_stats.video.uploading }}</small>
-                                        <small style="color: #dc3545;">❌ {{ r2_stats.video.failed }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(111,66,193,0.08), rgba(111,66,193,0.12)); border-radius: 15px; border: 1px solid rgba(111,66,193,0.15);">
-                                <div class="card-body py-3">
-                                    <h6 class="fw-bold mb-2" style="color: #6f42c1;">
-                                        <i class="bi bi-music-note me-1"></i>{% trans "Sacred Audio" %}
-                                    </h6>
-                                    <div class="d-flex justify-content-between">
-                                        <small style="color: #5a4037;">✓ {{ r2_stats.audio.completed }}</small>
-                                        <small style="color: #5a4037;">⏳ {{ r2_stats.audio.pending }}</small>
-                                        <small style="color: #5a4037;">📤 {{ r2_stats.audio.uploading }}</small>
-                                        <small style="color: #dc3545;">❌ {{ r2_stats.audio.failed }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(214,51,132,0.08), rgba(214,51,132,0.12)); border-radius: 15px; border: 1px solid rgba(214,51,132,0.15);">
-                                <div class="card-body py-3">
-                                    <h6 class="fw-bold mb-2" style="color: #d63384;">
-                                        <i class="bi bi-file-earmark-pdf me-1"></i>{% trans "Sacred Texts" %}
-                                    </h6>
-                                    <div class="d-flex justify-content-between">
-                                        <small style="color: #5a4037;">✓ {{ r2_stats.pdf.completed }}</small>
-                                        <small style="color: #5a4037;">⏳ {{ r2_stats.pdf.pending }}</small>
-                                        <small style="color: #5a4037;">📤 {{ r2_stats.pdf.uploading }}</small>
-                                        <small style="color: #dc3545;">❌ {{ r2_stats.pdf.failed }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="h3 fw-bold text-warning mb-1">{{ r2_stats.total.pending }}</div>
+                    <div class="small text-muted text-uppercase fw-bold">{% trans "Pending" %}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="h3 fw-bold text-info mb-1">{{ r2_stats.total.uploading }}</div>
+                    <div class="small text-muted text-uppercase fw-bold">{% trans "Uploading" %}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="p-3">
+                    <div class="h3 fw-bold text-danger mb-1">{{ r2_stats.total.failed }}</div>
+                    <div class="small text-muted text-uppercase fw-bold">{% trans "Failed" %}</div>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
+</div>
+{% endif %}
 
-    <!-- Real-time Task Progress Monitor -->
-    <div class="row g-4 mb-5">
-        <div class="col-12">
-            <div class="card border-0 shadow-lg" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
-                <div class="card-header bg-transparent border-0 py-4 px-4 d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
-                        <i class="bi bi-cpu me-2" style="color: #DD9933;"></i>
-                        {% trans "Sacred Task Progress & Divine Logs" %}
-                    </h4>
-                    <span class="badge bg-maroon rounded-pill px-3 py-2">
-                        {{ task_monitor.task_stats.total_registered|default:0 }} {% trans "Total Registered Tasks" %}
-                    </span>
-                </div>
-                <div class="card-body px-4 pb-4">
-                    {% if task_monitor.has_tasks %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle border-0">
-                            <thead class="text-muted border-bottom">
-                                <tr>
-                                    <th class="border-0 px-3">{% trans "Divinely Job" %}</th>
-                                    <th class="border-0">{% trans "Progress" %}</th>
-                                    <th class="border-0">{% trans "Current Step" %}</th>
-                                    <th class="border-0">{% trans "Status" %}</th>
-                                    <th class="border-0 text-end px-3">{% trans "Last Update" %}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for task in task_monitor.active_tasks %}
-                                <tr style="border-bottom: 1px solid rgba(128,0,0,0.05);">
-                                    <td class="px-3 py-4">
-                                        <div class="fw-bold" style="color: #800000;">{{ task.task_name }}</div>
-                                        <small class="text-muted">ID: {{ task.task_id|truncatechars:18 }}</small>
-                                    </td>
-                                    <td style="width: 25%;">
-                                        <div class="progress" style="height: 10px; border-radius: 10px; background: rgba(128,0,0,0.05);">
-                                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                                                 role="progressbar" 
-                                                 style="width: {{ task.progress|default:0 }}%; background: linear-gradient(135deg, #800000, #DD9933); border-radius: 10px;">
-                                            </div>
-                                        </div>
-                                        <div class="text-end mt-1">
-                                            <small class="fw-bold" style="color: #DD9933;">{{ task.progress|default:0 }}%</small>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <i class="bi bi-dot me-1" style="color: #DD9933; font-size: 1.5rem;"></i>
-                                            <span style="color: #5a4037;">{{ task.current_step|default:"Waiting..." }}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        {% if task.current_status == 'SUCCESS' %}
-                                            <span class="badge bg-success text-white rounded-pill px-3 py-2">
-                                                <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
-                                            </span>
-                                        {% elif task.current_status == 'FAILURE' %}
-                                            <span class="badge bg-danger text-white rounded-pill px-3 py-2">
-                                                <i class="bi bi-x-circle me-1"></i>{% trans "Failed" %}
-                                            </span>
-                                        {% elif task.current_status == 'RETRY' %}
-                                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2">
-                                                <i class="bi bi-arrow-repeat me-1"></i>{% trans "Retrying" %}
-                                            </span>
-                                        {% else %}
-                                            <span class="badge bg-primary text-white rounded-pill px-3 py-2">
-                                                <i class="bi bi-gear-wide-connected spin me-1"></i>{% trans "Processing" %}
-                                            </span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-end px-3">
-                                        <small class="text-muted">{{ task.updated_at|default:task.created_at|truncatechars:19 }}</small>
-                                        <button class="btn btn-sm btn-link p-0 ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#logs-{{ task.task_id|slice:':8' }}">
-                                            <i class="bi bi-list-columns-reverse text-maroon"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr class="collapse" id="logs-{{ task.task_id|slice:':8' }}">
-                                    <td colspan="5" class="bg-light bg-opacity-50 p-4 border-0">
-                                        <div style="max-height: 200px; overflow-y: auto;">
-                                            <h6 class="fw-bold mb-3" style="color: #800000; font-size: 0.85rem;">{% trans "Sacred Job Activity Logs" %}</h6>
-                                            {% if task.logs %}
-                                                {% for log in task.logs %}
-                                                <div class="d-flex mb-2 small" style="border-left: 2px solid #DD9933; padding-left: 10px;">
-                                                    <span class="text-muted me-3" style="min-width: 80px;">{{ log.timestamp|slice:'11:19' }}</span>
-                                                    <span class="fw-bold text-maroon me-2">[{{ log.step }}]</span>
-                                                    <span style="color: #5a4037;">{{ log.message }}</span>
-                                                </div>
-                                                {% endfor %}
-                                            {% else %}
-                                                <p class="text-muted small mb-0">{% trans "No detailed logs available for this sacred job." %}</p>
-                                            {% endif %}
-                                            
-                                            {% if task.error %}
-                                            <div class="alert alert-danger mt-3 mb-0 py-2 small border-0">
-                                                <i class="bi bi-bug me-2"></i>{% trans "Divine Error" %}: {{ task.error }}
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <div class="p-4 rounded-circle bg-light d-inline-block mb-3">
-                            <i class="bi bi-slash-circle text-muted" style="font-size: 2rem;"></i>
-                        </div>
-                        <h5 class="text-muted">{% trans "No sacred tasks found in the divine queue." %}</h5>
-                        <p class="small text-muted mb-0">{% trans "Tasks will appear here once they are registered for processing." %}</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+<!-- Active Tasks -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark">
+            <i class="bi bi-list-task me-2 text-primary"></i>
+            {% trans "Active Tasks" %}
+        </h6>
+        <span class="badge bg-light text-secondary border rounded-pill">{{ task_monitor.task_stats.total_registered|default:0 }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if task_monitor.has_tasks %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4 border-0 text-secondary text-uppercase small fw-bold">{% trans "Task" %}</th>
+                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Progress" %}</th>
+                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Status" %}</th>
+                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Logs" %}</th>
+                        <th class="pe-4 border-0 text-end text-secondary text-uppercase small fw-bold">{% trans "Updated" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in task_monitor.active_tasks %}
+                    <tr x-data="{ logOpen: false }">
+                        <td class="ps-4">
+                            <div class="fw-semibold text-dark">{{ task.task_name }}</div>
+                            <small class="text-muted">{{ task.task_id|truncatechars:12 }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center" style="width: 150px;">
+                                <div class="progress flex-grow-1 me-2" style="height: 6px;">
+                                    <div class="progress-bar" style="width: {{ task.progress }}%"></div>
+                                </div>
+                                <span class="small fw-bold">{{ task.progress }}%</span>
+                            </div>
+                            <small class="text-muted d-block mt-1">{{ task.state }}</small>
+                        </td>
+                        <td>
+                            {% if task.status == 'STARTED' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">Running</span>
+                            {% elif task.status == 'FAILURE' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Failed</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">{{ task.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button @click="logOpen = !logOpen" class="btn btn-sm btn-light rounded-pill">
+                                <i class="bi" :class="logOpen ? 'bi-chevron-up' : 'bi-journal-text'"></i>
+                            </button>
+                            <template x-if="logOpen">
+                                <div class="position-absolute bg-dark text-light p-3 rounded shadow-lg z-3 mt-2" style="width: 400px; max-height: 200px; overflow-y: auto; right: 100px; font-family: monospace; font-size: 0.75rem;">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span class="text-warning">{% trans "Task Logs" %}</span>
+                                        <span class="text-muted">{{ task.task_id }}</span>
+                                    </div>
+                                    <div class="log-content">
+                                        {{ task.logs|default:"No logs available yet..."|linebreaksbr }}
+                                        {% if task.error %}<div class="text-danger mt-1">Error: {{ task.error }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            </template>
+                        </td>
+                        <td class="pe-4 text-end text-muted small">
+                            {{ task.date_done|time:"H:i" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        {% else %}
+        <div class="text-center py-5">
+            <div class="text-muted mb-2"><i class="bi bi-check2-circle fs-1"></i></div>
+            <p class="text-muted mb-0">{% trans "No active background tasks" %}</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

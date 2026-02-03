@@ -3,972 +3,346 @@
 {% load i18n %}
 
 {% block admin_content %}
-<div class="container-fluid px-0">
-    <!-- Header Section -->
-    <div class="mb-4">
-        <div class="text-center">
-            <h1 class="h3 mb-2 text-primary fw-semibold">
-                <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Sacred Content" %}
-            </h1>
-            <p class="text-muted mb-0">{% trans "Share the wisdom and beauty of our Orthodox heritage with the faithful community" %}</p>
-        </div>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Upload Content" %}</h1>
+        <p class="text-muted mb-0">{% trans "Add new videos, audio, or documents to the library" %}</p>
     </div>
+</div>
 
-    <!-- Upload Form -->
-    <div class="row justify-content-center">
-        <div class="col-12 col-xl-10">
-            <div class="card shadow-sm border-0 px-2">
-                <div class="card-body p-4">
-                    <form id="upload-form" method="post" enctype="multipart/form-data" action="{% url 'frontend_api:handle_upload' %}">
-                        {% csrf_token %}
+<div class="row justify-content-center">
+    <div class="col-12 col-xl-10">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-body p-4">
+                <form id="upload-form" method="post" enctype="multipart/form-data" action="{% url 'frontend_api:handle_upload' %}">
+                    {% csrf_token %}
 
-                        <!-- Progress Bar -->
-                        <div id="progress-container" class="mb-4 d-none">
-                            <div class="progress" style="height: 24px; border-radius: 12px; background: rgba(128,0,0,0.1);">
-                                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                                     role="progressbar" 
-                                     style="width: 0%; border-radius: 12px; background: linear-gradient(135deg, #800000, #DD9933); color: white; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.3);" 
-                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                            </div>
-                            <div id="progress-status" class="small mt-2 text-center" style="color: #5a4037; font-weight: 500;"></div>
+                    <!-- Progress Bar -->
+                    <div id="progress-container" class="mb-4 d-none">
+                        <div class="progress" style="height: 10px;">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                                 role="progressbar" style="width: 0%"></div>
                         </div>
+                        <div id="progress-status" class="small mt-2 text-center text-muted fw-bold"></div>
+                    </div>
 
-                        <!-- Type Selection -->
-                        <div class="mb-4">
-                            <h5 class="fw-semibold mb-4 text-center">
-                                <i class="bi bi-bookmark-star me-2 text-primary"></i>{% trans "Select Content Type" %}
-                            </h5>
-                            
-                            <!-- Desktop Layout -->
-                            <div class="d-none d-md-flex justify-content-center gap-4 mb-3">
-                                <div class="content-type-option">
-                                    <input type="radio" class="btn-check" name="content_type" id="video-type" value="video" autocomplete="off">
-                                    <label class="btn btn-outline-primary content-type-btn d-flex flex-column align-items-center p-4" for="video-type">
-                                        <i class="bi bi-camera-video-fill mb-3" style="font-size: 2.5rem;"></i>
-                                        <h6 class="fw-semibold mb-2">{% trans "Video" %}</h6>
-                                        <small class="text-muted text-center">{% trans "Sacred sermons & teachings" %}</small>
-                                    </label>
-                                </div>
-                                
-                                <div class="content-type-option">
-                                    <input type="radio" class="btn-check" name="content_type" id="audio-type" value="audio" autocomplete="off">
-                                    <label class="btn btn-outline-primary content-type-btn d-flex flex-column align-items-center p-4" for="audio-type">
-                                        <i class="bi bi-mic-fill mb-3" style="font-size: 2.5rem;"></i>
-                                        <h6 class="fw-semibold mb-2">{% trans "Audio" %}</h6>
-                                        <small class="text-muted text-center">{% trans "Hymns & spiritual messages" %}</small>
-                                    </label>
-                                </div>
-                                
-                                <div class="content-type-option">
-                                    <input type="radio" class="btn-check" name="content_type" id="pdf-type" value="pdf" autocomplete="off">
-                                    <label class="btn btn-outline-primary content-type-btn d-flex flex-column align-items-center p-4" for="pdf-type">
-                                        <i class="bi bi-file-earmark-pdf-fill mb-3" style="font-size: 2.5rem;"></i>
-                                        <h6 class="fw-semibold mb-2">{% trans "Document" %}</h6>
-                                        <small class="text-muted text-center">{% trans "Sacred texts & books" %}</small>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <!-- Mobile Layout -->
-                            <div class="d-flex d-md-none flex-column gap-3 align-items-center">
-                                <div class="content-type-option w-100" style="max-width: 300px;">
-                                    <input type="radio" class="btn-check" name="content_type" id="video-type-mobile" value="video" autocomplete="off">
-                                    <label class="btn btn-outline-primary content-type-btn d-flex align-items-center p-3 w-100" for="video-type-mobile">
-                                        <i class="bi bi-camera-video-fill me-3" style="font-size: 2rem;"></i>
-                                        <div class="text-start">
-                                            <h6 class="fw-semibold mb-1">{% trans "Video" %}</h6>
-                                            <small class="text-muted">{% trans "Sacred sermons & teachings" %}</small>
-                                        </div>
-                                    </label>
-                                </div>
-                                
-                                <div class="content-type-option w-100" style="max-width: 300px;">
-                                    <input type="radio" class="btn-check" name="content_type" id="audio-type-mobile" value="audio" autocomplete="off">
-                                    <label class="btn btn-outline-primary content-type-btn d-flex align-items-center p-3 w-100" for="audio-type-mobile">
-                                        <i class="bi bi-mic-fill me-3" style="font-size: 2rem;"></i>
-                                        <div class="text-start">
-                                            <h6 class="fw-semibold mb-1">{% trans "Audio" %}</h6>
-                                            <small class="text-muted">{% trans "Hymns & spiritual messages" %}</small>
-                                        </div>
-                                    </label>
-                                </div>
-                                
-                                <div class="content-type-option w-100" style="max-width: 300px;">
-                                    <input type="radio" class="btn-check" name="content_type" id="pdf-type-mobile" value="pdf" autocomplete="off">
-                                    <label class="btn btn-outline-primary content-type-btn d-flex align-items-center p-3 w-100" for="pdf-type-mobile">
-                                        <i class="bi bi-file-earmark-pdf-fill me-3" style="font-size: 2rem;"></i>
-                                        <div class="text-start">
-                                            <h6 class="fw-semibold mb-1">{% trans "Document" %}</h6>
-                                            <small class="text-muted">{% trans "Sacred texts & books" %}</small>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        </div>
-
-                        <!-- File Upload Section -->
-                        <div class="mb-5 px-1 px-md-3">
-                            <h5 class="fw-bold mb-3" style="color: #800000;">
-                                <i class="bi bi-upload me-2" style="color: #DD9933;"></i>{% trans "Upload Sacred File" %}
-                            </h5>
-                            <div class="upload-zone p-5 text-center rounded-4" 
-                                 style="background: rgba(128,0,0,0.05); border: 3px dashed rgba(128,0,0,0.3); transition: all 0.3s ease; position: relative;" 
-                                 onclick="document.getElementById('file-input').click()">
-                                <input type="file" id="file-input" name="file" class="d-none" required 
-                                       accept="{% if content_type == 'video' %}.mp4,.avi,.mov{% elif content_type == 'audio' %}.mp3,.wav{% else %}.pdf{% endif %}"
-                                       onchange="updateFileName(this)">
-                                <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
-                                     style="background: linear-gradient(135deg, #800000, #DD9933); width: 100px; height: 100px; box-shadow: 0 6px 20px rgba(128,0,0,0.25);">
-                                    <i class="bi bi-cloud-upload" style="font-size: 3rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-                                </div>
-                                <h5 class="fw-bold mb-2" style="color: #800000;">{% trans "Drag & drop your sacred file here" %}</h5>
-                                <p class="mb-3" style="color: #5a4037;">{% trans "or click to browse your files" %}</p>
-                                <div class="small" style="color: #666;">
-                                    {% if content_type == 'video' %}{% trans "Supports MP4, AVI, MOV files (Max 2GB)" %}
-                                    {% elif content_type == 'audio' %}{% trans "Supports MP3, WAV files (Max 100MB)" %}
-                                    {% else %}{% trans "Supports PDF documents (Max 50MB)" %}{% endif %}
-                                </div>
-                                <div id="file-name-display" class="mt-3 d-none">
-                                    <div class="badge p-2" style="background: linear-gradient(135deg, #28a745, #20c997); color: white; border-radius: 20px;">
-                                        <i class="bi bi-file-check me-2"></i>
-                                        <span id="selected-file-name"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Content Details -->
-                        <div class="mb-5 px-1 px-md-3">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="fw-bold mb-0" style="color: #800000;">
-                                    <i class="bi bi-info-circle me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Information" %}
-                                </h5>
-                                <button type="button" id="generate-ai-btn" class="btn btn-sm" 
-                                        style="background: linear-gradient(135deg, #6A5ACD, #9370DB); border: none; color: white; border-radius: 20px; padding: 8px 16px; box-shadow: 0 4px 12px rgba(106,90,205,0.3);"
-                                        title="{% trans 'Generate metadata using AI' %}">
-                                    <i class="bi bi-sparkles me-1"></i>{% trans "Generate with AI" %}
-                                </button>
-                            </div>
-                            <div class="row g-4">
-                                <!-- Arabic Metadata -->
-                                <div class="col-md-6">
-                                    <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); border-radius: 20px; border: 1px solid rgba(128,0,0,0.15);">
-                                        <div class="card-body p-4">
-                                            <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #800000;">
-                                                <i class="bi bi-translate me-2" style="color: #DD9933;"></i>{% trans "Arabic Details" %}
-                                            </h6>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Title (Arabic)" %}</label>
-                                                <input type="text" name="title_ar" class="form-control" required dir="rtl" 
-                                                       style="border-radius: 12px; border: 2px solid rgba(128,0,0,0.25); background: rgba(255,255,255,0.9); padding: 12px;">
-                                            </div>
-                                            <div class="mb-0">
-                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Description (Arabic)" %}</label>
-                                                <textarea name="description_ar" class="form-control" rows="4" dir="rtl" 
-                                                          style="border-radius: 12px; border: 2px solid rgba(128,0,0,0.25); background: rgba(255,255,255,0.9); padding: 12px;"></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- English Metadata -->
-                                <div class="col-md-6">
-                                    <div class="card border-0 h-100" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border-radius: 20px; border: 1px solid rgba(221,153,51,0.15);">
-                                        <div class="card-body p-4">
-                                            <h6 class="fw-bold mb-3 d-flex align-items-center" style="color: #DD9933;">
-                                                <i class="bi bi-globe me-2" style="color: #800000;"></i>{% trans "English Details" %}
-                                            </h6>
-                                            <div class="mb-3">
-                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Title (English)" %}</label>
-                                                <input type="text" name="title_en" class="form-control" dir="ltr" 
-                                                       style="border-radius: 12px; border: 2px solid rgba(221,153,51,0.25); background: rgba(255,255,255,0.9); padding: 12px;">
-                                            </div>
-                                            <div class="mb-0">
-                                                <label class="form-label fw-medium" style="color: #5a4037;">{% trans "Description (English)" %}</label>
-                                                <textarea name="description_en" class="form-control" rows="4" dir="ltr" 
-                                                          style="border-radius: 12px; border: 2px solid rgba(221,153,51,0.25); background: rgba(255,255,255,0.9); padding: 12px;"></textarea>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Organization Section -->
-                        <div class="mb-4">
-                            <h5 class="fw-semibold mb-3">
-                                <i class="bi bi-tags me-2 text-primary"></i>{% trans "Tags & Categories" %}
-                            </h5>
-                            <div class="mb-3">
-                                <label class="form-label fw-medium">
-                                    <i class="bi bi-bookmark me-1"></i>{% trans "Tags" %}
+                    <!-- Type Selection -->
+                    <div class="mb-5">
+                        <label class="form-label fw-bold text-uppercase small text-secondary mb-3 d-block text-center">
+                            {% trans "Select Content Type" %}
+                        </label>
+                        
+                        <div class="row justify-content-center g-3">
+                            <div class="col-6 col-md-3">
+                                <input type="radio" class="btn-check" name="content_type" id="video-type" value="video" autocomplete="off">
+                                <label class="btn btn-outline-light text-dark border w-100 p-3 h-100 d-flex flex-column align-items-center rounded-3 shadow-sm hover-shadow" for="video-type">
+                                    <i class="bi bi-camera-video fs-1 text-primary mb-2"></i>
+                                    <span class="fw-semibold">{% trans "Video" %}</span>
+                                    <small class="text-muted d-none d-md-block mt-1">{% trans "MP4, AVI, MOV" %}</small>
                                 </label>
-                                <input type="text" name="tags" class="form-control" 
-                                       placeholder="{% trans 'e.g. liturgy, hymns, history, saints, prayers (comma separated)' %}">
-                                <div class="form-text">
-                                    <i class="bi bi-info-circle me-1"></i>{% trans "Use commas to separate multiple tags. Tags will be created automatically if they don't exist." %}
-                                </div>
+                            </div>
+                            
+                            <div class="col-6 col-md-3">
+                                <input type="radio" class="btn-check" name="content_type" id="audio-type" value="audio" autocomplete="off">
+                                <label class="btn btn-outline-light text-dark border w-100 p-3 h-100 d-flex flex-column align-items-center rounded-3 shadow-sm hover-shadow" for="audio-type">
+                                    <i class="bi bi-mic fs-1 text-primary mb-2"></i>
+                                    <span class="fw-semibold">{% trans "Audio" %}</span>
+                                    <small class="text-muted d-none d-md-block mt-1">{% trans "MP3, WAV" %}</small>
+                                </label>
+                            </div>
+                            
+                            <div class="col-6 col-md-3">
+                                <input type="radio" class="btn-check" name="content_type" id="pdf-type" value="pdf" autocomplete="off">
+                                <label class="btn btn-outline-light text-dark border w-100 p-3 h-100 d-flex flex-column align-items-center rounded-3 shadow-sm hover-shadow" for="pdf-type">
+                                    <i class="bi bi-file-earmark-pdf fs-1 text-primary mb-2"></i>
+                                    <span class="fw-semibold">{% trans "Document" %}</span>
+                                    <small class="text-muted d-none d-md-block mt-1">{% trans "PDF" %}</small>
+                                </label>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- SEO Metadata Section -->
-                        <div class="mb-4">
-                            <div class="card border-0" style="background: #f8f9fa;">
-                                <div class="card-header bg-transparent border-0 pb-0">
-                                    <h5 class="m-0 fw-semibold">
-                                        <i class="bi bi-search-heart me-2 text-primary"></i>{% trans "SEO Metadata" %}
-                                    </h5>
-                                    <p class="small text-muted mb-0 mt-1">
-                                        {% trans "Search engine optimization metadata for better discoverability" %}
-                                    </p>
+                    <!-- File Upload Zone -->
+                    <div class="mb-5">
+                        <div class="upload-zone text-center p-5 rounded-4 border-2 border-dashed bg-light" 
+                             style="cursor: pointer; border-color: var(--bs-border-color);"
+                             onclick="document.getElementById('file-input').click()">
+                            <input type="file" id="file-input" name="file" class="d-none" required onchange="updateFileName(this)">
+                            
+                            <div class="mb-3">
+                                <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle shadow-sm p-4">
+                                    <i class="bi bi-cloud-arrow-up fs-1 text-primary"></i>
                                 </div>
-                                <div class="card-body p-4">
+                            </div>
+                            
+                            <h5 class="fw-bold mb-2">{% trans "Click to upload or drag and drop" %}</h5>
+                            <p class="text-muted mb-3">{% trans "Max file size: Video (2GB), Audio (100MB), PDF (50MB)" %}</p>
+                            
+                            <div id="file-name-display" class="d-none mt-3">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fs-6">
+                                    <i class="bi bi-file-earmark-check me-2"></i><span id="selected-file-name"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Section -->
+                    <div class="mb-5">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <label class="form-label fw-bold text-uppercase small text-secondary mb-0">{% trans "Content Information" %}</label>
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" onclick="generateMetadata()">
+                                <i class="bi bi-magic me-1"></i>{% trans "Auto-Generate Metadata" %}
+                                <span class="spinner-border spinner-border-sm d-none ms-1" id="magic-spinner"></span>
+                            </button>
+                        </div>
+                        
+                        <div class="row g-4">
+                            <!-- Arabic -->
+                            <div class="col-md-6">
+                                <div class="p-3 bg-white border rounded-3 h-100 shadow-sm">
+                                    <div class="d-flex align-items-center mb-3 text-primary">
+                                        <i class="bi bi-translate me-2"></i>
+                                        <span class="fw-semibold">{% trans "Arabic Details" %}</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small text-muted">{% trans "Title" %}</label>
+                                        <input type="text" name="title_ar" class="form-control" required dir="rtl">
+                                    </div>
+                                    <div class="mb-0">
+                                        <label class="form-label small text-muted">{% trans "Description" %}</label>
+                                        <textarea name="description_ar" class="form-control" rows="3" dir="rtl"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- English -->
+                            <div class="col-md-6">
+                                <div class="p-3 bg-white border rounded-3 h-100 shadow-sm">
+                                    <div class="d-flex align-items-center mb-3 text-secondary">
+                                        <i class="bi bi-globe me-2"></i>
+                                        <span class="fw-semibold">{% trans "English Details" %}</span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small text-muted">{% trans "Title" %}</label>
+                                        <input type="text" name="title_en" class="form-control" dir="ltr">
+                                    </div>
+                                    <div class="mb-0">
+                                        <label class="form-label small text-muted">{% trans "Description" %}</label>
+                                        <textarea name="description_en" class="form-control" rows="3" dir="ltr"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tags -->
+                            <div class="col-12">
+                                <label class="form-label small text-muted">{% trans "Tags" %} ({% trans "Comma Separated" %})</label>
+                                <input type="text" name="tags" class="form-control" placeholder="hymns, liturgy, st. george...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEO (Collapsed) -->
+                    <div class="accordion mb-5 shadow-sm rounded-3 overflow-hidden" id="seoAccordion">
+                        <div class="accordion-item border-0">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed bg-white fw-semibold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSEO">
+                                    <i class="bi bi-search me-2"></i>{% trans "SEO Configuration" %} <span class="text-muted fw-normal ms-2 small">({% trans "Optional" %})</span>
+                                </button>
+                            </h2>
+                            <div id="collapseSEO" class="accordion-collapse collapse" data-bs-parent="#seoAccordion">
+                                <div class="accordion-body bg-light p-4">
                                     <div class="row g-3">
                                         <div class="col-md-6">
-                                            <label class="form-label fw-medium">
-                                                <i class="bi bi-tag me-1 text-primary"></i>{% trans "Meta Title (English)" %}
-                                            </label>
-                                            <input type="text" name="seo_title_en" class="form-control" 
-                                                   placeholder="{% trans 'SEO-optimized title in English' %}" maxlength="70">
-                                            <div class="form-text small">
-                                                <i class="bi bi-info-circle me-1"></i>{% trans "Keep under 70 characters for optimal display" %}
-                                            </div>
+                                            <label class="form-label small text-muted">{% trans "Meta Title (EN)" %}</label>
+                                            <input type="text" name="seo_title_en" class="form-control form-control-sm">
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label fw-medium">
-                                                <i class="bi bi-tag me-1 text-primary"></i>{% trans "Meta Title (العربية)" %}
-                                            </label>
-                                            <input type="text" name="seo_title_ar" class="form-control" 
-                                                   placeholder="{% trans 'SEO-optimized title in Arabic' %}" maxlength="70" dir="rtl">
-                                            <div class="form-text small">
-                                                <i class="bi bi-info-circle me-1"></i>{% trans "احتفظ بأقل من 70 حرفًا للعرض الأمثل" %}
-                                            </div>
+                                            <label class="form-label small text-muted">{% trans "Meta Title (AR)" %}</label>
+                                            <input type="text" name="seo_title_ar" class="form-control form-control-sm" dir="rtl">
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label fw-medium">
-                                                <i class="bi bi-file-text me-1 text-primary"></i>{% trans "Meta Description (English)" %}
-                                            </label>
-                                            <textarea name="seo_description_en" rows="3" class="form-control" 
-                                                      placeholder="{% trans 'Brief description for search engines in English' %}" maxlength="160"></textarea>
-                                            <div class="form-text small">
-                                                <i class="bi bi-info-circle me-1"></i>{% trans "Keep under 160 characters for optimal display" %}
-                                            </div>
+                                            <label class="form-label small text-muted">{% trans "Meta Description (EN)" %}</label>
+                                            <textarea name="seo_description_en" class="form-control form-control-sm" rows="2"></textarea>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label fw-medium">
-                                                <i class="bi bi-file-text me-1 text-primary"></i>{% trans "Meta Description (العربية)" %}
-                                            </label>
-                                            <textarea name="seo_description_ar" rows="3" class="form-control" 
-                                                      placeholder="{% trans 'Brief description for search engines in Arabic' %}" maxlength="160" dir="rtl"></textarea>
-                                            <div class="form-text small">
-                                                <i class="bi bi-info-circle me-1"></i>{% trans "احتفظ بأقل من 160 حرفًا للعرض الأمثل" %}
-                                            </div>
+                                            <label class="form-label small text-muted">{% trans "Meta Description (AR)" %}</label>
+                                            <textarea name="seo_description_ar" class="form-control form-control-sm" rows="2" dir="rtl"></textarea>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label fw-medium">
-                                                <i class="bi bi-tags me-1 text-primary"></i>{% trans "Keywords (English)" %}
-                                            </label>
-                                            <input type="text" name="seo_keywords_en" class="form-control" 
-                                                   placeholder="{% trans 'SEO keywords in English (comma separated)' %}">
-                                            <div class="form-text small">
-                                                <i class="bi bi-info-circle me-1"></i>{% trans "Use relevant keywords separated by commas" %}
-                                            </div>
+                                            <label class="form-label small text-muted">{% trans "Focus Keywords (EN)" %}</label>
+                                            <input type="text" name="seo_keywords_en" class="form-control form-control-sm" placeholder="keyword1, keyword2">
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label fw-medium">
-                                                <i class="bi bi-tags me-1 text-primary"></i>{% trans "Keywords (العربية)" %}
-                                            </label>
-                                            <input type="text" name="seo_keywords_ar" class="form-control" 
-                                                   placeholder="{% trans 'SEO keywords in Arabic (comma separated)' %}" dir="rtl">
-                                            <div class="form-text small">
-                                                <i class="bi bi-info-circle me-1"></i>{% trans "استخدم الكلمات المفتاحية ذات الصلة مفصولة بفواصل" %}
-                                            </div>
+                                            <label class="form-label small text-muted">{% trans "Focus Keywords (AR)" %}</label>
+                                            <input type="text" name="seo_keywords_ar" class="form-control form-control-sm" dir="rtl" placeholder="كلمة1, كلمة2">
                                         </div>
                                         <div class="col-12">
-                                            <label class="form-label fw-medium">
-                                                <i class="bi bi-code-square me-1 text-primary"></i>{% trans "Structured Data" %}
+                                            <label class="form-label small text-muted d-flex justify-content-between">
+                                                {% trans "Structured Data (JSON-LD)" %}
+                                                <span class="badge bg-info-subtle text-info">{% trans "Schema.org" %}</span>
                                             </label>
-                                            <textarea name="seo_structured_data" rows="4" class="form-control" 
-                                                      style="font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9rem;"
-                                                      placeholder='{"@context": "https://schema.org", "@type": "CreativeWork", ...}'></textarea>
-                                            <div class="form-text small">
-                                                <i class="bi bi-info-circle me-1"></i>{% trans "JSON-LD structured data for rich search results" %}
-                                            </div>
-                                        </div>
-                                        <div class="col-12">
-                                            <div class="alert alert-info border-0">
-                                                <h6 class="alert-heading mb-2">
-                                                    <i class="bi bi-magic me-2"></i>{% trans "AI Generation Available" %}
-                                                </h6>
-                                                <p class="mb-0 small">
-                                                    {% trans "Click 'Generate with AI' to automatically create SEO metadata based on your content. You can then review and modify the generated fields before uploading." %}
-                                                </p>
-                                            </div>
+                                            <textarea name="seo_structured_data" id="seo_structured_data" class="form-control form-control-sm font-monospace" rows="4" placeholder='{ "@context": "https://schema.org", "@type": "VideoObject", ... }'></textarea>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Submit Button -->
-                        <div class="text-center">
-                            <button id="upload-btn" type="submit" class="btn btn-primary btn-lg px-4 py-2">
-                                <i class="bi bi-cloud-arrow-up me-2"></i>{% trans "Upload Content" %}
-                            </button>
-                            <p class="small text-muted mt-3 mb-0">
-                                <i class="bi bi-hourglass-half me-1"></i>{% trans "Processing may take a few minutes depending on file size and complexity" %}
-                            </p>
-                        </div>
-                    </form>
-                </div>
+                    <!-- Actions -->
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% url 'frontend_api:admin_dashboard' %}" class="btn btn-light rounded-pill px-4">{% trans "Cancel" %}</a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">
+                            <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Content" %}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
 <style>
-.content-type-btn {
-    border: 2px solid #dee2e6;
-    background: #f8f9fa;
-    transition: all 0.3s ease;
-    border-radius: 12px;
-    min-height: 140px;
-}
-
-.content-type-btn:hover {
-    border-color: #0d6efd;
-    background: #e7f1ff;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
-}
-
-.btn-check:checked + .content-type-btn {
-    background: #0d6efd;
-    border-color: #0d6efd;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
-}
-
-.btn-check:checked + .content-type-btn .text-muted {
-    color: rgba(255, 255, 255, 0.8) !important;
-}
-
-.btn-check:checked + .content-type-btn i {
-    color: white !important;
-}
-
-.content-type-option {
-    flex: 1;
-    max-width: 200px;
-}
-
-.upload-zone:hover {
-    background: #e9ecef !important;
-    border-color: #0d6efd !important;
-    transform: translateY(-1px);
-}
-
-.btn-check:checked + .btn {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-    color: white;
-}
-
-.upload-zone {
-    transition: all 0.3s ease;
-}
-
-.upload-zone[dragging="true"] {
-    background: #e7f1ff !important;
-    border-color: #0d6efd !important;
-    transform: scale(1.01);
-}
-
-.card {
-    transition: all 0.3s ease;
-}
-
-@media (max-width: 768px) {
-    .content-type-btn {
-        min-height: 80px;
+    .hover-shadow:hover {
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        border-color: var(--bs-primary)!important;
     }
-}
-
-@media (max-width: 576px) {
-    .card-body {
-        padding: 1.5rem !important;
+    .btn-check:checked + .btn {
+        background-color: rgba(var(--bs-primary-rgb), 0.05);
+        border-color: var(--bs-primary);
+        color: var(--bs-primary) !important;
     }
-    
-    .upload-zone {
-        padding: 2rem 1rem !important;
+    .btn-check:checked + .btn i {
+        color: var(--bs-primary) !important;
     }
-    
-    .btn-lg {
-        font-size: 1rem;
-        padding: 0.75rem 1.5rem;
-    }
-    
-    .content-type-btn {
-        min-height: 70px;
-    }
-}
 </style>
 
 <script>
-// JavaScript for enhanced upload functionality
-function updateFileName(input) {
-    const fileNameDisplay = document.getElementById('file-name-display');
-    const selectedFileName = document.getElementById('selected-file-name');
-    if (input.files && input.files[0]) {
-        const fileName = input.files[0].name;
-        const fileSize = (input.files[0].size / (1024 * 1024)).toFixed(2); // Convert to MB
-        selectedFileName.textContent = `${fileName} (${fileSize} MB)`;
-        fileNameDisplay.classList.remove('d-none');
-        // Update upload zone appearance
-        const uploadZone = document.querySelector('.upload-zone');
-        uploadZone.style.borderColor = '#28a745';
-        uploadZone.style.background = '#d4edda';
-    } else {
-        fileNameDisplay.classList.add('d-none');
-        // Reset upload zone appearance
-        const uploadZone = document.querySelector('.upload-zone');
-        uploadZone.style.borderColor = '#dee2e6';
-        uploadZone.style.background = '#f8f9fa';
-    }
-}
+    function generateMetadata() {
+        const fileInput = document.getElementById('file-input');
+        if (!fileInput.files || !fileInput.files[0]) {
+            showToast('{% trans "Please select a file first" %}', 'warning');
+            return;
+        }
 
-// Enhanced drag and drop functionality
-function setupDragAndDrop() {
-    const uploadZone = document.querySelector('.upload-zone');
-    const fileInput = document.getElementById('file-input');
+        const spinner = document.getElementById('magic-spinner');
+        spinner.classList.remove('d-none');
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        
+        const contentType = document.querySelector('input[name="content_type"]:checked')?.value || '';
+        formData.append('content_type', contentType);
+
+        fetch('{% url "frontend_api:generate_metadata_from_file" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            if (data.success && data.metadata) {
+                const meta = data.metadata;
+                if (meta.title_ar) document.querySelector('input[name="title_ar"]').value = meta.title_ar;
+                if (meta.title_en) document.querySelector('input[name="title_en"]').value = meta.title_en;
+                if (meta.description_ar) document.querySelector('textarea[name="description_ar"]').value = meta.description_ar;
+                if (meta.description_en) document.querySelector('textarea[name="description_en"]').value = meta.description_en;
+                if (meta.tags) document.querySelector('input[name="tags"]').value = Array.isArray(meta.tags) ? meta.tags.join(', ') : meta.tags;
+                
+                // SEO fields
+                if (meta.seo_title_ar) document.querySelector('input[name="seo_title_ar"]').value = meta.seo_title_ar;
+                if (meta.seo_title_en) document.querySelector('input[name="seo_title_en"]').value = meta.seo_title_en;
+                if (meta.seo_description_ar) document.querySelector('textarea[name="seo_description_ar"]').value = meta.seo_description_ar;
+                if (meta.seo_description_en) document.querySelector('textarea[name="seo_description_en"]').value = meta.seo_description_en;
+                if (meta.seo_keywords_ar) document.querySelector('input[name="seo_keywords_ar"]').value = meta.seo_keywords_ar;
+                if (meta.seo_keywords_en) document.querySelector('input[name="seo_keywords_en"]').value = meta.seo_keywords_en;
+                if (meta.structured_data) document.getElementById('seo_structured_data').value = JSON.stringify(meta.structured_data, null, 2);
+                
+                showToast('{% trans "Metadata generated successfully!" %}', 'success');
+            } else {
+                showToast(data.error || '{% trans "Failed to generate metadata" %}', 'danger');
+            }
+        })
+        .catch(error => {
+            spinner.classList.add('d-none');
+            console.error('Error:', error);
+            showToast('{% trans "An error occurred while generating metadata" %}', 'danger');
+        });
+    }
+
+    function updateFileName(input) {
+        const displayContainer = document.getElementById('file-name-display');
+        const nameSpan = document.getElementById('selected-file-name');
+        
+        if (input.files && input.files[0]) {
+            nameSpan.textContent = input.files[0].name;
+            displayContainer.classList.remove('d-none');
+            
+            // Auto Select Type Attempt
+            const ext = input.files[0].name.split('.').pop().toLowerCase();
+            if(['mp4','avi','mov'].includes(ext)) document.getElementById('video-type').click();
+            if(['mp3','wav'].includes(ext)) document.getElementById('audio-type').click();
+            if(['pdf'].includes(ext)) document.getElementById('pdf-type').click();
+        } else {
+            displayContainer.classList.add('d-none');
+        }
+    }
     
-    if (!uploadZone || !fileInput) return;
-    
-    // Prevent default drag behaviors
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
-    });
-    
-    // Highlight drop area when item is dragged over it
-    ['dragenter', 'dragover'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, highlight, false);
-    });
-    
-    ['dragleave', 'drop'].forEach(eventName => {
-        uploadZone.addEventListener(eventName, unhighlight, false);
-    });
-    
-    // Handle dropped files
-    uploadZone.addEventListener('drop', handleDrop, false);
-    
-    function preventDefaults(e) {
+    document.getElementById('upload-form').addEventListener('submit', function(e) {
         e.preventDefault();
-        e.stopPropagation();
-    }
-    
-    function highlight(e) {
-        uploadZone.style.background = '#e7f1ff';
-        uploadZone.style.borderColor = '#0d6efd';
-        uploadZone.setAttribute('dragging', 'true');
-    }
-    
-    function unhighlight(e) {
-        uploadZone.style.background = '#f8f9fa';
-        uploadZone.style.borderColor = '#dee2e6';
-        uploadZone.removeAttribute('dragging');
-    }
-    
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
         
-        if (files.length > 0) {
-            fileInput.files = files;
-            updateFileName(fileInput);
-        }
-    }
-}
-
-// Upload progress loader
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize drag and drop
-    setupDragAndDrop();
-    
-    function showTypeSelectionFeedback(type) {
-        // Remove any existing feedback
-        const existingFeedback = document.getElementById('type-selection-feedback');
-        if (existingFeedback) {
-            existingFeedback.remove();
-        }
+        const form = this;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressStatus = document.getElementById('progress-status');
         
-        // Create feedback message
-        const feedback = document.createElement('div');
-        feedback.id = 'type-selection-feedback';
-        feedback.className = 'alert alert-success alert-dismissible fade show mt-2';
-        feedback.innerHTML = `
-            <i class="bi bi-check-circle me-2"></i>
-            {% trans "Content type selected:" %} <strong>${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+        progressContainer.classList.remove('d-none');
+        submitBtn.disabled = true;
         
-        // Insert feedback after type selection
-        const typeSelectionSection = document.querySelector('.mb-4');
-        if (typeSelectionSection) {
-            typeSelectionSection.appendChild(feedback);
-        }
+        const formData = new FormData(form);
+        const xhr = new XMLHttpRequest();
         
-        // Auto-remove after 3 seconds
-        setTimeout(() => {
-            if (feedback.parentNode) {
-                feedback.remove();
-            }
-        }, 3000);
-    }
-    
-    // Sync content type selection between desktop and mobile
-    const contentTypeInputs = document.querySelectorAll('input[name="content_type"]');
-    contentTypeInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            if (this.checked) {
-                const selectedValue = this.value;
-                // Update all other inputs with the same value
-                contentTypeInputs.forEach(otherInput => {
-                    if (otherInput.value === selectedValue) {
-                        otherInput.checked = true;
-                    } else {
-                        otherInput.checked = false;
-                    }
-                });
-                
-                // Update file input accept attribute based on selection
-                const fileInput = document.getElementById('file-input');
-                if (fileInput) {
-                    let acceptTypes = '';
-                    switch (selectedValue) {
-                        case 'video':
-                            acceptTypes = 'video/*,.mp4,.avi,.mov,.mkv,.wmv';
-                            break;
-                        case 'audio':
-                            acceptTypes = 'audio/*,.mp3,.wav,.flac,.aac,.ogg';
-                            break;
-                        case 'pdf':
-                            acceptTypes = '.pdf';
-                            break;
-                        default:
-                            acceptTypes = 'video/*,audio/*,.pdf,.mp4,.avi,.mov,.mkv,.wmv,.mp3,.wav,.flac,.aac,.ogg';
-                    }
-                    fileInput.setAttribute('accept', acceptTypes);
-                }
-                
-                // Optional: Show success message for type selection
-                showTypeSelectionFeedback(selectedValue);
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percent + '%';
+                progressStatus.textContent = percent + '% ' + '{% trans "uploaded" %}';
             }
         });
-    });
-    
-    function showTypeSelectionFeedback(type) {
-        // Remove any existing feedback
-        const existingFeedback = document.getElementById('type-selection-feedback');
-        if (existingFeedback) {
-            existingFeedback.remove();
-        }
         
-        // Create feedback message
-        const feedback = document.createElement('div');
-        feedback.id = 'type-selection-feedback';
-        feedback.className = 'alert alert-success alert-dismissible fade show mt-2';
-        feedback.innerHTML = `
-            <i class="bi bi-check-circle me-2"></i>
-            {% trans "Content type selected:" %} <strong>${type.charAt(0).toUpperCase() + type.slice(1)}</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        // Insert feedback after type selection
-        const typeSelectionSection = document.querySelector('.mb-4');
-        if (typeSelectionSection) {
-            typeSelectionSection.appendChild(feedback);
-        }
-        
-        // Auto-remove after 3 seconds
-        setTimeout(() => {
-            if (feedback.parentNode) {
-                feedback.remove();
-            }
-        }, 3000);
-    }
-    
-    const form = document.getElementById('upload-form');
-    const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
-    const progressStatus = document.getElementById('progress-status');
-    const uploadBtn = document.getElementById('upload-btn');
-    const generateAiBtn = document.getElementById('generate-ai-btn');
-
-    // AI Generation functionality
-    if (generateAiBtn) {
-        generateAiBtn.addEventListener('click', function() {
-            const fileInput = document.querySelector('input[type="file"]');
-            const contentTypeInputs = document.querySelectorAll('input[name="content_type"]');
-            let selectedType = null;
-            
-            for (let input of contentTypeInputs) {
-                if (input.checked) {
-                    selectedType = input.value;
-                    break;
-                }
-            }
-            
-            if (!fileInput.files[0]) {
-                alert('{% trans "Please select a file first" %}');
-                return;
-            }
-            
-            if (!selectedType) {
-                alert('{% trans "Please select content type first" %}');
-                return;
-            }
-            
-            // Disable button and show loading
-            generateAiBtn.disabled = true;
-            generateAiBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>{% trans "Generating..." %}';
-            
-            // Create form data for AI generation
-            const formData = new FormData();
-            formData.append('file', fileInput.files[0]);
-            formData.append('content_type', selectedType);
-            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-            
-            // Send request to AI endpoint
-            fetch('{% url "frontend_api:generate_metadata_from_file" %}', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                signal: AbortSignal.timeout(120000) // Set the desired timeout to 120 seconds
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Find the main container to insert alert at the top
-                const mainContainer = document.querySelector('.container-fluid');
-                // Remove any previous AI alert
-                const prevAlert = document.getElementById('ai-alert-top');
-                if (prevAlert) prevAlert.remove();
-
-                if (data.success && data.metadata) {
-                    // Populate form fields with AI-generated content
-                    const metadata = data.metadata;
-                    
-                    // Set content metadata titles
-                    if (metadata.title_ar) {
-                        document.querySelector('input[name="title_ar"]').value = metadata.title_ar;
-                    }
-                    if (metadata.title_en) {
-                        document.querySelector('input[name="title_en"]').value = metadata.title_en;
-                    }
-                    
-                    // Set content descriptions
-                    if (metadata.description_ar) {
-                        document.querySelector('textarea[name="description_ar"]').value = metadata.description_ar;
-                    }
-                    if (metadata.description_en) {
-                        document.querySelector('textarea[name="description_en"]').value = metadata.description_en;
-                    }
-                    
-                    // Set tags (handle both string and array formats)
-                    if (metadata.tags) {
-                        if (Array.isArray(metadata.tags)) {
-                            document.querySelector('input[name="tags"]').value = metadata.tags.join(', ');
-                        } else {
-                            // If it's already a string, use it directly
-                            document.querySelector('input[name="tags"]').value = metadata.tags;
-                        }
-                    }
-                    
-                    // Set SEO metadata - handle both nested and flat structure
-                    let seoData = metadata.seo_metadata || metadata; // Use nested or flat structure
-                    
-                    // SEO titles
-                    if (seoData.seo_title_en || metadata.title_en) {
-                        const seoTitleEnField = document.querySelector('input[name="seo_title_en"]');
-                        if (seoTitleEnField) seoTitleEnField.value = seoData.seo_title_en || metadata.title_en;
-                    }
-                    if (seoData.seo_title_ar || metadata.title_ar) {
-                        const seoTitleArField = document.querySelector('input[name="seo_title_ar"]');
-                        if (seoTitleArField) seoTitleArField.value = seoData.seo_title_ar || metadata.title_ar;
-                    }
-                    
-                    // SEO descriptions
-                    if (seoData.seo_meta_description_en || seoData.seo_description_en) {
-                        const seoDescEnField = document.querySelector('textarea[name="seo_description_en"]');
-                        if (seoDescEnField) seoDescEnField.value = seoData.seo_meta_description_en || seoData.seo_description_en;
-                    }
-                    if (seoData.seo_meta_description_ar || seoData.seo_description_ar) {
-                        const seoDescArField = document.querySelector('textarea[name="seo_description_ar"]');
-                        if (seoDescArField) seoDescArField.value = seoData.seo_meta_description_ar || seoData.seo_description_ar;
-                    }
-                    
-                    // SEO keywords
-                    if (seoData.seo_keywords_en) {
-                        const seoKeywordsEnField = document.querySelector('input[name="seo_keywords_en"]');
-                        if (seoKeywordsEnField) {
-                            if (Array.isArray(seoData.seo_keywords_en)) {
-                                seoKeywordsEnField.value = seoData.seo_keywords_en.join(', ');
-                            } else {
-                                seoKeywordsEnField.value = seoData.seo_keywords_en;
-                            }
-                        }
-                    }
-                    if (seoData.seo_keywords_ar) {
-                        const seoKeywordsArField = document.querySelector('input[name="seo_keywords_ar"]');
-                        if (seoKeywordsArField) {
-                            if (Array.isArray(seoData.seo_keywords_ar)) {
-                                seoKeywordsArField.value = seoData.seo_keywords_ar.join(', ');
-                            } else {
-                                seoKeywordsArField.value = seoData.seo_keywords_ar;
-                            }
-                        }
-                    }
-                    
-                    // Structured data
-                    if (seoData.structured_data || seoData.seo_structured_data) {
-                        const structuredDataField = document.querySelector('textarea[name="seo_structured_data"]');
-                        if (structuredDataField) {
-                            const structuredData = seoData.structured_data || seoData.seo_structured_data;
-                            if (typeof structuredData === 'object') {
-                                // Format JSON nicely
-                                structuredDataField.value = JSON.stringify(structuredData, null, 2);
-                            } else {
-                                // If it's already a string, try to parse and format it
-                                try {
-                                    const parsed = JSON.parse(structuredData);
-                                    structuredDataField.value = JSON.stringify(parsed, null, 2);
-                                } catch (e) {
-                                    // If parsing fails, use as is
-                                    structuredDataField.value = structuredData;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Show success message at the top
-                    const alertDiv = document.createElement('div');
-                    alertDiv.id = 'ai-alert-top';
-                    alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
-                    const seoIncluded = metadata.seo_metadata ? ' {% trans "and SEO metadata" %}' : '';
-                    alertDiv.innerHTML = `
-                        <i class="bi bi-check-circle me-2"></i>
-                        {% trans "AI successfully generated content metadata" %}${seoIncluded}!
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-                    if (mainContainer) {
-                        mainContainer.insertBefore(alertDiv, mainContainer.firstChild);
-                    }
-                    // Auto-dismiss after 5 seconds
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                if (response.success) {
+                    progressStatus.textContent = '{% trans "Upload complete! Redirecting..." %}';
+                    showToast('{% trans "Upload successful!" %}', 'success');
                     setTimeout(() => {
-                        if (alertDiv.parentNode) {
-                            alertDiv.remove();
-                        }
-                    }, 5000);
+                        window.location.href = '{% url "frontend_api:admin_dashboard" %}';
+                    }, 1000);
                 } else {
-                    // Show error message at the top
-                    const errorMsg = data.error || '{% trans "AI generation failed" %}';
-                    const alertDiv = document.createElement('div');
-                    alertDiv.id = 'ai-alert-top';
-                    alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
-                    alertDiv.innerHTML = `
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        ${errorMsg}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    `;
-                    if (mainContainer) {
-                        mainContainer.insertBefore(alertDiv, mainContainer.firstChild);
-                    }
-                    // Auto-dismiss after 7 seconds
-                    setTimeout(() => {
-                        if (alertDiv.parentNode) {
-                            alertDiv.remove();
-                        }
-                    }, 7000);
+                    showToast(response.error || '{% trans "Upload failed" %}', 'danger');
+                    submitBtn.disabled = false;
+                    progressContainer.classList.add('d-none');
                 }
-            })
-            .catch(error => {
-                console.error('AI generation error:', error);
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
-                alertDiv.innerHTML = `
-                    <i class="bi bi-x-circle me-2"></i>
-                    {% trans "Network error. Please try again." %}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                generateAiBtn.parentNode.appendChild(alertDiv);
-                
-                setTimeout(() => {
-                    if (alertDiv.parentNode) {
-                        alertDiv.remove();
-                    }
-                }, 7000);
-            })
-            .finally(() => {
-                // Re-enable button
-                generateAiBtn.disabled = false;
-                generateAiBtn.innerHTML = '<i class="bi bi-sparkles me-1"></i>{% trans "Generate with AI" %}';
-            });
+            } else {
+                showToast('{% trans "An error occurred during upload" %}', 'danger');
+                submitBtn.disabled = false;
+                progressContainer.classList.add('d-none');
+            }
         });
-    }
-
-    // Upload form submission
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            console.log('Form submission started');
-            
-            const formData = new FormData(form);
-            const xhr = new XMLHttpRequest();
-            
-            // Clear any previous alerts
-            const oldAlerts = progressContainer.querySelectorAll('.alert');
-            oldAlerts.forEach(alert => alert.remove());
-            
-            progressContainer.classList.remove('d-none');
-            progressBar.style.width = '0%';
-            progressBar.setAttribute('aria-valuenow', 0);
-            progressBar.textContent = '0%';
-            progressBar.classList.remove('bg-danger', 'bg-success');
-            progressStatus.textContent = '{% trans "Uploading..." %}';
-            uploadBtn.disabled = true;
-
-            xhr.upload.addEventListener('progress', function(event) {
-                if (event.lengthComputable) {
-                    const percent = Math.round((event.loaded / event.total) * 100);
-                    progressBar.style.width = percent + '%';
-                    progressBar.setAttribute('aria-valuenow', percent);
-                    progressBar.textContent = percent + '%';
-                    progressStatus.textContent = '{% trans "Uploading..." %} ' + percent + '%';
-                    console.log('Upload progress:', percent + '%');
-                }
-            });
-
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === XMLHttpRequest.DONE) {
-                    console.log('Upload completed, status:', xhr.status);
-                    console.log('Response:', xhr.responseText);
-                    
-                    uploadBtn.disabled = false;
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        try {
-                            const response = JSON.parse(xhr.responseText);
-                            console.log('Parsed response:', response);
-                            
-                            if (response.success) {
-                                progressBar.style.width = '100%';
-                                progressBar.setAttribute('aria-valuenow', 100);
-                                progressBar.textContent = '100%';
-                                progressBar.classList.remove('bg-danger');
-                                progressBar.classList.add('bg-success');
-                                progressStatus.textContent = '{% trans "Upload successful!" %}';
-                                
-                                // Show success message
-                                const alertDiv = document.createElement('div');
-                                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
-                                alertDiv.innerHTML = `
-                                    <i class="bi bi-check-circle me-2"></i>
-                                    ${response.message || '{% trans "Upload completed successfully!" %}'}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                `;
-                                progressContainer.appendChild(alertDiv);
-                                
-                                // Redirect after a short delay
-                                setTimeout(function() {
-                                    if (response.redirect_url) {
-                                        window.location.href = response.redirect_url;
-                                    } else {
-                                        window.location.reload();
-                                    }
-                                }, 2000);
-                            } else {
-                                // Handle server error with JSON response
-                                progressStatus.textContent = response.error || '{% trans "Upload failed. Please try again." %}';
-                                progressBar.classList.remove('bg-success');
-                                progressBar.classList.add('bg-danger');
-                                
-                                // Show error message
-                                const alertDiv = document.createElement('div');
-                                alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
-                                alertDiv.innerHTML = `
-                                    <i class="bi bi-x-circle me-2"></i>
-                                    ${response.error || '{% trans "Upload failed. Please try again." %}'}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                `;
-                                progressContainer.appendChild(alertDiv);
-                            }
-                        } catch (e) {
-                            console.error('Error parsing response:', e);
-                            console.error('Raw response:', xhr.responseText);
-                            progressStatus.textContent = '{% trans "Upload failed. Please try again." %}';
-                            progressBar.classList.remove('bg-success');
-                            progressBar.classList.add('bg-danger');
-                            
-                            // Show error message
-                            const alertDiv = document.createElement('div');
-                            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
-                            alertDiv.innerHTML = `
-                                <i class="bi bi-x-circle me-2"></i>
-                                {% trans "Server response error. Please try again." %}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            `;
-                            progressContainer.appendChild(alertDiv);
-                        }
-                    } else {
-                        // Handle HTTP error
-                        console.error('HTTP Error:', xhr.status, xhr.statusText);
-                        
-                        // Check if it's a redirect (likely authentication issue)
-                        if (xhr.status === 302 || xhr.status === 301) {
-                            progressStatus.textContent = '{% trans "Authentication required. Please refresh the page and try again." %}';
-                            
-                            // Show specific authentication message
-                            const alertDiv = document.createElement('div');
-                            alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
-                            alertDiv.innerHTML = `
-                                <i class="bi bi-exclamation-triangle me-2"></i>
-                                {% trans "Your session has expired. Please refresh the page and try again." %}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            `;
-                            progressContainer.appendChild(alertDiv);
-                        } else {
-                            progressStatus.textContent = '{% trans "Upload failed. Please try again." %}';
-                            
-                            // Show error message
-                            const alertDiv = document.createElement('div');
-                            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
-                            alertDiv.innerHTML = `
-                                <i class="bi bi-x-circle me-2"></i>
-                                {% trans "Network error. Please check your connection and try again." %} (${xhr.status})
-                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                            `;
-                            progressContainer.appendChild(alertDiv);
-                        }
-                        
-                        progressBar.classList.remove('bg-success');
-                        progressBar.classList.add('bg-danger');
-                    }
-                }
-            };
-
-            xhr.open('POST', form.action, true);
-            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-            
-            // Get and set CSRF token
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            xhr.setRequestHeader('X-CSRFToken', csrfToken);
-            
-            xhr.send(formData);
+        
+        xhr.addEventListener('error', function() {
+            showToast('{% trans "Network error during upload" %}', 'danger');
+            submitBtn.disabled = false;
+            progressContainer.classList.add('d-none');
         });
-    }
-});
+        
+        xhr.open('POST', form.action, true);
+        xhr.send(formData);
+    });
 </script>
 {% endblock %}

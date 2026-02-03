@@ -1,239 +1,170 @@
-<!-- templates/admin/partials/content_list.html - Coptic Orthodox Content Table -->
+<!-- templates/admin/partials/content_list.html - Modern Content Table -->
 {% load i18n %}
 
-<div class="table-responsive" style="border-radius: 15px; overflow: hidden;">
-    <table class="table admin-table mb-0">
-        <thead>
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
             <tr>
-                <th class="ps-4 py-3">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-card-heading me-2 text-golden"></i>
-                        <span class="heading-font">{% trans "Content" %}</span>
-                    </div>
-                </th>
-                <th class="py-3">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-tags me-2 text-golden"></i>
-                        <span class="heading-font">{% trans "Type" %}</span>
-                    </div>
-                </th>
-                <th class="py-3">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-hash me-2 text-golden"></i>
-                        <span class="heading-font">{% trans "Tags" %}</span>
-                    </div>
-                </th>
-                <th class="py-3">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-search-heart me-2 text-golden"></i>
-                        <span class="heading-font">{% trans "SEO" %}</span>
-                    </div>
-                </th>
-                <th class="py-3">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-toggles me-2 text-golden"></i>
-                        <span class="heading-font">{% trans "Status" %}</span>
-                    </div>
-                </th>
-                <th class="py-3">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-calendar3 me-2 text-golden"></i>
-                        <span class="heading-font">{% trans "Date" %}</span>
-                    </div>
-                </th>
-                <th class="text-center py-3">
-                    <div class="d-flex align-items-center justify-content-center">
-                        <i class="bi bi-gear me-2 text-golden"></i>
-                        <span class="heading-font">{% trans "Actions" %}</span>
-                    </div>
-                </th>
+                <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Content" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Type" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "SEO" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Date" %}</th>
+                <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
             </tr>
         </thead>
         <tbody>
             {% for item in content_data.content_items %}
             {% if item.id %}
-            <tr class="hover-row">
+            <tr>
                 <td class="ps-4 py-3">
                     <div class="d-flex align-items-center">
-                        <div class="d-flex align-items-center justify-content-center me-3" 
-                             style="width: 45px; height: 45px; border-radius: 12px;
-                             {% if item.content_type == 'video' %}background: var(--color-maroon-10);{% elif item.content_type == 'audio' %}background: var(--color-golden-ochre-10);{% else %}background: var(--color-maroon-20);{% endif %}">
+                        <div class="me-3 rounded overflow-hidden d-flex align-items-center justify-content-center" 
+                             style="width: 45px; height: 45px; {% if item.content_type == 'video' %}background-color: #fff4f4;{% elif item.content_type == 'audio' %}background-color: #fff9e6;{% else %}background-color: #f0f7ff;{% endif %}">
                             {% if item.content_type == 'video' %}
-                                <i class="bi bi-play-circle text-maroon" style="font-size: 1.2rem;"></i>
+                                <i class="bi bi-play-circle text-danger" style="font-size: 1.2rem;"></i>
                             {% elif item.content_type == 'audio' %}
-                                <i class="bi bi-music-note text-golden" style="font-size: 1.2rem;"></i>
+                                <i class="bi bi-music-note text-warning" style="font-size: 1.2rem;"></i>
                             {% else %}
-                                <i class="bi bi-file-text text-maroon" style="font-size: 1.2rem;"></i>
+                                <i class="bi bi-file-text text-primary" style="font-size: 1.2rem;"></i>
                             {% endif %}
                         </div>
                         <div>
-                            <div class="body-font fw-bold text-maroon mb-1">
+                            <div class="fw-bold text-dark mb-0">
                                 {% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}
                             </div>
-                            <div class="small text-muted">
-                                <i class="bi bi-hash me-1"></i>{{ item.id }}
+                            <div class="small text-muted font-monospace">
+                                {{ item.id|truncatechars:8 }}
                             </div>
                         </div>
                     </div>
                 </td>
-                <td class="py-3">
+                <td>
                     {% if item.content_type == 'video' %}
-                        <span class="badge px-3 py-2 rounded-pill admin-badge-primary">
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">
                             <i class="bi bi-camera-video me-1"></i>{{ item.get_content_type_display }}
                         </span>
                     {% elif item.content_type == 'audio' %}
-                        <span class="badge px-3 py-2 rounded-pill admin-badge-secondary">
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
                             <i class="bi bi-mic me-1"></i>{{ item.get_content_type_display }}
                         </span>
                     {% else %}
-                        <span class="badge px-3 py-2 rounded-pill admin-badge-primary">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
                             <i class="bi bi-file-earmark-pdf me-1"></i>{{ item.get_content_type_display }}
                         </span>
                     {% endif %}
                 </td>
-                <td class="py-3">
-                    {% if item.tags.exists %}
-                        {% for tag in item.tags.all %}
-                            <span class="badge px-2 py-1 rounded-pill me-1 small" 
-                                  style="background: var(--color-maroon-20); color: var(--color-maroon); border: 1px solid var(--color-maroon-30);">
-                                <i class="bi bi-tag me-1"></i>{% if current_language == 'ar' %}{{ tag.name_ar }}{% else %}{{ tag.name_en }}{% endif %}
-                            </span>
-                        {% endfor %}
-                    {% else %}
-                        <span class="text-muted small body-font">{% trans "No tags" %}</span>
-                    {% endif %}
-                </td>
-                <td class="py-3">
-                    {% if item.has_seo_metadata %}
-                        {% if item.seo_keywords_ar and item.seo_keywords_en %}
-                            <span class="badge bg-success text-white px-3 py-2 rounded-pill">
-                                <i class="bi bi-check-circle me-1"></i>{% trans "Complete" %}
-                            </span>
+                <td>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% if item.tags.exists %}
+                            {% for tag in item.tags.all|slice:":3" %}
+                                <span class="badge bg-light text-secondary border rounded-pill fw-normal">
+                                    {% if current_language == 'ar' %}{{ tag.name_ar }}{% else %}{{ tag.name_en }}{% endif %}
+                                </span>
+                            {% endfor %}
+                            {% if item.tags.count > 3 %}
+                                <span class="badge bg-light text-secondary border rounded-pill fw-normal">+{{ item.tags.count|add:"-3" }}</span>
+                            {% endif %}
                         {% else %}
-                            <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
-                                <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Partial" %}
-                            </span>
+                            <span class="text-muted small">-</span>
                         {% endif %}
-                        <div class="small text-muted mt-1 d-flex gap-2">
-                            {% if item.seo_keywords_ar %}
-                                <span title="{% trans 'Arabic keywords available' %}">
-                                    <i class="bi bi-check text-success"></i>AR
+                    </div>
+                </td>
+                <td>
+                    {% if item.has_seo_metadata %}
+                        <div class="d-flex align-items-center gap-1">
+                            {% if item.seo_keywords_ar and item.seo_keywords_en %}
+                                <span class="badge bg-success-subtle text-success rounded-pill" title="{% trans 'Complete' %}">
+                                    <i class="bi bi-check-lg"></i>
                                 </span>
                             {% else %}
-                                <span title="{% trans 'Arabic keywords missing' %}">
-                                    <i class="bi bi-x text-muted"></i>AR
+                                <span class="badge bg-warning-subtle text-warning rounded-pill" title="{% trans 'Partial' %}">
+                                    <i class="bi bi-exclamation"></i>
                                 </span>
                             {% endif %}
-                            {% if item.seo_keywords_en %}
-                                <span title="{% trans 'English keywords available' %}">
-                                    <i class="bi bi-check text-success"></i>EN
-                                </span>
-                            {% else %}
-                                <span title="{% trans 'English keywords missing' %}">
-                                    <i class="bi bi-x text-muted"></i>EN
-                                </span>
-                            {% endif %}
-                            {% if item.structured_data %}
-                                <span title="{% trans 'Structured data available' %}">
-                                    <i class="bi bi-check text-success"></i>JSON
-                                </span>
-                            {% else %}
-                                <span title="{% trans 'Structured data missing' %}">
-                                    <i class="bi bi-x text-muted"></i>JSON
-                                </span>
-                            {% endif %}
+                            
+                            <span class="badge {% if item.seo_keywords_ar %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1" 
+                                  style="width: 20px; height: 20px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center;"
+                                  title="Arabic">AR</span>
+                            <span class="badge {% if item.seo_keywords_en %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1" 
+                                  style="width: 20px; height: 20px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center;"
+                                  title="English">EN</span>
                         </div>
                     {% else %}
-                        <span class="badge bg-danger text-white px-3 py-2 rounded-pill">
-                            <i class="bi bi-x-circle me-1"></i>{% trans "Missing" %}
+                        <span class="badge bg-danger-subtle text-danger rounded-pill" title="{% trans 'Missing' %}">
+                            <i class="bi bi-x-lg"></i>
                         </span>
-                        <div class="small text-muted mt-1">
-                            <i class="bi bi-magic me-1"></i>{% trans "Generate with AI" %}
-                        </div>
                     {% endif %}
                 </td>
-                <td class="py-3">
+                <td>
                     <div class="d-flex flex-column gap-1">
                         {% if item.is_active %}
-                            <span class="badge bg-success text-white px-3 py-2 rounded-pill d-inline-block" style="width: fit-content;">
-                                <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill w-auto">
+                                {% trans "Active" %}
                             </span>
                         {% else %}
-                            <span class="badge bg-secondary text-white px-3 py-2 rounded-pill d-inline-block" style="width: fit-content;">
-                                <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill w-auto">
+                                {% trans "Inactive" %}
                             </span>
                         {% endif %}
                         
-                        {% if item.processing_status %}
+                        {% if item.processing_status and item.processing_status != 'completed' %}
+                            <div class="small">
                             {% if item.processing_status == 'pending' %}
-                                <span class="badge bg-info text-white px-2 py-1 small border-0 mt-1 d-inline-block" style="width: fit-content;">
-                                    <i class="bi bi-clock me-1"></i>{% trans "Pending" %}
-                                </span>
+                                <span class="text-secondary"><i class="bi bi-clock me-1"></i>{% trans "Pending" %}</span>
                             {% elif item.processing_status == 'processing' %}
-                                <span class="badge bg-primary text-white px-2 py-1 small border-0 mt-1 d-inline-block" style="width: fit-content;" 
-                                      title="{{ item.live_task.current_step|default:'' }}">
-                                    <i class="bi bi-arrow-clockwise spin me-1"></i>
-                                    {% if item.live_task %}
-                                        {{ item.live_task.progress|default:0 }}%
-                                    {% else %}
-                                        {% trans "Processing" %}
-                                    {% endif %}
-                                </span>
-                            {% elif item.processing_status == 'completed' %}
-                                <span class="badge bg-success text-white px-2 py-1 small border-0 mt-1 d-inline-block" style="width: fit-content;">
-                                    <i class="bi bi-check-circle me-1"></i>{% trans "Processed" %}
+                                <span class="text-primary">
+                                    <i class="bi bi-arrow-clockwise spin me-1"></i>{% trans "Processing" %}
+                                    {% if item.live_task %}{{ item.live_task.progress|default:0 }}%{% endif %}
                                 </span>
                             {% elif item.processing_status == 'failed' %}
-                                <span class="badge bg-danger text-white px-2 py-1 small border-0 mt-1 d-inline-block" style="width: fit-content;">
-                                    <i class="bi bi-x-circle me-1"></i>{% trans "Failed" %}
-                                </span>
+                                <span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>{% trans "Failed" %}</span>
                             {% endif %}
+                            </div>
                         {% endif %}
                     </div>
                 </td>
-                <td class="py-3 body-font text-muted">
-                    <div class="d-flex align-items-center">
-                        <i class="bi bi-calendar3 me-2"></i>
-                        <div>
-                            <div>{{ item.created_at|date:"M d, Y" }}</div>
-                            <div class="small">{{ item.created_at|date:"H:i" }}</div>
-                        </div>
-                    </div>
+                <td class="text-muted small">
+                    <div>{{ item.created_at|date:"M d, Y" }}</div>
                 </td>
-                <td class="py-3 text-center">
-                    <div class="d-flex gap-1 justify-content-center flex-wrap">
+                <td class="text-end pe-4">
+                    <div class="btn-group">
                         <a href="{% url 'frontend_api:admin_content_detail' item.id %}" 
-                           class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill" 
+                           class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Edit' %}">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        
                         {% if item.content_type == 'video' %}
                         <a href="{% url 'frontend_api:video_detail' item.id %}" 
-                           class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                           class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Preview' %}" target="_blank">
                             <i class="bi bi-eye"></i>
                         </a>
                         {% elif item.content_type == 'audio' %}
                         <a href="{% url 'frontend_api:audio_detail' item.id %}" 
-                           class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                           class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Preview' %}" target="_blank">
                             <i class="bi bi-eye"></i>
                         </a>
                         {% else %}
                         <a href="{% url 'frontend_api:pdf_detail' item.id %}" 
-                           class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
+                           class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Preview' %}" target="_blank">
                             <i class="bi bi-eye"></i>
                         </a>
                         {% endif %}
+                        
                         {% if not item.has_seo_metadata %}
-                        <button class="btn btn-sm btn-outline-warning px-3 py-2 rounded-pill" 
-                                title="{% trans 'Generate SEO metadata with AI' %}"
+                        <button class="btn btn-sm btn-light text-warning" 
+                                title="{% trans 'Generate SEO' %}"
                                 onclick="generateSEOForItem('{{ item.id }}')">
                             <i class="bi bi-magic"></i>
                         </button>
                         {% endif %}
-                        <button class="btn btn-sm btn-outline-danger px-3 py-2 rounded-pill" 
+                        
+                        <button class="btn btn-sm btn-light text-danger" 
                                 title="{% trans 'Delete' %}" 
                                 onclick="confirmDelete('{{ item.id }}', '{{ item.title_ar|escapejs }}')">
                             <i class="bi bi-trash"></i>
@@ -244,18 +175,15 @@
             {% endif %}
             {% empty %}
             <tr>
-                <td colspan="7" class="text-center py-5">
-                    <div class="empty-state">
-                        <div class="d-inline-flex align-items-center justify-content-center mb-3" 
-                             style="width: 80px; height: 80px; background: var(--color-maroon-10); border-radius: 50%;">
-                            <i class="bi bi-inbox text-maroon" style="font-size: 2.5rem;"></i>
-                        </div>
-                        <h5 class="heading-font text-maroon mb-2">{% trans "No content found" %}</h5>
-                        <p class="body-font text-muted mb-3">{% trans "No content matches your current filters" %}</p>
-                        <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary px-4 py-2 rounded-pill">
-                            <i class="bi bi-plus-lg me-2"></i>{% trans "Add Content" %}
-                        </a>
+                <td colspan="7" class="text-center py-5 text-muted">
+                    <div class="mb-3">
+                        <i class="bi bi-inbox display-4 text-secondary opacity-50"></i>
                     </div>
+                    <h6 class="fw-bold">{% trans "No content found" %}</h6>
+                    <p class="small mb-3">{% trans "Try adjusting your search or filters" %}</p>
+                    <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary btn-sm rounded-pill px-3">
+                        {% trans "Add Content" %}
+                    </a>
                 </td>
             </tr>
             {% endfor %}
@@ -265,48 +193,43 @@
 
 <!-- Pagination -->
 {% if content_data.has_pagination %}
-<div class="d-flex justify-content-between align-items-center mt-4 flex-wrap">
-    <div class="text-muted small body-font">
-        {% trans "Showing" %} {{ content_data.start_index }}-{{ content_data.end_index }} {% trans "of" %} {{ content_data.total_count }} {% trans "items" %}
+<div class="d-flex justify-content-between align-items-center mt-3 border-top pt-3">
+    <div class="text-muted small">
+        {% trans "Showing" %} <strong>{{ content_data.start_index }}-{{ content_data.end_index }}</strong> {% trans "of" %} <strong>{{ content_data.total_count }}</strong>
     </div>
     <nav>
         <ul class="pagination pagination-sm mb-0">
             {% if content_data.has_previous %}
             <li class="page-item">
-                <a class="page-link rounded-pill me-1" 
-                   href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
-                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
+                <a class="page-link border-0 text-secondary" 
+                   href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
                     <i class="bi bi-chevron-double-left"></i>
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link rounded-pill me-1" 
-                   href="?page={{ content_data.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
-                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
+                <a class="page-link border-0 text-secondary" 
+                   href="?page={{ content_data.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
                     <i class="bi bi-chevron-left"></i>
                 </a>
             </li>
             {% endif %}
             
             <li class="page-item active">
-                <span class="page-link rounded-pill me-1" 
-                      style="background: var(--color-maroon); border: 2px solid var(--color-maroon); color: white;">
+                <span class="page-link bg-primary border-primary">
                     {{ content_data.number }}
                 </span>
             </li>
             
             {% if content_data.has_next %}
             <li class="page-item">
-                <a class="page-link rounded-pill me-1" 
-                   href="?page={{ content_data.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
-                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
+                <a class="page-link border-0 text-secondary" 
+                   href="?page={{ content_data.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
                     <i class="bi bi-chevron-right"></i>
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link rounded-pill" 
-                   href="?page={{ content_data.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}"
-                   style="border: 2px solid var(--color-golden-ochre-30); color: var(--color-maroon);">
+                <a class="page-link border-0 text-secondary" 
+                   href="?page={{ content_data.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
                     <i class="bi bi-chevron-double-right"></i>
                 </a>
             </li>
@@ -322,16 +245,21 @@ function generateSEOForItem(contentId) {
         return;
     }
     
+    // Add CSRF token safely if not present in your form handling
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? 
+                      document.querySelector('[name=csrfmiddlewaretoken]').value : 
+                      '{{ csrf_token }}';
+
     const formData = new FormData();
     formData.append('action', 'generate_seo');
     formData.append('content_ids', contentId);
-    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    if(csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
     
     // Find the button that was clicked and disable it
     const button = event.target.closest('button');
     const originalHTML = button.innerHTML;
     button.disabled = true;
-    button.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
     
     fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
         method: 'POST',
@@ -343,52 +271,45 @@ function generateSEOForItem(contentId) {
     .then(response => response.json())
     .then(data => {
         if (data.success > 0) {
-            // Show success message
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
-            alertDiv.innerHTML = `
-                <i class="bi bi-check-circle me-2"></i>
-                {% trans "SEO metadata generation started successfully!" %}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
+            // Updated modern alert
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    {% trans "SEO metadata generation started successfully!" %}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>`;
             
-            // Insert alert at top of table container
+            // Insert alert safely
             const tableContainer = document.getElementById('admin-content-table');
             if (tableContainer) {
-                tableContainer.insertBefore(alertDiv, tableContainer.firstChild);
+                const temp = document.createElement('div');
+                temp.innerHTML = alertHtml;
+                tableContainer.insertBefore(temp.firstElementChild, tableContainer.firstChild);
             }
             
-            // Auto-dismiss after 5 seconds
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.remove();
-                }
-            }, 5000);
-            
-            // Reload the content list to show updated status
+            // Reload
             setTimeout(() => {
                 location.reload();
-            }, 2000);
+            }, 1000);
         } else {
-            alert('{% trans "Error:" %} ' + (data.messages.join(' ') || '{% trans "Failed to generate SEO metadata" %}'));
+            showToast('{% trans "Error:" %} ' + (data.messages && data.messages.join(' ') || '{% trans "Failed to generate SEO metadata" %}'), 'danger');
         }
     })
     .catch(error => {
         console.error('SEO generation error:', error);
-        alert('{% trans "Network error. Please try again." %}');
+        showToast('{% trans "Network error. Please try again." %}', 'danger');
     })
     .finally(() => {
         // Re-enable button
-        button.disabled = false;
-        button.innerHTML = originalHTML;
+        if(button) {
+            button.disabled = false;
+            button.innerHTML = originalHTML;
+        }
     });
 }
-</script>
 
-<script>
 function confirmDelete(itemId, itemTitle) {
     if (confirm('{% trans "Are you sure you want to delete" %} "' + itemTitle + '"?')) {
-        // Use the proper named URL for the confirmation page
         const url = "{% url 'frontend_api:admin_content_delete' '00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', itemId);
         window.location.href = url;
     }

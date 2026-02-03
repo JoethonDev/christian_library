@@ -1,277 +1,225 @@
-<!-- templates/admin/pdf_management.html - Coptic Orthodox PDF Management -->
+<!-- templates/admin/pdf_management.html - Modern PDF Management -->
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
 {% block admin_content %}
 <div class="container-fluid px-0">
-    <!-- PDF Management Header -->
-    <div class="admin-content-header mb-5">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-4 sacred-shadow" 
-                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
-                        <i class="bi bi-journal-bookmark text-white" style="font-size: 2rem;"></i>
-                    </div>
-                    <div>
-                        <h1 class="heading-font text-maroon mb-2 fw-bold">{% trans "PDF Manager" %}</h1>
-                        <p class="body-font text-muted mb-0">{% trans "Manage books, documents, and sacred texts" %}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 text-end">
-                <a href="{% url 'frontend_api:upload_content' %}?type=pdf" class="btn btn-primary px-4 py-3 rounded-pill">
-                    <i class="bi bi-plus-lg me-2"></i>{% trans "Add PDF" %}
-                </a>
-            </div>
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-dark mb-1">{% trans "PDF Manager" %}</h1>
+            <p class="text-muted mb-0">{% trans "Manage books, documents, and sacred texts" %}</p>
         </div>
+        <a href="{% url 'frontend_api:upload_content' %}?type=pdf" class="btn btn-primary rounded-pill px-4">
+            <i class="bi bi-plus-lg me-2"></i>{% trans "Add PDF" %}
+        </a>
     </div>
 
-    <!-- PDF Management Table -->
-    <div class="card card-coptic">
-        <div class="card-header-coptic py-4">
-            <div class="d-flex align-items-center">
-                <div class="d-flex align-items-center justify-content-center me-3" 
-                     style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px;">
-                    <i class="bi bi-file-earmark-pdf text-white"></i>
-                </div>
-                <h3 class="heading-font text-white mb-0 fw-bold">{% trans "PDF Documents" %}</h3>
-            </div>
-        </div>
-        
+    <!-- PDF Table Card -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="table-responsive">
-            <table class="table admin-table mb-0">
-                <thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
                     <tr>
-                        <th class="ps-4 py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-file-text me-2 text-golden"></i>
-                                <span class="heading-font">{% trans "Document" %}</span>
-                            </div>
-                        </th>
-
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-file-earmark-text me-2 text-golden"></i>
-                                <span class="heading-font">{% trans "Pages" %}</span>
-                            </div>
-                        </th>
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-hdd me-2 text-golden"></i>
-                                <span class="heading-font">{% trans "Size" %}</span>
-                            </div>
-                        </th>
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-search me-2 text-golden"></i>
-                                <span class="heading-font">{% trans "Indexed" %}</span>
-                            </div>
-                        </th>
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-toggles me-2 text-golden"></i>
-                                <span class="heading-font">{% trans "Status" %}</span>
-                            </div>
-                        </th>
-                        <th class="py-3 text-center">
-                            <div class="d-flex align-items-center justify-content-center">
-                                <i class="bi bi-gear me-2 text-golden"></i>
-                                <span class="heading-font">{% trans "Actions" %}</span>
-                            </div>
-                        </th>
+                        <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Document" %}</th>
+                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
+                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Pages" %}</th>
+                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Size" %}</th>
+                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Indexed" %}</th>
+                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Visibility" %}</th>
+                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
+                        <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for pdf in pdfs %}
-                    <tr class="hover-row">
+                {% for pdf in pdfs %}
+                <tbody x-data="{ expanded: false }" class="border-bottom">
+                    <tr>
                         <td class="ps-4 py-3">
                             <div class="d-flex align-items-center">
-                                <div class="d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 50px; height: 50px; border-radius: 12px; background: var(--color-maroon-10);">
-                                    <i class="bi bi-file-text text-maroon" style="font-size: 1.2rem;"></i>
+                                <div class="bg-light rounded p-2 me-3 text-danger">
+                                    <i class="bi bi-file-earmark-pdf fs-4"></i>
                                 </div>
                                 <div>
-                                    <div class="body-font fw-bold text-maroon mb-1">{{ pdf.title_ar }}</div>
+                                    <div class="fw-semibold text-dark">{{ pdf.title_ar }}</div>
                                     {% if pdf.title_en %}
-                                        <div class="small text-muted body-font">{{ pdf.title_en }}</div>
+                                        <div class="small text-muted">{{ pdf.title_en }}</div>
                                     {% endif %}
                                 </div>
                             </div>
                         </td>
-
-                        <td class="py-3">
+                        <td>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for tag in pdf.tags.all %}
+                                    <span class="badge bg-light text-secondary border rounded-pill fw-normal">
+                                        {{ tag.name }}
+                                    </span>
+                                {% empty %}
+                                    <span class="text-muted small">-</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="text-muted">
                             {% if pdf.pdfmeta.page_count %}
-                                <span class="badge bg-info text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-file-earmark-text me-1"></i>{{ pdf.pdfmeta.page_count }} {% trans "pages" %}
-                                </span>
+                                {{ pdf.pdfmeta.page_count }} <span class="small">{% trans "pgs" %}</span>
                             {% else %}
-                                <span class="text-muted small body-font">{% trans "Unknown" %}</span>
+                                <span class="small text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td class="py-3">
-                            {% if pdf.file.size %}
-                                <span class="badge bg-secondary text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-hdd me-1"></i>{{ pdf.file.size|filesizeformat }}
-                                </span>
+                        <td class="text-muted">
+                             {% if pdf.file.size %}
+                                {{ pdf.file.size|filesizeformat }}
                             {% else %}
-                                <span class="text-muted small body-font">{% trans "Unknown" %}</span>
+                                <span class="small">-</span>
                             {% endif %}
                         </td>
-                        <td class="py-3">
-                            {% if pdf.indexed_char_count > 0 %}
-                                <span class="badge bg-success text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-file-text me-1"></i>{{ pdf.indexed_char_count|floatformat:0 }}
+                        <td>
+                             {% if pdf.indexed_char_count > 0 %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
+                                    <i class="bi bi-check2 me-1"></i>{{ pdf.indexed_char_count|floatformat:0 }}
                                 </span>
                             {% elif pdf.content_type == 'pdf' %}
-                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Not Indexed" %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
+                                    {% trans "Pending" %}
                                 </span>
                             {% else %}
-                                <span class="text-muted small body-font">{% trans "N/A" %}</span>
+                                <span class="text-muted small">-</span>
                             {% endif %}
                         </td>
-                        <td class="py-3">
-                            {% if pdf.live_task %}
-                                <div class="mb-1 d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small">
-                                        <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ pdf.live_task.progress }}%
-                                    </span>
-                                    <span class="text-muted" style="font-size: 0.7rem;">{{ pdf.live_task.step }}</span>
+                        <td>
+                            <div class="form-check form-switch px-0">
+                                <input class="form-check-input ms-0 toggle-status-btn" type="checkbox" 
+                                       data-id="{{ pdf.id }}"
+                                       {% if pdf.is_active %}checked{% endif %}
+                                       onchange="toggleStatus('{{ pdf.id }}', this)">
+                            </div>
+                        </td>
+                         <td>
+                            {% if pdf.processing_status == 'completed' %}
+                                <span class="badge bg-success rounded-pill px-2">{% trans "Active" %}</span>
+                            {% elif pdf.processing_status == 'processing' or pdf.processing_status == 'pending' %}
+                                <div class="d-flex align-items-center text-warning" title="{% trans 'Processing' %}">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    <span class="small fw-semibold">{% trans "Processing" %}</span>
                                 </div>
-                                <div class="progress" style="height: 4px; background-color: rgba(255,255,255,0.1);">
-                                    <div class="progress-bar bg-warning" role="progressbar" 
-                                         style="width: {{ pdf.live_task.progress }}%" 
-                                         aria-valuenow="{{ pdf.live_task.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                            {% elif pdf.processing_status == 'completed' %}
-                                <span class="badge bg-success text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
-                                </span>
-                            {% elif pdf.processing_status == 'processing' %}
-                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
-                                    <i class="bi bi-arrow-clockwise me-1 spin"></i>{% trans "Processing" %}
-                                </span>
                             {% elif pdf.processing_status == 'failed' %}
-                                <span class="badge bg-danger text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Failed" %}
-                                </span>
+                                <span class="badge bg-danger rounded-pill px-2">{% trans "Failed" %}</span>
                             {% else %}
-                                <span class="badge bg-secondary text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-pause-circle me-1"></i>{{ pdf.processing_status|title }}
-                                </span>
+                                <span class="badge bg-secondary rounded-pill px-2">{{ pdf.processing_status|title }}</span>
                             {% endif %}
                         </td>
-                        <td class="py-3 text-center">
-                            <div class="d-flex gap-1 justify-content-center flex-wrap">
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                {% if pdf.indexed_char_count > 0 %}
+                                <button type="button" 
+                                        class="btn btn-sm btn-light text-primary" 
+                                        @click="expanded = !expanded"
+                                        :class="{'active': expanded}"
+                                        title="{% trans 'Toggle Extracted Text' %}">
+                                        <i class="bi" :class="expanded ? 'bi-chevron-up' : 'bi-file-text'"></i>
+                                </button>
+                                {% endif %}
                                 <a href="{% url 'frontend_api:admin_content_detail' pdf.id %}" 
-                                   class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill" 
+                                   class="btn btn-sm btn-light" 
                                    title="{% trans 'Edit' %}">
                                     <i class="bi bi-pencil"></i>
                                 </a>
-                                {% if pdf.indexed_char_count > 0 %}
-                                <button type="button" class="btn btn-sm btn-outline-info px-3 py-2 rounded-pill" 
-                                        data-bs-toggle="modal" data-bs-target="#textModal{{ pdf.id }}"
-                                        title="{% trans 'View Extracted Text' %}">
-                                    <i class="bi bi-file-text"></i>
-                                </button>
-                                
-                                <!-- Text Preview Modal -->
-                                <div class="modal fade" id="textModal{{ pdf.id }}" tabindex="-1" aria-labelledby="textModalLabel{{ pdf.id }}" aria-hidden="true">
-                                    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-                                        <div class="modal-content border-0 shadow-lg text-start" style="border-radius: 20px;">
-                                            <div class="modal-header bg-light border-0 py-3 px-4">
-                                                <h5 class="modal-title fw-bold text-maroon" id="textModalLabel{{ pdf.id }}">
-                                                    <i class="bi bi-file-earmark-text me-2"></i>{% trans "Extracted Text" %}: {{ pdf.title_ar }}
-                                                </h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <div class="modal-body p-4" style="direction: rtl; text-align: right; background: #fffcf8;">
-                                                <div class="mb-3 d-flex justify-content-between align-items-center">
-                                                    <span class="badge bg-info text-white rounded-pill px-3">{{ pdf.indexed_char_count }} {% trans "characters" %}</span>
-                                                    <small class="text-muted">{% trans "Indexed on" %} {{ pdf.created_at|date:"M d, Y" }}</small>
-                                                </div>
-                                                <div class="p-3 rounded-3 shadow-sm border text-start" style="background: white; font-family: 'Amiri', serif; line-height: 1.8; color: #2C1810; font-size: 1.1rem; max-height: 50vh; overflow-y: auto; text-align: right;">
-                                                    {{ pdf.book_content|linebreaksbr }}
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer border-0 bg-light py-3 px-4">
-                                                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">{% trans "Close" %}</button>
-                                                <a href="{% url 'frontend_api:admin_content_detail' pdf.id %}" class="btn btn-primary rounded-pill px-4">{% trans "Edit Document" %}</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endif %}
                                 <a href="{% url 'frontend_api:pdf_detail' pdf.id %}" 
-                                   class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-pill" 
-                                   title="{% trans 'Preview' %}" target="_blank">
+                                   class="btn btn-sm btn-light" 
+                                   target="_blank"
+                                   title="{% trans 'Preview' %}">
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 {% if pdf.pdfmeta %}
                                 <a href="{{ pdf.pdfmeta.get_direct_download_url }}?download=true" 
-                                   class="btn btn-sm btn-outline-success px-3 py-2 rounded-pill" 
-                                   title="{% trans 'Download' %}" target="_blank">
+                                   class="btn btn-sm btn-light" 
+                                   target="_blank" 
+                                   title="{% trans 'Download' %}">
                                     <i class="bi bi-download"></i>
                                 </a>
                                 {% endif %}
                                 <a href="{% url 'frontend_api:content_delete_confirm' pdf.id %}" 
-                                   class="btn btn-sm btn-outline-danger px-3 py-2 rounded-pill" 
+                                   class="btn btn-sm btn-light text-danger" 
                                    title="{% trans 'Delete' %}">
                                     <i class="bi bi-trash"></i>
                                 </a>
                             </div>
                         </td>
                     </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5">
-                            <div class="empty-state">
-                                <div class="d-inline-flex align-items-center justify-content-center mb-3" 
-                                     style="width: 80px; height: 80px; background: var(--color-maroon-10); border-radius: 50%;">
-                                    <i class="bi bi-journal-bookmark text-maroon" style="font-size: 2.5rem;"></i>
+                    
+                    <!-- Expanded Text Area -->
+                    <tr x-show="expanded" x-transition.opacity.duration.300ms style="display: none;">
+                        <td colspan="8" class="bg-light p-0 border-0">
+                            <div class="p-4">
+                                <div class="card border-0 shadow-sm">
+                                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0 fw-bold text-primary">
+                                            <i class="bi bi-file-text me-2"></i>{% trans "Extracted Content" %}
+                                        </h6>
+                                        <span class="badge bg-light text-muted border">{{ pdf.indexed_char_count }} chars</span>
+                                    </div>
+                                    <div class="card-body bg-white text-end position-relative">
+                                        <div class="extracted-text-viewer p-3 rounded bg-light" 
+                                             style="font-family: 'Courier New', monospace; max-height: 300px; overflow-y: auto; white-space: pre-wrap; direction: rtl;">
+{{ pdf.book_content|default:"No content extracted." }}
+                                        </div>
+                                    </div>
                                 </div>
-                                <h5 class="heading-font text-maroon mb-2">{% trans "No PDF documents found" %}</h5>
-                                <p class="body-font text-muted mb-3">{% trans "Start by uploading your first document" %}</p>
-                                <a href="{% url 'frontend_api:upload_content' %}?type=pdf" class="btn btn-primary px-4 py-2 rounded-pill">
-                                    <i class="bi bi-plus-lg me-2"></i>{% trans "Add PDF" %}
-                                </a>
                             </div>
                         </td>
                     </tr>
-                    {% endfor %}
                 </tbody>
+                {% empty %}
+                <tbody>
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <div class="mb-3">
+                                <i class="bi bi-file-earmark-pdf display-4 text-secondary opacity-50"></i>
+                            </div>
+                            <h6 class="fw-bold">{% trans "No documents found" %}</h6>
+                            <p class="small mb-3">{% trans "Get started by uploading your first PDF document." %}</p>
+                            <a href="{% url 'frontend_api:upload_content' %}?type=pdf" class="btn btn-outline-primary btn-sm rounded-pill">
+                                {% trans "Upload Content" %}
+                            </a>
+                        </td>
+                    </tr>
+                </tbody>
+                {% endfor %}
             </table>
         </div>
     </div>
 </div>
 
-<style>
-/* PDF-specific enhancements */
-.pdf-document-icon {
-    background: linear-gradient(45deg, var(--color-maroon), var(--color-golden-ochre));
-    opacity: 0.1;
+<script>
+function toggleStatus(contentId, checkbox) {
+    checkbox.disabled = true;
+    
+    fetch('{% url "frontend_api:api_toggle_content_status" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            content_id: contentId,
+            is_active: checkbox.checked
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        checkbox.disabled = false;
+        if (data.success) {
+            showToast(data.is_active ? '{% trans "Content activated" %}' : '{% trans "Content hidden" %}', 'success');
+        } else {
+            checkbox.checked = !checkbox.checked;
+            showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        checkbox.disabled = false;
+        checkbox.checked = !checkbox.checked;
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
 }
-
-@media (max-width: 768px) {
-    .admin-content-header .d-flex {
-        flex-direction: column;
-        text-align: center;
-        gap: 1rem;
-    }
-    
-    .admin-content-header .col-md-4 {
-        text-align: center !important;
-    }
-    
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-    
-    .d-flex.gap-1.justify-content-center.flex-wrap .btn {
-        font-size: 0.8rem;
-        padding: 0.375rem 0.75rem;
-    }
-}
-</style>
+</script>
 {% endblock %}

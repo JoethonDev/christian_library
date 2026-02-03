@@ -1,332 +1,204 @@
-<!-- templates/admin/dashboard.html - Coptic Orthodox Admin Dashboard -->
+<!-- templates/admin/dashboard.html - Modern Admin Dashboard -->
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
 {% block admin_content %}
-<div class="container-fluid px-0">
-    <!-- Admin Header Section -->
-    <div class="admin-content-header mb-5">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-4 sacred-shadow" 
-                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
-                        <i class="bi bi-speedometer2 text-white" style="font-size: 2rem;"></i>
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Dashboard" %}</h1>
+        <p class="text-muted mb-0">{% trans "Overview of your library performance" %}</p>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
+            <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Content" %}
+        </a>
+    </div>
+</div>
+
+<!-- Metric Grid -->
+<div class="row g-4 mb-5">
+    <!-- Total Content -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 position-relative overflow-hidden">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2">
+                        <i class="bi bi-collection fs-4"></i>
                     </div>
-                    <div>
-                        <h1 class="heading-font text-maroon mb-2 fw-bold">{% trans "Admin Dashboard" %}</h1>
-                        <p class="body-font text-muted mb-0">{% trans "Manage your Christian Library content and monitor system performance" %}</p>
-                    </div>
+                     <span class="badge bg-success-subtle text-success rounded-pill">+2.5%</span>
                 </div>
+                <h2 class="fw-bold text-dark mb-1">{{ stats.total_content|default:"0" }}</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "Total Items" %}</p>
+                
+                <!-- Simple SVG Sparkline Decoration -->
+                <svg class="position-absolute bottom-0 start-0 w-100" height="50" style="opacity: 0.1; pointer-events: none;" preserveAspectRatio="none" viewBox="0 0 100 50">
+                    <path d="M0,50 L0,30 Q25,10 50,30 T100,20 L100,50 Z" fill="currentColor" class="text-primary"></path>
+                </svg>
             </div>
-            <div class="col-md-4 text-end">
-                <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary btn-lg px-4 py-3 rounded-pill">
-                    <i class="bi bi-plus-lg me-2"></i>{% trans "Upload Content" %}
-                </a>
+        </div>
+    </div>
+    
+    <!-- Video Streams -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 position-relative overflow-hidden">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2">
+                        <i class="bi bi-play-circle fs-4"></i>
+                    </div>
+                    {% if processing_videos > 0 %}
+                        <span class="badge bg-warning-subtle text-warning rounded-pill">
+                             <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ processing_videos }}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-success-subtle text-success rounded-pill">{% trans "Healthy" %}</span>
+                    {% endif %}
+                </div>
+                <h2 class="fw-bold text-dark mb-1">{{ stats.total_videos|default:"0" }}</h2>
+                 <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "Video Streams" %}</p>
+                 
+                 <svg class="position-absolute bottom-0 start-0 w-100" height="50" style="opacity: 0.1; pointer-events: none;" preserveAspectRatio="none" viewBox="0 0 100 50">
+                    <path d="M0,50 L0,40 Q25,20 50,30 T100,10 L100,50 Z" fill="currentColor" class="text-danger"></path>
+                </svg>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row g-4 mb-5">
-        <div class="col-lg-3 col-md-6">
-            <div class="admin-stat-card h-100">
-                <div class="card-body p-4 text-center">
-                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
-                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
-                        <i class="bi bi-collection text-white" style="font-size: 1.8rem;"></i>
+    <!-- Audio Messages -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 position-relative overflow-hidden">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2">
+                        <i class="bi bi-mic fs-4"></i>
                     </div>
-                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_content|default:"0" }}</h2>
-                    <p class="body-font text-muted mb-0 fw-medium">{% trans "Total Content" %}</p>
-                    <div class="mt-2 d-flex justify-content-center gap-2">
-                        <small class="badge bg-success text-white rounded-pill px-2">
-                            {{ stats.active_content|default:"0" }} {% trans "Active" %}
-                        </small>
-                        <small class="badge bg-warning text-dark rounded-pill px-2">
-                            {{ stats.processing_content|default:"0" }} {% trans "Processing" %}
-                        </small>
-                    </div>
+                    <span class="badge bg-secondary-subtle text-secondary rounded-pill">{% trans "Stable" %}</span>
                 </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-3 col-md-6">
-            <div class="admin-stat-card h-100">
-                <div class="card-body p-4 text-center">
-                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
-                         style="width: 70px; height: 70px; background: var(--color-golden-ochre); border-radius: 16px;">
-                        <i class="bi bi-play-circle text-white" style="font-size: 1.8rem;"></i>
-                    </div>
-                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_videos|default:"0" }}</h2>
-                    <p class="body-font text-muted mb-2 fw-medium">{% trans "Videos" %}</p>
-                    <small class="text-maroon">
-                        {% if processing_videos > 0 %}
-                            <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ processing_videos }} {% trans "Processing" %}
-                        {% else %}
-                            <i class="bi bi-check-all me-1"></i>{% trans "All Processed" %}
-                        {% endif %}
-                    </small>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-3 col-md-6">
-            <div class="admin-stat-card h-100">
-                <div class="card-body p-4 text-center">
-                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
-                         style="width: 70px; height: 70px; background: var(--color-maroon); border-radius: 16px;">
-                        <i class="bi bi-music-note-beamed text-white" style="font-size: 1.8rem;"></i>
-                    </div>
-                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_audios|default:"0" }}</h2>
-                    <p class="body-font text-muted mb-0 fw-medium">{% trans "Audio Messages" %}</p>
-                    <div class="mt-2">
-                        <small class="text-golden">
-                            <i class="bi bi-broadcast me-1"></i>{% trans "Sermons & Teachings" %}
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-3 col-md-6">
-            <div class="admin-stat-card h-100">
-                <div class="card-body p-4 text-center">
-                    <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
-                         style="width: 70px; height: 70px; background: var(--color-golden-ochre); border-radius: 16px;">
-                        <i class="bi bi-journal-bookmark text-white" style="font-size: 1.8rem;"></i>
-                    </div>
-                    <h2 class="heading-font text-maroon mb-2 fw-bold" style="font-size: 2.5rem;">{{ stats.total_pdfs|default:"0" }}</h2>
-                    <p class="body-font text-muted mb-0 fw-medium">{% trans "Books & PDFs" %}</p>
-                    <div class="mt-2">
-                        <small class="text-maroon">
-                            <i class="bi bi-book me-1"></i>{% trans "Sacred Texts" %}
-                        </small>
-                        {% if stats.indexed_pdfs %}
-                        <br>
-                        <small class="text-success">
-                            <i class="bi bi-search me-1"></i>{{ stats.indexed_pdfs }}/{{ stats.total_pdfs }} {% trans "Indexed" %}
-                        </small>
-                        {% if stats.total_indexed_chars %}
-                        <br>
-                        <small class="text-info">
-                            <i class="bi bi-file-text me-1"></i>{{ stats.total_indexed_chars|floatformat:0 }} {% trans "chars" %}
-                        </small>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                </div>
+                <h2 class="fw-bold text-dark mb-1">{{ stats.total_audios|default:"0" }}</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "Audio Tracks" %}</p>
+                
+                <svg class="position-absolute bottom-0 start-0 w-100" height="50" style="opacity: 0.1; pointer-events: none;" preserveAspectRatio="none" viewBox="0 0 100 50">
+                    <path d="M0,50 L0,35 Q25,45 50,25 T100,30 L100,50 Z" fill="currentColor" class="text-warning"></path>
+                </svg>
             </div>
         </div>
     </div>
 
-    <!-- Recent Content Section -->
-    <div class="card card-coptic">
-        <div class="card-header-coptic py-4">
-            <div class="d-flex justify-content-between align-items-center">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-3" 
-                         style="width: 40px; height: 40px; background: rgba(255, 255, 255, 0.2); border-radius: 10px;">
-                        <i class="bi bi-clock-history text-white"></i>
+    <!-- Indexed PDFs -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100 position-relative overflow-hidden">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-info bg-opacity-10 text-info rounded-3 p-2">
+                        <i class="bi bi-file-text fs-4"></i>
                     </div>
-                    <h3 class="heading-font text-white mb-0 fw-bold">{% trans "Recent Uploads" %}</h3>
+                    {% if stats.total_pdfs > 0 %}
+                    <span class="badge bg-info-subtle text-info rounded-pill">
+                        {{ stats.indexed_pdfs|default:"0" }} {% trans "Indexed" %}
+                    </span>
+                    {% endif %}
                 </div>
-                <a href="{% url 'frontend_api:admin_content_list' %}" class="btn btn-outline-light btn-sm px-4 py-2 rounded-pill">
-                    <i class="bi bi-arrow-right me-1"></i>{% trans "View All" %}
-                </a>
+                <h2 class="fw-bold text-dark mb-1">{{ stats.total_pdfs|default:"0" }}</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "Documents" %}</p>
+                
+                <svg class="position-absolute bottom-0 start-0 w-100" height="50" style="opacity: 0.1; pointer-events: none;" preserveAspectRatio="none" viewBox="0 0 100 50">
+                    <path d="M0,50 L0,30 L20,30 L20,15 L40,15 L40,40 L60,40 L60,20 L80,20 L80,35 L100,35 L100,50 Z" fill="currentColor" class="text-info"></path>
+                </svg>
             </div>
-        </div>
-        
-        <div class="table-responsive">
-            <table class="table admin-table mb-0">
-                <thead>
-                    <tr>
-                        <th class="ps-4 py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-card-heading me-2"></i>
-                                <span class="heading-font">{% trans "Title" %}</span>
-                            </div>
-                        </th>
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-tags me-2"></i>
-                                <span class="heading-font">{% trans "Type" %}</span>
-                            </div>
-                        </th>
-
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-toggles me-2"></i>
-                                <span class="heading-font">{% trans "Status" %}</span>
-                            </div>
-                        </th>
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-calendar3 me-2"></i>
-                                <span class="heading-font">{% trans "Date" %}</span>
-                            </div>
-                        </th>
-                        <th class="py-3 text-center">
-                            <div class="d-flex align-items-center justify-content-center">
-                                <i class="bi bi-gear me-2"></i>
-                                <span class="heading-font">{% trans "Actions" %}</span>
-                            </div>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in recent_content %}
-                    <tr class="hover-row">
-                        <td class="ps-4 py-3">
-                            <div class="d-flex align-items-center">
-                                <div class="d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 40px; height: 40px; border-radius: 10px;
-                                     {% if item.content_type == 'video' %}background: var(--color-maroon-10);{% elif item.content_type == 'audio' %}background: var(--color-golden-ochre-10);{% else %}background: var(--color-maroon-20);{% endif %}">
-                                    {% if item.content_type == 'video' %}
-                                        <i class="bi bi-play-circle text-maroon"></i>
-                                    {% elif item.content_type == 'audio' %}
-                                        <i class="bi bi-music-note text-golden"></i>
-                                    {% else %}
-                                        <i class="bi bi-file-text text-maroon"></i>
-                                    {% endif %}
-                                </div>
-                                <div>
-                                    <div class="body-font fw-semibold text-maroon mb-1">
-                                        {% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}
-                                    </div>
-                                    <div class="small text-muted">
-                                        <i class="bi bi-hash me-1"></i>{{ item.id }}
-                                        {% if item.content_type == 'pdf' and item.indexed_char_count > 0 %}
-                                        <br>
-                                        <i class="bi bi-file-text me-1 text-success"></i>{{ item.indexed_char_count|floatformat:0 }} {% trans "indexed chars" %}
-                                        {% elif item.content_type == 'pdf' %}
-                                        <br>
-                                        <i class="bi bi-exclamation-circle me-1 text-warning"></i>{% trans "Not indexed" %}
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="py-3">
-                            <span class="badge px-3 py-2 rounded-pill admin-badge-{% if item.content_type == 'video' %}primary{% elif item.content_type == 'audio' %}secondary{% else %}primary{% endif %}">
-                                {% if item.content_type == 'video' %}
-                                    <i class="bi bi-camera-video me-1"></i>Video
-                                {% elif item.content_type == 'audio' %}
-                                    <i class="bi bi-mic me-1"></i>Audio
-                                {% else %}
-                                    <i class="bi bi-file-earmark-pdf me-1"></i>PDF
-                                {% endif %}
-                            </span>
-                        </td>
-
-                        <td class="py-3">
-                            {% if item.live_task %}
-                                <div class="mb-1 d-flex justify-content-between align-items-center">
-                                    <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small">
-                                        <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ item.live_task.progress }}%
-                                    </span>
-                                </div>
-                                <div class="progress" style="height: 4px; background-color: rgba(255,255,255,0.1); width: 100px;">
-                                    <div class="progress-bar bg-warning" role="progressbar" 
-                                         style="width: {{ item.live_task.progress }}%" 
-                                         aria-valuenow="{{ item.live_task.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
-                                </div>
-                            {% elif item.processing_status == 'completed' %}
-                                <span class="badge bg-success text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
-                                </span>
-                            {% elif item.processing_status == 'processing' %}
-                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
-                                    <i class="bi bi-arrow-clockwise me-1 spin"></i>{% trans "Processing" %}
-                                </span>
-                            {% elif item.processing_status == 'failed' %}
-                                <span class="badge bg-danger text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Failed" %}
-                                </span>
-                            {% else %}
-                                <span class="badge bg-secondary text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-pause-circle me-1"></i>{{ item.processing_status|title }}
-                                </span>
-                            {% endif %}
-                        </td>
-                        <td class="py-3 body-font text-muted">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-calendar3 me-2"></i>
-                                {{ item.created_at|date:"M d, Y" }}
-                            </div>
-                        </td>
-                        <td class="py-3 text-center">
-                            <a href="{% url 'frontend_api:admin_content_detail' item.id %}" 
-                               class="btn btn-sm btn-outline-primary px-3 py-2 rounded-pill">
-                                <i class="bi bi-pencil me-1"></i>{% trans "Edit" %}
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5">
-                            <div class="empty-state">
-                                <div class="d-inline-flex align-items-center justify-content-center mb-3" 
-                                     style="width: 80px; height: 80px; background: var(--color-maroon-10); border-radius: 50%;">
-                                    <i class="bi bi-inbox text-maroon" style="font-size: 2.5rem;"></i>
-                                </div>
-                                <h5 class="heading-font text-maroon mb-2">{% trans "No recent content" %}</h5>
-                                <p class="body-font text-muted mb-3">{% trans "Start by uploading your first content" %}</p>
-                                <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary btn-sm px-4 py-2 rounded-pill">
-                                    <i class="bi bi-plus me-1"></i>{% trans "Upload Now" %}
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
     </div>
 </div>
 
-<style>
-/* Coptic Orthodox Dashboard Enhancements */
-.hover-row {
-    transition: all 0.3s ease;
-}
-
-.hover-row:hover {
-    background: var(--color-golden-ochre-5) !important;
-    transform: translateX(2px);
-}
-
-.empty-state {
-    padding: 3rem 2rem;
-}
-
-.spin {
-    animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-/* Responsive Dashboard */
-@media (max-width: 768px) {
-    .admin-content-header .d-flex {
-        flex-direction: column;
-        text-align: center;
-    }
+<!-- Recent Activity -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-dark">{% trans "Recent Uploads" %}</h5>
+        <div class="dropdown">
+             <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown">
+                 <i class="bi bi-filter"></i>
+             </button>
+             <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                 <li><a class="dropdown-item" href="#">{% trans "All Types" %}</a></li>
+                 <li><a class="dropdown-item" href="#">{% trans "Videos" %}</a></li>
+                 <li><a class="dropdown-item" href="#">{% trans "Audio" %}</a></li>
+             </ul>
+        </div>
+    </div>
     
-    .admin-content-header .col-md-4 {
-        text-align: center !important;
-        margin-top: 1rem;
-    }
-    
-    .admin-stat-card h2 {
-        font-size: 2rem !important;
-    }
-    
-    .table-responsive {
-        font-size: 0.875rem;
-    }
-}
-</style>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Content" %}</th>
+                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Type" %}</th>
+                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
+                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Date" %}</th>
+                    <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Action" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in recent_content %}
+                <tr>
+                    <td class="ps-4 py-3">
+                        <div class="d-flex align-items-center">
+                            <div class="rounded p-2 me-3 {% if item.content_type == 'video' %}bg-danger-subtle text-danger{% elif item.content_type == 'audio' %}bg-warning-subtle text-warning{% else %}bg-info-subtle text-info{% endif %}">
+                                {% if item.content_type == 'video' %}
+                                    <i class="bi bi-play-circle fs-5"></i>
+                                {% elif item.content_type == 'audio' %}
+                                    <i class="bi bi-mic fs-5"></i>
+                                {% else %}
+                                    <i class="bi bi-file-text fs-5"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <div class="fw-bold text-dark">
+                                    {% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}
+                                </div>
+                                <div class="small text-muted">ID: {{ item.id }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="text-capitalize small fw-medium">{{ item.content_type }}</span>
+                    </td>
+                    <td>
+                        {% if item.live_task %}
+                            <div class="d-flex align-items-center text-primary">
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                                <span class="small">{{ item.live_task.progress }}%</span>
+                            </div>
+                        {% elif item.processing_status == 'completed' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">{% trans "Ready" %}</span>
+                        {% elif item.processing_status == 'processing' %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">{% trans "Processing" %}</span>
+                        {% elif item.processing_status == 'failed' %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2">{% trans "Error" %}</span>
+                        {% else %}
+                             <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">{{ item.processing_status }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">
+                        {{ item.created_at|date:"M d" }}
+                    </td>
+                    <td class="text-end pe-4">
+                        <a href="{% url 'frontend_api:admin_content_detail' item.id %}" class="btn btn-sm btn-light rounded-circle" title="{% trans 'Edit' %}">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                        <div class="mb-3">
+                            <i class="bi bi-inbox display-4 text-secondary opacity-50"></i>
+                        </div>
+                        <h6 class="fw-bold">{% trans "No activity yet" %}</h6>
+                        <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-link text-decoration-none">{% trans "Upload your first item" %}</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
