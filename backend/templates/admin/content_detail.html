@@ -271,7 +271,7 @@ function toggleContentStatus(contentId, checkbox) {
         } else {
             // Revert on failure
             checkbox.checked = !checkbox.checked;
-            alert(data.error || 'Failed to update status');
+            showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
         }
     })
     .catch(error => {
@@ -279,7 +279,7 @@ function toggleContentStatus(contentId, checkbox) {
         checkbox.disabled = false;
         checkbox.checked = !checkbox.checked;
         console.error('Error:', error);
-        alert('An error occurred');
+        showToast('{% trans "An error occurred" %}', 'danger');
     });
 }
 </script>

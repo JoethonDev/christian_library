@@ -211,14 +211,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedIds = Array.from(document.querySelectorAll('input[name="content_id"]:checked')).map(cb => cb.value);
         
         if (selectedIds.length === 0) {
-            alert('{% trans "Please select items to generate SEO for" %}');
+            showToast('{% trans "Please select items to generate SEO for" %}', 'warning');
             return;
         }
         
         if (confirm(`{% trans "Generate SEO metadata for" %} ${selectedIds.length} {% trans "items?" %}`)) {
             // Implementation typically requires an AJAX POST to backend endpoint
-            // For now alerting as placebo or call real endpoint if available
-             alert('{% trans "Batch job started. Check System Monitor for progress." %}');
+             showToast('{% trans "Batch job started. Check System Monitor for progress." %}', 'info');
              // In real imp: bulkSEOAction('generate_seo', selectedIds);
         }
     });
@@ -283,7 +282,7 @@ function loadContentAnalysis() {
                             ${item.issues.length > 2 ? `<div class="small text-muted fst-italic">+${item.issues.length - 2} more</div>` : ''}
                         </td>
                         <td class="pe-4 text-end">
-                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="alert('{% trans "Generating..." %}')">
+                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showToast('{% trans "Generating..." %}', 'info')">
                                 {% trans "Fix" %}
                             </button>
                         </td>

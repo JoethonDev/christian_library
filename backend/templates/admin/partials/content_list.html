@@ -292,12 +292,12 @@ function generateSEOForItem(contentId) {
                 location.reload();
             }, 1000);
         } else {
-            alert('{% trans "Error:" %} ' + (data.messages && data.messages.join(' ') || '{% trans "Failed to generate SEO metadata" %}'));
+            showToast('{% trans "Error:" %} ' + (data.messages && data.messages.join(' ') || '{% trans "Failed to generate SEO metadata" %}'), 'danger');
         }
     })
     .catch(error => {
         console.error('SEO generation error:', error);
-        alert('{% trans "Network error. Please try again." %}');
+        showToast('{% trans "Network error. Please try again." %}', 'danger');
     })
     .finally(() => {
         // Re-enable button

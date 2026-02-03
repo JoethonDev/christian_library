@@ -221,7 +221,7 @@
     function generateMetadata() {
         const fileInput = document.getElementById('file-input');
         if (!fileInput.files || !fileInput.files[0]) {
-            alert('{% trans "Please select a file first" %}');
+            showToast('{% trans "Please select a file first" %}', 'warning');
             return;
         }
 
@@ -260,14 +260,16 @@
                 if (meta.seo_keywords_ar) document.querySelector('input[name="seo_keywords_ar"]').value = meta.seo_keywords_ar;
                 if (meta.seo_keywords_en) document.querySelector('input[name="seo_keywords_en"]').value = meta.seo_keywords_en;
                 if (meta.structured_data) document.getElementById('seo_structured_data').value = JSON.stringify(meta.structured_data, null, 2);
+                
+                showToast('{% trans "Metadata generated successfully!" %}', 'success');
             } else {
-                alert(data.error || '{% trans "Failed to generate metadata" %}');
+                showToast(data.error || '{% trans "Failed to generate metadata" %}', 'danger');
             }
         })
         .catch(error => {
             spinner.classList.add('d-none');
             console.error('Error:', error);
-            alert('{% trans "An error occurred while generating metadata" %}');
+            showToast('{% trans "An error occurred while generating metadata" %}', 'danger');
         });
     }
 
@@ -317,23 +319,24 @@
                 const response = JSON.parse(xhr.responseText);
                 if (response.success) {
                     progressStatus.textContent = '{% trans "Upload complete! Redirecting..." %}';
+                    showToast('{% trans "Upload successful!" %}', 'success');
                     setTimeout(() => {
                         window.location.href = '{% url "frontend_api:admin_dashboard" %}';
                     }, 1000);
                 } else {
-                    alert(response.error || '{% trans "Upload failed" %}');
+                    showToast(response.error || '{% trans "Upload failed" %}', 'danger');
                     submitBtn.disabled = false;
                     progressContainer.classList.add('d-none');
                 }
             } else {
-                alert('{% trans "An error occurred during upload" %}');
+                showToast('{% trans "An error occurred during upload" %}', 'danger');
                 submitBtn.disabled = false;
                 progressContainer.classList.add('d-none');
             }
         });
         
         xhr.addEventListener('error', function() {
-            alert('{% trans "Network error during upload" %}');
+            showToast('{% trans "Network error during upload" %}', 'danger');
             submitBtn.disabled = false;
             progressContainer.classList.add('d-none');
         });

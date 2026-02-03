@@ -78,7 +78,7 @@ function runAction(action) {
     if(!confirm('{% trans "Are you sure you want to run this maintenance action?" %}')) return;
     
     // In a real implementation, this would hit an API endpoint
-    alert('{% trans "Maintenance action started: " %}' + action);
+    showToast('{% trans "Maintenance action started: " %}' + action, 'info');
     
     // Example fetch:
     /*
@@ -86,7 +86,7 @@ function runAction(action) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
         body: JSON.stringify({ action: action })
-    }).then(r => r.json()).then(data => alert(data.message));
+    }).then(r => r.json()).then(data => showToast(data.message, data.success ? 'success' : 'danger'));
     */
 }
 </script>
