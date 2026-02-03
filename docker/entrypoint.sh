@@ -65,11 +65,12 @@ setup_django() {
     
     # Run migrations
     echo "🗃️  Generate database migrations..."
-    python manage.py makemigrations
+    python manage.py makemigrations --merge --noinput
+    python manage.py makemigrations --noinput
 
     # Run migrations
     echo "🗃️  Running database migrations..."
-    python manage.py migrate
+    python manage.py migrate --noinput
     
     # Collect static files
     echo "📦 Collecting static files..."
@@ -235,6 +236,10 @@ case "$1" in
         ;;
         
     *)
+        if [ $# -gt 0 ]; then
+            echo "🏃 Running custom command: $@"
+            exec "$@"
+        fi
         echo "Usage: $0 {web|worker|beat|nginx|migrate|collectstatic|shell|test}"
         echo ""
         echo "Commands:"

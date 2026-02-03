@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Background Task Monitor" %}{% endblock %}
+
+{% block content %}
+<div class="module">
+    <h2>{% trans "Task Statistics" %}</h2>
+    <table class="table">
+        <tr>
+            <th>{% trans "Total Tasks" %}</th>
+            <td>{{ task_stats.active_tasks|default:0 }}</td>
+        </tr>
+        <tr>
+            <th>{% trans "Pending" %}</th>
+            <td>{{ task_stats.pending_tasks|default:0 }}</td>
+        </tr>
+        <tr>
+            <th>{% trans "Running" %}</th>
+            <td>{{ task_stats.running_tasks|default:0 }}</td>
+        </tr>
+        <tr>
+            <th>{% trans "Recent Success" %}</th>
+            <td>{{ task_stats.recent_success|default:0 }}</td>
+        </tr>
+        <tr>
+            <th>{% trans "Recent Failures" %}</th>
+            <td>{{ task_stats.recent_failures|default:0 }}</td>
+        </tr>
+    </table>
+</div>
+
+<div class="module">
+    <h2>{% trans "Active Tasks" %}</h2>
+    {% if active_tasks %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>{% trans "Task ID" %}</th>
+                    <th>{% trans "Name" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Created" %}</th>
+                    <th>{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in active_tasks %}
+                <tr>
+                    <td><code>{{ task.task_id|truncatechars:20 }}</code></td>
+                    <td>{{ task.task_name }}</td>
+                    <td>
+                        <span class="status-{{ task.current_status|lower }}">{{ task.current_status }}</span>
+                    </td>
+                    <td>{{ task.created_at|date:"Y-m-d H:i:s" }}</td>
+                    <td>
+                        <a href="{% url 'admin:admin_task_detail' task.task_id %}" class="button">{% trans "Details" %}</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>{% trans "No active tasks" %}</p>
+    {% endif %}
+</div>
+
+<style>
+.status-pending { color: #ffc107; }
+.status-started, .status-retry { color: #17a2b8; }
+.status-success { color: #28a745; }
+.status-failure { color: #dc3545; }
+</style>
+{% endblock %}

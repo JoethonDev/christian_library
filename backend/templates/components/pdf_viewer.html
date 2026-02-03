@@ -88,7 +88,7 @@
             </div>
             <!-- PDF Viewer Container -->
             <!-- Force LTR for PDF.js canvas rendering and text layers -->
-            <div id="pdf-viewer-container" class="flex-grow-1 bg-white position-relative overflow-auto" dir="ltr" style="min-height: 400px; direction: ltr !important;" data-pdf-url="{% url 'core_utils:secure_media' file_path=pdf.pdfmeta.get_viewing_file %}">
+            <div id="pdf-viewer-container" class="flex-grow-1 bg-white position-relative overflow-auto" dir="ltr" style="min-height: 400px; direction: ltr !important;" data-pdf-url="{{ pdf.pdfmeta.get_pdf_url }}">
                 <!-- Loading Overlay -->
                 <div id="pdf-loading-overlay" class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center" style="top: 0; left: 0; background: rgba(255,255,255,0.9); z-index: 10;">
                     <div class="text-center">

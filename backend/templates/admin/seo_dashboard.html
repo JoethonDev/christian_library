@@ -15,12 +15,12 @@
     margin-bottom: 20px;
     background: white;
 }
-.seo-score-high { color: #28a745; font-weight: bold; }
-.seo-score-medium { color: #ffc107; font-weight: bold; }
+.seo-score-high { color: #198754; font-weight: bold; }
+.seo-score-medium { color: #856404; font-weight: bold; }
 .seo-score-low { color: #dc3545; font-weight: bold; }
-.priority-high { background-color: #f8d7da; }
-.priority-medium { background-color: #fff3cd; }
-.priority-low { background-color: #d4edda; }
+.priority-high { background-color: rgba(220, 53, 69, 0.1); border-left: 4px solid #dc3545; }
+.priority-medium { background-color: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; }
+.priority-low { background-color: rgba(25, 135, 84, 0.1); border-left: 4px solid #198754; }
 </style>
 {% endblock %}
 
@@ -147,12 +147,12 @@
                         <small>{{ item.updated_at|timesince }} {% trans "ago" %}</small>
                     </div>
                     <p class="mb-1">
-                        <span class="badge badge-primary">{{ item.content_type|title }}</span>
+                        <span class="badge bg-primary text-white">{{ item.content_type|title }}</span>
                         {% if item.seo_keywords_ar %}
-                        <span class="badge badge-success">{{ item.seo_keywords_ar|length }} AR Keywords</span>
+                        <span class="badge bg-success text-white">{{ item.seo_keywords_ar|length }} AR Keywords</span>
                         {% endif %}
                         {% if item.seo_keywords_en %}
-                        <span class="badge badge-success">{{ item.seo_keywords_en|length }} EN Keywords</span>
+                        <span class="badge bg-success text-white">{{ item.seo_keywords_en|length }} EN Keywords</span>
                         {% endif %}
                     </p>
                 </div>
@@ -270,9 +270,9 @@ function loadContentAnalysis() {
                         <strong>${item.title}</strong><br>
                         <small class="text-muted">${item.id}</small>
                     </td>
-                    <td><span class="badge badge-secondary">${item.content_type.toUpperCase()}</span></td>
+                    <td><span class="badge bg-secondary text-white">${item.content_type.toUpperCase()}</span></td>
                     <td><span class="${scoreClass}">${item.seo_score}%</span></td>
-                    <td><span class="badge badge-${item.priority === 'high' ? 'danger' : item.priority === 'medium' ? 'warning' : 'success'}">${item.priority.toUpperCase()}</span></td>
+                    <td><span class="badge ${item.priority === 'high' ? 'bg-danger text-white' : item.priority === 'medium' ? 'bg-warning text-dark' : 'bg-success text-white'}">${item.priority.toUpperCase()}</span></td>
                     <td>
                         ${item.issues.slice(0, 3).map(issue => `<small class="text-muted d-block">• ${issue}</small>`).join('')}
                         ${item.issues.length > 3 ? `<small class="text-muted">... +${item.issues.length - 3} more</small>` : ''}

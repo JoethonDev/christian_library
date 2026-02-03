@@ -17,16 +17,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@cache_unless_authenticated(timeout=300)
-def redirect_to_custom_admin(request):
-    """Redirect default admin to custom admin dashboard"""
-    return HttpResponseRedirect(reverse('frontend_api:admin_dashboard'))
-
-
 urlpatterns = [
-    # Admin URLs
-    path('admin/', redirect_to_custom_admin, name='admin_redirect'),
-    path('django-admin/', admin.site.urls, name='django_admin'),
+    # Django Default Admin (at /admin/)
+    path('admin/', admin.site.urls, name='django_admin'),
+    
+    # Task Monitoring Admin (at /admin/tasks/)
+    path('admin/tasks/', include('apps.admin_django.urls', namespace='admin_django')),
     
     # Authentication redirects
     path('accounts/login/', RedirectView.as_view(url='/ar/users/login/', permanent=False), name='login_redirect'),
@@ -39,7 +35,7 @@ urlpatterns = [
     path('api/users/', include('apps.users.urls', namespace='users_api')),
     
     # System endpoints
-    path('health/', include('apps.core.urls', namespace='core')),
+    path('', include('apps.core.urls', namespace='core')),
     path('core/', include('core.urls', namespace='core_utils')),
     path('i18n/setlang/', set_language, name='set_language'),
     path('i18n/', include('django.conf.urls.i18n')),

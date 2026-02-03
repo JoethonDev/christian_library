@@ -642,7 +642,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
             
             // Send request to AI endpoint
-            fetch('{% url "frontend_api:generate_content_metadata" %}', {
+            fetch('{% url "frontend_api:generate_metadata_from_file" %}', {
                 method: 'POST',
                 body: formData,
                 headers: {

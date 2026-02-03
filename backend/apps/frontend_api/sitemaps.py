@@ -1,10 +1,12 @@
 from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
+from django.core.cache import cache
+from django.utils import timezone
 from apps.media_manager.models import ContentItem
 
 
 class HomeSitemap(Sitemap):
-    """Home page sitemap with highest priority"""
+    """Home page sitemap with highest priority - Auto-updated"""
     priority = 1.0
     changefreq = 'daily'
     
@@ -13,10 +15,20 @@ class HomeSitemap(Sitemap):
     
     def location(self, item):
         return reverse(item)
+    
+    def lastmod(self, item):
+        # Cache lastmod for home page based on latest content update
+        cache_key = 'sitemap_home_lastmod'
+        lastmod = cache.get(cache_key)
+        if not lastmod:
+            latest_content = ContentItem.objects.filter(is_active=True).order_by('-updated_at').first()
+            lastmod = latest_content.updated_at if latest_content else timezone.now()
+            cache.set(cache_key, lastmod, 3600)  # Cache for 1 hour
+        return lastmod
 
 
 class ContentListSitemap(Sitemap):
-    """Content listing pages sitemap"""
+    """Content listing pages sitemap - Auto-updated based on content changes"""
     priority = 0.8
     changefreq = 'daily'
     
@@ -29,10 +41,27 @@ class ContentListSitemap(Sitemap):
     
     def location(self, item):
         return reverse(item)
+    
+    def lastmod(self, item):
+        # Get content type from URL name
+        content_type = item.split(':')[1].rstrip('s')  # videos -> video, audios -> audio, pdfs -> pdf
+        if content_type == 'pdf':
+            content_type = 'pdf'  # Handle edge case
+        
+        cache_key = f'sitemap_{content_type}_lastmod'
+        lastmod = cache.get(cache_key)
+        if not lastmod:
+            latest_content = ContentItem.objects.filter(
+                content_type=content_type, 
+                is_active=True
+            ).order_by('-updated_at').first()
+            lastmod = latest_content.updated_at if latest_content else timezone.now()
+            cache.set(cache_key, lastmod, 1800)  # Cache for 30 minutes
+        return lastmod
 
 
 class VideoSitemap(Sitemap):
-    """Video content sitemap with SEO optimization"""
+    """Video content sitemap with SEO optimization - Auto-updated"""
     priority = 0.8  # High priority for video content
     changefreq = 'weekly'
     

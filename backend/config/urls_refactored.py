@@ -28,7 +28,6 @@ urlpatterns = [
     
     # API endpoints (non-internationalized for consistency)
     path('api/media/', include('apps.media_manager.urls', namespace='media_api')),
-    path('api/courses/', include('apps.courses.urls', namespace='courses_api')),
     path('api/users/', include('apps.users.urls', namespace='users_api')),
     
     # System endpoints
@@ -44,9 +43,6 @@ urlpatterns = [
 urlpatterns += i18n_patterns(
     # Main application URLs
     path('', include('apps.frontend_api.urls', namespace='frontend')),
-    
-    # Course URLs
-    path('courses/', include('apps.courses.urls', namespace='courses')),
     
     # Media URLs  
     path('media/', include('apps.media_manager.urls', namespace='media')),

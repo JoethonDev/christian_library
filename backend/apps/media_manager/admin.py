@@ -9,6 +9,7 @@ from django.core.cache import cache
 import logging
 
 from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
+from .forms import ContentItemForm
 from .services import ContentService, MediaUploadService
 
 logger = logging.getLogger(__name__)
@@ -70,8 +71,15 @@ class TagAdmin(admin.ModelAdmin):
 class VideoMetaInline(admin.StackedInline):
     model = VideoMeta
     extra = 0
-    fields = ['original_file', 'duration_display', 'file_size_display', 'processing_status', 'hls_paths_display']
-    readonly_fields = ['duration_display', 'file_size_display', 'processing_status', 'hls_paths_display']
+    fields = [
+        'original_file', 'duration_display', 'file_size_display', 
+        'processing_status', 'hls_paths_display',
+        'r2_status_display', 'r2_files_display'
+    ]
+    readonly_fields = [
+        'duration_display', 'file_size_display', 'processing_status', 
+        'hls_paths_display', 'r2_status_display', 'r2_files_display'
+    ]
     
     def duration_display(self, obj):
         """Display formatted duration"""
@@ -86,6 +94,23 @@ class VideoMetaInline(admin.StackedInline):
             return f"{obj.file_size_mb} MB"
         return _('Unknown')
     file_size_display.short_description = _('File Size')
+    
+    def r2_status_display(self, obj):
+        """Display R2 upload status"""
+        return obj.get_r2_status_display()
+    r2_status_display.short_description = _('R2 Status')
+    
+    def r2_files_display(self, obj):
+        """Display R2 files status"""
+        files = []
+        if obj.r2_original_file_url:
+            files.append(f"<strong>Original:</strong> ✓")
+        if obj.r2_hls_720p_url:
+            files.append(f"<strong>720p HLS:</strong> ✓")
+        if obj.r2_hls_480p_url:
+            files.append(f"<strong>480p HLS:</strong> ✓")
+        return mark_safe("<br>".join(files)) if files else "No R2 files"
+    r2_files_display.short_description = _('R2 Files')
     
     def hls_paths_display(self, obj):
         """Display HLS paths with status"""
@@ -109,8 +134,15 @@ class VideoMetaInline(admin.StackedInline):
 class AudioMetaInline(admin.StackedInline):
     model = AudioMeta
     extra = 0
-    fields = ['original_file', 'compression_display', 'duration_display', 'bitrate_display', 'processing_status']
-    readonly_fields = ['compression_display', 'duration_display', 'bitrate_display', 'processing_status']
+    fields = [
+        'original_file', 'compression_display', 'duration_display', 
+        'bitrate_display', 'processing_status',
+        'r2_status_display', 'r2_files_display'
+    ]
+    readonly_fields = [
+        'compression_display', 'duration_display', 'bitrate_display', 
+        'processing_status', 'r2_status_display', 'r2_files_display'
+    ]
     
     def compression_display(self, obj):
         """Display compression status"""
@@ -124,6 +156,21 @@ class AudioMetaInline(admin.StackedInline):
             _('Original only')
         )
     compression_display.short_description = _('Compression Status')
+    
+    def r2_status_display(self, obj):
+        """Display R2 upload status"""
+        return obj.get_r2_status_display()
+    r2_status_display.short_description = _('R2 Status')
+    
+    def r2_files_display(self, obj):
+        """Display R2 files status"""
+        files = []
+        if obj.r2_original_file_url:
+            files.append(f"<strong>Original:</strong> ✓")
+        if obj.r2_compressed_file_url:
+            files.append(f"<strong>Compressed:</strong> ✓")
+        return mark_safe("<br>".join(files)) if files else "No R2 files"
+    r2_files_display.short_description = _('R2 Files')
     
     def duration_display(self, obj):
         """Display formatted duration"""
@@ -143,8 +190,14 @@ class AudioMetaInline(admin.StackedInline):
 class PdfMetaInline(admin.StackedInline):
     model = PdfMeta
     extra = 0
-    fields = ['original_file', 'optimization_display', 'file_info_display', 'processing_status']
-    readonly_fields = ['optimization_display', 'file_info_display', 'processing_status']
+    fields = [
+        'original_file', 'optimization_display', 'file_info_display', 
+        'processing_status', 'r2_status_display', 'r2_files_display'
+    ]
+    readonly_fields = [
+        'optimization_display', 'file_info_display', 'processing_status',
+        'r2_status_display', 'r2_files_display'
+    ]
     
     def optimization_display(self, obj):
         """Display optimization status"""
@@ -159,6 +212,21 @@ class PdfMetaInline(admin.StackedInline):
         )
     optimization_display.short_description = _('Optimization Status')
     
+    def r2_status_display(self, obj):
+        """Display R2 upload status"""
+        return obj.get_r2_status_display()
+    r2_status_display.short_description = _('R2 Status')
+    
+    def r2_files_display(self, obj):
+        """Display R2 files status"""
+        files = []
+        if obj.r2_original_file_url:
+            files.append(f"<strong>Original:</strong> ✓")
+        if obj.r2_optimized_file_url:
+            files.append(f"<strong>Optimized:</strong> ✓")
+        return mark_safe("<br>".join(files)) if files else "No R2 files"
+    r2_files_display.short_description = _('R2 Files')
+    
     def file_info_display(self, obj):
         """Display file information"""
         info = []
@@ -172,6 +240,7 @@ class PdfMetaInline(admin.StackedInline):
 
 @admin.register(ContentItem)
 class ContentItemAdmin(admin.ModelAdmin):
+    form = ContentItemForm
     list_display = ['title_display', 'content_type_display', 'tags_display', 'seo_status_display', 'status_display', 'is_active', 'created_at']
     list_filter = ['content_type', 'is_active', 'created_at', 'tags']
     search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 'seo_keywords_ar', 'seo_keywords_en']

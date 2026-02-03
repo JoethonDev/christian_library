@@ -101,14 +101,26 @@
                         <div class="mb-4">
                             <div class="card border-0" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border-radius: 20px; border: 1px solid rgba(221,153,51,0.15);">
                                 <div class="card-body p-4">
-                                    <div class="form-check form-switch d-flex align-items-center">
-                                        <input class="form-check-input me-3" type="checkbox" name="is_active" id="isActive" 
-                                               style="transform: scale(1.5); accent-color: #DD9933;" {% if content_item.is_active %}checked{% endif %}>
-                                        <div>
-                                            <label class="form-check-label fw-bold mb-0" for="isActive" style="color: #800000; cursor: pointer;">
-                                                <i class="bi bi-eye-fill me-2" style="color: #DD9933;"></i>{% trans "Sacred Content is Active and Visible to Faithful" %}
-                                            </label>
-                                            <p class="small mb-0 mt-1" style="color: #5a4037;">{% trans "Toggle to bless or consecrate this content for the faithful community" %}</p>
+                                    <div class="d-flex align-items-center">
+                                        <div class="form-check form-switch d-flex align-items-center">
+                                            <input class="form-check-input me-3" type="checkbox" name="is_active" id="isActive" 
+                                                   style="transform: scale(1.5); accent-color: #DD9933;" {% if content_item.is_active %}checked{% endif %} disabled>
+                                            <div>
+                                                <label class="form-check-label fw-bold mb-0 text-muted" for="isActive" style="cursor: not-allowed;">
+                                                    <i class="bi bi-eye-fill me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Status" %}
+                                                </label>
+                                                <p class="small mb-0 mt-1" style="color: #5a4037;">{% trans "Status is managed through the Consecration button below" %}</p>
+                                            </div>
+                                        </div>
+                                        <div class="ms-auto">
+                                            <button type="submit" name="toggle_active" value="1" 
+                                                    class="btn {% if content_item.is_active %}btn-outline-warning{% else %}btn-success{% endif %} rounded-pill px-4">
+                                                {% if content_item.is_active %}
+                                                    <i class="bi bi-x-circle me-2"></i>{% trans "Deactivate Sacred Content" %}
+                                                {% else %}
+                                                    <i class="bi bi-check-circle me-2"></i>{% trans "Consecrate & Activate" %}
+                                                {% endif %}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -181,19 +193,63 @@
                                     <span class="fw-bold" style="color: #5a4037;">{% trans "Sacred Pages" %}</span>
                                     <span class="fw-bold" style="color: #800000;">{{ meta_data.page_count|default:"--" }}</span>
                                 </div>
-                            {% endif %}
 
-                            <!-- Sacred File Size -->
-                            <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border: 1px solid rgba(221,153,51,0.15);">
-                                <span class="fw-bold" style="color: #5a4037;">{% trans "Blessed Size" %}</span>
-                                <span class="fw-bold" style="color: #DD9933;">
-                                    {% if meta_data.original_file and meta_data.original_file.name %}
-                                        {{ meta_data.original_file.size|filesizeformat }}
-                                    {% else %}
-                                        {% trans "Awaiting blessing" %}
-                                    {% endif %}
-                                </span>
+                <!-- Indexed Character Count -->
+                <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(25,135,84,0.05), rgba(25,135,84,0.08)); border: 1px solid rgba(25,135,84,0.15);">
+                    <span class="fw-bold" style="color: #5a4037;">
+                        <i class="bi bi-search me-2" style="color: #198754;"></i>{% trans "Indexed Characters" %}
+                    </span>
+                    {% if content_item.indexed_char_count > 0 %}
+                        <span class="fw-bold" style="color: #198754;">{{ content_item.indexed_char_count|floatformat:0 }}</span>
+                    {% else %}
+                        <span class="fw-bold" style="color: #ffc107;">
+                            <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Not Indexed" %}
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% if content_item.book_content %}
+                <!-- Indexed Content Section -->
+                <div class="mb-3 p-3 rounded-4" style="background: linear-gradient(135deg, rgba(13,110,253,0.05), rgba(13,110,253,0.1)); border: 1px solid rgba(13,110,253,0.2);">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="fw-bold" style="color: #0d6efd;">
+                            <i class="bi bi-file-earmark-text-fill me-2"></i>{% trans "Extracted Sacred Text" %}
+                        </span>
+                        <span class="badge bg-primary rounded-pill">{{ content_item.indexed_char_count }} {% trans "chars" %}</span>
+                    </div>
+                    
+                    <!-- Text Preview -->
+                    <div class="p-3 rounded-3 mb-2" style="background: white; border: 1px solid rgba(0,0,0,0.05); font-family: 'Amiri', serif; line-height: 1.8; color: #333; direction: rtl; text-align: right;">
+                        {{ content_item.book_content|truncatechars:1000|linebreaksbr }}
+                    </div>
+
+                    {% if content_item.indexed_char_count > 1000 %}
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-outline-primary rounded-pill w-100 fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#fullContentCollapse" aria-expanded="false" aria-controls="fullContentCollapse">
+                            <i class="bi bi-arrows-expand me-2"></i>{% trans "Reveal Full Sacred Text" %}
+                        </button>
+                        <div class="collapse mt-3" id="fullContentCollapse">
+                            <div class="card card-body p-4 rounded-4 shadow-sm" style="max-height: 600px; overflow-y: auto; font-family: 'Amiri', serif; line-height: 2.0; direction: rtl; text-align: right; background: #fffaf5;">
+                                {{ content_item.book_content|linebreaksbr }}
                             </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endif %}
+
+            <!-- Sacred File Size -->
+            <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border: 1px solid rgba(221,153,51,0.15);">
+                <span class="fw-bold" style="color: #5a4037;">{% trans "Blessed Size" %}</span>
+                <span class="fw-bold" style="color: #DD9933;">
+                    {% if meta_data.get_safe_file_size %}
+                        {{ meta_data.get_safe_file_size|filesizeformat }}
+                    {% else %}
+                        {% trans "Awaiting blessing" %}
+                    {% endif %}
+                </span>
+            </div>
                         {% endif %}
                     </div>
                     

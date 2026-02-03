@@ -49,12 +49,7 @@
                                 <span class="heading-font">{% trans "Audio Content" %}</span>
                             </div>
                         </th>
-                        <th class="py-3">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-collection me-2 text-golden"></i>
-                                <span class="heading-font">{% trans "Course" %}</span>
-                            </div>
-                        </th>
+
                         <th class="py-3">
                             <div class="d-flex align-items-center">
                                 <i class="bi bi-clock me-2 text-golden"></i>
@@ -92,17 +87,10 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="py-3">
-                            {% if audio.module %}
-                                <div class="body-font fw-medium text-maroon">{{ audio.module.course.title_ar }}</div>
-                                <div class="small text-muted body-font">{{ audio.module.title_ar }}</div>
-                            {% else %}
-                                <span class="text-muted body-font">{% trans "No course assigned" %}</span>
-                            {% endif %}
-                        </td>
+
                         <td class="py-3">
                             {% if audio.audiometa.duration %}
-                                <span class="badge bg-info bg-opacity-15 text-white px-3 py-2 rounded-pill">
+                                <span class="badge bg-info text-white px-3 py-2 rounded-pill">
                                     <i class="bi bi-clock me-1"></i>{{ audio.audiometa.duration }}
                                 </span>
                             {% else %}
@@ -110,13 +98,33 @@
                             {% endif %}
                         </td>
                         <td class="py-3">
-                            {% if audio.is_active %}
-                                <span class="badge bg-success bg-opacity-15 text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-check-circle me-1"></i>{% trans "Active" %}
+                            {% if audio.live_task %}
+                                <div class="mb-1 d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-warning text-dark px-2 py-1 rounded-pill small">
+                                        <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ audio.live_task.progress }}%
+                                    </span>
+                                    <span class="text-muted" style="font-size: 0.7rem;">{{ audio.live_task.step }}</span>
+                                </div>
+                                <div class="progress" style="height: 4px; background-color: rgba(255,255,255,0.1);">
+                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                         style="width: {{ audio.live_task.progress }}%" 
+                                         aria-valuenow="{{ audio.live_task.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            {% elif audio.processing_status == 'completed' %}
+                                <span class="badge bg-success text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-check-circle me-1"></i>{% trans "Completed" %}
+                                </span>
+                            {% elif audio.processing_status == 'processing' %}
+                                <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">
+                                    <i class="bi bi-arrow-clockwise me-1 spin"></i>{% trans "Processing" %}
+                                </span>
+                            {% elif audio.processing_status == 'failed' %}
+                                <span class="badge bg-danger text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Failed" %}
                                 </span>
                             {% else %}
-                                <span class="badge bg-warning bg-opacity-15 text-white px-3 py-2 rounded-pill">
-                                    <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive" %}
+                                <span class="badge bg-secondary text-white px-3 py-2 rounded-pill">
+                                    <i class="bi bi-pause-circle me-1"></i>{{ audio.processing_status|title }}
                                 </span>
                             {% endif %}
                         </td>
