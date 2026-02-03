@@ -48,7 +48,7 @@
                         <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; background: white; border: 1px solid var(--color-golden-ochre) !important;">
-                        <li><a class="dropdown-item d-flex align-items-center hover-bg-golden" href="{{ audio.audiometa.get_direct_download_url }}">
+                        <li><a class="dropdown-item d-flex align-items-center hover-bg-golden" href="{{ audio.audiometa.get_direct_download_url }}" download>
                             <i class="bi bi-download text-golden me-2"></i>{% trans "Download Audio" %}
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
@@ -71,7 +71,7 @@
             <div class="coptic-audio-wrapper">
                 <audio id="audio-{{ audio.id }}" class="w-100" controls preload="metadata" controlsList="nodownload"
                        style="border-radius: 12px; height: 60px; background: var(--color-maroon-10); outline: none;">
-                    <source src="{{ audio.audiometa.get_best_streaming_url }}" type="audio/mpeg">
+                    <source src="{{ audio.audiometa.get_direct_playback_url }}" type="audio/mpeg">
                     <p class="body-font text-muted mb-0">{% trans "Your browser does not support the audio element." %}</p>
                 </audio>
                 
