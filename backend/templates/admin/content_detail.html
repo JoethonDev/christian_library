@@ -3,274 +3,284 @@
 {% load i18n %}
 
 {% block admin_content %}
-<div class="container-fluid px-0">
-    <!-- Header Section -->
-    <div class="mb-5">
-        <div class="d-flex align-items-center mb-3">
-            <div class="p-3 rounded-circle me-3" 
-                 style="background: linear-gradient(135deg, #800000, #DD9933); backdrop-filter: blur(10px); box-shadow: 0 6px 20px rgba(128,0,0,0.25);">
-                <i class="bi bi-journal-text" style="font-size: 2rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            </div>
-            <div>
-                <h1 class="h2 mb-1 fw-bold" style="color: #800000; text-shadow: 1px 1px 2px rgba(128,0,0,0.1);">
-                    <i class="bi bi-pencil-square me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Details" %}
-                </h1>
-                <p class="mb-0" style="color: #5a4037;">{% trans "Edit and sanctify content metadata and blessed settings" %}</p>
-            </div>
-        </div>
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Content Details" %}</h1>
+        <p class="text-muted mb-0">{% trans "Edit content metadata and settings" %}</p>
     </div>
+    <div class="col-auto">
+        {% if content_item.is_active %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
+                <i class="bi bi-check-circle me-1"></i>{% trans "Active & Published" %}
+            </span>
+        {% else %}
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-2">
+                <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive / Draft" %}
+            </span>
+        {% endif %}
+    </div>
+</div>
 
-    <div class="row g-4">
-        <!-- Meta Information Form -->
-        <div class="col-lg-8">
-            <div class="card border-0 shadow-lg" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
-                <div class="card-header bg-transparent border-0 py-4 px-4">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
-                            <i class="bi bi-pen me-3" style="color: #DD9933;"></i>
-                            {% trans "Edit Sacred Content Details" %}
-                        </h4>
-                        <span class="badge px-3 py-2 rounded-pill {% if content_item.is_active %}text-white{% else %}text-white{% endif %}" 
-                              style="background: {% if content_item.is_active %}linear-gradient(135deg, #198754, #20c997){% else %}linear-gradient(135deg, #ffc107, #fd7e14){% endif %}; font-size: 0.875rem; box-shadow: 0 3px 10px {% if content_item.is_active %}rgba(25,135,84,0.3){% else %}rgba(255,193,7,0.3){% endif %};">
-                            {% if content_item.is_active %}{% trans "Blessed & Published" %}{% else %}{% trans "Sacred Draft" %}{% endif %}
-                        </span>
+<div class="row g-4">
+    <!-- Meta Information Form -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h5 class="mb-0 fw-bold text-dark">
+                    <i class="bi bi-pencil-square me-2 text-primary"></i>
+                    {% trans "Edit Information" %}
+                </h5>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Titles -->
+                    <div class="mb-4">
+                        <label class="form-label small text-uppercase fw-bold text-secondary mb-2">
+                            {% trans "Content Titles" %}
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">{% trans "Arabic Title" %} <span class="text-danger">*</span></label>
+                                <input type="text" name="title_ar" class="form-control bg-light border-0 rounded-3" 
+                                       value="{{ content_item.title_ar }}" required dir="rtl">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">{% trans "English Title" %}</label>
+                                <input type="text" name="title_en" class="form-control bg-light border-0 rounded-3" 
+                                       value="{{ content_item.title_en }}" dir="ltr">
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="card-body p-4">
-                    <form method="post">
-                        {% csrf_token %}
-                        
-                        <!-- Sacred Title Section -->
-                        <div class="mb-4">
-                            <h6 class="text-uppercase fw-bold mb-3" style="color: #800000; letter-spacing: 1px;">
-                                <i class="bi bi-fonts me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Titles" %}
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold" style="color: #800000;">{% trans "Arabic Title" %} <span class="text-danger">*</span></label>
-                                    <input type="text" name="title_ar" class="form-control border-0 shadow-sm" 
-                                           style="border-radius: 15px; background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); padding: 12px 20px; border: 1px solid rgba(128,0,0,0.15);" 
-                                           value="{{ content_item.title_ar }}" required dir="rtl">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold" style="color: #DD9933;">{% trans "English Title" %}</label>
-                                    <input type="text" name="title_en" class="form-control border-0 shadow-sm" 
-                                           style="border-radius: 15px; background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); padding: 12px 20px; border: 1px solid rgba(221,153,51,0.15);" 
-                                           value="{{ content_item.title_en }}" dir="ltr">
-                                </div>
+
+                    <!-- Descriptions -->
+                    <div class="mb-4">
+                        <label class="form-label small text-uppercase fw-bold text-secondary mb-2">
+                            {% trans "Content Descriptions" %}
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">{% trans "Arabic Description" %}</label>
+                                <textarea name="description_ar" class="form-control bg-light border-0 rounded-3 p-3" rows="5" 
+                                          dir="rtl">{{ content_item.description_ar }}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small text-muted">{% trans "English Description" %}</label>
+                                <textarea name="description_en" class="form-control bg-light border-0 rounded-3 p-3" rows="5" 
+                                          dir="ltr">{{ content_item.description_en }}</textarea>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Sacred Description Section -->
-                        <div class="mb-4">
-                            <h6 class="text-uppercase fw-bold mb-3" style="color: #800000; letter-spacing: 1px;">
-                                <i class="bi bi-card-text me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Descriptions" %}
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold" style="color: #800000;">{% trans "Arabic Description" %}</label>
-                                    <textarea name="description_ar" class="form-control border-0 shadow-sm" rows="5" 
-                                              style="border-radius: 15px; background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); padding: 15px 20px; border: 1px solid rgba(128,0,0,0.15);" 
-                                              dir="rtl">{{ content_item.description_ar }}</textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold" style="color: #DD9933;">{% trans "English Description" %}</label>
-                                    <textarea name="description_en" class="form-control border-0 shadow-sm" rows="5" 
-                                              style="border-radius: 15px; background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); padding: 15px 20px; border: 1px solid rgba(221,153,51,0.15);" 
-                                              dir="ltr">{{ content_item.description_en }}</textarea>
-                                </div>
+                    <!-- Tags & Settings -->
+                    <div class="mb-4">
+                        <label class="form-label small text-uppercase fw-bold text-secondary mb-2">
+                            {% trans "Configuration" %}
+                        </label>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label small text-muted">{% trans "Tags" %} <span class="small text-muted">({% trans "Comma Separated" %})</span></label>
+                                <input type="text" name="tags" class="form-control bg-light border-0 rounded-3" 
+                                       value="{{ current_tags }}" placeholder="{% trans 'e.g. liturgy, hymns, saints, prayers' %}">
                             </div>
-                        </div>
-
-                        <!-- Sacred Content Settings -->
-                        <div class="mb-4">
-                            <h6 class="text-uppercase fw-bold mb-3" style="color: #800000; letter-spacing: 1px;">
-                                <i class="bi bi-tags me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Settings" %}
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-md-12">
-                                    <label class="form-label fw-bold" style="color: #8B4513;">{% trans "Sacred Tags" %} <small style="color: #5a4037;">({% trans "Comma Separated" %})</small></label>
-                                    <input type="text" name="tags" class="form-control border-0 shadow-sm" 
-                                           style="border-radius: 15px; background: linear-gradient(135deg, rgba(139,69,19,0.05), rgba(139,69,19,0.08)); padding: 12px 20px; border: 1px solid rgba(139,69,19,0.15);" 
-                                           value="{{ current_tags }}" placeholder="{% trans 'e.g. liturgy, hymns, saints, prayers' %}">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sacred Publish Settings -->
-                        <div class="mb-4">
-                            <div class="card border-0" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border-radius: 20px; border: 1px solid rgba(221,153,51,0.15);">
-                                <div class="card-body p-4">
-                                    <div class="d-flex align-items-center">
-                                        <div class="form-check form-switch d-flex align-items-center">
-                                            <input class="form-check-input me-3" type="checkbox" name="is_active" id="isActive" 
-                                                   style="transform: scale(1.5); accent-color: #DD9933;" {% if content_item.is_active %}checked{% endif %} disabled>
-                                            <div>
-                                                <label class="form-check-label fw-bold mb-0 text-muted" for="isActive" style="cursor: not-allowed;">
-                                                    <i class="bi bi-eye-fill me-2" style="color: #DD9933;"></i>{% trans "Sacred Content Status" %}
-                                                </label>
-                                                <p class="small mb-0 mt-1" style="color: #5a4037;">{% trans "Status is managed through the Consecration button below" %}</p>
-                                            </div>
+                            
+                            <!-- Active Toggle -->
+                            <div class="col-12 mt-3">
+                                <div class="form-check form-switch p-3 bg-light rounded-3 ms-0 d-flex align-items-center">
+                                    <input class="form-check-input ms-0 me-3" type="checkbox" name="is_active" id="isActiveCheck" 
+                                           style="width: 2.5em; height: 1.25em;" {% if content_item.is_active %}checked{% endif %}
+                                           onchange="toggleContentStatus('{{ content_item.id }}', this)">
+                                    <div>
+                                        <label class="form-check-label fw-bold cursor-pointer" for="isActiveCheck">
+                                            {% trans "Active & Published" %}
+                                        </label>
+                                        <div class="small text-muted" id="status-label-detail">
+                                            {% if content_item.is_active %}{% trans "Visible to users" %}{% else %}{% trans "Hidden from users" %}{% endif %}
                                         </div>
-                                        <div class="ms-auto">
-                                            <button type="submit" name="toggle_active" value="1" 
-                                                    class="btn {% if content_item.is_active %}btn-outline-warning{% else %}btn-success{% endif %} rounded-pill px-4">
-                                                {% if content_item.is_active %}
-                                                    <i class="bi bi-x-circle me-2"></i>{% trans "Deactivate Sacred Content" %}
-                                                {% else %}
-                                                    <i class="bi bi-check-circle me-2"></i>{% trans "Consecrate & Activate" %}
-                                                {% endif %}
-                                            </button>
-                                        </div>
+                                    </div>
+                                    <div class="spinner-border spinner-border-sm ms-auto d-none" id="toggle-spinner"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Extracted Text (PDF) -->
+                    {% if content_item.content_type == 'pdf' and content_item.book_content %}
+                    <div class="mb-4">
+                        <label class="form-label small text-uppercase fw-bold text-secondary mb-2">
+                            {% trans "Extracted Text Content" %}
+                        </label>
+                        <div class="accordion" id="accordionText">
+                            <div class="accordion-item border-0 shadow-sm rounded-3 overflow-hidden mb-3">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed bg-light text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseText" aria-expanded="false" aria-controls="collapseText">
+                                        <i class="bi bi-file-text me-2"></i>{% trans "View Extracted Text" %}
+                                        <span class="badge bg-secondary ms-2 rounded-pill">{{ content_item.indexed_char_count }} chars</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseText" class="accordion-collapse collapse" data-bs-parent="#accordionText">
+                                    <div class="accordion-body bg-white">
+                                        <div class="p-3 bg-light rounded-3 font-monospace small" style="max-height: 300px; overflow-y: auto; white-space: pre-wrap; direction: rtl; text-align: right;">{{ content_item.book_content }}</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    {% endif %}
 
-                        <!-- Sacred Action Buttons -->
-                        <div class="d-flex gap-3 pt-3">
-                            <button type="submit" class="btn text-white px-4 py-3 rounded-pill fw-bold" 
-                                    style="background: linear-gradient(135deg, #800000, #DD9933); border: none; box-shadow: 0 6px 20px rgba(128,0,0,0.3); text-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.3s ease;">
-                                <i class="bi bi-check-circle-fill me-2"></i>
-                                {% trans "Save Sacred Changes" %}
-                            </button>
-                            <a href="{% url 'frontend_api:admin_content_list' %}" class="btn px-4 py-3 rounded-pill fw-bold" 
-                               style="color: #6c757d; border: 2px solid rgba(108,117,125,0.3); background: rgba(248,249,250,0.8); transition: all 0.3s ease;">
-                                <i class="bi bi-shield-x me-2"></i>
-                                {% trans "Cancel Changes" %}
-                            </a>
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top mt-4">
+                        <a href="{% url 'frontend_api:admin_content_list' %}" class="btn btn-light rounded-pill px-4">
+                            {% trans "Cancel" %}
+                        </a>
+                        <button type="submit" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
+                            <i class="bi bi-check-lg me-2"></i>{% trans "Save Changes" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar Meta -->
+    <div class="col-lg-4">
+        <!-- Media File Info -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="bi bi-hdd-network me-2 text-primary"></i>
+                    {% trans "Media Information" %}
+                </h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <div class="d-flex align-items-center mb-3 p-3 bg-light rounded-3">
+                    <div class="me-3 display-6 text-secondary">
+                        {% if content_item.content_type == 'video' %}
+                            <i class="bi bi-camera-video"></i>
+                        {% elif content_item.content_type == 'audio' %}
+                            <i class="bi bi-mic"></i>
+                        {% else %}
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        {% endif %}
+                    </div>
+                    <div class="overflow-hidden">
+                        <div class="small text-muted text-uppercase mb-1">{% trans "File Source" %}</div>
+                        <div class="fw-bold text-break text-truncate">{{ content_item.file.name|default:"External/Unknown" }}</div>
+                    </div>
+                </div>
+
+                <div class="list-group list-group-flush small">
+                    <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
+                        <span class="text-muted">{% trans "Content Type" %}</span>
+                        <span class="fw-bold">{{ content_item.get_content_type_display }}</span>
+                    </div>
+                    <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
+                        <span class="text-muted">{% trans "ID" %}</span>
+                        <span class="font-monospace text-secondary">{{ content_item.id|truncatechars:12 }}</span>
+                    </div>
+                    <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
+                        <span class="text-muted">{% trans "Created" %}</span>
+                        <span class="fw-bold">{{ content_item.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    
+                    {% if meta_data %}
+                        <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
+                            <span class="text-muted">{% trans "Status" %}</span>
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ meta_data.processing_status|default:"Unknown" }}</span>
                         </div>
-                    </form>
+                        {% if meta_data.get_safe_file_size %}
+                        <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
+                            <span class="text-muted">{% trans "Size" %}</span>
+                            <span class="fw-bold">{{ meta_data.get_safe_file_size|filesizeformat }}</span>
+                        </div>
+                        {% endif %}
+                        {% if content_item.content_type == 'video' or content_item.content_type == 'audio' %}
+                        <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
+                            <span class="text-muted">{% trans "Duration" %}</span>
+                            <span class="fw-bold">{{ meta_data.duration_seconds|default:"--" }} sec</span>
+                        </div>
+                        {% endif %}
+                        {% if content_item.content_type == 'pdf' %}
+                        <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
+                            <span class="text-muted">{% trans "Pages" %}</span>
+                            <span class="fw-bold">{{ meta_data.page_count|default:"--" }}</span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Sacred Technical Metadata Sidebar -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-lg" style="border-radius: 25px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
-                <div class="card-header bg-transparent border-0 py-4 px-4">
-                    <h5 class="mb-0 fw-bold d-flex align-items-center" style="color: #800000;">
-                        <i class="bi bi-info-circle-fill me-3" style="color: #DD9933;"></i>
-                        {% trans "Sacred Technical Metadata" %}
-                    </h5>
-                </div>
-                <div class="card-body p-4">
-                    <div class="mb-4">
-                        <!-- Sacred Content ID -->
-                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); border: 1px solid rgba(128,0,0,0.15);">
-                            <span class="fw-bold" style="color: #5a4037;">{% trans "Sacred ID" %}</span>
-                            <code class="bg-transparent" style="color: #800000; font-weight: bold;">#{{ content_item.id }}</code>
-                        </div>
-
-                        <!-- Sacred Content Type -->
-                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border: 1px solid rgba(221,153,51,0.15);">
-                            <span class="fw-bold" style="color: #5a4037;">{% trans "Sacred Type" %}</span>
-                            <span class="badge px-3 py-2 rounded-pill text-white" style="background: linear-gradient(135deg, #DD9933, #B8860B); box-shadow: 0 3px 10px rgba(221,153,51,0.3);">
-                                {{ content_item.get_content_type_display }}
-                            </span>
-                        </div>
-
-                        {% if meta_data %}
-                            <!-- Sacred Processing Status -->
-                            <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(139,69,19,0.05), rgba(139,69,19,0.08)); border: 1px solid rgba(139,69,19,0.15);">
-                                <span class="fw-bold" style="color: #5a4037;">{% trans "Divine Status" %}</span>
-                                <span class="badge px-3 py-2 rounded-pill text-white" style="background: linear-gradient(135deg, #8B4513, #A0522D); box-shadow: 0 3px 10px rgba(139,69,19,0.3);">
-                                    {{ meta_data.processing_status }}
-                                </span>
-                            </div>
-
-                            {% if content_item.content_type == 'video' or content_item.content_type == 'audio' %}
-                                <!-- Sacred Duration -->
-                                <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); border: 1px solid rgba(128,0,0,0.15);">
-                                    <span class="fw-bold" style="color: #5a4037;">{% trans "Sacred Duration" %}</span>
-                                    <span class="fw-bold" style="color: #800000;">{{ meta_data.duration_seconds|default:"--" }} sec</span>
-                                </div>
-                            {% endif %}
-
-                            {% if content_item.content_type == 'pdf' %}
-                                <!-- Sacred Page Count -->
-                                <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); border: 1px solid rgba(128,0,0,0.15);">
-                                    <span class="fw-bold" style="color: #5a4037;">{% trans "Sacred Pages" %}</span>
-                                    <span class="fw-bold" style="color: #800000;">{{ meta_data.page_count|default:"--" }}</span>
-                                </div>
-
-                <!-- Indexed Character Count -->
-                <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(25,135,84,0.05), rgba(25,135,84,0.08)); border: 1px solid rgba(25,135,84,0.15);">
-                    <span class="fw-bold" style="color: #5a4037;">
-                        <i class="bi bi-search me-2" style="color: #198754;"></i>{% trans "Indexed Characters" %}
-                    </span>
-                    {% if content_item.indexed_char_count > 0 %}
-                        <span class="fw-bold" style="color: #198754;">{{ content_item.indexed_char_count|floatformat:0 }}</span>
-                    {% else %}
-                        <span class="fw-bold" style="color: #ffc107;">
-                            <i class="bi bi-exclamation-triangle me-1"></i>{% trans "Not Indexed" %}
-                        </span>
-                    {% endif %}
-                </div>
-
-                {% if content_item.book_content %}
-                <!-- Indexed Content Section -->
-                <div class="mb-3 p-3 rounded-4" style="background: linear-gradient(135deg, rgba(13,110,253,0.05), rgba(13,110,253,0.1)); border: 1px solid rgba(13,110,253,0.2);">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <span class="fw-bold" style="color: #0d6efd;">
-                            <i class="bi bi-file-earmark-text-fill me-2"></i>{% trans "Extracted Sacred Text" %}
-                        </span>
-                        <span class="badge bg-primary rounded-pill">{{ content_item.indexed_char_count }} {% trans "chars" %}</span>
-                    </div>
-                    
-                    <!-- Text Preview -->
-                    <div class="p-3 rounded-3 mb-2" style="background: white; border: 1px solid rgba(0,0,0,0.05); font-family: 'Amiri', serif; line-height: 1.8; color: #333; direction: rtl; text-align: right;">
-                        {{ content_item.book_content|truncatechars:1000|linebreaksbr }}
-                    </div>
-
-                    {% if content_item.indexed_char_count > 1000 %}
-                    <div class="mt-2">
-                        <button class="btn btn-sm btn-outline-primary rounded-pill w-100 fw-bold py-2" type="button" data-bs-toggle="collapse" data-bs-target="#fullContentCollapse" aria-expanded="false" aria-controls="fullContentCollapse">
-                            <i class="bi bi-arrows-expand me-2"></i>{% trans "Reveal Full Sacred Text" %}
-                        </button>
-                        <div class="collapse mt-3" id="fullContentCollapse">
-                            <div class="card card-body p-4 rounded-4 shadow-sm" style="max-height: 600px; overflow-y: auto; font-family: 'Amiri', serif; line-height: 2.0; direction: rtl; text-align: right; background: #fffaf5;">
-                                {{ content_item.book_content|linebreaksbr }}
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endif %}
-            {% endif %}
-
-            <!-- Sacred File Size -->
-            <div class="d-flex justify-content-between align-items-center mb-3 p-3 rounded-3" style="background: linear-gradient(135deg, rgba(221,153,51,0.05), rgba(221,153,51,0.08)); border: 1px solid rgba(221,153,51,0.15);">
-                <span class="fw-bold" style="color: #5a4037;">{% trans "Blessed Size" %}</span>
-                <span class="fw-bold" style="color: #DD9933;">
-                    {% if meta_data.get_safe_file_size %}
-                        {{ meta_data.get_safe_file_size|filesizeformat }}
-                    {% else %}
-                        {% trans "Awaiting blessing" %}
-                    {% endif %}
-                </span>
+        <!-- Danger Zone -->
+        <div class="card border-0 shadow-sm rounded-4">
+             <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    {% trans "Danger Zone" %}
+                </h6>
             </div>
-                        {% endif %}
-                    </div>
-                    
-                    <hr class="my-4" style="border-color: rgba(128,0,0,0.2);">
-                    
-                    <!-- Sacred Danger Zone -->
-                    <div class="text-center">
-                        <h6 class="text-uppercase fw-bold mb-3" style="color: #dc3545; letter-spacing: 1px;">
-                            <i class="bi bi-exclamation-triangle-fill me-2"></i>{% trans "Sacred Removal Zone" %}
-                        </h6>
-                        <a href="{% url 'frontend_api:content_delete_confirm' content_item.id %}" 
-                           class="btn text-white px-4 py-3 rounded-pill fw-bold w-100" 
-                           style="background: linear-gradient(135deg, #dc3545, #e55353); border: none; box-shadow: 0 6px 20px rgba(220,53,69,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.3s ease;"
-                           >
-                            <i class="bi bi-trash-fill me-2"></i> 
-                            {% trans "Remove Sacred Content" %}
-                        </a>
-                    </div>
-                </div>
+            <div class="card-body p-4 pt-0">
+                <p class="small text-muted mb-3">{% trans "Deleting this content is permanent and cannot be undone." %}</p>
+                <a href="{% url 'frontend_api:content_delete_confirm' content_item.id %}" 
+                   class="btn btn-outline-danger w-100 rounded-pill">
+                    <i class="bi bi-trash me-2"></i>{% trans "Delete Content" %}
+                </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleContentStatus(contentId, checkbox) {
+    const spinner = document.getElementById('toggle-spinner');
+    const label = document.getElementById('status-label-detail');
+    
+    spinner.classList.remove('d-none');
+    checkbox.disabled = true;
+
+    fetch('{% url "frontend_api:api_toggle_content_status" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            content_id: contentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        spinner.classList.add('d-none');
+        checkbox.disabled = false;
+        
+        if (data.success) {
+            // Update label based on new state
+            label.textContent = checkbox.checked ? '{% trans "Visible to users" %}' : '{% trans "Hidden from users" %}';
+            
+            // Optionally update the badge at the top
+            const badge = document.querySelector('.badge.rounded-pill.px-3.py-2');
+            if (checkbox.checked) {
+                badge.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2';
+                badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>{% trans "Active & Published" %}';
+            } else {
+                badge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-2';
+                badge.innerHTML = '<i class="bi bi-pause-circle me-1"></i>{% trans "Inactive / Draft" %}';
+            }
+        } else {
+            // Revert on failure
+            checkbox.checked = !checkbox.checked;
+            alert(data.error || 'Failed to update status');
+        }
+    })
+    .catch(error => {
+        spinner.classList.add('d-none');
+        checkbox.disabled = false;
+        checkbox.checked = !checkbox.checked;
+        console.error('Error:', error);
+        alert('An error occurred');
+    });
+}
+</script>
 {% endblock %}

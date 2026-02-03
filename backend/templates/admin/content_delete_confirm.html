@@ -3,64 +3,52 @@
 {% load i18n %}
 
 {% block admin_content %}
-<div class="container-fluid px-0">
-    <div class="row justify-content-center py-5">
-        <div class="col-lg-6 col-md-8">
-            <div class="card border-0 shadow-lg" style="border-radius: 30px; background: rgba(255,255,255,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(128,0,0,0.1);">
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="card-body p-5 text-center">
-                    <!-- Sacred Warning Icon -->
-                    <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-4" 
-                         style="background: linear-gradient(135deg, rgba(128,0,0,0.1), rgba(128,0,0,0.2)); width: 120px; height: 120px; box-shadow: 0 6px 20px rgba(128,0,0,0.2);">
-                        <i class="bi bi-exclamation-triangle-fill" style="font-size: 4rem; color: #800000; text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-                    </div>
-                    
-                    <!-- Sacred Warning Message -->
-                    <h2 class="fw-bold mb-3" style="color: #800000; text-shadow: 1px 1px 2px rgba(128,0,0,0.1);">
-                        <i class="bi bi-shield-exclamation me-2" style="color: #DD9933;"></i>{% trans "Delete Sacred Content?" %}
-                    </h2>
                     <div class="mb-4">
-                        <p class="fs-5 mb-3" style="color: #5a4037;">
-                            {% trans "Are you sure you want to permanently remove this sacred content:" %}
-                        </p>
-                        <div class="card border-0 mb-3" style="background: linear-gradient(135deg, rgba(128,0,0,0.05), rgba(128,0,0,0.08)); border-radius: 20px; border: 1px solid rgba(128,0,0,0.15);">
-                            <div class="card-body py-3">
-                                <div class="d-flex align-items-center">
-                                    <div class="p-2 rounded-circle me-3" style="background: 
-                                        {% if content_item.content_type == 'video' %}linear-gradient(135deg, rgba(128,0,0,0.15), rgba(128,0,0,0.25))
-                                        {% elif content_item.content_type == 'audio' %}linear-gradient(135deg, rgba(221,153,51,0.15), rgba(221,153,51,0.25))
-                                        {% else %}linear-gradient(135deg, rgba(139,69,19,0.15), rgba(139,69,19,0.25)){% endif %};">
-                                        {% if content_item.content_type == 'video' %}<i class="bi bi-play-circle-fill" style="color: #800000;"></i>
-                                        {% elif content_item.content_type == 'audio' %}<i class="bi bi-music-note-list" style="color: #DD9933;"></i>
-                                        {% else %}<i class="bi bi-book-half" style="color: #8B4513;"></i>{% endif %}
-                                    </div>
-                                    <div>
-                                        <div class="fw-bold" style="color: #800000;">{{ content_item.title_ar }}</div>
-                                        {% if content_item.title_en %}
-                                        <div class="small" style="color: #5a4037;">{{ content_item.title_en }}</div>
-                                        {% endif %}
-                                    </div>
+                        <div class="d-inline-flex align-items-center justify-content-center p-4 rounded-circle bg-danger bg-opacity-10 text-danger mb-3">
+                            <i class="bi bi-exclamation-triangle-fill display-4"></i>
+                        </div>
+                        <h2 class="fw-bold mb-2">{% trans "Delete Content?" %}</h2>
+                        <p class="text-muted">{% trans "This action is permanent and cannot be undone." %}</p>
+                    </div>
+
+                    <div class="card bg-light border-0 rounded-3 mb-4 text-start">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="p-3 bg-white rounded-3 me-3 shadow-sm text-secondary">
+                                {% if content_item.content_type == 'video' %}
+                                    <i class="bi bi-camera-video fs-4"></i>
+                                {% elif content_item.content_type == 'audio' %}
+                                    <i class="bi bi-mic fs-4"></i>
+                                {% else %}
+                                    <i class="bi bi-file-text fs-4"></i>
+                                {% endif %}
+                            </div>
+                            <div class="overflow-hidden">
+                                <h6 class="fw-bold text-dark mb-1 text-truncate">{{ content_item.title_ar }}</h6>
+                                {% if content_item.title_en %}
+                                    <div class="small text-muted text-truncate">{{ content_item.title_en }}</div>
+                                {% endif %}
+                                <div class="badge bg-secondary-subtle text-secondary rounded-pill mt-2">
+                                    ID: {{ content_item.id|truncatechars:10 }}
                                 </div>
                             </div>
                         </div>
-                        <div class="alert border-0" style="background: linear-gradient(135deg, rgba(255,193,7,0.08), rgba(255,193,7,0.12)); border-radius: 20px; border: 1px solid rgba(255,193,7,0.2);">
-                            <i class="bi bi-exclamation-triangle-fill me-2" style="color: #e0950d;"></i>
-                            <small style="color: #8d5e05;">{% trans "This sacred action cannot be undone and will permanently remove all associated blessed files including thumbnails, processed versions, and divine metadata." %}</small>
-                        </div>
                     </div>
 
-                    <!-- Sacred Action Form -->
                     <form method="post">
                         {% csrf_token %}
-                        <div class="d-flex justify-content-center gap-3">
-                            <a href="{% url 'frontend_api:admin_content_detail' content_item.id %}" 
-                               class="btn px-5 py-3" 
-                               style="border-radius: 25px; border: 2px solid rgba(108,117,125,0.3); background: rgba(248,249,250,0.8); color: #6c757d; transition: all 0.3s ease;">
-                                <i class="bi bi-shield-x me-2"></i>{% trans "Preserve Content" %}
-                            </a>
-                            <button type="submit" class="btn px-5 py-3 fw-bold" 
-                                    style="border-radius: 25px; background: linear-gradient(135deg, #800000, #DC143C); border: none; color: white; box-shadow: 0 8px 32px rgba(128,0,0,0.4); text-shadow: 0 2px 4px rgba(0,0,0,0.3); transition: all 0.3s ease;">
-                                <i class="bi bi-trash-fill me-2"></i>{% trans "Remove Sacred Content" %}
+                        <div class="d-grid gap-2">
+                             <button type="submit" class="btn btn-danger btn-lg rounded-pill shadow-sm fw-bold">
+                                <i class="bi bi-trash me-2"></i>{% trans "Yes, Delete Permanently" %}
                             </button>
+                            <a href="{% url 'frontend_api:admin_content_detail' content_item.id %}" 
+                               class="btn btn-light btn-lg rounded-pill text-muted fw-semibold">
+                                {% trans "Cancel" %}
+                            </a>
                         </div>
                     </form>
                 </div>

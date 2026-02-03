@@ -155,9 +155,10 @@ class ContentService:
             }
         }
     
-    def get_content_detail(self, content_id: str, content_type: str) -> Dict[str, Any]:
+    def get_content_detail(self, content_id: str, content_type: str, user=None) -> Dict[str, Any]:
         """Get content detail with related content - minimal queries"""
         from django.shortcuts import get_object_or_404
+        from django.http import Http404
         current_language = get_language()
         
         # Query 1: Get main content with all relations
@@ -166,9 +167,12 @@ class ContentService:
                 'videometa', 'audiometa', 'pdfmeta'
             ).prefetch_related('tags'),
             id=content_id,
-            content_type=content_type,
-            is_active=True
+            content_type=content_type
         )
+        
+        # Visibility check: if not active, only permit for staff
+        if not content.is_active and (user is None or not user.is_staff):
+            raise Http404("Content is not active")
         
         # Query 2: Get related content using optimized method
         related_content = ContentItem.objects.related_content(content)

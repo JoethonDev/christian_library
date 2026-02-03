@@ -7,7 +7,7 @@ import logging
 from typing import Dict, Any
 
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.http import require_http_methods
 from django.template.loader import render_to_string
 from rest_framework.decorators import api_view
@@ -80,7 +80,7 @@ def videos(request):
 def video_detail(request, video_uuid):
     """Individual video detail page - Optimized to 2 queries total"""
     try:
-        data = content_service.get_content_detail(str(video_uuid), 'video')
+        data = content_service.get_content_detail(str(video_uuid), 'video', user=request.user)
         
         context = {
             'video': data['content'],
@@ -90,8 +90,7 @@ def video_detail(request, video_uuid):
         return render(request, 'frontend_api/video_detail.html', context)
         
     except ContentItem.DoesNotExist:
-        raise get_object_or_404(ContentItem, id=video_uuid, content_type='video', is_active=True)
-
+        raise Http404("Video not found")
 
 def audios(request):
     """Audio listing page - Optimized to 2 queries total"""
@@ -128,7 +127,7 @@ def audios(request):
 def audio_detail(request, audio_uuid):
     """Individual audio detail page - Optimized to 2 queries total"""
     try:
-        data = content_service.get_content_detail(str(audio_uuid), 'audio')
+        data = content_service.get_content_detail(str(audio_uuid), 'audio', user=request.user)
         
         context = {
             'audio': data['content'],
@@ -138,7 +137,7 @@ def audio_detail(request, audio_uuid):
         return render(request, 'frontend_api/audio_detail.html', context)
         
     except ContentItem.DoesNotExist:
-        raise get_object_or_404(ContentItem, id=audio_uuid, content_type='audio', is_active=True)
+        raise Http404("Audio not found")
 
 
 def pdfs(request):
@@ -175,44 +174,11 @@ def pdfs(request):
 
 def pdf_detail(request, pdf_uuid):
     """Individual PDF detail page - Optimized with caching and 2 queries max"""
-    current_language = get_language()
-    
-    # Try cached related content first
     try:
-        cached_data = cache_invalidator.get_related_content(str(pdf_uuid), 'pdf')
-        if cached_data:
-            # Still need main PDF with single optimized query
-            pdf = get_object_or_404(
-                ContentItem.objects.select_related('pdfmeta').prefetch_related('tags'),
-                id=pdf_uuid,
-                content_type='pdf',
-                is_active=True
-            )
-            
-            # Process main PDF
-            pdf = content_service.language_processor.process_content_item(pdf, current_language)
-            
-            # Use cached related content with language processing
-            related_pdfs = []
-            for item in cached_data:
-                related_pdfs.append(
-                    content_service.language_processor.process_content_item(item, current_language)
-                )
-            
-            context = {
-                'pdf': pdf,
-                'related_pdfs': related_pdfs,
-            }
-            
-            return render(request, 'frontend_api/pdf_detail.html', context)
-    except Exception:
-        pass  # Fall back to database queries
-    
-    # Get data using service (2 queries)
-    try:
-        data = content_service.get_content_detail(str(pdf_uuid), 'pdf')
+        # Get data using service (handles permissions internally now)
+        data = content_service.get_content_detail(str(pdf_uuid), 'pdf', user=request.user)
         
-        # Cache the related content
+        # Cache the related content for future use
         try:
             cache_invalidator.set_related_content(str(pdf_uuid), 'pdf', data['related_content'])
         except Exception:
@@ -226,7 +192,17 @@ def pdf_detail(request, pdf_uuid):
         return render(request, 'frontend_api/pdf_detail.html', context)
         
     except ContentItem.DoesNotExist:
-        raise get_object_or_404(ContentItem, id=pdf_uuid, content_type='pdf', is_active=True)
+        raise Http404("PDF not found")
+    except Http404:
+        raise
+    except Exception as e:
+        logger.error(f"Error in pdf_detail: {str(e)}")
+        # Fallback to direct query if service fails unexpectedly
+        pdf = get_object_or_404(ContentItem, id=pdf_uuid, content_type='pdf')
+        if not pdf.is_active and not request.user.is_staff:
+            raise Http404("Content is not active")
+            
+        return render(request, 'frontend_api/pdf_detail.html', {'pdf': pdf, 'related_pdfs': []})
 
 
 def tag_content(request, tag_id):
