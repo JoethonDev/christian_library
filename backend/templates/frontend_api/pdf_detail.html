@@ -17,112 +17,105 @@
 
 {% block content %}
 <!-- Back Navigation -->
-<div class="mb-4">
-    <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-secondary rounded-pill px-4">
-        <i class="bi bi-arrow-left me-2"></i>{% trans "Back to Digital Library" %}
+<div class="mb-3 mb-md-4">
+    <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-secondary rounded-pill px-3 px-md-4 py-2">
+        <i class="bi bi-arrow-left me-1 me-md-2" style="font-size: 1rem;"></i>
+        <span class="d-none d-sm-inline">{% trans "Back to Digital Library" %}</span>
+        <span class="d-inline d-sm-none">{% trans "Back" %}</span>
     </a>
 </div>
 
 <!-- PDF Header -->
-<div class="card card-coptic mb-4">
-    <div class="card-body p-4">
-        <div class="row align-items-center">
-            <div class="col-md-2">
-                <div class="d-flex align-items-center justify-content-center sacred-shadow" 
-                     style="background: var(--color-maroon); width: 80px; height: 80px; border-radius: 16px; border: 3px solid var(--color-golden-ochre);">
-                    <i class="bi bi-journal-bookmark text-white" style="font-size: 2.5rem;"></i>
-                </div>
-            </div>
-            <div class="col-md-8">
-                <h1 class="heading-font text-maroon mb-3 fw-bold">
-                    {% if LANGUAGE_CODE == 'ar' %}{{ pdf.title_ar_display }}{% else %}{{ pdf.title_en_display }}{% endif %}
-                </h1>
-                
-                {% if LANGUAGE_CODE == 'ar' and pdf.description_ar_display or LANGUAGE_CODE == 'en' and pdf.description_en_display %}
-                <p class="body-font text-muted mb-4 lh-base">
-                    {% if LANGUAGE_CODE == 'ar' %}{{ pdf.description_ar_display }}{% else %}{{ pdf.description_en_display }}{% endif %}
-                </p>
-                {% endif %}
-                
-                <!-- PDF Metadata -->
-                <div class="row g-3">
-                    {% if pdf.pdfmeta.page_count %}
-                    <div class="col-auto">
-                        <div class="d-flex align-items-center text-muted">
-                            <i class="bi bi-file-earmark-text text-golden me-2"></i>
-                            <span class="body-font">{{ pdf.pdfmeta.page_count }} {% trans "pages" %}</span>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if pdf.pdfmeta.get_safe_file_size %}
-                    <div class="col-auto">
-                        <div class="d-flex align-items-center text-muted">
-                            <i class="bi bi-hdd text-golden me-2"></i>
-                            <span class="body-font">{{ pdf.pdfmeta.get_safe_file_size|filesizeformat }}</span>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if pdf.tags.exists %}
-                    <div class="col-auto">
-                        <div class="d-flex align-items-center text-muted">
-                            <i class="bi bi-tags text-golden me-2"></i>
-                            <span class="body-font">
-                                {% for tag in pdf.tags.all %}
-                                    {% if LANGUAGE_CODE == 'ar' %}
-                                        {{ tag.name_ar|default:tag.name_en }}
-                                    {% else %}
-                                        {{ tag.name_en|default:tag.name_ar }}
-                                    {% endif %}
-                                    {% if not forloop.last %}, {% endif %}
-                                {% endfor %}
-                            </span>
-                        </div>
-                    </div>
-                    {% endif %}
-                    
-                    {% if pdf.created_at %}
-                    <div class="col-auto">
-                        <div class="d-flex align-items-center text-muted">
-                            <i class="bi bi-calendar3 text-golden me-2"></i>
-                            <span class="body-font">{{ pdf.created_at|date:"F d, Y" }}</span>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-md-2 text-end">
-                {% if pdf.pdfmeta %}
-                    <a href="{{ pdf.pdfmeta.get_direct_download_url }}" 
-                       class="btn btn-primary rounded-pill px-4 py-2" download>
-                        <i class="bi bi-download me-2"></i>{% trans "Download" %}
-                    </a>
-                {% else %}
-                    <span class="body-font text-muted small">{% trans "File not available" %}</span>
-                {% endif %}
-            </div>
+<div class="card card-coptic mb-3 mb-md-4">
+    <div class="card-body p-3 p-md-4">
+        <!-- Title with Icon -->
+        <div class="mb-3">
+            <h1 class="heading-font text-maroon mb-2 mb-md-3 fw-bold" style="font-size: clamp(1.5rem, 4vw, 2rem);">
+                <i class="bi bi-journal-bookmark me-2 text-golden" style="font-size: 1.25rem;"></i>
+                {% if LANGUAGE_CODE == 'ar' %}{{ pdf.title_ar_display }}{% else %}{{ pdf.title_en_display }}{% endif %}
+            </h1>
+            
+            {% if LANGUAGE_CODE == 'ar' and pdf.description_ar_display or LANGUAGE_CODE == 'en' and pdf.description_en_display %}
+            <p class="body-font text-muted mb-0 lh-base" style="font-size: 1rem;">
+                {% if LANGUAGE_CODE == 'ar' %}{{ pdf.description_ar_display }}{% else %}{{ pdf.description_en_display }}{% endif %}
+            </p>
+            {% endif %}
         </div>
+        
+        <!-- PDF Metadata -->
+        <div class="d-flex flex-wrap gap-2 gap-md-3 mb-3">
+            {% if pdf.pdfmeta.page_count %}
+            <div class="d-flex align-items-center text-muted" style="font-size: 0.9rem;">
+                <i class="bi bi-file-earmark-text text-golden me-1" style="font-size: 1rem;"></i>
+                <span class="body-font">{{ pdf.pdfmeta.page_count }} {% trans "pages" %}</span>
+            </div>
+            {% endif %}
+            
+            {% if pdf.pdfmeta.get_safe_file_size %}
+            <div class="d-flex align-items-center text-muted" style="font-size: 0.9rem;">
+                <i class="bi bi-hdd text-golden me-1" style="font-size: 1rem;"></i>
+                <span class="body-font">{{ pdf.pdfmeta.get_safe_file_size|filesizeformat }}</span>
+            </div>
+            {% endif %}
+            
+            {% if pdf.created_at %}
+            <div class="d-flex align-items-center text-muted" style="font-size: 0.9rem;">
+                <i class="bi bi-calendar3 text-golden me-1" style="font-size: 1rem;"></i>
+                <span class="body-font">{{ pdf.created_at|date:"M d, Y" }}</span>
+            </div>
+            {% endif %}
+            
+            {% if pdf.tags.exists %}
+            <div class="d-flex align-items-center text-muted" style="font-size: 0.9rem;">
+                <i class="bi bi-tags text-golden me-1" style="font-size: 1rem;"></i>
+                <span class="body-font">
+                    {% for tag in pdf.tags.all %}
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            {{ tag.name_ar|default:tag.name_en }}
+                        {% else %}
+                            {{ tag.name_en|default:tag.name_ar }}
+                        {% endif %}
+                        {% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Download Button -->
+        {% if pdf.pdfmeta %}
+        <div>
+            <a href="{{ pdf.pdfmeta.get_direct_download_url }}" 
+               class="btn btn-primary rounded-pill px-3 px-md-4 py-2 w-100 w-md-auto" 
+               style="min-height: 44px; font-size: 1rem;" download>
+                <i class="bi bi-download me-2" style="font-size: 1rem;"></i>{% trans "Download" %}
+            </a>
+        </div>
+        {% else %}
+        <div>
+            <span class="body-font text-muted" style="font-size: 0.9rem;">{% trans "File not available" %}</span>
+        </div>
+        {% endif %}
     </div>
 </div>
 
 <!-- PDF Viewer -->
-<div class="row">
+<div class="row g-3 g-lg-4">
     <div class="col-12">
         <div class="card card-coptic">
             <div class="card-header-coptic">
-                <h4 class="heading-font text-white mb-0 text-center">
-                    <i class="bi bi-file-pdf me-2"></i>{% trans "Document Viewer" %}
+                <h4 class="heading-font text-white mb-0 text-center" style="font-size: clamp(1rem, 3vw, 1.25rem);">
+                    <i class="bi bi-file-pdf me-2" style="font-size: 1.125rem;"></i>{% trans "Document Viewer" %}
                 </h4>
             </div>
-            <div class="card-body p-4">
-                <div style="height: 80vh; min-height: 600px;" class="rounded-3 overflow-hidden">
+            <div class="card-body p-2 p-md-4">
+                <div style="height: 70vh; min-height: 400px;" class="rounded-3 overflow-hidden">
                     <div hx-get="{% url 'frontend_api:pdf_player' pdf.id %}" hx-trigger="load" class="h-100">
                         <div class="d-flex align-items-center justify-content-center h-100" style="background: var(--color-golden-ochre-10);">
-                            <div class="text-center">
-                                <div class="spinner-border text-golden mb-3" style="width: 3rem; height: 3rem;"></div>
-                                <h5 class="heading-font text-maroon">{% trans "Loading PDF viewer..." %}</h5>
-                                <p class="body-font text-muted small">{% trans "Please wait while we prepare your document" %}</p>
+                            <div class="text-center px-3">
+                                <div class="spinner-border text-golden mb-2 mb-md-3" style="width: 2.5rem; height: 2.5rem;"></div>
+                                <h5 class="heading-font text-maroon mb-1 mb-md-2" style="font-size: clamp(1rem, 2.5vw, 1.125rem);">{% trans "Loading PDF viewer..." %}</h5>
+                                <p class="body-font text-muted mb-0" style="font-size: clamp(0.8rem, 2vw, 0.875rem);">{% trans "Please wait while we prepare your document" %}</p>
                             </div>
                         </div>
                     </div>
@@ -134,28 +127,28 @@
 
 <!-- Additional Information -->
 {% if pdf.summary or pdf.table_of_contents %}
-<div class="row mt-4">
+<div class="row mt-3 mt-md-4 g-3 g-lg-4">
     <div class="col-12">
         <div class="card card-coptic">
-            <div class="card-body p-4 p-md-5">
+            <div class="card-body p-3 p-md-5">
                 {% if pdf.summary %}
-                <div class="mb-5">
-                    <h4 class="heading-font text-maroon mb-3 fw-bold">
-                        <i class="bi bi-card-text text-golden me-2"></i>{% trans "Summary" %}
+                <div class="mb-4 mb-md-5">
+                    <h4 class="heading-font text-maroon mb-2 mb-md-3 fw-bold" style="font-size: clamp(1.125rem, 3vw, 1.25rem);">
+                        <i class="bi bi-card-text text-golden me-2" style="font-size: 1.125rem;"></i>{% trans "Summary" %}
                     </h4>
-                    <div class="p-4 rounded-3" style="background: var(--color-golden-ochre-10); border: 1px solid var(--color-golden-ochre);">
-                        <p class="body-font mb-0 lh-lg">{{ pdf.summary|linebreaks }}</p>
+                    <div class="p-3 p-md-4 rounded-3" style="background: var(--color-golden-ochre-10); border: 1px solid var(--color-golden-ochre);">
+                        <p class="body-font mb-0 lh-lg" style="font-size: 1rem;">{{ pdf.summary|linebreaks }}</p>
                     </div>
                 </div>
                 {% endif %}
                 
                 {% if pdf.table_of_contents %}
                 <div>
-                    <h4 class="heading-font text-maroon mb-3 fw-bold">
-                        <i class="bi bi-list-ul text-golden me-2"></i>{% trans "Table of Contents" %}
+                    <h4 class="heading-font text-maroon mb-2 mb-md-3 fw-bold" style="font-size: clamp(1.125rem, 3vw, 1.25rem);">
+                        <i class="bi bi-list-ul text-golden me-2" style="font-size: 1.125rem;"></i>{% trans "Table of Contents" %}
                     </h4>
-                    <div class="p-4 rounded-3" style="background: var(--color-maroon-10); border: 1px solid var(--color-maroon);">
-                        <div class="body-font mb-0 lh-lg">{{ pdf.table_of_contents|linebreaks }}</div>
+                    <div class="p-3 p-md-4 rounded-3" style="background: var(--color-maroon-10); border: 1px solid var(--color-maroon);">
+                        <div class="body-font mb-0 lh-lg" style="font-size: 1rem;">{{ pdf.table_of_contents|linebreaks }}</div>
                     </div>
                 </div>
                 {% endif %}

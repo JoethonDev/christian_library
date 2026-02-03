@@ -17,111 +17,91 @@
 
 {% block content %}
 <!-- Back Navigation -->
-<div class="mb-4">
-    <a href="{% url 'frontend_api:audios' %}" class="btn btn-secondary rounded-pill px-4">
-        <i class="bi bi-arrow-left me-2"></i>{% trans "Back to Audio Library" %}
+<div class="mb-3 mb-md-4">
+    <a href="{% url 'frontend_api:audios' %}" class="btn btn-secondary rounded-pill px-3 px-md-4 py-2">
+        <i class="bi bi-arrow-left me-1 me-md-2" style="font-size: 1rem;"></i>
+        <span class="d-none d-sm-inline">{% trans "Back to Audio Library" %}</span>
+        <span class="d-inline d-sm-none">{% trans "Back" %}</span>
     </a>
 </div>
 
-<div class="row justify-content-center">
+<div class="row justify-content-center g-3 g-lg-4">
     <div class="col-lg-10">
         <!-- Audio Detail Card -->
-        <div class="card card-coptic shadow-lg mb-5">
-            <div class="card-body p-4 p-md-5">
-                <div class="row align-items-start">
-                    <!-- Audio Icon & Meta -->
-                    <div class="col-lg-4 text-center mb-4 mb-lg-0">
-                        <div class="position-relative mb-4">
-                            <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
-                                 style="background: var(--color-golden-ochre); width: 180px; height: 180px; border-radius: 50%; border: 4px solid var(--color-maroon);">
-                                <i class="bi bi-music-note-beamed text-white" style="font-size: 4rem;"></i>
-                            </div>
-                            <div class="position-absolute bottom-0 end-0">
-                                <span class="badge rounded-pill px-3 py-2 sacred-shadow" 
-                                      style="background: var(--color-maroon); color: white; font-size: 0.9rem; border: 2px solid var(--color-golden-ochre);">
-                                    <i class="bi bi-headphones me-1"></i>{% trans "Audio" %}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+        <div class="card card-coptic mb-3 mb-md-5">
+            <div class="card-body p-3 p-md-5">
+                <!-- Title with Icon -->
+                <div class="mb-3">
+                    <h1 class="heading-font text-maroon mb-2 mb-md-3 fw-bold" style="font-size: clamp(1.5rem, 4vw, 2rem);">
+                        <i class="bi bi-music-note-beamed me-2 text-golden" style="font-size: 1.25rem;"></i>
+                        {% if LANGUAGE_CODE == 'ar' %}{{ audio.title_ar_display }}{% else %}{{ audio.title_en_display }}{% endif %}
+                    </h1>
                     
-                    <!-- Content -->
-                    <div class="col-lg-8">
-                        <h1 class="heading-font text-maroon mb-3 fw-bold">
-                            {% if LANGUAGE_CODE == 'ar' %}{{ audio.title_ar_display }}{% else %}{{ audio.title_en_display }}{% endif %}
-                        </h1>
-                        
-                        {% if LANGUAGE_CODE == 'ar' and audio.description_ar_display or LANGUAGE_CODE == 'en' and audio.description_en_display %}
-                        <p class="body-font text-muted mb-4 fs-5 lh-base">
-                            {% if LANGUAGE_CODE == 'ar' %}{{ audio.description_ar_display }}{% else %}{{ audio.description_en_display }}{% endif %}
-                        </p>
-                        {% endif %}
-                        
-                        <!-- Audio Metadata -->
-                        <div class="row g-3 mb-4">
-                            {% if audio.audiometa.duration_seconds %}
-                            <div class="col-auto">
-                                <div class="d-flex align-items-center text-muted">
-                                    <i class="bi bi-clock text-golden me-2"></i>
-                                    <span class="body-font">{{ audio.audiometa.get_duration_formatted }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
-                            
-                            {% if audio.tags.exists %}
-                            <div class="col-auto">
-                                <div class="d-flex align-items-center text-muted">
-                                    <i class="bi bi-tags text-golden me-2"></i>
-                                    <span class="body-font">
-                                        {% for tag in audio.tags.all %}
-                                            {% if LANGUAGE_CODE == 'ar' %}
-                                                {{ tag.name_ar|default:tag.name_en }}
-                                            {% else %}
-                                                {{ tag.name_en|default:tag.name_ar }}
-                                            {% endif %}
-                                            {% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </span>
-                                </div>
-                            </div>
-                            {% endif %}
-                            
-                            {% if audio.created_at %}
-                            <div class="col-auto">
-                                <div class="d-flex align-items-center text-muted">
-                                    <i class="bi bi-calendar3 text-golden me-2"></i>
-                                    <span class="body-font">{{ audio.created_at|date:"F d, Y" }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Download Button -->
-                        {% if audio.audiometa %}
-                        <div class="mb-4">
-                            <a href="{{ audio.audiometa.get_direct_download_url }}" 
-                               class="btn btn-primary rounded-pill px-4 py-2" download>
-                                <i class="bi bi-download me-2"></i>{% trans "Download Audio" %}
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
+                    {% if LANGUAGE_CODE == 'ar' and audio.description_ar_display or LANGUAGE_CODE == 'en' and audio.description_en_display %}
+                    <p class="body-font text-muted mb-0 lh-base" style="font-size: 1rem;">
+                        {% if LANGUAGE_CODE == 'ar' %}{{ audio.description_ar_display }}{% else %}{{ audio.description_en_display }}{% endif %}
+                    </p>
+                    {% endif %}
                 </div>
+                
+                <!-- Audio Metadata -->
+                <div class="d-flex flex-wrap gap-2 gap-md-3 mb-3 mb-md-4">
+                    {% if audio.audiometa.duration_seconds %}
+                    <div class="d-flex align-items-center text-muted" style="font-size: 0.9rem;">
+                        <i class="bi bi-clock text-golden me-1" style="font-size: 1rem;"></i>
+                        <span class="body-font">{{ audio.audiometa.get_duration_formatted }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if audio.created_at %}
+                    <div class="d-flex align-items-center text-muted" style="font-size: 0.9rem;">
+                        <i class="bi bi-calendar3 text-golden me-1" style="font-size: 1rem;"></i>
+                        <span class="body-font">{{ audio.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if audio.tags.exists %}
+                    <div class="d-flex align-items-center text-muted" style="font-size: 0.9rem;">
+                        <i class="bi bi-tags text-golden me-1" style="font-size: 1rem;"></i>
+                        <span class="body-font">
+                            {% for tag in audio.tags.all %}
+                                {% if LANGUAGE_CODE == 'ar' %}
+                                    {{ tag.name_ar|default:tag.name_en }}
+                                {% else %}
+                                    {{ tag.name_en|default:tag.name_ar }}
+                                {% endif %}
+                                {% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Download Button -->
+                {% if audio.audiometa %}
+                <div>
+                    <a href="{{ audio.audiometa.get_direct_download_url }}" 
+                       class="btn btn-primary rounded-pill px-3 px-md-4 py-2 w-100 w-md-auto" 
+                       style="min-height: 44px; font-size: 1rem;" download>
+                        <i class="bi bi-download me-2" style="font-size: 1rem;"></i>{% trans "Download Audio" %}
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
         
         <!-- Audio Player Section -->
-        <div class="card card-coptic mb-5">
+        <div class="card card-coptic mb-3 mb-md-5">
             <div class="card-header-coptic">
-                <h4 class="heading-font text-white mb-0 text-center">
-                    <i class="bi bi-play-circle me-2"></i>{% trans "Audio Player" %}
+                <h4 class="heading-font text-white mb-0 text-center" style="font-size: clamp(1rem, 3vw, 1.25rem);">
+                    <i class="bi bi-play-circle me-2" style="font-size: 1.125rem;"></i>{% trans "Audio Player" %}
                 </h4>
             </div>
-            <div class="card-body p-4">
+            <div class="card-body p-3 p-md-4">
                 <div hx-get="{% url 'frontend_api:audio_player' audio.id %}" hx-trigger="load">
-                    <div class="d-flex align-items-center justify-content-center py-4">
-                        <div class="spinner-border text-golden me-3"></div>
-                        <span class="body-font text-muted">{% trans "Loading audio player..." %}</span>
+                    <div class="d-flex align-items-center justify-content-center py-3 py-md-4">
+                        <div class="spinner-border text-golden me-2 me-md-3"></div>
+                        <span class="body-font text-muted" style="font-size: 0.9rem;">{% trans "Loading audio player..." %}</span>
                     </div>
                 </div>
             </div>
@@ -130,25 +110,25 @@
         <!-- Additional Content -->
         {% if audio.transcript or audio.notes %}
         <div class="card card-coptic">
-            <div class="card-body p-4 p-md-5">
+            <div class="card-body p-3 p-md-5">
                 {% if audio.transcript %}
-                <div class="mb-5">
-                    <h4 class="heading-font text-maroon mb-3 fw-bold">
-                        <i class="bi bi-file-text text-golden me-2"></i>{% trans "Transcript" %}
+                <div class="mb-4 mb-md-5">
+                    <h4 class="heading-font text-maroon mb-2 mb-md-3 fw-bold" style="font-size: clamp(1.125rem, 3vw, 1.25rem);">
+                        <i class="bi bi-file-text text-golden me-2" style="font-size: 1.125rem;"></i>{% trans "Transcript" %}
                     </h4>
-                    <div class="p-4 rounded-3" style="background: var(--color-golden-ochre-10); border: 1px solid var(--color-golden-ochre);">
-                        <p class="body-font mb-0 lh-lg">{{ audio.transcript|linebreaks }}</p>
+                    <div class="p-3 p-md-4 rounded-3" style="background: var(--color-golden-ochre-10); border: 1px solid var(--color-golden-ochre);">
+                        <p class="body-font mb-0 lh-lg" style="font-size: 1rem;">{{ audio.transcript|linebreaks }}</p>
                     </div>
                 </div>
                 {% endif %}
                 
                 {% if audio.notes %}
                 <div>
-                    <h4 class="heading-font text-maroon mb-3 fw-bold">
-                        <i class="bi bi-journal-text text-golden me-2"></i>{% trans "Notes" %}
+                    <h4 class="heading-font text-maroon mb-2 mb-md-3 fw-bold" style="font-size: clamp(1.125rem, 3vw, 1.25rem);">
+                        <i class="bi bi-journal-text text-golden me-2" style="font-size: 1.125rem;"></i>{% trans "Notes" %}
                     </h4>
-                    <div class="p-4 rounded-3" style="background: var(--color-maroon-10); border: 1px solid var(--color-maroon);">
-                        <p class="body-font mb-0 lh-lg">{{ audio.notes|linebreaks }}</p>
+                    <div class="p-3 p-md-4 rounded-3" style="background: var(--color-maroon-10); border: 1px solid var(--color-maroon);">
+                        <p class="body-font mb-0 lh-lg" style="font-size: 1rem;">{{ audio.notes|linebreaks }}</p>
                     </div>
                 </div>
                 {% endif %}
