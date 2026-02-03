@@ -1612,6 +1612,8 @@ class AudioMeta(models.Model):
         """Get the direct download URL (R2 if available, otherwise local)"""
         if self.r2_original_file_url:
             return self.r2_original_file_url
+        if self.r2_compressed_file_url:
+            return self.r2_compressed_file_url
         return self.original_file.url if self.original_file else None
     
     def get_direct_playback_url(self):
@@ -1865,6 +1867,8 @@ class PdfMeta(models.Model):
         """Get the direct download URL (R2 if available, otherwise local)"""
         if self.r2_original_file_url:
             return self.r2_original_file_url
+        if self.r2_optimized_file_url:
+            return self.r2_optimized_file_url
         return self.original_file.url if self.original_file else None
     
     def get_direct_viewing_url(self):
