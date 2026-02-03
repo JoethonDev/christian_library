@@ -48,7 +48,7 @@
                         <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; background: white; border: 1px solid var(--color-golden-ochre) !important;">
-                        <li><a class="dropdown-item d-flex align-items-center hover-bg-golden" href="{% url 'core_utils:secure_media' file_path=audio.audiometa.get_playback_file %}?download=true">
+                        <li><a class="dropdown-item d-flex align-items-center hover-bg-golden" href="{{ audio.audiometa.get_direct_download_url }}">
                             <i class="bi bi-download text-golden me-2"></i>{% trans "Download Audio" %}
                         </a></li>
                         <li><hr class="dropdown-divider"></li>

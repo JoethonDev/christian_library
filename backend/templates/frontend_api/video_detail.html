@@ -87,9 +87,9 @@
                         </div>
                         
                         <!-- Download Button -->
-                        {% if video.videometa and video.videometa.get_download_file %}
+                        {% if video.videometa %}
                         <div class="mb-3">
-                            <a href="{% url 'core_utils:secure_media' file_path=video.videometa.get_download_file %}?download=true" 
+                            <a href="{{ video.videometa.get_direct_download_url }}?download=true" 
                                class="btn btn-primary rounded-pill px-4 py-2">
                                 <i class="bi bi-download me-2"></i>{% trans "Download Video" %}
                             </a>

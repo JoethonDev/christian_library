@@ -1398,6 +1398,12 @@ class VideoMeta(models.Model):
         """Get the best file for playback (original file)"""
         return self.original_file
 
+    def get_direct_download_url(self):
+        """Get the direct download URL (R2 if available, otherwise local)"""
+        if self.r2_original_file_url:
+            return self.r2_original_file_url
+        return self.original_file.url if self.original_file else None
+
     # --- R2 Helper Methods ---
     def has_r2_files(self):
         """Check if any R2 files are available"""
@@ -1601,6 +1607,21 @@ class AudioMeta(models.Model):
     def get_playback_file(self):
         """Get the best file for playback (compressed if available)"""
         return self.compressed_file if self.compressed_file else self.original_file
+    
+    def get_direct_download_url(self):
+        """Get the direct download URL (R2 if available, otherwise local)"""
+        if self.r2_original_file_url:
+            return self.r2_original_file_url
+        return self.original_file.url if self.original_file else None
+    
+    def get_direct_playback_url(self):
+        """Get the direct playback URL (R2 if available, otherwise local)"""
+        if self.r2_compressed_file_url:
+            return self.r2_compressed_file_url
+        if self.r2_original_file_url:
+            return self.r2_original_file_url
+        file_obj = self.get_playback_file()
+        return file_obj.url if file_obj else None
     
     def get_duration_formatted(self):
         """Get formatted duration string"""
@@ -1839,6 +1860,21 @@ class PdfMeta(models.Model):
     def get_download_file(self):
         """Get the file for download (always original for PDFs)"""
         return self.original_file
+    
+    def get_direct_download_url(self):
+        """Get the direct download URL (R2 if available, otherwise local)"""
+        if self.r2_original_file_url:
+            return self.r2_original_file_url
+        return self.original_file.url if self.original_file else None
+    
+    def get_direct_viewing_url(self):
+        """Get the direct viewing URL (R2 if available, otherwise local)"""
+        if self.r2_optimized_file_url:
+            return self.r2_optimized_file_url
+        if self.r2_original_file_url:
+            return self.r2_original_file_url
+        file_obj = self.get_viewing_file()
+        return file_obj.url if file_obj else None
     
     # --- R2 Helper Methods ---
     def has_r2_files(self):

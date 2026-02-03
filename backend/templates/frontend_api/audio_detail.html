@@ -97,9 +97,9 @@
                         </div>
                         
                         <!-- Download Button -->
-                        {% if audio.audiometa and audio.audiometa.get_playback_file %}
+                        {% if audio.audiometa %}
                         <div class="mb-4">
-                            <a href="{% url 'core_utils:secure_media' file_path=audio.audiometa.get_playback_file %}?download=true" 
+                            <a href="{{ audio.audiometa.get_direct_download_url }}?download=true" 
                                class="btn btn-primary rounded-pill px-4 py-2">
                                 <i class="bi bi-download me-2"></i>{% trans "Download Audio" %}
                             </a>

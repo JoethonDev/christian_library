@@ -208,8 +208,8 @@
                                    title="{% trans 'Preview' %}" target="_blank">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                {% if pdf.file and pdf.file.name %}
-                                <a href="{% url 'core_utils:secure_media' file_path=pdf.file %}?download=true" 
+                                {% if pdf.pdfmeta %}
+                                <a href="{{ pdf.pdfmeta.get_direct_download_url }}?download=true" 
                                    class="btn btn-sm btn-outline-success px-3 py-2 rounded-pill" 
                                    title="{% trans 'Download' %}" target="_blank">
                                     <i class="bi bi-download"></i>
