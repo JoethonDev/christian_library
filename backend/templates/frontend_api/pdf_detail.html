@@ -109,7 +109,7 @@
                 </h4>
             </div>
             <div class="card-body p-2 p-md-4">
-                <div style="height: 70vh; min-height: 400px;" class="rounded-3 overflow-hidden">
+                <div style="height: clamp(50vh, 70vh, 80vh); min-height: clamp(400px, 50vh, 600px);" class="rounded-3 overflow-hidden">
                     <div hx-get="{% url 'frontend_api:pdf_player' pdf.id %}" hx-trigger="load" class="h-100">
                         <div class="d-flex align-items-center justify-content-center h-100" style="background: var(--color-golden-ochre-10);">
                             <div class="text-center px-3">
