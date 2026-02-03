@@ -45,7 +45,7 @@
                         <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow" style="border-radius: 12px; border: 1px solid rgba(184, 134, 11, 0.2);">
-                        <li><a class="dropdown-item d-flex align-items-center" href="{% url 'core_utils:secure_media' file_path=video.videometa.get_playback_file %}?download=true">
+                        <li><a class="dropdown-item d-flex align-items-center" href="{{ video.videometa.get_direct_download_url }}">
                             <i class="bi bi-download me-2" style="color: #B8860B;"></i>{% trans "Download Video" %}
                         </a></li>
                         <li><button class="dropdown-item d-flex align-items-center" type="button" onclick="toggleFullscreen('video-{{ video.id }}')">
@@ -87,7 +87,7 @@
                    playsinline 
                    webkit-playsinline
                    style="width: 100%; height: auto; max-height: 70vh; object-fit: contain; background: #000; border-radius: 0 0 24px 24px;"
-                   poster="{% if video.videometa.thumbnail %}{% url 'core_utils:secure_media' file_path=video.videometa.thumbnail %}{% endif %}">
+                   poster="{% if video.videometa.thumbnail %}{{ video.videometa.thumbnail.url }}{% endif %}">
                 
                 <!-- HLS and multiple source formats -->
                 {% with best_url=video.videometa.get_best_streaming_url %}
@@ -99,7 +99,7 @@
                 <p class="text-center text-muted p-4">
                     {% trans "Your browser does not support the video tag. Please" %}
                     {% if video.videometa.get_playback_file %}
-                    <a href="{% url 'core_utils:secure_media' file_path=video.videometa.get_playback_file %}?download=true" 
+                    <a href="{{ video.videometa.get_direct_download_url }}" 
                        class="text-decoration-none" style="color: #B8860B;">
                         {% trans "download the video" %}
                     </a> {% trans "to view it offline." %}

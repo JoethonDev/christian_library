@@ -591,9 +591,16 @@ def upload_video_to_r2(self, video_meta_id):
                 video_meta.r2_upload_progress = 100
                 logger.info(f"Successfully uploaded video {video_meta_id} to R2")
                 
+                # Issue 3: Automatic Activation After R2 Upload
+                content_item = video_meta.content_item
+                if not content_item.is_active:
+                    content_item.is_active = True
+                    content_item.save(update_fields=['is_active'])
+                    logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
+                
                 # Check for cleanup (both R2 and SEO must be done)
                 from apps.media_manager.tasks import finalize_media_processing
-                finalize_media_processing.delay(str(video_meta.content_item.id))
+                finalize_media_processing.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'failed'
                 logger.error(f"Failed to upload video {video_meta_id} to R2")
@@ -603,9 +610,16 @@ def upload_video_to_r2(self, video_meta_id):
             if video_meta.r2_original_file_url:
                 video_meta.r2_upload_status = 'completed'
                 
+                # Issue 3: Automatic Activation After R2 Upload
+                content_item = video_meta.content_item
+                if not content_item.is_active:
+                    content_item.is_active = True
+                    content_item.save(update_fields=['is_active'])
+                    logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
+
                 # Check for cleanup
                 from apps.media_manager.tasks import finalize_media_processing
-                finalize_media_processing.delay(str(video_meta.content_item.id))
+                finalize_media_processing.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'local_only'
         
@@ -670,9 +684,16 @@ def upload_audio_to_r2(self, audio_meta_id):
             audio_meta.r2_upload_progress = 100
             logger.info(f"Successfully uploaded audio {audio_meta_id} to R2")
             
+            # Issue 3: Automatic Activation After R2 Upload
+            content_item = audio_meta.content_item
+            if not content_item.is_active:
+                content_item.is_active = True
+                content_item.save(update_fields=['is_active'])
+                logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
+            
             # Check for cleanup (both R2 and SEO must be done)
             from apps.media_manager.tasks import finalize_media_processing
-            finalize_media_processing.delay(str(audio_meta.content_item.id))
+            finalize_media_processing.delay(str(content_item.id))
         else:
             audio_meta.r2_upload_status = 'failed'
             logger.error(f"Failed to upload audio {audio_meta_id} to R2")
@@ -741,9 +762,16 @@ def upload_pdf_to_r2(self, pdf_meta_id):
             pdf_meta.r2_upload_progress = 100
             logger.info(f"Successfully uploaded PDF {pdf_meta_id} to R2")
             
+            # Issue 3: Automatic Activation After R2 Upload
+            content_item = pdf_meta.content_item
+            if not content_item.is_active:
+                content_item.is_active = True
+                content_item.save(update_fields=['is_active'])
+                logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
+            
             # Check for cleanup (both R2 and SEO must be done)
             from apps.media_manager.tasks import finalize_media_processing
-            finalize_media_processing.delay(str(pdf_meta.content_item.id))
+            finalize_media_processing.delay(str(content_item.id))
         else:
             pdf_meta.r2_upload_status = 'failed'
             logger.error(f"Failed to upload PDF {pdf_meta_id} to R2")

@@ -93,8 +93,8 @@
                 </div>
             </div>
             <div class="col-md-2 text-end">
-                {% if pdf.pdfmeta and pdf.pdfmeta.get_download_file %}
-                    <a href="{% url 'core_utils:secure_media' file_path=pdf.pdfmeta.get_download_file %}?download=true" target="_blank" 
+                {% if pdf.pdfmeta %}
+                    <a href="{{ pdf.pdfmeta.get_direct_download_url }}?download=true" target="_blank" 
                        class="btn btn-primary rounded-pill px-4 py-2">
                         <i class="bi bi-download me-2"></i>{% trans "Download" %}
                     </a>
