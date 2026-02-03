@@ -256,10 +256,6 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.media_processing.cleanup_failed_uploads',
         'schedule': 3600.0,  # Run every hour
     },
-    'cleanup-expired-media-tokens': {
-        'task': 'core.tasks.media_processing.cleanup_expired_tokens',
-        'schedule': 21600.0,  # Run every 6 hours
-    },
 }
 
 # File Upload Settings
@@ -268,10 +264,6 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100MB
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000
 FILE_UPLOAD_PERMISSIONS = 0o644
 FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755
-
-# Media Security Settings
-MEDIA_SIGNING_KEY = os.environ.get('MEDIA_SIGNING_KEY', SECRET_KEY)
-MEDIA_URL_EXPIRY_HOURS = 24
 
 # REST Framework configuration
 REST_FRAMEWORK = {
