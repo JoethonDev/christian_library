@@ -723,8 +723,9 @@ def generate_metadata_only(request):
             # Clean up temporary file
             try:
                 os.unlink(temp_file_path)
-            except:
-                pass
+            except OSError as e:
+                # Log cleanup failure but don't fail the request
+                logger.warning(f"Failed to clean up temporary file {temp_file_path}: {e}")
                 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
@@ -785,8 +786,9 @@ def generate_seo_only(request):
             # Clean up temporary file
             try:
                 os.unlink(temp_file_path)
-            except:
-                pass
+            except OSError as e:
+                # Log cleanup failure but don't fail the request
+                logger.warning(f"Failed to clean up temporary file {temp_file_path}: {e}")
                 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
