@@ -1,14 +1,14 @@
 <!-- templates/components/audio_player.html - Coptic Orthodox Theme -->
 {% load i18n %}
-<div class="coptic-audio-player" style="background: var(--color-off-white); border: 2px solid var(--color-golden-ochre); border-radius: 16px; overflow: hidden;">
+<div class="coptic-audio-player" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border: none; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
     <!-- Audio Header -->
-    <div class="audio-header p-3 p-md-4" style="background: var(--color-golden-ochre-10); border-bottom: 1px solid var(--color-golden-ochre);">
+    <div class="audio-header p-3 p-md-4" style="background: linear-gradient(135deg, rgba(128, 0, 0, 0.08) 0%, rgba(221, 153, 51, 0.08) 100%); border-bottom: 1px solid rgba(221, 153, 51, 0.15);">
         <div class="d-flex align-items-start gap-3">
             <!-- Audio Icon -->
             <div class="audio-icon flex-shrink-0">
-                <div class="d-flex align-items-center justify-content-center sacred-shadow" 
-                     style="background: var(--color-golden-ochre); border-radius: 16px; width: 56px; height: 56px; border: 2px solid var(--color-maroon);">
-                    <i class="bi bi-music-note-beamed text-white" style="font-size: 1.5rem;"></i>
+                <div class="d-flex align-items-center justify-content-center" 
+                     style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); border-radius: 16px; width: 56px; height: 56px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
+                    <i class="bi bi-play-circle-fill text-white" style="font-size: 1.75rem;"></i>
                 </div>
             </div>
             
@@ -19,7 +19,7 @@
                     {% if audio.tags.exists %}
                     <div class="d-flex flex-wrap gap-1 mb-1">
                         {% for tag in audio.tags.all %}
-                        <span class="badge rounded-pill" style="background: var(--color-maroon-10); color: var(--color-maroon); font-size: 0.75rem; padding: 0.25rem 0.5rem; border: 1px solid var(--color-maroon);">
+                        <span class="badge rounded-pill" style="background: rgba(128, 0, 0, 0.1); color: var(--color-maroon); font-size: 0.75rem; padding: 0.25rem 0.5rem; border: 1px solid rgba(128, 0, 0, 0.2);">
                             {% get_current_language as LANGUAGE_CODE %}
                             {% if LANGUAGE_CODE == 'ar' %}
                                 {{ tag.name_ar|default:tag.name_en }}
@@ -32,7 +32,7 @@
                     {% endif %}
                     {% if audio.audiometa.duration_seconds %}
                     <small class="body-font text-muted d-block">
-                        <i class="bi bi-clock text-golden me-1"></i>{{ audio.audiometa.get_duration_formatted }}
+                        <i class="bi bi-clock-fill text-maroon me-1" style="opacity: 0.7;"></i>{{ audio.audiometa.get_duration_formatted }}
                     </small>
                     {% endif %}
                 </div>
@@ -47,13 +47,13 @@
                             aria-label="{% trans 'Audio options' %}">
                         <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; background: white; border: 1px solid var(--color-golden-ochre) !important;">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; background: white; border: 1px solid rgba(221, 153, 51, 0.2) !important;">
                         <li><a class="dropdown-item d-flex align-items-center hover-bg-golden" href="{{ audio.audiometa.get_direct_download_url }}" download>
-                            <i class="bi bi-download text-golden me-2"></i>{% trans "Download Audio" %}
+                            <i class="bi bi-download text-maroon me-2"></i>{% trans "Download Audio" %}
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><span class="dropdown-item-text small body-font text-muted">
-                            <i class="bi bi-info-circle text-golden me-1"></i>
+                            <i class="bi bi-info-circle text-maroon me-1" style="opacity: 0.7;"></i>
                             {% if audio.audiometa.file_size_mb %}{{ audio.audiometa.file_size_mb }} MB{% endif %}
                             {% if audio.audiometa.bitrate %}• {{ audio.audiometa.bitrate }} kbps{% endif %}
                         </span></li>
@@ -70,7 +70,7 @@
             <!-- Enhanced HTML5 Audio Player -->
             <div class="coptic-audio-wrapper">
                 <audio id="audio-{{ audio.id }}" class="w-100" controls preload="metadata" controlsList="nodownload"
-                       style="border-radius: 12px; height: 60px; background: var(--color-maroon-10); outline: none;">
+                       style="border-radius: 12px; height: 60px; background: linear-gradient(135deg, rgba(128, 0, 0, 0.05) 0%, rgba(221, 153, 51, 0.05) 100%); outline: none; border: 1px solid rgba(128, 0, 0, 0.1);">
                     <source src="{{ audio.audiometa.get_direct_playback_url }}" type="audio/mpeg">
                     <p class="body-font text-muted mb-0">{% trans "Your browser does not support the audio element." %}</p>
                 </audio>
@@ -78,18 +78,18 @@
                 <!-- Audio Info -->
                 <div class="audio-info mt-3 d-flex justify-content-between align-items-center small body-font text-muted">
                     <span>
-                        <i class="bi bi-music-note text-golden me-1"></i>{% trans "Spiritual Content" %}
+                        <i class="bi bi-music-note-beamed text-maroon me-1" style="opacity: 0.7;"></i>{% trans "Spiritual Content" %}
                     </span>
                     <span>
-                        <i class="bi bi-shield-check text-golden me-1"></i>{% trans "Coptic Orthodox" %}
+                        <i class="bi bi-shield-check text-maroon me-1" style="opacity: 0.7;"></i>{% trans "Coptic Orthodox" %}
                     </span>
                 </div>
             </div>
         {% else %}
             <!-- Error State -->
             <div class="audio-error text-center py-4">
-                <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
-                     style="background: var(--color-maroon); width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
+                <div class="d-inline-flex align-items-center justify-content-center mb-3" 
+                     style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); width: 64px; height: 64px; border-radius: 50%; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
                     <i class="bi bi-exclamation-triangle text-white" style="font-size: 1.5rem;"></i>
                 </div>
                 <h6 class="heading-font text-maroon mb-2">{% trans "Audio Not Available" %}</h6>
@@ -108,7 +108,7 @@
 
 .coptic-audio-player:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(221, 153, 51, 0.2);
+    box-shadow: 0 8px 28px rgba(128, 0, 0, 0.12);
 }
 
 .audio-title {
@@ -121,27 +121,41 @@
     width: 100%;
     height: 60px;
     outline: none;
-    border: 2px solid var(--color-golden-ochre);
 }
 
 .coptic-audio-wrapper audio::-webkit-media-controls-panel {
-    background: var(--color-maroon-10);
+    background: linear-gradient(135deg, rgba(128, 0, 0, 0.05) 0%, rgba(221, 153, 51, 0.05) 100%);
 }
 
 .coptic-audio-wrapper audio::-webkit-media-controls-play-button {
-    background: var(--color-maroon);
+    background-color: var(--color-maroon);
     border-radius: 50%;
+    opacity: 0.9;
+}
+
+.coptic-audio-wrapper audio::-webkit-media-controls-play-button:hover {
+    opacity: 1;
 }
 
 .coptic-audio-wrapper audio::-webkit-media-controls-current-time-display,
 .coptic-audio-wrapper audio::-webkit-media-controls-time-remaining-display {
     color: var(--color-maroon);
     font-family: var(--font-sans);
+    font-weight: 500;
+}
+
+.coptic-audio-wrapper audio::-webkit-media-controls-timeline {
+    background: rgba(128, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+.coptic-audio-wrapper audio::-webkit-media-controls-timeline::-webkit-slider-thumb {
+    background: var(--color-maroon);
 }
 
 /* Dropdown hover effects */
 .hover-bg-golden:hover {
-    background: var(--color-golden-ochre-10) !important;
+    background: rgba(221, 153, 51, 0.1) !important;
 }
 
 /* Responsive adjustments */
@@ -160,7 +174,7 @@
     }
     
     .audio-icon i {
-        font-size: 1.2rem !important;
+        font-size: 1.5rem !important;
     }
     
     .audio-title {

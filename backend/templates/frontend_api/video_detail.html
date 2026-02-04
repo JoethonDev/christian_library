@@ -98,8 +98,8 @@
                 </h4>
             </div>
             <div class="card-body p-0">
-                <div class="ratio ratio-16x9" style="background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);">
-                    <div hx-get="{% url 'frontend_api:video_player' video.id %}" hx-trigger="load" class="d-flex align-items-center justify-content-center loading-overlay">
+                <div hx-get="{% url 'frontend_api:video_player' video.id %}" hx-trigger="load" class="video-player-wrapper">
+                    <div class="d-flex align-items-center justify-content-center loading-overlay" style="min-height: 400px; background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);">
                         <div class="text-center px-3">
                             <div class="spinner-border text-light mb-3" style="width: 2.5rem; height: 2.5rem;"></div>
                             <h5 class="text-light mb-0" style="font-size: 1.05rem;">{% trans "Loading video player..." %}</h5>

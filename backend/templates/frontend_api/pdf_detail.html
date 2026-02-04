@@ -107,12 +107,12 @@
                     <i class="bi bi-file-pdf me-2" style="font-size: 1.25rem;"></i>{% trans "Document Viewer" %}
                 </h4>
             </div>
-            <div class="card-body p-0 p-md-2">
-                <div style="height: clamp(60vh, 75vh, 85vh); min-height: clamp(400px, 60vh, 700px);" class="rounded-3 overflow-hidden">
+            <div class="card-body p-0">
+                <div class="pdf-viewer-wrapper">
                     <div hx-get="{% url 'frontend_api:pdf_player' pdf.id %}" hx-trigger="load" class="h-100">
-                        <div class="d-flex align-items-center justify-content-center h-100 loading-overlay" style="background: rgba(248, 249, 250, 0.98);">
+                        <div class="d-flex align-items-center justify-content-center loading-overlay" style="min-height: 500px; background: rgba(248, 249, 250, 0.98);">
                             <div class="text-center px-3">
-                                <div class="spinner-border text-golden mb-3" style="width: 3rem; height: 3rem;"></div>
+                                <div class="spinner-border text-maroon mb-3" style="width: 3rem; height: 3rem;"></div>
                                 <h5 class="heading-font text-maroon mb-2" style="font-size: 1.15rem;">{% trans "Loading PDF viewer..." %}</h5>
                                 <p class="body-font text-muted mb-0" style="font-size: 0.95rem;">{% trans "Please wait while we prepare your document" %}</p>
                             </div>
