@@ -245,6 +245,13 @@
         let metadataCompleted = false;
         let seoCompleted = false;
         
+        // Helper function to hide spinner when both requests complete
+        function hideSpinnerIfBothComplete() {
+            if (metadataCompleted && seoCompleted) {
+                spinner.classList.add('d-none');
+            }
+        }
+        
         // Parallel request 1: Generate metadata
         fetch('{% url "frontend_api:generate_metadata_only" %}', {
             method: 'POST',
@@ -281,18 +288,13 @@
                 showToast(data.error || '{% trans "Failed to generate metadata" %}', 'danger');
             }
             
-            // Hide spinner if both requests are complete
-            if (seoCompleted) {
-                spinner.classList.add('d-none');
-            }
+            hideSpinnerIfBothComplete();
         })
         .catch(error => {
             metadataCompleted = true;
             console.error('Metadata generation error:', error);
             showToast('{% trans "An error occurred while generating metadata" %}', 'danger');
-            if (seoCompleted) {
-                spinner.classList.add('d-none');
-            }
+            hideSpinnerIfBothComplete();
         });
         
         // Parallel request 2: Generate SEO
@@ -337,18 +339,13 @@
                 showToast(data.error || '{% trans "Failed to generate SEO metadata" %}', 'danger');
             }
             
-            // Hide spinner if both requests are complete
-            if (metadataCompleted) {
-                spinner.classList.add('d-none');
-            }
+            hideSpinnerIfBothComplete();
         })
         .catch(error => {
             seoCompleted = true;
             console.error('SEO generation error:', error);
             showToast('{% trans "An error occurred while generating SEO metadata" %}', 'danger');
-            if (metadataCompleted) {
-                spinner.classList.add('d-none');
-            }
+            hideSpinnerIfBothComplete();
         });
     }
     
