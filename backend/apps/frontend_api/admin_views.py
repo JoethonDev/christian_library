@@ -668,6 +668,41 @@ def get_r2_storage_usage(request):
         })
 
 
+
+def _save_uploaded_file_temporarily(file_obj):
+    """Helper function to save uploaded file temporarily and return its path"""
+    file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
+        for chunk in file_obj.chunks():
+            temp_file.write(chunk)
+        return temp_file.name
+
+
+def _cleanup_temp_file(file_path):
+    """Helper function to clean up temporary file with proper error handling"""
+    try:
+        os.unlink(file_path)
+    except OSError as e:
+        logger.warning(f"Failed to clean up temporary file {file_path}: {e}")
+
+
+def _determine_content_type(file_obj, content_type_param):
+    """Helper function to determine content type from file or parameter"""
+    if content_type_param:
+        return content_type_param, None
+    
+    # Determine content type from file extension
+    file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else ''
+    if file_extension in ['mp4', 'avi', 'mov', 'mkv']:
+        return 'video', None
+    elif file_extension in ['mp3', 'wav', 'flac', 'm4a']:
+        return 'audio', None
+    elif file_extension in ['pdf']:
+        return 'pdf', None
+    else:
+        return None, 'Unsupported file type'
+
+
 def generate_metadata_only(request):
     """Generate metadata only from uploaded file (new separated endpoint)"""
     if request.method != 'POST':
@@ -680,19 +715,10 @@ def generate_metadata_only(request):
         if not file_obj:
             return JsonResponse({'success': False, 'error': 'File required'})
         
-        # Get content type from file or request
-        content_type = request.POST.get('content_type', '')
-        if not content_type:
-            # Determine content type from file extension
-            file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else ''
-            if file_extension in ['mp4', 'avi', 'mov', 'mkv']:
-                content_type = 'video'
-            elif file_extension in ['mp3', 'wav', 'flac', 'm4a']:
-                content_type = 'audio'
-            elif file_extension in ['pdf']:
-                content_type = 'pdf'
-            else:
-                return JsonResponse({'success': False, 'error': 'Unsupported file type'})
+        # Determine content type
+        content_type, error = _determine_content_type(file_obj, request.POST.get('content_type', ''))
+        if error:
+            return JsonResponse({'success': False, 'error': error})
         
         # Use Gemini metadata service
         metadata_service = get_gemini_metadata_service()
@@ -700,11 +726,7 @@ def generate_metadata_only(request):
             return JsonResponse({'success': False, 'error': 'AI service not available'})
         
         # Save file temporarily for processing
-        file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
-            for chunk in file_obj.chunks():
-                temp_file.write(chunk)
-            temp_file_path = temp_file.name
+        temp_file_path = _save_uploaded_file_temporarily(file_obj)
         
         try:
             # Generate metadata using the temporary file
@@ -720,12 +742,7 @@ def generate_metadata_only(request):
                 return JsonResponse({'success': False, 'error': error_msg})
                 
         finally:
-            # Clean up temporary file
-            try:
-                os.unlink(temp_file_path)
-            except OSError as e:
-                # Log cleanup failure but don't fail the request
-                logger.warning(f"Failed to clean up temporary file {temp_file_path}: {e}")
+            _cleanup_temp_file(temp_file_path)
                 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
@@ -743,19 +760,10 @@ def generate_seo_only(request):
         if not file_obj:
             return JsonResponse({'success': False, 'error': 'File required'})
         
-        # Get content type from file or request
-        content_type = request.POST.get('content_type', '')
-        if not content_type:
-            # Determine content type from file extension
-            file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else ''
-            if file_extension in ['mp4', 'avi', 'mov', 'mkv']:
-                content_type = 'video'
-            elif file_extension in ['mp3', 'wav', 'flac', 'm4a']:
-                content_type = 'audio'
-            elif file_extension in ['pdf']:
-                content_type = 'pdf'
-            else:
-                return JsonResponse({'success': False, 'error': 'Unsupported file type'})
+        # Determine content type
+        content_type, error = _determine_content_type(file_obj, request.POST.get('content_type', ''))
+        if error:
+            return JsonResponse({'success': False, 'error': error})
         
         # Use Gemini SEO service
         seo_service = get_gemini_seo_service()
@@ -763,11 +771,7 @@ def generate_seo_only(request):
             return JsonResponse({'success': False, 'error': 'AI service not available'})
         
         # Save file temporarily for processing
-        file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
-            for chunk in file_obj.chunks():
-                temp_file.write(chunk)
-            temp_file_path = temp_file.name
+        temp_file_path = _save_uploaded_file_temporarily(file_obj)
         
         try:
             # Generate SEO metadata using the temporary file
@@ -783,12 +787,7 @@ def generate_seo_only(request):
                 return JsonResponse({'success': False, 'error': error_msg})
                 
         finally:
-            # Clean up temporary file
-            try:
-                os.unlink(temp_file_path)
-            except OSError as e:
-                # Log cleanup failure but don't fail the request
-                logger.warning(f"Failed to clean up temporary file {temp_file_path}: {e}")
+            _cleanup_temp_file(temp_file_path)
                 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
