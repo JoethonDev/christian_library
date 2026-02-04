@@ -81,7 +81,7 @@ class AdminService:
             **task_data,
         }
     
-    def _get_live_task_data(self) -> Dict:
+    def _get_live_task_data(self) -> Dict[str, Any]:
         """Get real-time task monitoring data (not cached)"""
         try:
             task_stats = TaskMonitor.get_task_stats()
@@ -90,14 +90,15 @@ class AdminService:
             return {
                 'task_stats': task_stats,
                 'active_tasks': active_tasks[:10],  # Latest 10 tasks
-                'total_active_tasks': len(active_tasks),
+                'has_tasks': len(active_tasks) > 0,
             }
         except Exception as e:
-            logger.error(f"Error getting task data: {e}")
+            import logging
+            logging.getLogger(__name__).error(f"Error getting task data: {e}")
             return {
                 'task_stats': {},
                 'active_tasks': [],
-                'total_active_tasks': 0,
+                'has_tasks': False,
             }
     
     def get_content_list(
@@ -518,25 +519,6 @@ class AdminService:
             return {
                 'total': {'completed': 0, 'pending': 0, 'uploading': 0, 'failed': 0},
                 'storage': {'success': False, 'total_size_gb': 0, 'object_count': 0},
-            }
-    
-    def _get_live_task_data(self) -> Dict[str, Any]:
-        """Get live task monitoring data for system dashboard"""
-        try:
-            active_tasks = TaskMonitor.get_active_tasks()
-            task_stats = TaskMonitor.get_task_stats()
-            
-            return {
-                'active_tasks': active_tasks[:5],  # Show only latest 5
-                'task_stats': task_stats,
-                'has_tasks': len(active_tasks) > 0
-            }
-        except Exception as e:
-            return {
-                'active_tasks': [],
-                'task_stats': {},
-                'has_tasks': False,
-                'error': str(e)
             }
     
     def toggle_content_status(self, content_id: str) -> Tuple[bool, str]:
