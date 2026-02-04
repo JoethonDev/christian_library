@@ -78,4 +78,5 @@ urlpatterns = [
 
     path('api/toggle-status/', admin_views.api_toggle_content_status, name='api_toggle_content_status'),
     path('api/admin/r2-storage-usage/', admin_views.get_r2_storage_usage, name='api_r2_storage_usage'),
+    path('api/admin/auto-fill-metadata/', admin_views.api_auto_fill_metadata, name='api_auto_fill_metadata'),
 ]

@@ -270,7 +270,8 @@ def video_management(request):
     filters = {
         'status': request.GET.get('status', ''),
         'processing_status': request.GET.get('processing_status', ''),
-        'search': request.GET.get('search', '').strip()
+        'search': request.GET.get('search', '').strip(),
+        'missing_data': request.GET.get('missing_data', '')
     }
     
     # Get video data using optimized service
@@ -298,7 +299,8 @@ def audio_management(request):
     page = int(request.GET.get('page', 1))
     filters = {
         'status': request.GET.get('status', ''),
-        'search': request.GET.get('search', '').strip()
+        'search': request.GET.get('search', '').strip(),
+        'missing_data': request.GET.get('missing_data', '')
     }
     
     # Get audio data using optimized service
@@ -326,7 +328,8 @@ def pdf_management(request):
     page = int(request.GET.get('page', 1))
     filters = {
         'status': request.GET.get('status', ''),
-        'search': request.GET.get('search', '').strip()
+        'search': request.GET.get('search', '').strip(),
+        'missing_data': request.GET.get('missing_data', '')
     }
     
     # Get PDF data using optimized service
@@ -666,4 +669,47 @@ def get_r2_storage_usage(request):
             'total_size_gb': 0.0,
             'object_count': 0
         })
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def api_auto_fill_metadata(request):
+    """
+    Trigger auto-fill action for content item (SEO metadata generation).
+    This endpoint is called from the management dashboard via HTMX.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        data = json.loads(request.body)
+        content_id = data.get('content_id')
+        
+        if not content_id:
+            return JsonResponse({'success': False, 'error': 'No content ID provided'})
+        
+        # Get the content item
+        try:
+            content = ContentItem.objects.get(id=content_id)
+        except ContentItem.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Content not found'})
+        
+        # Import the task
+        from apps.media_manager.tasks import generate_seo_metadata_task
+        
+        # Trigger the background task
+        task = generate_seo_metadata_task.delay(str(content_id))
+        
+        logger.info(f"Auto-fill triggered for content {content_id}, task ID: {task.id}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Auto-fill started. SEO metadata will be generated in the background.',
+            'task_id': task.id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error triggering auto-fill: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
 

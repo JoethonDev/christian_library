@@ -247,6 +247,38 @@ class AdminService:
                 videometa__processing_status=filters['processing_status']
             )
         
+        # Add missing data filter
+        if filters.get('missing_data'):
+            missing_filter = filters['missing_data']
+            if missing_filter == 'no_seo':
+                # Match items where ALL SEO fields are missing (consistent with has_seo property)
+                content_qs = content_qs.filter(
+                    (Q(seo_keywords_ar__isnull=True) | Q(seo_keywords_ar='')) &
+                    (Q(seo_keywords_en__isnull=True) | Q(seo_keywords_en='')) &
+                    (Q(seo_meta_description_ar__isnull=True) | Q(seo_meta_description_ar='')) &
+                    (Q(seo_meta_description_en__isnull=True) | Q(seo_meta_description_en=''))
+                )
+            elif missing_filter == 'no_metadata':
+                # Filter based on content type - use annotation for tag count
+                if content_type == 'video':
+                    content_qs = content_qs.annotate(tag_count=Count('tags')).filter(
+                        Q(videometa__duration_seconds__isnull=True) |
+                        Q(description_ar__isnull=True) | Q(description_ar='') |
+                        Q(tag_count=0)
+                    )
+                elif content_type == 'audio':
+                    content_qs = content_qs.annotate(tag_count=Count('tags')).filter(
+                        Q(audiometa__duration_seconds__isnull=True) |
+                        Q(description_ar__isnull=True) | Q(description_ar='') |
+                        Q(tag_count=0)
+                    )
+                elif content_type == 'pdf':
+                    content_qs = content_qs.annotate(tag_count=Count('tags')).filter(
+                        Q(pdfmeta__page_count__isnull=True) |
+                        Q(description_ar__isnull=True) | Q(description_ar='') |
+                        Q(tag_count=0)
+                    )
+        
         content_qs = content_qs.order_by('-created_at')
         
         # Pagination
