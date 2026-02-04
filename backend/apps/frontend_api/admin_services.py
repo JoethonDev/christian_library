@@ -247,6 +247,37 @@ class AdminService:
                 videometa__processing_status=filters['processing_status']
             )
         
+        # Add missing data filter
+        if filters.get('missing_data'):
+            missing_filter = filters['missing_data']
+            if missing_filter == 'no_seo':
+                content_qs = content_qs.filter(
+                    Q(seo_keywords_ar__isnull=True) | Q(seo_keywords_ar='') |
+                    Q(seo_keywords_en__isnull=True) | Q(seo_keywords_en='') |
+                    Q(seo_meta_description_ar__isnull=True) | Q(seo_meta_description_ar='') |
+                    Q(seo_meta_description_en__isnull=True) | Q(seo_meta_description_en='')
+                )
+            elif missing_filter == 'no_metadata':
+                # Filter based on content type
+                if content_type == 'video':
+                    content_qs = content_qs.filter(
+                        Q(videometa__duration_seconds__isnull=True) |
+                        Q(description_ar__isnull=True) | Q(description_ar='') |
+                        ~Q(tags__isnull=False)
+                    )
+                elif content_type == 'audio':
+                    content_qs = content_qs.filter(
+                        Q(audiometa__duration_seconds__isnull=True) |
+                        Q(description_ar__isnull=True) | Q(description_ar='') |
+                        ~Q(tags__isnull=False)
+                    )
+                elif content_type == 'pdf':
+                    content_qs = content_qs.filter(
+                        Q(pdfmeta__page_count__isnull=True) |
+                        Q(description_ar__isnull=True) | Q(description_ar='') |
+                        ~Q(tags__isnull=False)
+                    )
+        
         content_qs = content_qs.order_by('-created_at')
         
         # Pagination

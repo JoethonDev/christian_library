@@ -15,6 +15,36 @@
     </div>
 </div>
 
+<!-- Filter Bar -->
+<div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="{% trans 'Search videos...' %}" value="{{ filters.search }}">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">{% trans "All Status" %}</option>
+                    <option value="active" {% if filters.status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
+                    <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>{% trans "Inactive" %}</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="missing_data" class="form-select">
+                    <option value="">{% trans "All Data" %}</option>
+                    <option value="no_seo" {% if filters.missing_data == 'no_seo' %}selected{% endif %}>{% trans "Missing SEO" %}</option>
+                    <option value="no_metadata" {% if filters.missing_data == 'no_metadata' %}selected{% endif %}>{% trans "Missing Metadata" %}</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-1"></i>{% trans "Filter" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -30,7 +60,7 @@
             </thead>
             <tbody>
                 {% for video in videos %}
-                <tr>
+                <tr x-data="{ autoFilling: false }">
                     <td class="ps-4 py-3">
                         <div class="d-flex align-items-center">
                             <div class="video-thumbnail me-3 rounded overflow-hidden position-relative" style="width: 80px; height: 50px; background-color: #f8f9fa;">
@@ -46,6 +76,16 @@
                                 <div class="fw-bold text-dark">{{ video.title_ar }}</div>
                                 {% if video.title_en %}
                                     <div class="small text-muted">{{ video.title_en }}</div>
+                                {% endif %}
+                                {% if not video.videometa.has_seo %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>{% trans "No SEO" %}
+                                    </span>
+                                {% endif %}
+                                {% if not video.videometa.has_metadata %}
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
+                                        <i class="bi bi-info-circle me-1"></i>{% trans "Incomplete" %}
+                                    </span>
                                 {% endif %}
                             </div>
                         </div>
@@ -102,6 +142,15 @@
                     </td>
                     <td class="text-end pe-4">
                         <div class="btn-group">
+                            {% if not video.videometa.has_seo %}
+                            <button type="button" 
+                                    class="btn btn-sm btn-warning text-white" 
+                                    title="{% trans 'Auto-Fill SEO' %}"
+                                    @click="autoFillMetadata('{{ video.id }}', $event.target)"
+                                    :disabled="autoFilling">
+                                <i class="bi" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                            </button>
+                            {% endif %}
                             <a href="{% url 'frontend_api:admin_content_detail' video.id %}" 
                                class="btn btn-sm btn-light" 
                                title="{% trans 'Edit' %}">
@@ -122,7 +171,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="text-center py-5 text-muted">
+                    <td colspan="6" class="text-center py-5 text-muted">
                         <div class="mb-3">
                             <i class="bi bi-camera-video display-4 text-secondary opacity-50"></i>
                         </div>
@@ -166,6 +215,39 @@ function toggleStatus(contentId, checkbox) {
     .catch(error => {
         checkbox.disabled = false;
         checkbox.checked = !checkbox.checked;
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function autoFillMetadata(contentId, button) {
+    const row = button.closest('tr');
+    const alpineData = Alpine.$data(row);
+    alpineData.autoFilling = true;
+    
+    fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            content_id: contentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('{% trans "Auto-fill started! Processing in background..." %}', 'success');
+            // Reload page after 3 seconds to show updated status
+            setTimeout(() => window.location.reload(), 3000);
+        } else {
+            alpineData.autoFilling = false;
+            showToast(data.error || '{% trans "Failed to start auto-fill" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        alpineData.autoFilling = false;
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
