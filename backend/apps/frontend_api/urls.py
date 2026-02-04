@@ -47,6 +47,8 @@ urlpatterns = [
     path('dashboard/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
     path('dashboard/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
     path('dashboard/upload/generate-from-file/', admin_views.generate_metadata_from_file, name='generate_metadata_from_file'),
+    path('dashboard/upload/generate-metadata-only/', admin_views.generate_metadata_only, name='generate_metadata_only'),
+    path('dashboard/upload/generate-seo-only/', admin_views.generate_seo_only, name='generate_seo_only'),
     
     # Content type specific management (at /en/dashboard/videos/, etc.)
     path('dashboard/videos/', admin_views.video_management, name='video_management'),

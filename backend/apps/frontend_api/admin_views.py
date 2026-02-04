@@ -667,3 +667,127 @@ def get_r2_storage_usage(request):
             'object_count': 0
         })
 
+
+def generate_metadata_only(request):
+    """Generate metadata only from uploaded file (new separated endpoint)"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'})
+    
+    try:
+        from core.services.gemini_metadata_service import get_gemini_metadata_service
+        
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return JsonResponse({'success': False, 'error': 'File required'})
+        
+        # Get content type from file or request
+        content_type = request.POST.get('content_type', '')
+        if not content_type:
+            # Determine content type from file extension
+            file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else ''
+            if file_extension in ['mp4', 'avi', 'mov', 'mkv']:
+                content_type = 'video'
+            elif file_extension in ['mp3', 'wav', 'flac', 'm4a']:
+                content_type = 'audio'
+            elif file_extension in ['pdf']:
+                content_type = 'pdf'
+            else:
+                return JsonResponse({'success': False, 'error': 'Unsupported file type'})
+        
+        # Use Gemini metadata service
+        metadata_service = get_gemini_metadata_service()
+        if not metadata_service.is_available():
+            return JsonResponse({'success': False, 'error': 'AI service not available'})
+        
+        # Save file temporarily for processing
+        file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
+            for chunk in file_obj.chunks():
+                temp_file.write(chunk)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Generate metadata using the temporary file
+            success, metadata = metadata_service.generate_metadata(temp_file_path, content_type)
+            
+            if success and metadata:
+                return JsonResponse({
+                    'success': True,
+                    'metadata': metadata
+                })
+            else:
+                error_msg = metadata.get('error', 'Failed to generate metadata') if isinstance(metadata, dict) else 'Failed to generate metadata'
+                return JsonResponse({'success': False, 'error': error_msg})
+                
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+                
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def generate_seo_only(request):
+    """Generate SEO metadata only from uploaded file (new separated endpoint)"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'})
+    
+    try:
+        from core.services.gemini_seo_service import get_gemini_seo_service
+        
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return JsonResponse({'success': False, 'error': 'File required'})
+        
+        # Get content type from file or request
+        content_type = request.POST.get('content_type', '')
+        if not content_type:
+            # Determine content type from file extension
+            file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else ''
+            if file_extension in ['mp4', 'avi', 'mov', 'mkv']:
+                content_type = 'video'
+            elif file_extension in ['mp3', 'wav', 'flac', 'm4a']:
+                content_type = 'audio'
+            elif file_extension in ['pdf']:
+                content_type = 'pdf'
+            else:
+                return JsonResponse({'success': False, 'error': 'Unsupported file type'})
+        
+        # Use Gemini SEO service
+        seo_service = get_gemini_seo_service()
+        if not seo_service.is_available():
+            return JsonResponse({'success': False, 'error': 'AI service not available'})
+        
+        # Save file temporarily for processing
+        file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
+            for chunk in file_obj.chunks():
+                temp_file.write(chunk)
+            temp_file_path = temp_file.name
+        
+        try:
+            # Generate SEO metadata using the temporary file
+            success, seo_data = seo_service.generate_seo(temp_file_path, content_type)
+            
+            if success and seo_data:
+                return JsonResponse({
+                    'success': True,
+                    'seo': seo_data
+                })
+            else:
+                error_msg = seo_data.get('error', 'Failed to generate SEO metadata') if isinstance(seo_data, dict) else 'Failed to generate SEO metadata'
+                return JsonResponse({'success': False, 'error': error_msg})
+                
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_file_path)
+            except:
+                pass
+                
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
