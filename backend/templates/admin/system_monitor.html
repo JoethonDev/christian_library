@@ -48,25 +48,40 @@
                          style="width: {{ disk_usage.percentage }}%"></div>
                 </div>
                 
-                <div class="row g-3">
-                    <div class="col-md-4">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
                         <div class="p-3 bg-light rounded-3 text-center">
                             <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Originals" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.original|filesizeformat }}</div>
+                            <div class="fw-bold text-dark">{{ storage_breakdown.original.size|filesizeformat }}</div>
+                            <small class="text-muted">{{ storage_breakdown.original.count }} {% trans "files" %}</small>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="p-3 bg-light rounded-3 text-center">
                             <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "HLS Media" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.hls|filesizeformat }}</div>
+                            <div class="fw-bold text-dark">{{ storage_breakdown.hls.size|filesizeformat }}</div>
+                            <small class="text-muted">{{ storage_breakdown.hls.count }} {% trans "files" %}</small>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="p-3 bg-light rounded-3 text-center">
                             <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Optimized" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.optimized|filesizeformat }}</div>
+                            <div class="fw-bold text-dark">{{ storage_breakdown.optimized.size|filesizeformat }}</div>
+                            <small class="text-muted">{{ storage_breakdown.optimized.count }} {% trans "files" %}</small>
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="p-3 bg-light rounded-3 text-center">
+                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Compressed" %}</div>
+                            <div class="fw-bold text-dark">{{ storage_breakdown.compressed.size|filesizeformat }}</div>
+                            <small class="text-muted">{{ storage_breakdown.compressed.count }} {% trans "files" %}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center text-muted small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    {% trans "Total disk usage:" %} {{ disk_usage.used|filesizeformat }} / {{ disk_usage.total|filesizeformat }}
                 </div>
             </div>
         </div>
@@ -94,41 +109,108 @@ function runAction(action) {
 <!-- R2 Storage -->
 {% if r2_enabled %}
 <div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-transparent border-0 py-3 px-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
             <i class="bi bi-cloud me-2 text-primary"></i>
             {% trans "Cloud Storage (R2)" %}
         </h6>
+        <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="refreshR2Stats()">
+            <i class="bi bi-arrow-clockwise me-1"></i>{% trans "Refresh" %}
+        </button>
     </div>
     <div class="card-body p-4 pt-0">
-        <div class="row g-4 text-center">
-            <div class="col-6 col-md-3">
-                <div class="p-3">
-                    <div class="h3 fw-bold text-success mb-1">{{ r2_stats.total.completed }}</div>
-                    <div class="small text-muted text-uppercase fw-bold">{% trans "Synced" %}</div>
+        <div class="row g-3 mb-3">
+            <!-- Storage Size and Object Count -->
+            <div class="col-md-3">
+                <div class="p-3 bg-primary bg-opacity-10 rounded-3 text-center">
+                    <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Total Size" %}</div>
+                    <div class="h4 fw-bold text-primary mb-0" id="r2-total-size">
+                        {% if r2_stats.storage.success %}
+                            {{ r2_stats.storage.total_size_gb }} GB
+                        {% else %}
+                            <span class="small text-muted">{% trans "N/A" %}</span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="p-3">
-                    <div class="h3 fw-bold text-warning mb-1">{{ r2_stats.total.pending }}</div>
-                    <div class="small text-muted text-uppercase fw-bold">{% trans "Pending" %}</div>
+            <div class="col-md-3">
+                <div class="p-3 bg-success bg-opacity-10 rounded-3 text-center">
+                    <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Objects" %}</div>
+                    <div class="h4 fw-bold text-success mb-0" id="r2-object-count">
+                        {% if r2_stats.storage.success %}
+                            {{ r2_stats.storage.object_count|default:0 }}
+                        {% else %}
+                            <span class="small text-muted">{% trans "N/A" %}</span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="p-3">
-                    <div class="h3 fw-bold text-info mb-1">{{ r2_stats.total.uploading }}</div>
-                    <div class="small text-muted text-uppercase fw-bold">{% trans "Uploading" %}</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="p-3">
-                    <div class="h3 fw-bold text-danger mb-1">{{ r2_stats.total.failed }}</div>
-                    <div class="small text-muted text-uppercase fw-bold">{% trans "Failed" %}</div>
+            
+            <!-- Upload Status -->
+            <div class="col-md-6">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="p-2 text-center">
+                            <div class="h5 fw-bold text-success mb-0">{{ r2_stats.total.completed|default:0 }}</div>
+                            <div class="small text-muted text-uppercase fw-bold">{% trans "Synced" %}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 text-center">
+                            <div class="h5 fw-bold text-warning mb-0">{{ r2_stats.total.pending|default:0 }}</div>
+                            <div class="small text-muted text-uppercase fw-bold">{% trans "Pending" %}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 text-center">
+                            <div class="h5 fw-bold text-info mb-0">{{ r2_stats.total.uploading|default:0 }}</div>
+                            <div class="small text-muted text-uppercase fw-bold">{% trans "Uploading" %}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 text-center">
+                            <div class="h5 fw-bold text-danger mb-0">{{ r2_stats.total.failed|default:0 }}</div>
+                            <div class="small text-muted text-uppercase fw-bold">{% trans "Failed" %}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
+        
+        {% if r2_stats.storage.last_updated %}
+        <div class="text-center text-muted small">
+            <i class="bi bi-clock me-1"></i>
+            {% trans "Last updated:" %} {{ r2_stats.storage.last_updated }}
+        </div>
+        {% endif %}
     </div>
 </div>
+
+<script>
+function refreshR2Stats() {
+    // Show loading state
+    document.getElementById('r2-total-size').innerHTML = '<div class="spinner-border spinner-border-sm"></div>';
+    document.getElementById('r2-object-count').innerHTML = '<div class="spinner-border spinner-border-sm"></div>';
+    
+    // Fetch fresh R2 stats
+    fetch('{% url "frontend_api:api_r2_storage_usage" %}?refresh=true')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('r2-total-size').textContent = data.total_size_gb + ' GB';
+                document.getElementById('r2-object-count').textContent = data.object_count;
+            } else {
+                document.getElementById('r2-total-size').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
+                document.getElementById('r2-object-count').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing R2 stats:', error);
+            document.getElementById('r2-total-size').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
+            document.getElementById('r2-object-count').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
+        });
+}
+</script>
 {% endif %}
 
 <!-- Active Tasks -->
@@ -146,57 +228,131 @@ function runAction(action) {
             <table class="table table-hover align-middle mb-0">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4 border-0 text-secondary text-uppercase small fw-bold">{% trans "Task" %}</th>
+                        <th class="ps-4 border-0 text-secondary text-uppercase small fw-bold" style="width: 30px;"></th>
+                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Task" %}</th>
                         <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Progress" %}</th>
                         <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Status" %}</th>
-                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Logs" %}</th>
                         <th class="pe-4 border-0 text-end text-secondary text-uppercase small fw-bold">{% trans "Updated" %}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for task in task_monitor.active_tasks %}
-                    <tr x-data="{ logOpen: false }">
+                    <tr class="task-row" data-task-id="{{ forloop.counter }}">
                         <td class="ps-4">
+                            <button class="btn btn-sm btn-light rounded-circle toggle-logs" 
+                                    onclick="toggleTaskLogs('{{ forloop.counter }}')"
+                                    title="{% trans 'Show/Hide Logs' %}">
+                                <i class="bi bi-chevron-right" id="icon-{{ forloop.counter }}"></i>
+                            </button>
+                        </td>
+                        <td>
                             <div class="fw-semibold text-dark">{{ task.task_name }}</div>
-                            <small class="text-muted">{{ task.task_id|truncatechars:12 }}</small>
+                            <small class="text-muted">{{ task.task_id|truncatechars:16 }}</small>
                         </td>
                         <td>
                             <div class="d-flex align-items-center" style="width: 150px;">
                                 <div class="progress flex-grow-1 me-2" style="height: 6px;">
-                                    <div class="progress-bar" style="width: {{ task.progress }}%"></div>
+                                    <div class="progress-bar 
+                                        {% if task.progress >= 100 %}bg-success
+                                        {% elif task.progress >= 50 %}bg-info
+                                        {% else %}bg-primary{% endif %}" 
+                                        style="width: {{ task.progress|default:0 }}%"></div>
                                 </div>
-                                <span class="small fw-bold">{{ task.progress }}%</span>
+                                <span class="small fw-bold">{{ task.progress|default:0 }}%</span>
                             </div>
-                            <small class="text-muted d-block mt-1">{{ task.state }}</small>
-                        </td>
-                        <td>
-                            {% if task.status == 'STARTED' %}
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">Running</span>
-                            {% elif task.status == 'FAILURE' %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">Failed</span>
-                            {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">{{ task.status }}</span>
+                            {% if task.current_step %}
+                            <small class="text-muted d-block mt-1">{{ task.current_step }}</small>
                             {% endif %}
                         </td>
                         <td>
-                            <button @click="logOpen = !logOpen" class="btn btn-sm btn-light rounded-pill">
-                                <i class="bi" :class="logOpen ? 'bi-chevron-up' : 'bi-journal-text'"></i>
-                            </button>
-                            <template x-if="logOpen">
-                                <div class="position-absolute bg-dark text-light p-3 rounded shadow-lg z-3 mt-2" style="width: 400px; max-height: 200px; overflow-y: auto; right: 100px; font-family: monospace; font-size: 0.75rem;">
-                                    <div class="d-flex justify-content-between mb-2">
-                                        <span class="text-warning">{% trans "Task Logs" %}</span>
-                                        <span class="text-muted">{{ task.task_id }}</span>
-                                    </div>
-                                    <div class="log-content">
-                                        {{ task.logs|default:"No logs available yet..."|linebreaksbr }}
-                                        {% if task.error %}<div class="text-danger mt-1">Error: {{ task.error }}</div>{% endif %}
-                                    </div>
-                                </div>
-                            </template>
+                            {% if task.current_status == 'STARTED' or task.status == 'STARTED' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
+                                    <i class="bi bi-play-circle me-1"></i>Running
+                                </span>
+                            {% elif task.current_status == 'SUCCESS' or task.status == 'SUCCESS' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                                    <i class="bi bi-check-circle me-1"></i>Success
+                                </span>
+                            {% elif task.current_status == 'FAILURE' or task.status == 'FAILURE' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">
+                                    <i class="bi bi-x-circle me-1"></i>Failed
+                                </span>
+                            {% elif task.current_status == 'RETRY' or task.status == 'RETRY' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Retry
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">
+                                    {{ task.current_status|default:task.status }}
+                                </span>
+                            {% endif %}
                         </td>
                         <td class="pe-4 text-end text-muted small">
-                            {{ task.date_done|time:"H:i" }}
+                            {% if task.updated_at %}
+                                {{ task.updated_at }}
+                            {% elif task.date_done %}
+                                {{ task.date_done|time:"H:i" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Expandable Log Row -->
+                    <tr class="task-logs-row" id="logs-{{ forloop.counter }}" style="display: none;">
+                        <td colspan="5" class="p-0">
+                            <div class="bg-dark text-light p-4" style="font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <i class="bi bi-journal-code text-warning me-2"></i>
+                                        <span class="text-warning fw-bold">{% trans "Task Logs" %}</span>
+                                    </div>
+                                    <small class="text-muted">Task ID: {{ task.task_id }}</small>
+                                </div>
+                                
+                                {% if task.logs %}
+                                    <div class="logs-content" style="max-height: 300px; overflow-y: auto;">
+                                        {% for log in task.logs %}
+                                        <div class="log-entry mb-2 pb-2 border-bottom border-secondary">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <span class="text-info">[{{ log.timestamp|default:"N/A" }}]</span>
+                                                    {% if log.step %}
+                                                    <span class="badge bg-primary-subtle text-primary mx-2">{{ log.step }}</span>
+                                                    {% endif %}
+                                                    {% if log.progress %}
+                                                    <span class="text-success">({{ log.progress }}%)</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="mt-1 text-light">{{ log.message }}</div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted text-center py-3">
+                                        <i class="bi bi-inbox me-2"></i>
+                                        {% trans "No logs available yet..." %}
+                                    </div>
+                                {% endif %}
+                                
+                                {% if task.error %}
+                                <div class="mt-3 p-3 bg-danger bg-opacity-25 rounded">
+                                    <div class="text-danger fw-bold mb-1">
+                                        <i class="bi bi-exclamation-triangle me-2"></i>Error:
+                                    </div>
+                                    <div class="text-light">{{ task.error }}</div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if task.result %}
+                                <div class="mt-3 p-3 bg-success bg-opacity-25 rounded">
+                                    <div class="text-success fw-bold mb-1">
+                                        <i class="bi bi-check-circle me-2"></i>Result:
+                                    </div>
+                                    <div class="text-light">{{ task.result.message|default:task.result }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -211,4 +367,21 @@ function runAction(action) {
         {% endif %}
     </div>
 </div>
+
+<script>
+function toggleTaskLogs(taskId) {
+    const logsRow = document.getElementById('logs-' + taskId);
+    const icon = document.getElementById('icon-' + taskId);
+    
+    if (logsRow.style.display === 'none') {
+        logsRow.style.display = 'table-row';
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-down');
+    } else {
+        logsRow.style.display = 'none';
+        icon.classList.remove('bi-chevron-down');
+        icon.classList.add('bi-chevron-right');
+    }
+}
+</script>
 {% endblock %}

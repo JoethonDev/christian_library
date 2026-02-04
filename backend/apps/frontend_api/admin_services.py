@@ -7,8 +7,12 @@ from django.db.models import QuerySet, Q, Count
 from django.db import models
 from django.core.paginator import Paginator
 from django.utils.translation import get_language
+from django.conf import settings
+import os
+import shutil
+from pathlib import Path
 
-from apps.media_manager.models import ContentItem, VideoMeta, Tag
+from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
 from apps.frontend_api.services import ContentLanguageProcessor
 
 
@@ -77,7 +81,7 @@ class AdminService:
             **task_data,
         }
     
-    def _get_live_task_data(self) -> Dict:
+    def _get_live_task_data(self) -> Dict[str, Any]:
         """Get real-time task monitoring data (not cached)"""
         try:
             task_stats = TaskMonitor.get_task_stats()
@@ -86,14 +90,15 @@ class AdminService:
             return {
                 'task_stats': task_stats,
                 'active_tasks': active_tasks[:10],  # Latest 10 tasks
-                'total_active_tasks': len(active_tasks),
+                'has_tasks': len(active_tasks) > 0,
             }
         except Exception as e:
-            logger.error(f"Error getting task data: {e}")
+            import logging
+            logging.getLogger(__name__).error(f"Error getting task data: {e}")
             return {
                 'task_stats': {},
                 'active_tasks': [],
-                'total_active_tasks': 0,
+                'has_tasks': False,
             }
     
     def get_content_list(
@@ -335,30 +340,185 @@ class AdminService:
         # Get live task monitoring data
         task_data = self._get_live_task_data()
         
+        # Get disk usage information
+        disk_usage = self._get_disk_usage()
+        
+        # Get storage breakdown by type
+        storage_breakdown = self._get_storage_breakdown()
+        
+        # Get R2 storage stats
+        r2_enabled = getattr(settings, 'R2_ENABLED', False)
+        r2_stats = self._get_r2_stats() if r2_enabled else {}
+        
         return {
             'processing_stats': processing_stats,
             'content_stats': content_stats,
             'recent_activity': processed_activity,
-            'task_monitor': task_data
+            'task_monitor': task_data,
+            'disk_usage': disk_usage,
+            'storage_breakdown': storage_breakdown,
+            'r2_enabled': r2_enabled,
+            'r2_stats': r2_stats,
         }
     
-    def _get_live_task_data(self) -> Dict[str, Any]:
-        """Get live task monitoring data for system dashboard"""
+    def _get_disk_usage(self) -> Dict[str, Any]:
+        """Get disk usage statistics for media root"""
         try:
-            active_tasks = TaskMonitor.get_active_tasks()
-            task_stats = TaskMonitor.get_task_stats()
+            media_root = settings.MEDIA_ROOT
+            if not os.path.exists(media_root):
+                return {
+                    'total': 0,
+                    'used': 0,
+                    'free': 0,
+                    'percentage': 0
+                }
+            
+            # Get disk usage for the media root partition
+            stat = shutil.disk_usage(media_root)
             
             return {
-                'active_tasks': active_tasks[:5],  # Show only latest 5
-                'task_stats': task_stats,
-                'has_tasks': len(active_tasks) > 0
+                'total': stat.total,
+                'used': stat.used,
+                'free': stat.free,
+                'percentage': int((stat.used / stat.total) * 100) if stat.total > 0 else 0
             }
         except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error getting disk usage: {e}")
             return {
-                'active_tasks': [],
-                'task_stats': {},
-                'has_tasks': False,
-                'error': str(e)
+                'total': 0,
+                'used': 0,
+                'free': 0,
+                'percentage': 0
+            }
+    
+    def _get_storage_breakdown(self) -> Dict[str, Any]:
+        """Get storage breakdown by media type with file counts"""
+        try:
+            media_root = Path(settings.MEDIA_ROOT)
+            
+            breakdown = {
+                'original': {'size': 0, 'count': 0},
+                'hls': {'size': 0, 'count': 0},
+                'optimized': {'size': 0, 'count': 0},
+                'compressed': {'size': 0, 'count': 0},
+            }
+            
+            # Calculate original files
+            original_dirs = ['original/videos', 'original/audio', 'original/pdf']
+            for dir_path in original_dirs:
+                full_path = media_root / dir_path
+                if full_path.exists():
+                    size, count = self._get_directory_size_and_count(full_path)
+                    breakdown['original']['size'] += size
+                    breakdown['original']['count'] += count
+            
+            # Calculate HLS files
+            hls_path = media_root / 'hls'
+            if hls_path.exists():
+                size, count = self._get_directory_size_and_count(hls_path)
+                breakdown['hls']['size'] = size
+                breakdown['hls']['count'] = count
+            
+            # Calculate optimized files
+            optimized_dirs = ['optimized/pdf']
+            for dir_path in optimized_dirs:
+                full_path = media_root / dir_path
+                if full_path.exists():
+                    size, count = self._get_directory_size_and_count(full_path)
+                    breakdown['optimized']['size'] += size
+                    breakdown['optimized']['count'] += count
+            
+            # Calculate compressed files
+            compressed_dirs = ['compressed/audio']
+            for dir_path in compressed_dirs:
+                full_path = media_root / dir_path
+                if full_path.exists():
+                    size, count = self._get_directory_size_and_count(full_path)
+                    breakdown['compressed']['size'] += size
+                    breakdown['compressed']['count'] += count
+            
+            return breakdown
+            
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error getting storage breakdown: {e}")
+            return {
+                'original': {'size': 0, 'count': 0},
+                'hls': {'size': 0, 'count': 0},
+                'optimized': {'size': 0, 'count': 0},
+                'compressed': {'size': 0, 'count': 0},
+            }
+    
+    def _get_directory_size_and_count(self, directory: Path) -> Tuple[int, int]:
+        """Get total size and file count for a directory recursively"""
+        total_size = 0
+        file_count = 0
+        
+        try:
+            for entry in directory.rglob('*'):
+                if entry.is_file():
+                    total_size += entry.stat().st_size
+                    file_count += 1
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error calculating directory size for {directory}: {e}")
+        
+        return total_size, file_count
+    
+    def _get_r2_stats(self) -> Dict[str, Any]:
+        """Get R2 storage statistics including size and file count"""
+        try:
+            from core.services.r2_storage_service import get_r2_storage_service
+            
+            # Get R2 storage usage
+            r2_service = get_r2_storage_service()
+            usage_data = r2_service.get_bucket_usage(use_cache=True)
+            
+            # Get R2 upload status counts from database
+            video_stats = VideoMeta.objects.aggregate(
+                completed=Count('id', filter=Q(r2_upload_status='completed')),
+                pending=Count('id', filter=Q(r2_upload_status='pending')),
+                uploading=Count('id', filter=Q(r2_upload_status='uploading')),
+                failed=Count('id', filter=Q(r2_upload_status='failed'))
+            )
+            
+            audio_stats = AudioMeta.objects.aggregate(
+                completed=Count('id', filter=Q(r2_upload_status='completed')),
+                pending=Count('id', filter=Q(r2_upload_status='pending')),
+                uploading=Count('id', filter=Q(r2_upload_status='uploading')),
+                failed=Count('id', filter=Q(r2_upload_status='failed'))
+            )
+            
+            pdf_stats = PdfMeta.objects.aggregate(
+                completed=Count('id', filter=Q(r2_upload_status='completed')),
+                pending=Count('id', filter=Q(r2_upload_status='pending')),
+                uploading=Count('id', filter=Q(r2_upload_status='uploading')),
+                failed=Count('id', filter=Q(r2_upload_status='failed'))
+            )
+            
+            # Combine stats
+            total_stats = {
+                'completed': (video_stats['completed'] or 0) + (audio_stats['completed'] or 0) + (pdf_stats['completed'] or 0),
+                'pending': (video_stats['pending'] or 0) + (audio_stats['pending'] or 0) + (pdf_stats['pending'] or 0),
+                'uploading': (video_stats['uploading'] or 0) + (audio_stats['uploading'] or 0) + (pdf_stats['uploading'] or 0),
+                'failed': (video_stats['failed'] or 0) + (audio_stats['failed'] or 0) + (pdf_stats['failed'] or 0),
+            }
+            
+            return {
+                'total': total_stats,
+                'video': video_stats,
+                'audio': audio_stats,
+                'pdf': pdf_stats,
+                'storage': usage_data,  # Contains total_size_gb, object_count, etc.
+            }
+            
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Error getting R2 stats: {e}")
+            return {
+                'total': {'completed': 0, 'pending': 0, 'uploading': 0, 'failed': 0},
+                'storage': {'success': False, 'total_size_gb': 0, 'object_count': 0},
             }
     
     def toggle_content_status(self, content_id: str) -> Tuple[bool, str]:

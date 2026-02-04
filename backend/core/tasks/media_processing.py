@@ -603,12 +603,14 @@ def upload_video_to_r2(self, video_meta_id):
                 finalize_media_processing.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'failed'
+                video_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
                 logger.error(f"Failed to upload video {video_meta_id} to R2")
         else:
             # No HLS files to upload, but original might have been uploaded
             logger.warning(f"No HLS files found for video {video_meta_id}")
             if video_meta.r2_original_file_url:
                 video_meta.r2_upload_status = 'completed'
+                video_meta.r2_upload_progress = 100
                 
                 # Issue 3: Automatic Activation After R2 Upload
                 content_item = video_meta.content_item
@@ -622,6 +624,7 @@ def upload_video_to_r2(self, video_meta_id):
                 finalize_media_processing.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'local_only'
+                video_meta.r2_upload_progress = 100  # Mark as complete for local-only storage
         
         video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
         
@@ -632,11 +635,12 @@ def upload_video_to_r2(self, video_meta_id):
     except Exception as exc:
         logger.error(f"R2 upload failed for video {video_meta_id}: {str(exc)}", exc_info=True)
         
-        # Update status to failed
+        # Update status to failed with 100% progress to unblock UI
         try:
             video_meta = VideoMeta.objects.get(id=video_meta_id)
             video_meta.r2_upload_status = 'failed'
-            video_meta.save(update_fields=['r2_upload_status'])
+            video_meta.r2_upload_progress = 100  # Always set to 100% on final failure
+            video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
         except:
             pass
             
@@ -645,8 +649,16 @@ def upload_video_to_r2(self, video_meta_id):
             countdown = 60 * (2 ** self.request.retries)
             self.retry(countdown=countdown)
         except self.MaxRetriesExceededError:
-            logger.error(f"Max retries exceeded for video {video_meta_id} R2 upload")
-            return {'status': 'failed', 'message': 'Max retries exceeded'}
+            logger.error(f"Max retries exceeded for video {video_meta_id} R2 upload. Progress set to 100%.")
+            # Ensure progress is 100% on max retries exceeded
+            try:
+                video_meta = VideoMeta.objects.get(id=video_meta_id)
+                video_meta.r2_upload_status = 'failed'
+                video_meta.r2_upload_progress = 100
+                video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+            except:
+                pass
+            return {'status': 'failed', 'message': 'Max retries exceeded', 'progress': 100}
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -696,6 +708,7 @@ def upload_audio_to_r2(self, audio_meta_id):
             finalize_media_processing.delay(str(content_item.id))
         else:
             audio_meta.r2_upload_status = 'failed'
+            audio_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
             logger.error(f"Failed to upload audio {audio_meta_id} to R2")
         
         audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
@@ -707,11 +720,12 @@ def upload_audio_to_r2(self, audio_meta_id):
     except Exception as exc:
         logger.error(f"R2 upload failed for audio {audio_meta_id}: {str(exc)}", exc_info=True)
         
-        # Update status to failed
+        # Update status to failed with 100% progress to unblock UI
         try:
             audio_meta = AudioMeta.objects.get(id=audio_meta_id)
             audio_meta.r2_upload_status = 'failed'
-            audio_meta.save(update_fields=['r2_upload_status'])
+            audio_meta.r2_upload_progress = 100  # Always set to 100% on final failure
+            audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
         except:
             pass
             
@@ -720,8 +734,16 @@ def upload_audio_to_r2(self, audio_meta_id):
             countdown = 60 * (2 ** self.request.retries)
             self.retry(countdown=countdown)
         except self.MaxRetriesExceededError:
-            logger.error(f"Max retries exceeded for audio {audio_meta_id} R2 upload")
-            return {'status': 'failed', 'message': 'Max retries exceeded'}
+            logger.error(f"Max retries exceeded for audio {audio_meta_id} R2 upload. Progress set to 100%.")
+            # Ensure progress is 100% on max retries exceeded
+            try:
+                audio_meta = AudioMeta.objects.get(id=audio_meta_id)
+                audio_meta.r2_upload_status = 'failed'
+                audio_meta.r2_upload_progress = 100
+                audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+            except:
+                pass
+            return {'status': 'failed', 'message': 'Max retries exceeded', 'progress': 100}
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
@@ -774,6 +796,7 @@ def upload_pdf_to_r2(self, pdf_meta_id):
             finalize_media_processing.delay(str(content_item.id))
         else:
             pdf_meta.r2_upload_status = 'failed'
+            pdf_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
             logger.error(f"Failed to upload PDF {pdf_meta_id} to R2")
         
         pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
@@ -785,11 +808,12 @@ def upload_pdf_to_r2(self, pdf_meta_id):
     except Exception as exc:
         logger.error(f"R2 upload failed for PDF {pdf_meta_id}: {str(exc)}", exc_info=True)
         
-        # Update status to failed
+        # Update status to failed with 100% progress to unblock UI
         try:
             pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
             pdf_meta.r2_upload_status = 'failed'
-            pdf_meta.save(update_fields=['r2_upload_status'])
+            pdf_meta.r2_upload_progress = 100  # Always set to 100% on final failure
+            pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
         except:
             pass
             
@@ -798,5 +822,13 @@ def upload_pdf_to_r2(self, pdf_meta_id):
             countdown = 60 * (2 ** self.request.retries)
             self.retry(countdown=countdown)
         except self.MaxRetriesExceededError:
-            logger.error(f"Max retries exceeded for PDF {pdf_meta_id} R2 upload")
-            return {'status': 'failed', 'message': 'Max retries exceeded'}
+            logger.error(f"Max retries exceeded for PDF {pdf_meta_id} R2 upload. Progress set to 100%.")
+            # Ensure progress is 100% on max retries exceeded
+            try:
+                pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
+                pdf_meta.r2_upload_status = 'failed'
+                pdf_meta.r2_upload_progress = 100
+                pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+            except:
+                pass
+            return {'status': 'failed', 'message': 'Max retries exceeded', 'progress': 100}

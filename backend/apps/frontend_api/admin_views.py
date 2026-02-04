@@ -627,3 +627,43 @@ def generate_metadata_from_file(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
+
+@login_required
+def get_r2_storage_usage(request):
+    """
+    Get R2 bucket storage usage statistics for admin dashboard.
+    Returns cached data by default (5 minute cache).
+    Use ?refresh=true to force refresh.
+    """
+    try:
+        from core.services.r2_storage_service import get_r2_storage_service
+        
+        # Check if user has permission (staff or superuser)
+        if not request.user.is_staff:
+            return JsonResponse({
+                'success': False,
+                'error': 'Permission denied. Staff access required.'
+            }, status=403)
+        
+        # Get R2 storage service
+        r2_service = get_r2_storage_service()
+        
+        # Check if refresh is requested
+        refresh = request.GET.get('refresh', 'false').lower() == 'true'
+        use_cache = not refresh
+        
+        # Get bucket usage
+        usage_data = r2_service.get_bucket_usage(use_cache=use_cache)
+        
+        return JsonResponse(usage_data)
+        
+    except Exception as e:
+        logger.error(f"Error fetching R2 storage usage: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'total_size_bytes': 0,
+            'total_size_gb': 0.0,
+            'object_count': 0
+        })
+
