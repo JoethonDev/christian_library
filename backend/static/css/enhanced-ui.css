@@ -1,0 +1,383 @@
+/* Enhanced UI/UX Improvements - Christian Library */
+/* Addresses visual hierarchy, whitespace, and layout issues */
+
+/* ============================================
+   1. VISUAL HIERARCHY & WHITESPACE
+   ============================================ */
+
+/* Reduce card visual weight - lighter borders and backgrounds */
+.card-coptic {
+    border: none !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border-radius: 12px !important;
+}
+
+/* Increase section spacing for better breathing room */
+.section-spacing {
+    margin-bottom: 2.5rem !important;
+}
+
+@media (min-width: 768px) {
+    .section-spacing {
+        margin-bottom: 3.5rem !important;
+    }
+}
+
+@media (min-width: 992px) {
+    .section-spacing {
+        margin-bottom: 4rem !important;
+    }
+}
+
+/* Lighter card headers */
+.card-header-coptic {
+    background: linear-gradient(135deg, var(--color-maroon) 0%, #6B0000 100%) !important;
+    border: none !important;
+    padding: 0.875rem 1.25rem !important;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+/* Remove nested card borders in related items */
+.card-coptic .card-coptic {
+    box-shadow: none !important;
+    border: 1px solid rgba(221, 153, 51, 0.15) !important;
+}
+
+/* ============================================
+   2. BUTTON IMPROVEMENTS - Better Contrast
+   ============================================ */
+
+/* Make primary buttons more prominent */
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%) !important;
+    border: none !important;
+    box-shadow: 0 2px 8px rgba(128, 0, 0, 0.25) !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+    background: linear-gradient(135deg, #9B0000 0%, var(--color-maroon) 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(128, 0, 0, 0.35) !important;
+}
+
+/* Improve secondary button contrast */
+.btn-secondary {
+    background: var(--color-golden-ochre) !important;
+    color: white !important;
+    border: none !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 6px rgba(221, 153, 51, 0.25) !important;
+}
+
+.btn-secondary:hover {
+    background: #C4862B !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 10px rgba(221, 153, 51, 0.35) !important;
+}
+
+/* ============================================
+   3. STICKY ACTIONS FOR IMPORTANT BUTTONS
+   ============================================ */
+
+/* Sticky download button container on mobile */
+.sticky-actions-mobile {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    z-index: 1000;
+    display: none;
+}
+
+@media (max-width: 991px) {
+    .sticky-actions-mobile {
+        display: block;
+    }
+}
+
+/* ============================================
+   4. RESPONSIVE LAYOUT OPTIMIZATIONS
+   ============================================ */
+
+/* Edge-to-edge players on mobile */
+@media (max-width: 767px) {
+    .player-container {
+        margin-left: -15px !important;
+        margin-right: -15px !important;
+        border-radius: 0 !important;
+    }
+    
+    .player-container .card-body {
+        padding: 0 !important;
+    }
+}
+
+/* Full-width players on desktop */
+@media (min-width: 992px) {
+    .col-lg-8 .player-container {
+        width: 100%;
+    }
+}
+
+/* Better tablet layouts */
+@media (min-width: 768px) and (max-width: 991px) {
+    .tablet-full-width {
+        width: 100% !important;
+    }
+    
+    .tablet-spacing {
+        margin-bottom: 2rem !important;
+    }
+}
+
+/* Reduce excessive vertical stacking on mobile */
+@media (max-width: 767px) {
+    .mobile-compact .card-body {
+        padding: 1rem !important;
+    }
+    
+    .mobile-compact .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+    
+    .mobile-compact .mb-4 {
+        margin-bottom: 1.5rem !important;
+    }
+}
+
+/* ============================================
+   5. TYPOGRAPHY IMPROVEMENTS
+   ============================================ */
+
+/* Increase metadata font size */
+.metadata-text {
+    font-size: 0.95rem !important;
+    color: #666 !important;
+}
+
+@media (min-width: 768px) {
+    .metadata-text {
+        font-size: 1rem !important;
+    }
+}
+
+/* Better heading hierarchy */
+.page-title {
+    font-size: clamp(1.75rem, 5vw, 2.25rem) !important;
+    margin-bottom: 1.5rem !important;
+    line-height: 1.2 !important;
+}
+
+.section-title {
+    font-size: clamp(1.25rem, 3.5vw, 1.5rem) !important;
+    margin-bottom: 1rem !important;
+}
+
+/* ============================================
+   6. RTL IMPROVEMENTS
+   ============================================ */
+
+/* Mirror icons in RTL */
+[dir="rtl"] .bi-arrow-left::before {
+    content: "\f138"; /* arrow-right icon */
+}
+
+[dir="rtl"] .bi-arrow-right::before {
+    content: "\f12f"; /* arrow-left icon */
+}
+
+[dir="rtl"] .me-1,
+[dir="rtl"] .me-2,
+[dir="rtl"] .me-3 {
+    margin-right: 0 !important;
+    margin-left: 0.25rem !important;
+}
+
+[dir="rtl"] .ms-1,
+[dir="rtl"] .ms-2,
+[dir="rtl"] .ms-3 {
+    margin-left: 0 !important;
+    margin-right: 0.25rem !important;
+}
+
+/* ============================================
+   7. CONTAINER & SPACING IMPROVEMENTS
+   ============================================ */
+
+/* More generous max-width on desktop */
+@media (min-width: 1200px) {
+    .container-boxed {
+        max-width: 1280px !important;
+    }
+}
+
+@media (min-width: 1400px) {
+    .container-boxed {
+        max-width: 1400px !important;
+    }
+}
+
+/* Reduce padding on mobile for more content space */
+@media (max-width: 575px) {
+    .container-boxed {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+}
+
+/* ============================================
+   8. PLAYER ENHANCEMENTS
+   ============================================ */
+
+/* Make video player larger and more prominent */
+.video-player-enhanced {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Better aspect ratio on different screens */
+.ratio-16x9 {
+    min-height: 250px;
+}
+
+@media (min-width: 768px) {
+    .ratio-16x9 {
+        min-height: 400px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .ratio-16x9 {
+        min-height: 500px;
+    }
+}
+
+/* ============================================
+   9. SIDEBAR IMPROVEMENTS
+   ============================================ */
+
+/* Make related items more compact on mobile */
+@media (max-width: 991px) {
+    .related-sidebar {
+        margin-top: 2rem;
+    }
+}
+
+/* Better sidebar on desktop */
+@media (min-width: 992px) {
+    .related-sidebar {
+        position: sticky;
+        top: 20px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+    }
+}
+
+/* ============================================
+   10. EMPTY STATES & PLACEHOLDERS
+   ============================================ */
+
+.empty-state {
+    padding: 3rem 1.5rem !important;
+    text-align: center;
+}
+
+.empty-state i {
+    font-size: 3rem !important;
+    opacity: 0.5;
+}
+
+/* ============================================
+   11. BACK BUTTON IMPROVEMENTS
+   ============================================ */
+
+.back-button {
+    background: white !important;
+    border: 1px solid rgba(221, 153, 51, 0.3) !important;
+    color: var(--color-maroon) !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+.back-button:hover {
+    background: var(--color-off-white) !important;
+    border-color: var(--color-golden-ochre) !important;
+    transform: translateX(-4px) !important;
+}
+
+[dir="rtl"] .back-button:hover {
+    transform: translateX(4px) !important;
+}
+
+/* ============================================
+   12. TOUCH TARGET IMPROVEMENTS
+   ============================================ */
+
+/* Ensure all interactive elements meet 44x44px minimum */
+.touch-target {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* ============================================
+   13. LOADING STATES
+   ============================================ */
+
+.loading-overlay {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+}
+
+/* ============================================
+   14. ACCESSIBILITY IMPROVEMENTS
+   ============================================ */
+
+/* Better focus states */
+*:focus-visible {
+    outline: 2px solid var(--color-golden-ochre) !important;
+    outline-offset: 2px !important;
+}
+
+/* Skip to content link */
+.skip-to-content {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--color-maroon);
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    z-index: 100;
+}
+
+.skip-to-content:focus {
+    top: 0;
+}
+
+/* ============================================
+   15. ANIMATION & TRANSITIONS
+   ============================================ */
+
+.smooth-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
