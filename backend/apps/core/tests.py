@@ -370,3 +370,113 @@ class TaskProgressIntegrationTestCase(TestCase):
         # Verify tasks have bind=True (required for self.request.id)
         self.assertTrue(hasattr(generate_seo_metadata_task, 'max_retries'))
         self.assertEqual(generate_seo_metadata_task.max_retries, 2)
+
+
+class SystemMonitorTestCase(TestCase):
+    """Test System Monitor functionality"""
+    
+    def setUp(self):
+        """Set up test data"""
+        from apps.frontend_api.admin_services import AdminService
+        self.admin_service = AdminService()
+    
+    def test_disk_usage_calculation(self):
+        """Test disk usage calculation returns valid data"""
+        disk_usage = self.admin_service._get_disk_usage()
+        
+        # Verify structure
+        self.assertIn('total', disk_usage)
+        self.assertIn('used', disk_usage)
+        self.assertIn('free', disk_usage)
+        self.assertIn('percentage', disk_usage)
+        
+        # Verify types
+        self.assertIsInstance(disk_usage['total'], int)
+        self.assertIsInstance(disk_usage['used'], int)
+        self.assertIsInstance(disk_usage['free'], int)
+        self.assertIsInstance(disk_usage['percentage'], int)
+        
+        # Verify percentage is in valid range
+        self.assertGreaterEqual(disk_usage['percentage'], 0)
+        self.assertLessEqual(disk_usage['percentage'], 100)
+    
+    def test_storage_breakdown_structure(self):
+        """Test storage breakdown returns correct structure"""
+        breakdown = self.admin_service._get_storage_breakdown()
+        
+        # Verify all expected categories exist
+        self.assertIn('original', breakdown)
+        self.assertIn('hls', breakdown)
+        self.assertIn('optimized', breakdown)
+        self.assertIn('compressed', breakdown)
+        
+        # Verify each category has size and count
+        for category in ['original', 'hls', 'optimized', 'compressed']:
+            self.assertIn('size', breakdown[category])
+            self.assertIn('count', breakdown[category])
+            self.assertIsInstance(breakdown[category]['size'], int)
+            self.assertIsInstance(breakdown[category]['count'], int)
+            self.assertGreaterEqual(breakdown[category]['size'], 0)
+            self.assertGreaterEqual(breakdown[category]['count'], 0)
+    
+    @patch('apps.frontend_api.admin_services.settings')
+    def test_r2_stats_disabled(self, mock_settings):
+        """Test R2 stats when R2 is disabled"""
+        mock_settings.R2_ENABLED = False
+        
+        stats = self.admin_service._get_r2_stats()
+        
+        # Should return default structure even when disabled
+        self.assertIn('total', stats)
+        self.assertIn('storage', stats)
+    
+    @patch('apps.frontend_api.admin_services.get_r2_storage_service')
+    @patch('apps.frontend_api.admin_services.settings')
+    def test_r2_stats_enabled(self, mock_settings, mock_r2_service):
+        """Test R2 stats when R2 is enabled"""
+        mock_settings.R2_ENABLED = True
+        
+        # Mock R2 service response
+        mock_service = MagicMock()
+        mock_service.get_bucket_usage.return_value = {
+            'success': True,
+            'total_size_bytes': 1073741824,
+            'total_size_gb': 1.0,
+            'object_count': 100,
+            'last_updated': '2026-02-04T07:00:00Z'
+        }
+        mock_r2_service.return_value = mock_service
+        
+        stats = self.admin_service._get_r2_stats()
+        
+        # Verify structure
+        self.assertIn('total', stats)
+        self.assertIn('storage', stats)
+        self.assertTrue(stats['storage']['success'])
+        self.assertEqual(stats['storage']['total_size_gb'], 1.0)
+        self.assertEqual(stats['storage']['object_count'], 100)
+    
+    def test_system_monitor_data_complete(self):
+        """Test get_system_monitor_data returns all required data"""
+        data = self.admin_service.get_system_monitor_data()
+        
+        # Verify all expected keys exist
+        expected_keys = [
+            'processing_stats',
+            'content_stats',
+            'recent_activity',
+            'task_monitor',
+            'disk_usage',
+            'storage_breakdown',
+            'r2_enabled',
+            'r2_stats'
+        ]
+        
+        for key in expected_keys:
+            self.assertIn(key, data, f"Missing key: {key}")
+        
+        # Verify task_monitor has expected structure
+        self.assertIn('active_tasks', data['task_monitor'])
+        self.assertIn('task_stats', data['task_monitor'])
+        self.assertIn('has_tasks', data['task_monitor'])
+
