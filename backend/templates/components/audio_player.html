@@ -70,7 +70,7 @@
             <!-- Enhanced HTML5 Audio Player -->
             <div class="coptic-audio-wrapper">
                 <audio id="audio-{{ audio.id }}" class="w-100" controls preload="metadata" controlsList="nodownload"
-                       style="border-radius: 12px; height: 60px; background: linear-gradient(135deg, rgba(128, 0, 0, 0.05) 0%, rgba(221, 153, 51, 0.05) 100%); outline: none; border: 1px solid rgba(128, 0, 0, 0.1);">
+                       style="border-radius: 12px; height: 60px; outline: none; color-scheme: light;">
                     <source src="{{ audio.audiometa.get_direct_playback_url }}" type="audio/mpeg">
                     <p class="body-font text-muted mb-0">{% trans "Your browser does not support the audio element." %}</p>
                 </audio>
