@@ -261,10 +261,32 @@ class AdminService:
         
         if filters.get('search'):
             search_query = filters['search']
-            content_qs = content_qs.filter(
-                Q(title_ar__icontains=search_query) |
-                Q(title_en__icontains=search_query)
-            )
+            search_mode = filters.get('search_mode', 'title')
+            
+            if content_type == 'pdf' and search_mode == 'content':
+                # Search within PDF content using PostgreSQL FTS
+                from django.contrib.postgres.search import SearchQuery, SearchRank
+                from django.db import connection
+                
+                if 'postgresql' in connection.settings_dict['ENGINE']:
+                    # Use PostgreSQL FTS with Arabic config
+                    search_query_obj = SearchQuery(search_query, config='arabic')
+                    content_qs = content_qs.filter(
+                        search_vector__isnull=False
+                    ).annotate(
+                        rank=SearchRank(models.F('search_vector'), search_query_obj)
+                    ).filter(
+                        rank__gte=0.1
+                    ).order_by('-rank')
+                else:
+                    # Fallback to simple content search
+                    content_qs = content_qs.filter(book_content__icontains=search_query)
+            else:
+                # Search in titles and descriptions
+                content_qs = content_qs.filter(
+                    Q(title_ar__icontains=search_query) |
+                    Q(title_en__icontains=search_query)
+                )
         
         # Add processing status filter for videos
         if content_type == 'video' and filters.get('processing_status'):

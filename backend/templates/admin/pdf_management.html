@@ -24,7 +24,33 @@
                   hx-swap="innerHTML"
                   hx-trigger="submit, change from:select, keyup delay:500ms from:input[name='search']">
                 <div class="col-md-5">
-                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Search PDFs...' %}" value="{{ filters.search }}">
+                    <div class="input-group">
+                        <input type="text" name="search" class="form-control" placeholder="{% trans 'Search PDFs...' %}" value="{{ filters.search }}">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="setSearchMode('title'); return false;">
+                                    <i class="bi bi-card-heading me-2"></i>{% trans "Search Titles & Descriptions" %}
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" onclick="setSearchMode('content'); return false;">
+                                    <i class="bi bi-file-text me-2"></i>{% trans "Search Within PDF Content" %}
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <input type="hidden" name="search_mode" id="search_mode" value="{{ filters.search_mode|default:'title' }}">
+                    <small class="text-muted" id="search-mode-hint">
+                        {% if filters.search_mode == 'content' %}
+                            <i class="bi bi-file-text"></i> {% trans "Searching within PDF content" %}
+                        {% else %}
+                            <i class="bi bi-card-heading"></i> {% trans "Searching titles and descriptions" %}
+                        {% endif %}
+                    </small>
+                </div>
                 </div>
                 <div class="col-md-3">
                     <select name="status" class="form-select">
@@ -352,6 +378,26 @@ function autoFillMetadata(contentId) {
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
+}
+
+// Search mode toggle
+function setSearchMode(mode) {
+    const searchModeInput = document.getElementById('search_mode');
+    const searchModeHint = document.getElementById('search-mode-hint');
+    
+    searchModeInput.value = mode;
+    
+    if (mode === 'content') {
+        searchModeHint.innerHTML = '<i class="bi bi-file-text"></i> {% trans "Searching within PDF content" %}';
+    } else {
+        searchModeHint.innerHTML = '<i class="bi bi-card-heading"></i> {% trans "Searching titles and descriptions" %}';
+    }
+    
+    // Trigger form submission to update results
+    const form = searchModeInput.closest('form');
+    if (form) {
+        form.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
 }
 </script>
 {% endblock %}

@@ -346,6 +346,7 @@ def pdf_management(request):
     filters = {
         'status': request.GET.get('status', ''),
         'search': request.GET.get('search', '').strip(),
+        'search_mode': request.GET.get('search_mode', 'title'),
         'missing_data': request.GET.get('missing_data', '')
     }
     
