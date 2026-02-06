@@ -178,7 +178,8 @@
                                     title="{% trans 'Auto-Fill SEO' %}"
                                     @click="confirmAutoFill('{{ audio.id }}', '{{ audio.title_ar|escapejs }}')"
                                     :disabled="autoFilling">
-                                <i class="bi" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                                <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                                <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
                             </button>
                             {% endif %}
                             <a href="{% url 'frontend_api:admin_content_detail' audio.id %}" 

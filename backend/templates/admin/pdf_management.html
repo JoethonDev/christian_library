@@ -191,7 +191,8 @@
                                         title="{% trans 'Auto-Fill SEO' %}"
                                         @click="confirmAutoFill('{{ pdf.id }}', '{{ pdf.title_ar|escapejs }}')"
                                         :disabled="autoFilling">
-                                    <i class="bi" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                                    <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                                    <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
                                 </button>
                                 {% endif %}
                                 {% if pdf.indexed_char_count > 0 %}
