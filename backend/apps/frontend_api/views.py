@@ -82,9 +82,16 @@ def video_detail(request, video_uuid):
     try:
         data = content_service.get_content_detail(str(video_uuid), 'video', user=request.user)
         
+        # Import schema generator
+        from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
+        
+        # Generate schema for this video
+        video_schema = generate_schema_for_content(data['content'], request)
+        
         context = {
             'video': data['content'],
             'related_videos': data['related_content'],
+            'schema_json_ld': schema_to_json_ld(video_schema),
         }
         
         return render(request, 'frontend_api/video_detail.html', context)
@@ -129,9 +136,16 @@ def audio_detail(request, audio_uuid):
     try:
         data = content_service.get_content_detail(str(audio_uuid), 'audio', user=request.user)
         
+        # Import schema generator
+        from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
+        
+        # Generate schema for this audio
+        audio_schema = generate_schema_for_content(data['content'], request)
+        
         context = {
             'audio': data['content'],
             'related_audios': data['related_content'],
+            'schema_json_ld': schema_to_json_ld(audio_schema),
         }
         
         return render(request, 'frontend_api/audio_detail.html', context)
@@ -178,6 +192,12 @@ def pdf_detail(request, pdf_uuid):
         # Get data using service (handles permissions internally now)
         data = content_service.get_content_detail(str(pdf_uuid), 'pdf', user=request.user)
         
+        # Import schema generator
+        from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
+        
+        # Generate schema for this PDF
+        pdf_schema = generate_schema_for_content(data['content'], request)
+        
         # Cache the related content for future use
         try:
             cache_invalidator.set_related_content(str(pdf_uuid), 'pdf', data['related_content'])
@@ -187,6 +207,7 @@ def pdf_detail(request, pdf_uuid):
         context = {
             'pdf': data['content'],
             'related_pdfs': data['related_content'],
+            'schema_json_ld': schema_to_json_ld(pdf_schema),
         }
         
         return render(request, 'frontend_api/pdf_detail.html', context)
