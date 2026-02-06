@@ -60,6 +60,19 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+# Module-level constants
+FTS_RANK_THRESHOLD = 0.01  # Minimum rank for FTS results (balance between precision and recall)
+
+# Pre-compiled regex for Arabic character detection (optimization)
+ARABIC_CHAR_PATTERN = re.compile(r'[\u0600-\u06FF\u0750-\u077F]')
+
+
+def detect_query_language(query):
+    """
+    Detect if query contains Arabic characters.
+    Returns 'arabic' if Arabic chars detected, 'english' otherwise.
+    """
+    return 'arabic' if ARABIC_CHAR_PATTERN.search(query) else 'english'
 
 
 class TagManager(models.Manager):
@@ -133,11 +146,9 @@ class TagManager(models.Manager):
         if not query or len(query) < 2:
             return self.none()
         
-        # Detect language if not specified
+        # Detect language if not specified (use module-level helper)
         if language is None:
-            import re
-            has_arabic = bool(re.search(r'[\u0600-\u06FF\u0750-\u077F]', query))
-            language = 'ar' if has_arabic else 'en'
+            language = 'ar' if detect_query_language(query) == 'arabic' else 'en'
         
         # Search in both name fields and description
         search_conditions = (
@@ -216,9 +227,6 @@ class Tag(models.Model):
 
 class ContentItemQuerySet(models.QuerySet):
     """Optimized QuerySet for ContentItem with zero N+1 queries"""
-    
-    # Search configuration constants
-    FTS_RANK_THRESHOLD = 0.01  # Minimum rank for FTS results (balance between precision and recall)
     
     def active(self):
         """Return only active content items"""
@@ -316,11 +324,9 @@ class ContentItemQuerySet(models.QuerySet):
         if not query:
             return qs.order_by('-created_at')
         
-        # Detect language if not specified (simple heuristic: Arabic contains Arabic characters)
+        # Detect language if not specified (use module-level helper for performance)
         if language is None:
-            import re
-            has_arabic = bool(re.search(r'[\u0600-\u06FF\u0750-\u077F]', query))
-            language = 'arabic' if has_arabic else 'english'
+            language = detect_query_language(query)
         
         # Try PostgreSQL FTS first (works for all content types now)
         try:
@@ -346,16 +352,17 @@ class ContentItemQuerySet(models.QuerySet):
             
             # Build comprehensive search conditions
             # FTS match OR text field matches (for items without search_vector)
+            # Note: Tags are searched via Q object filters, not included in search_vector
             search_conditions = (
-                Q(search_vector__isnull=False, rank__gte=self.FTS_RANK_THRESHOLD) |  # FTS match with reasonable threshold
+                Q(search_vector__isnull=False, rank__gte=FTS_RANK_THRESHOLD) |  # FTS match with threshold from module constant
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
                 Q(description_en__icontains=query) |
                 Q(transcript__icontains=query) |
                 Q(notes__icontains=query) |
-                Q(tags__name_ar__icontains=query) |
-                Q(tags__name_en__icontains=query)
+                Q(tags__name_ar__icontains=query) |  # Tag search via related field
+                Q(tags__name_en__icontains=query)    # Tag search via related field
             )
             
             # Apply filters and order by relevance
@@ -600,9 +607,9 @@ class ContentItem(models.Model):
         if self.book_content:
             search_parts.append(SearchVector('book_content', weight='D', config='arabic'))
         
-        # Include tag names in search vector (collect from related tags)
-        # Note: Tag names will be included via aggregation in the search query itself
-        # to avoid complex trigger management on the M2M relationship
+        # Note: Tag names are NOT included in search_vector to avoid complex M2M triggers.
+        # Tags are searched separately via Q object filters in the search_optimized() method.
+        # This keeps the search vector updates simple and performant.
         
         # Combine all search parts
         if search_parts:

@@ -366,8 +366,8 @@ class SearchPerformanceTest(TestCase):
         # Check query count (optimized with prefetch_related)
         queries = len(connection.queries)
         
-        # Should execute 2-5 queries (1 main query + 1-2 for prefetch_related tags + potential metadata)
-        self.assertLessEqual(queries, 5, f"Search executed {queries} queries, expected <= 5")
+        # Should execute 2-3 queries: 1 main query + 1-2 for prefetch_related (tags and possibly metadata)
+        self.assertLessEqual(queries, 3, f"Search executed {queries} queries, expected <= 3")
         self.assertGreaterEqual(queries, 1, f"Search must execute at least 1 query")
     
     def test_pagination_performance(self):
