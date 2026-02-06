@@ -360,9 +360,6 @@ class SearchPerformanceTest(TestCase):
         # Enable query counting
         reset_queries()
         
-        # Perform search with assertNumQueries to verify optimization
-        from django.test import TestCase
-        
         # Execute search
         results = list(ContentItem.objects.search_optimized("المحتوى"))
         

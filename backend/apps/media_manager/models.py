@@ -363,8 +363,6 @@ class ContentItemQuerySet(models.QuerySet):
             
         except Exception as e:
             # Fallback to basic text search if PostgreSQL FTS is not available
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning(f"FTS search failed, falling back to basic search: {e}")
             search_conditions = (
                 Q(title_ar__icontains=query) |
