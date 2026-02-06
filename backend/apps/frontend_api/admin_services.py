@@ -261,7 +261,6 @@ class AdminService:
         
         if filters.get('search'):
             search_query = filters['search']
-            search_mode = filters.get('search_mode', 'content')  # Default to 'content' for PDFs
             
             if content_type == 'pdf':
                 # Always search within PDF content, title, and description using PostgreSQL FTS
