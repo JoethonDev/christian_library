@@ -99,9 +99,11 @@ class GeminiSEOService(BaseGeminiService):
                             }
                         },
                         "required": ["meta_title", "description", "keywords", "structured_data"]
-                    }
+                    },
+                    "transcript": {"type": "string"},
+                    "notes": {"type": "string"}
                 },
-                "required": ["en", "ar"]
+                "required": ["en", "ar", "transcript", "notes"]
             }
             
             # Generate content with Gemini
@@ -198,12 +200,17 @@ Return SEO metadata in the following JSON format:
       "description": "الوصف",
       "inLanguage": "ar"
     }}
-  }}
+  }},
+  "transcript": "Full transcript or detailed content summary (Arabic)",
+  "notes": "Contextual study notes and historical background (Arabic)"
 }}"""
     
     def _validate_seo(self, seo_data: Dict) -> Dict:
         """Validate and clean SEO metadata with character limit enforcement"""
-        cleaned = {}
+        cleaned = {
+            'transcript': str(seo_data.get('transcript', '')).strip(),
+            'notes': str(seo_data.get('notes', '')).strip()
+        }
         
         for lang in ['en', 'ar']:
             if lang in seo_data:

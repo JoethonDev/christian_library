@@ -1182,6 +1182,10 @@ class ContentItem(models.Model):
         
         self.seo_meta_description_ar = seo_metadata_dict.get('seo_meta_description_ar', '')
         self.seo_meta_description_en = seo_metadata_dict.get('seo_meta_description_en', '')
+        self.seo_title_ar = seo_metadata_dict.get('seo_title_ar', '')
+        self.seo_title_en = seo_metadata_dict.get('seo_title_en', '')
+        self.transcript = seo_metadata_dict.get('transcript', '')
+        self.notes = seo_metadata_dict.get('notes', '')
         
         seo_title_suggestions = seo_metadata_dict.get('seo_title_suggestions', [])
         self.seo_title_suggestions = ', '.join(seo_title_suggestions) if isinstance(seo_title_suggestions, list) else seo_title_suggestions
@@ -1199,8 +1203,9 @@ class ContentItem(models.Model):
             self.description_en = seo_metadata_dict['description_en']
         
         self.save(update_fields=[
-            'tags_en', 'seo_keywords_ar', 'seo_keywords_en',
+            'tags_en', 'seo_keywords_ar', 'seo_keywords_en', 'transcript', 'notes',
             'seo_meta_description_ar', 'seo_meta_description_en',
+            'seo_title_ar', 'seo_title_en',
             'seo_title_suggestions', 'structured_data',
             'title_ar', 'title_en', 'description_ar', 'description_en',
             'updated_at'

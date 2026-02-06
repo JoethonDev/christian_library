@@ -176,6 +176,14 @@
                                             <label class="form-label small text-muted">{% trans "Focus Keywords (AR)" %}</label>
                                             <input type="text" name="seo_keywords_ar" class="form-control form-control-sm" dir="rtl" placeholder="كلمة1, كلمة2">
                                         </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">{% trans "Transcript / Content Summary" %}</label>
+                                            <textarea name="transcript" class="form-control form-control-sm" rows="3" dir="rtl"></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">{% trans "Study Notes" %}</label>
+                                            <textarea name="notes" class="form-control form-control-sm" rows="3" dir="rtl"></textarea>
+                                        </div>
                                         <div class="col-12">
                                             <label class="form-label small text-muted d-flex justify-content-between">
                                                 {% trans "Structured Data (JSON-LD)" %}
@@ -340,6 +348,14 @@
                 }
                 if (seo.ar && seo.ar.keywords && Array.isArray(seo.ar.keywords)) {
                     document.querySelector('input[name="seo_keywords_ar"]').value = seo.ar.keywords.join(', ');
+                }
+                
+                // Transcript and Notes
+                if (seo.transcript) {
+                    document.querySelector('textarea[name="transcript"]').value = seo.transcript;
+                }
+                if (seo.notes) {
+                    document.querySelector('textarea[name="notes"]').value = seo.notes;
                 }
                 
                 // Structured Data - combine both English and Arabic into a single JSON object

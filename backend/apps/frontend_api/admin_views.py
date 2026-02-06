@@ -190,6 +190,8 @@ def handle_content_upload(request):
         seo_description_ar = request.POST.get('seo_description_ar', '')
         seo_keywords_en = request.POST.get('seo_keywords_en', '')
         seo_keywords_ar = request.POST.get('seo_keywords_ar', '')
+        transcript = request.POST.get('transcript', '')
+        notes = request.POST.get('notes', '')
         seo_structured_data = request.POST.get('seo_structured_data', '')
         
         # Create content item using upload service
@@ -206,6 +208,8 @@ def handle_content_upload(request):
             seo_description_ar=seo_description_ar,
             seo_keywords_en=seo_keywords_en,
             seo_keywords_ar=seo_keywords_ar,
+            transcript=transcript,
+            notes=notes,
             seo_structured_data=seo_structured_data
         )
         

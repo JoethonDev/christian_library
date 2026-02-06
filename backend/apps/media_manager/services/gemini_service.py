@@ -244,6 +244,10 @@ class GeminiContentGenerator:
                             },
                             "seo_meta_description_ar": {"type": "string"},
                             "seo_meta_description_en": {"type": "string"},
+                            "seo_title_ar": {"type": "string"},
+                            "seo_title_en": {"type": "string"},
+                            "transcript": {"type": "string"},
+                            "notes": {"type": "string"},
                             "seo_title_suggestions": {
                                 "type": "array",
                                 "items": {"type": "string"},
@@ -267,6 +271,7 @@ class GeminiContentGenerator:
                         "required": ["title_ar", "title_en", "description_ar", "description_en", 
                                    "tags_ar", "tags_en", "seo_keywords_ar", "seo_keywords_en",
                                    "seo_meta_description_ar", "seo_meta_description_en",
+                                   "seo_title_ar", "seo_title_en", "transcript", "notes",
                                    "seo_title_suggestions", "structured_data"]
                     }
                 }
