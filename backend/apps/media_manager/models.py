@@ -217,6 +217,9 @@ class Tag(models.Model):
 class ContentItemQuerySet(models.QuerySet):
     """Optimized QuerySet for ContentItem with zero N+1 queries"""
     
+    # Search configuration constants
+    FTS_RANK_THRESHOLD = 0.01  # Minimum rank for FTS results (balance between precision and recall)
+    
     def active(self):
         """Return only active content items"""
         return self.filter(is_active=True)
@@ -344,7 +347,7 @@ class ContentItemQuerySet(models.QuerySet):
             # Build comprehensive search conditions
             # FTS match OR text field matches (for items without search_vector)
             search_conditions = (
-                Q(search_vector__isnull=False, rank__gte=0.01) |  # FTS match with reasonable threshold
+                Q(search_vector__isnull=False, rank__gte=self.FTS_RANK_THRESHOLD) |  # FTS match with reasonable threshold
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |

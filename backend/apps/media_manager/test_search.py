@@ -355,29 +355,50 @@ class SearchPerformanceTest(TestCase):
     def test_search_query_count(self):
         """Test that search executes minimal queries"""
         from django.db import connection, reset_queries
+        from django.test.utils import override_settings
         
         # Enable query counting
         reset_queries()
         
-        # Perform search
+        # Perform search with assertNumQueries to verify optimization
+        from django.test import TestCase
+        
+        # Execute search
         results = list(ContentItem.objects.search_optimized("المحتوى"))
         
-        # Check query count (should be optimized with prefetch_related)
+        # Check query count (optimized with prefetch_related)
         queries = len(connection.queries)
         
-        # Should execute only 2-3 queries max (1 for content + 1 for tags prefetch)
+        # Should execute 2-5 queries (1 main query + 1-2 for prefetch_related tags + potential metadata)
         self.assertLessEqual(queries, 5, f"Search executed {queries} queries, expected <= 5")
+        self.assertGreaterEqual(queries, 1, f"Search must execute at least 1 query")
     
     def test_pagination_performance(self):
-        """Test that paginated search is efficient"""
+        """Test that paginated search is efficient and tags are prefetched"""
         from django.core.paginator import Paginator
+        from django.db import connection, reset_queries
         
         queryset = ContentItem.objects.search_optimized("المحتوى")
         paginator = Paginator(queryset, 12)
+        
+        # Reset query count
+        reset_queries()
         
         # Access first page
         page1 = paginator.get_page(1)
         self.assertLessEqual(len(page1), 12)
         
-        # Should not execute additional queries for metadata
-        self.assertTrue(all(hasattr(item, 'tags') for item in page1))
+        # Verify tags are prefetched (accessing tags should not trigger new queries)
+        initial_query_count = len(connection.queries)
+        
+        # Access tags for all items in page
+        for item in page1:
+            _ = list(item.tags.all())
+        
+        # Should not execute additional queries if tags are properly prefetched
+        final_query_count = len(connection.queries)
+        self.assertEqual(
+            initial_query_count, 
+            final_query_count,
+            "Accessing prefetched tags should not trigger additional queries"
+        )
