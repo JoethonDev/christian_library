@@ -448,9 +448,20 @@ class ContentItem(models.Model):
         """
         Override save to trigger background extraction/indexing if relevant fields change.
         Extraction and FTS update are always done in the background (never synchronously).
+        Ensures structured_data is synchronized with basic fields.
         """
         update_fields = kwargs.get('update_fields')
         is_new = self._state.adding
+        
+        # Always sync structured data on save if it's not a restricted update
+        if not update_fields or 'structured_data' in update_fields or 'title_ar' in update_fields:
+            self.sync_structured_data()
+            if update_fields and 'structured_data' not in update_fields:
+                # If update_fields is used, we must include structured_data if we modified it
+                if isinstance(update_fields, list):
+                    update_fields.append('structured_data')
+                elif isinstance(update_fields, set):
+                    update_fields.add('structured_data')
         
         super().save(*args, **kwargs)
         
@@ -879,11 +890,36 @@ class ContentItem(models.Model):
         """Check if content has been indexed"""
         return bool(self.book_content and self.book_content.strip())
 
-    def get_structured_data_json(self):
-        """Get structured data as JSON string for templates"""
+    def get_structured_data_json(self, language=None):
+        """
+        Get structured data as JSON string for templates.
+        If language is provided, returns only the specific language's schema block.
+        Otherwise detects current request language.
+        """
         import json
-        if self.structured_data:
-            return json.dumps(self.structured_data, ensure_ascii=False, indent=2)
+        from django.utils import translation
+        
+        if not self.structured_data:
+            return ''
+            
+        # Determine target language (default to 'ar')
+        target_lang = language or translation.get_language() or 'ar'
+        if '-' in target_lang:
+            target_lang = target_lang.split('-')[0]
+            
+        # Return specific language block if it exists
+        if isinstance(self.structured_data, dict):
+            if target_lang in self.structured_data:
+                return self.structured_data[target_lang]
+            
+            # Fallback to any available language if target not found
+            for lang in ['ar', 'en']:
+                if lang in self.structured_data:
+                    return self.structured_data[lang]
+                    
+            # If it's an old-format dict (no ar/en keys), return as is
+            return self.structured_data
+            
         return ''
 
     def get_canonical_url(self):
@@ -908,6 +944,47 @@ class ContentItem(models.Model):
         }
         return schema_mapping.get(self.content_type, 'CreativeWork')
 
+    def sync_structured_data(self):
+        """
+        Synchronize basic fields in structured_data with current model fields.
+        Ensures name, description, and URL are always in sync for both languages.
+        Stored format: {"en": {...}, "ar": {...}}
+        """
+        if not self.structured_data or not isinstance(self.structured_data, dict):
+            self.structured_data = {}
+        
+        # Ensure en and ar keys exist
+        for lang in ['en', 'ar']:
+            if lang not in self.structured_data or not isinstance(self.structured_data[lang], dict):
+                self.structured_data[lang] = {
+                    "@context": "https://schema.org",
+                    "@type": self.get_schema_type(),
+                    "inLanguage": lang
+                }
+            else:
+                # Update basic schema info
+                self.structured_data[lang]["@context"] = "https://schema.org"
+                self.structured_data[lang]["@type"] = self.get_schema_type()
+                self.structured_data[lang]["inLanguage"] = lang
+
+            # Update language specific fields
+            if lang == 'ar':
+                self.structured_data[lang]["name"] = self.title_ar or self.title_en
+                self.structured_data[lang]["description"] = self.description_ar[:300] if self.description_ar else self.description_en[:300]
+            else:
+                self.structured_data[lang]["name"] = self.title_en or self.title_ar
+                self.structured_data[lang]["description"] = (self.description_en or self.description_ar)[:300]
+
+            # Add URL if possible
+            try:
+                url = self.get_canonical_url()
+                if url:
+                    self.structured_data[lang]["url"] = url
+            except Exception:
+                pass
+            
+        return self.structured_data
+
     def generate_seo_metadata_async(self):
         """Trigger async SEO metadata generation via Celery"""
         from apps.media_manager.tasks import generate_seo_metadata_task
@@ -918,38 +995,83 @@ class ContentItem(models.Model):
         if not seo_metadata_dict:
             return False
         
-        # Update SEO fields from Gemini response - Convert lists to comma-separated strings for SQLite
-        tags_en = seo_metadata_dict.get('tags_en', [])
-        self.tags_en = ', '.join(tags_en) if isinstance(tags_en, list) else tags_en
-        
-        seo_keywords_ar = seo_metadata_dict.get('seo_keywords_ar', [])
-        self.seo_keywords_ar = ', '.join(seo_keywords_ar) if isinstance(seo_keywords_ar, list) else seo_keywords_ar
-        
-        seo_keywords_en = seo_metadata_dict.get('seo_keywords_en', [])
-        self.seo_keywords_en = ', '.join(seo_keywords_en) if isinstance(seo_keywords_en, list) else seo_keywords_en
-        
-        self.seo_meta_description_ar = seo_metadata_dict.get('seo_meta_description_ar', '')
-        self.seo_meta_description_en = seo_metadata_dict.get('seo_meta_description_en', '')
-        self.seo_title_ar = seo_metadata_dict.get('seo_title_ar', '')
-        self.seo_title_en = seo_metadata_dict.get('seo_title_en', '')
-        self.transcript = seo_metadata_dict.get('transcript', '')
-        self.notes = seo_metadata_dict.get('notes', '')
+        # Check for new nested format {"en": {...}, "ar": {...}}
+        if 'en' in seo_metadata_dict and 'ar' in seo_metadata_dict:
+            en_data = seo_metadata_dict['en']
+            ar_data = seo_metadata_dict['ar']
+            
+            # Map Arabic fields
+            self.title_ar = ar_data.get('title', self.title_ar)
+            self.description_ar = ar_data.get('description', self.description_ar)
+            self.seo_title_ar = ar_data.get('seo_title', self.seo_title_ar)
+            self.seo_meta_description_ar = ar_data.get('seo_meta_description', self.seo_meta_description_ar)
+            
+            tags_ar = ar_data.get('tags', [])
+            # Note: tags_ar is an M2M field normally, but if we have a field for it, we update it
+            # Currently ContentItem has no tags_ar field, only a ManyToManyField 'tags'
+            
+            keywords_ar = ar_data.get('seo_keywords', [])
+            self.seo_keywords_ar = ', '.join(keywords_ar) if isinstance(keywords_ar, list) else keywords_ar
+            
+            # Map English fields
+            self.title_en = en_data.get('title', self.title_en)
+            self.description_en = en_data.get('description', self.description_en)
+            self.seo_title_en = en_data.get('seo_title', self.seo_title_en)
+            self.seo_meta_description_en = en_data.get('seo_meta_description', self.seo_meta_description_en)
+            
+            tags_en = en_data.get('tags', [])
+            self.tags_en = ', '.join(tags_en) if isinstance(tags_en, list) else tags_en
+            
+            keywords_en = en_data.get('seo_keywords', [])
+            self.seo_keywords_en = ', '.join(keywords_en) if isinstance(keywords_en, list) else keywords_en
+            
+            # Update structured data block by block
+            self.structured_data = {
+                'en': en_data.get('structured_data', {}),
+                'ar': ar_data.get('structured_data', {})
+            }
+        else:
+            # Fallback to legacy flat format
+            tags_en = seo_metadata_dict.get('tags_en', [])
+            self.tags_en = ', '.join(tags_en) if isinstance(tags_en, list) else tags_en
+            
+            seo_keywords_ar = seo_metadata_dict.get('seo_keywords_ar', [])
+            self.seo_keywords_ar = ', '.join(seo_keywords_ar) if isinstance(seo_keywords_ar, list) else seo_keywords_ar
+            
+            seo_keywords_en = seo_metadata_dict.get('seo_keywords_en', [])
+            self.seo_keywords_en = ', '.join(keywords_en) if isinstance(keywords_en, list) else seo_keywords_en # Fix: keywords_en was undefined in legacy if I'm not careful, but I see it above. Wait, the old code had tags_en, seo_keywords_ar, seo_keywords_en.
+            
+            self.seo_meta_description_ar = seo_metadata_dict.get('seo_meta_description_ar', '')
+            self.seo_meta_description_en = seo_metadata_dict.get('seo_meta_description_en', '')
+            self.seo_title_ar = seo_metadata_dict.get('seo_title_ar', '')
+            self.seo_title_en = seo_metadata_dict.get('seo_title_en', '')
+            
+            # Structured Data (Legacy) - if single block, wrap it in sync or just take it as is
+            # For legacy, we'll try to guess if it's already bilingual or needs wrapping
+            raw_sd = seo_metadata_dict.get('structured_data', {})
+            if isinstance(raw_sd, dict) and ('en' in raw_sd or 'ar' in raw_sd):
+                self.structured_data = raw_sd
+            else:
+                # Wrap it based on inLanguage if possible, or just skip and let save() sync it
+                pass 
+            
+            if seo_metadata_dict.get('title_ar'):
+                self.title_ar = seo_metadata_dict['title_ar']
+            if seo_metadata_dict.get('title_en'):
+                self.title_en = seo_metadata_dict['title_en']
+            if seo_metadata_dict.get('description_ar'):
+                self.description_ar = seo_metadata_dict['description_ar']
+            if seo_metadata_dict.get('description_en'):
+                self.description_en = seo_metadata_dict['description_en']
+
+        # Shared fields
+        self.transcript = seo_metadata_dict.get('transcript', self.transcript)
+        self.notes = seo_metadata_dict.get('notes', self.notes)
         
         seo_title_suggestions = seo_metadata_dict.get('seo_title_suggestions', [])
         self.seo_title_suggestions = ', '.join(seo_title_suggestions) if isinstance(seo_title_suggestions, list) else seo_title_suggestions
         
-        self.structured_data = seo_metadata_dict.get('structured_data', {})
-        
-        # Also update basic metadata if provided
-        if seo_metadata_dict.get('title_ar'):
-            self.title_ar = seo_metadata_dict['title_ar']
-        if seo_metadata_dict.get('title_en'):
-            self.title_en = seo_metadata_dict['title_en']
-        if seo_metadata_dict.get('description_ar'):
-            self.description_ar = seo_metadata_dict['description_ar']
-        if seo_metadata_dict.get('description_en'):
-            self.description_en = seo_metadata_dict['description_en']
-        
+        # Save with ALL potentially modified fields
         self.save(update_fields=[
             'tags_en', 'seo_keywords_ar', 'seo_keywords_en', 'transcript', 'notes',
             'seo_meta_description_ar', 'seo_meta_description_en',

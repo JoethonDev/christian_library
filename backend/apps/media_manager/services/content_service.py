@@ -2,7 +2,7 @@
 Content Management Service Layer
 Handles all business logic for content operations
 """
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
 from django.db import transaction, models
 from django.db.models import Q
@@ -218,7 +218,7 @@ class ContentService:
         transcript: str = "",
         notes: str = "",
         seo_title_suggestions: str = "",
-        structured_data: str = ""
+        structured_data: Any = None
     ) -> ContentItem:
         """
         Create a new content item
@@ -235,7 +235,7 @@ class ContentService:
             seo_meta_description_ar: Arabic meta description for SEO
             seo_meta_description_en: English meta description for SEO
             seo_title_suggestions: JSON string of title suggestions
-            structured_data: JSON string of structured data
+            structured_data: JSON string or dict of structured data
             
         Returns:
             ContentItem instance
@@ -244,6 +244,17 @@ class ContentService:
             ValidationError: If validation fails
         """
         try:
+            # Process structured data if it's a string
+            if isinstance(structured_data, str) and structured_data.strip():
+                try:
+                    import json
+                    structured_data = json.loads(structured_data)
+                except json.JSONDecodeError:
+                    logger.warning(f"Invalid JSON in structured_data for {title_ar}, using empty dict")
+                    structured_data = {}
+            elif not isinstance(structured_data, dict):
+                structured_data = {}
+
             with transaction.atomic():
                 # Create content item
                 content_item = ContentItem.objects.create(
