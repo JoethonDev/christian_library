@@ -1824,7 +1824,7 @@ class ContentViewEvent(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['content_type', 'content_id', 'timestamp']),
+            models.Index(fields=['content_type', 'content_id', 'timestamp'], name='media_manag_content_idx'),
         ]
         verbose_name = _('Content View Event')
         verbose_name_plural = _('Content View Events')
@@ -1867,7 +1867,7 @@ class DailyContentViewSummary(models.Model):
     class Meta:
         unique_together = ('content_type', 'content_id', 'date')
         indexes = [
-            models.Index(fields=['content_type', 'content_id', 'date']),
+            models.Index(fields=['content_type', 'content_id', 'date'], name='media_manag_content_date_idx'),
         ]
         verbose_name = _('Daily Content View Summary')
         verbose_name_plural = _('Daily Content View Summaries')
