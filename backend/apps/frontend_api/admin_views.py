@@ -838,3 +838,57 @@ def generate_seo_only(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
+
+
+@login_required
+def api_content_seo(request, content_id):
+    """API endpoint to get or update SEO metadata for a content item"""
+    try:
+        content = get_object_or_404(ContentItem, id=content_id)
+        
+        if request.method == 'GET':
+            # Return current SEO data
+            return JsonResponse({
+                'success': True,
+                'seo_title_en': content.seo_title_en or '',
+                'seo_title_ar': content.seo_title_ar or '',
+                'seo_meta_description_en': content.seo_meta_description_en or '',
+                'seo_meta_description_ar': content.seo_meta_description_ar or '',
+                'seo_keywords_en': content.seo_keywords_en or '',
+                'seo_keywords_ar': content.seo_keywords_ar or '',
+                'structured_data': content.structured_data or '{}'
+            })
+        
+        elif request.method == 'POST':
+            # Update SEO data
+            data = json.loads(request.body)
+            
+            content.seo_title_en = data.get('seo_title_en', '')[:60]
+            content.seo_title_ar = data.get('seo_title_ar', '')[:60]
+            content.seo_meta_description_en = data.get('seo_meta_description_en', '')[:160]
+            content.seo_meta_description_ar = data.get('seo_meta_description_ar', '')[:160]
+            content.seo_keywords_en = data.get('seo_keywords_en', '')
+            content.seo_keywords_ar = data.get('seo_keywords_ar', '')
+            
+            # Validate and save structured data
+            structured_data = data.get('structured_data', '')
+            if structured_data:
+                try:
+                    # Validate it's valid JSON
+                    json.loads(structured_data)
+                    content.structured_data = structured_data
+                except json.JSONDecodeError:
+                    return JsonResponse({'success': False, 'error': 'Invalid JSON in structured data'})
+            
+            content.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'SEO data updated successfully'
+            })
+        
+        else:
+            return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+            
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
