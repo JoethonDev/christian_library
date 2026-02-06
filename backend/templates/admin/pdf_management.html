@@ -18,7 +18,11 @@
     <!-- Filter Bar -->
     <div class="card border-0 shadow-sm rounded-4 mb-3">
         <div class="card-body">
-            <form method="GET" class="row g-2 align-items-center">
+            <form method="GET" class="row g-2 align-items-center"
+                  hx-get="{% url 'frontend_api:pdf_management' %}"
+                  hx-target="#pdf-table-container"
+                  hx-swap="innerHTML"
+                  hx-trigger="submit, change from:select, keyup delay:500ms from:input[name='search']">
                 <div class="col-md-5">
                     <input type="text" name="search" class="form-control" placeholder="{% trans 'Search PDFs...' %}" value="{{ filters.search }}">
                 </div>
@@ -45,201 +49,252 @@
         </div>
     </div>
 
-    <!-- PDF Table Card -->
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Document" %}</th>
-                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
-                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Pages" %}</th>
-                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Size" %}</th>
-                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Indexed" %}</th>
-                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Visibility" %}</th>
-                        <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
-                        <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
-                    </tr>
-                </thead>
-                {% for pdf in pdfs %}
-                <tbody x-data="{ expanded: false, autoFilling: false }" class="border-bottom">
-                    <tr>
-                        <td class="ps-4 py-3">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-light rounded p-2 me-3 text-danger">
-                                    <i class="bi bi-file-earmark-pdf fs-4"></i>
-                                </div>
-                                <div>
-                                    <div class="fw-semibold text-dark">{{ pdf.title_ar }}</div>
-                                    {% if pdf.title_en %}
-                                        <div class="small text-muted">{{ pdf.title_en }}</div>
-                                    {% endif %}
-                                    {% if not pdf.pdfmeta.has_seo %}
-                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
-                                            <i class="bi bi-exclamation-triangle me-1"></i>{% trans "No SEO" %}
-                                        </span>
-                                    {% endif %}
-                                    {% if not pdf.pdfmeta.has_metadata %}
-                                        <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
-                                            <i class="bi bi-info-circle me-1"></i>{% trans "Incomplete" %}
-                                        </span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </td>
-                        <td>
-                            <div class="d-flex flex-wrap gap-1">
-                                {% for tag in pdf.tags.all %}
-                                    <span class="badge bg-light text-secondary border rounded-pill fw-normal">
-                                        {{ tag.name }}
-                                    </span>
-                                {% empty %}
-                                    <span class="text-muted small">-</span>
-                                {% endfor %}
-                            </div>
-                        </td>
-                        <td class="text-muted">
-                            {% if pdf.pdfmeta.page_count %}
-                                {{ pdf.pdfmeta.page_count }} <span class="small">{% trans "pgs" %}</span>
-                            {% else %}
-                                <span class="small text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-muted">
-                             {% if pdf.file.size %}
-                                {{ pdf.file.size|filesizeformat }}
-                            {% else %}
-                                <span class="small">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                             {% if pdf.indexed_char_count > 0 %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
-                                    <i class="bi bi-check2 me-1"></i>{{ pdf.indexed_char_count|floatformat:0 }}
-                                </span>
-                            {% elif pdf.content_type == 'pdf' %}
-                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
-                                    {% trans "Pending" %}
-                                </span>
-                            {% else %}
-                                <span class="text-muted small">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="form-check form-switch px-0">
-                                <input class="form-check-input ms-0 toggle-status-btn" type="checkbox" 
-                                       data-id="{{ pdf.id }}"
-                                       {% if pdf.is_active %}checked{% endif %}
-                                       onchange="toggleStatus('{{ pdf.id }}', this)">
-                            </div>
-                        </td>
-                         <td>
-                            {% if pdf.processing_status == 'completed' %}
-                                <span class="badge bg-success rounded-pill px-2">{% trans "Active" %}</span>
-                            {% elif pdf.processing_status == 'processing' or pdf.processing_status == 'pending' %}
-                                <div class="d-flex align-items-center text-warning" title="{% trans 'Processing' %}">
-                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                    <span class="small fw-semibold">{% trans "Processing" %}</span>
-                                </div>
-                            {% elif pdf.processing_status == 'failed' %}
-                                <span class="badge bg-danger rounded-pill px-2">{% trans "Failed" %}</span>
-                            {% else %}
-                                <span class="badge bg-secondary rounded-pill px-2">{{ pdf.processing_status|title }}</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end pe-4">
-                            <div class="btn-group">
-                                {% if not pdf.pdfmeta.has_seo %}
-                                <button type="button" 
-                                        class="btn btn-sm btn-warning text-white" 
-                                        title="{% trans 'Auto-Fill SEO' %}"
-                                        @click="autoFillMetadata('{{ pdf.id }}', $event.target)"
-                                        :disabled="autoFilling">
-                                    <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
-                                    <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
-                                </button>
-                                {% endif %}
-                                {% if pdf.indexed_char_count > 0 %}
-                                <button type="button" 
-                                        class="btn btn-sm btn-light text-primary" 
-                                        @click="expanded = !expanded"
-                                        :class="{'active': expanded}"
-                                        title="{% trans 'Toggle Extracted Text' %}">
-                                        <i class="bi" :class="expanded ? 'bi-chevron-up' : 'bi-file-text'"></i>
-                                </button>
-                                {% endif %}
-                                <a href="{% url 'frontend_api:admin_content_detail' pdf.id %}" 
-                                   class="btn btn-sm btn-light" 
-                                   title="{% trans 'Edit' %}">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <a href="{% url 'frontend_api:pdf_detail' pdf.id %}" 
-                                   class="btn btn-sm btn-light" 
-                                   target="_blank"
-                                   title="{% trans 'Preview' %}">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                {% if pdf.pdfmeta %}
-                                <a href="{{ pdf.pdfmeta.get_direct_download_url }}?download=true" 
-                                   class="btn btn-sm btn-light" 
-                                   target="_blank" 
-                                   title="{% trans 'Download' %}">
-                                    <i class="bi bi-download"></i>
-                                </a>
-                                {% endif %}
-                                <a href="{% url 'frontend_api:content_delete_confirm' pdf.id %}" 
-                                   class="btn btn-sm btn-light text-danger" 
-                                   title="{% trans 'Delete' %}">
-                                    <i class="bi bi-trash"></i>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    
-                    <!-- Expanded Text Area -->
-                    <tr x-show="expanded" x-transition.opacity.duration.300ms style="display: none;">
-                        <td colspan="8" class="bg-light p-0 border-0">
-                            <div class="p-4">
-                                <div class="card border-0 shadow-sm">
-                                    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                                        <h6 class="mb-0 fw-bold text-primary">
-                                            <i class="bi bi-file-text me-2"></i>{% trans "Extracted Content" %}
-                                        </h6>
-                                        <span class="badge bg-light text-muted border">{{ pdf.indexed_char_count }} chars</span>
-                                    </div>
-                                    <div class="card-body bg-white text-end position-relative">
-                                        <div class="extracted-text-viewer p-3 rounded bg-light" 
-                                             style="font-family: 'Courier New', monospace; max-height: 300px; overflow-y: auto; white-space: pre-wrap; direction: rtl;">
-{{ pdf.book_content|default:"No content extracted." }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-                {% empty %}
-                <tbody>
-                    <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">
-                            <div class="mb-3">
-                                <i class="bi bi-file-earmark-pdf display-4 text-secondary opacity-50"></i>
-                            </div>
-                            <h6 class="fw-bold">{% trans "No documents found" %}</h6>
-                            <p class="small mb-3">{% trans "Get started by uploading your first PDF document." %}</p>
-                            <a href="{% url 'frontend_api:upload_content' %}?type=pdf" class="btn btn-outline-primary btn-sm rounded-pill">
-                                {% trans "Upload Content" %}
-                            </a>
-                        </td>
-                    </tr>
-                </tbody>
-                {% endfor %}
-            </table>
+    <!-- Bulk Actions Bar -->
+    <div class="card border-0 shadow-sm rounded-4 mb-3" id="bulkActionsBar" style="display: none;">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted me-3">
+                        <i class="bi bi-check-circle me-1"></i>
+                        <span id="selectedCount">0</span> {% trans "selected" %}
+                    </span>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-warning text-white" onclick="bulkGenerateSEO()">
+                        <i class="bi bi-sparkles me-1"></i>{% trans "Generate SEO" %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-success" onclick="bulkActivate()">
+                        <i class="bi bi-eye me-1"></i>{% trans "Activate" %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="bulkDeactivate()">
+                        <i class="bi bi-eye-slash me-1"></i>{% trans "Deactivate" %}
+                    </button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="bulkDelete()">
+                        <i class="bi bi-trash me-1"></i>{% trans "Delete" %}
+                    </button>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <!-- PDF Table Card -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden" id="pdf-table-container">
+        {% include "admin/partials/pdf_table.html" %}
     </div>
 </div>
 
 <script>
+// Bulk Selection Functions
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (count > 0) {
+        bulkBar.style.display = 'block';
+        selectedCount.textContent = count;
+    } else {
+        bulkBar.style.display = 'none';
+    }
+    
+    // Update master checkbox state
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+    const masterCheckbox = document.getElementById('selectAll');
+    if (masterCheckbox) {
+        masterCheckbox.checked = count === allCheckboxes.length && count > 0;
+        masterCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+}
+
+function getSelectedIds() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.dataset.contentId);
+}
+
+// Bulk Actions
+function bulkGenerateSEO() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Generate SEO metadata for selected PDFs?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}<br>` +
+                   `{% trans "This will use AI to generate SEO metadata for all selected PDFs." %}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkAction('{% url "frontend_api:api_auto_fill_metadata" %}', selectedIds);
+    });
+}
+
+function bulkActivate() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Activate selected PDFs?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkToggleStatus(selectedIds, true);
+    });
+}
+
+function bulkDeactivate() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Deactivate selected PDFs?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkToggleStatus(selectedIds, false);
+    });
+}
+
+function bulkDelete() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Delete selected PDFs?" %}';
+    const details = `<strong class="text-danger">{% trans "WARNING:" %}</strong> ` +
+                   `{% trans "This will permanently delete" %} ${selectedIds.length} {% trans "PDF(s)." %}<br>` +
+                   `{% trans "This action cannot be undone!" %}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkDelete(selectedIds);
+    });
+}
+
+// Perform Bulk Actions
+function refreshTable() {
+    const filterForm = document.querySelector('form[hx-get]');
+    if (filterForm) {
+        // Trigger HTMX request by dispatching submit event
+        filterForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        
+        // Reset check-all and bulk bar
+        setTimeout(() => {
+            const masterCheckbox = document.getElementById('selectAll');
+            if (masterCheckbox) {
+                masterCheckbox.checked = false;
+                masterCheckbox.indeterminate = false;
+            }
+            const bulkBar = document.getElementById('bulkActionsBar');
+            if (bulkBar) bulkBar.style.display = 'none';
+        }, 100);
+    } else {
+        window.location.reload();
+    }
+}
+
+function performBulkAction(url, contentIds) {
+    const data = { content_ids: contentIds };
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || '{% trans "Action completed successfully" %}', 'success');
+            refreshTable();
+        } else {
+            showToast(data.error || '{% trans "Action failed" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function performBulkToggleStatus(contentIds, status) {
+    fetch('{% url "frontend_api:api_toggle_content_status" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            content_ids: contentIds,
+            is_active: status,
+            bulk: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || '{% trans "Status updated successfully" %}', 'success');
+            refreshTable();
+        } else {
+            showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function performBulkDelete(contentIds) {
+    fetch('{% url "frontend_api:bulk_operations" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'operation': 'delete',
+            'content_ids': contentIds.join(',')
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            showToast('{% trans "PDFs deleted successfully" %}', 'success');
+            refreshTable();
+        } else {
+            showToast('{% trans "Failed to delete PDFs" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+// Single Item Actions
+function confirmAutoFill(contentId, title) {
+    const message = '{% trans "Generate SEO metadata for this PDF?" %}';
+    const details = `<strong>{% trans "PDF:" %}</strong> ${title}<br>` +
+                   `{% trans "This will use AI to generate SEO metadata." %}`;
+    
+    showConfirmation(message, details, function() {
+        autoFillMetadata(contentId);
+    });
+}
+
 function toggleStatus(contentId, checkbox) {
     checkbox.disabled = true;
     
@@ -272,11 +327,7 @@ function toggleStatus(contentId, checkbox) {
     });
 }
 
-function autoFillMetadata(contentId, button) {
-    const row = button.closest('tbody');
-    const alpineData = Alpine.$data(row);
-    alpineData.autoFilling = true;
-    
+function autoFillMetadata(contentId) {
     fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
         method: 'POST',
         headers: {
@@ -291,15 +342,13 @@ function autoFillMetadata(contentId, button) {
     .then(data => {
         if (data.success) {
             showToast('{% trans "Auto-fill started! Processing in background..." %}', 'success');
-            // Reload page after 3 seconds to show updated status
-            setTimeout(() => window.location.reload(), 3000);
+            // Refresh table after a delay to show updated status
+            setTimeout(() => refreshTable(), 2000);
         } else {
-            alpineData.autoFilling = false;
             showToast(data.error || '{% trans "Failed to start auto-fill" %}', 'danger');
         }
     })
     .catch(error => {
-        alpineData.autoFilling = false;
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });

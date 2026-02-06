@@ -44,7 +44,7 @@
                             aria-label="{% trans 'Video options' %}">
                         <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow" style="border-radius: 12px; border: 1px solid rgba(221, 153, 51, 0.2);">
+                    <ul class="dropdown-menu dropdown-menu-end shadow" style="border-radius: 12px; border: 1px solid rgba(221, 153, 51, 0.2); z-index: 999999;">
                         <li><a class="dropdown-item d-flex align-items-center" href="{{ video.videometa.get_direct_download_url }}">
                             <i class="bi bi-download me-2 text-maroon"></i>{% trans "Download Video" %}
                         </a></li>

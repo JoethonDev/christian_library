@@ -1,0 +1,177 @@
+{% load i18n %}{% load static %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
+            <tr>
+                <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0" style="width: 40px;">
+                    <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
+                </th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Audio Content" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Duration" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Visibility" %}</th>
+                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
+                <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for audio in audios %}
+            <tr x-data="{ autoFilling: false }">
+                <td class="ps-4 py-3">
+                    <input type="checkbox" class="form-check-input row-checkbox" 
+                           data-content-id="{{ audio.id }}" 
+                           onchange="updateBulkActions()">
+                </td>
+                <td class="py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded p-2 me-3 bg-warning-subtle text-warning">
+                            <i class="bi bi-mic fs-4"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark">{{ audio.title_ar }}</div>
+                            {% if audio.title_en %}
+                                <div class="small text-muted">{{ audio.title_en }}</div>
+                            {% endif %}
+                            {% if not audio.audiometa.has_seo %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "No SEO" %}
+                                </span>
+                            {% endif %}
+                            {% if not audio.audiometa.has_metadata %}
+                                <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
+                                    <i class="bi bi-info-circle me-1"></i>{% trans "Incomplete" %}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="d-flex flex-wrap gap-1">
+                        {% for tag in audio.tags.all %}
+                            <span class="badge bg-light text-secondary border rounded-pill fw-normal">
+                                {{ tag.name }}
+                            </span>
+                        {% empty %}
+                            <span class="text-muted small">-</span>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td>
+                    {% if audio.audiometa.duration %}
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">
+                            <i class="bi bi-clock me-1"></i>{{ audio.audiometa.duration }}
+                        </span>
+                    {% else %}
+                        <span class="text-muted small">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="form-check form-switch px-0">
+                        <input class="form-check-input ms-0 toggle-status-btn" type="checkbox" 
+                               data-id="{{ audio.id }}"
+                               {% if audio.is_active %}checked{% endif %}
+                               onchange="toggleStatus('{{ audio.id }}', this)">
+                    </div>
+                </td>
+                <td>
+                    {% if audio.live_task %}
+                        <div class="d-flex align-items-center text-warning" title="{{ audio.live_task.step }}">
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span class="small">{{ audio.live_task.progress }}%</span>
+                        </div>
+                    {% elif audio.processing_status == 'completed' %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
+                            {% trans "Ready" %}
+                        </span>
+                    {% elif audio.processing_status == 'processing' %}
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
+                            {% trans "Processing" %}
+                        </span>
+                    {% elif audio.processing_status == 'failed' %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2">
+                            {% trans "Failed" %}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">{{ audio.processing_status|title }}</span>
+                    {% endif %}
+                </td>
+                <td class="text-end pe-4">
+                    <div class="btn-group">
+                        {% if not audio.audiometa.has_seo %}
+                        <button type="button" 
+                                class="btn btn-sm btn-warning text-white" 
+                                title="{% trans 'Auto-Fill SEO' %}"
+                                @click="confirmAutoFill('{{ audio.id }}', '{{ audio.title_ar|escapejs }}')"
+                                :disabled="autoFilling">
+                            <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                            <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
+                        </button>
+                        {% endif %}
+                        <a href="{% url 'frontend_api:admin_content_detail' audio.id %}" 
+                           class="btn btn-sm btn-light" 
+                           title="{% trans 'Edit' %}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a href="{% url 'frontend_api:audio_detail' audio.id %}" 
+                           class="btn btn-sm btn-light" 
+                           title="{% trans 'Preview' %}" target="_blank">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        <a href="{% url 'frontend_api:content_delete_confirm' audio.id %}" 
+                           class="btn btn-sm btn-light text-danger" 
+                           title="{% trans 'Delete' %}">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                    <div class="mb-3">
+                        <i class="bi bi-mic display-4 text-secondary opacity-50"></i>
+                    </div>
+                    <h6 class="fw-bold">{% trans "No audio found" %}</h6>
+                    <a href="{% url 'frontend_api:upload_content' %}?type=audio" class="btn btn-warning text-white rounded-pill px-4 mt-2">
+                        {% trans "Add Audio" %}
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if pagination and pagination.has_pagination %}
+    <div class="card-footer bg-white border-0 py-3">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center mb-0">
+                {% if pagination.has_previous %}
+                    <li class="page-item">
+                        <button class="page-link rounded-circle mx-1" 
+                                hx-get="{% url 'frontend_api:audio_management' %}?page={{ pagination.previous_page_number }}&status={{ filters.status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
+                                hx-target="#audio-table-container"
+                                hx-push-url="true">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link rounded-circle mx-1">{{ pagination.page.number }}</span>
+                </li>
+                
+                {% if pagination.has_next %}
+                    <li class="page-item">
+                        <button class="page-link rounded-circle mx-1" 
+                                hx-get="{% url 'frontend_api:audio_management' %}?page={{ pagination.next_page_number }}&status={{ filters.status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
+                                hx-target="#audio-table-container"
+                                hx-push-url="true">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>

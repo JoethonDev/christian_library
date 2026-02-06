@@ -18,7 +18,11 @@
 <!-- Filter Bar -->
 <div class="card border-0 shadow-sm rounded-4 mb-3">
     <div class="card-body">
-        <form method="GET" class="row g-2 align-items-center">
+        <form hx-get="{% url 'frontend_api:video_management' %}" 
+              hx-target="#video-table-container"
+              hx-trigger="submit, change, keyup delay:300ms from:input"
+              hx-push-url="true"
+              class="row g-2 align-items-center">
             <div class="col-md-4">
                 <input type="text" name="search" class="form-control" placeholder="{% trans 'Search videos...' %}" value="{{ filters.search }}">
             </div>
@@ -45,150 +49,250 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light">
-                <tr>
-                    <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Video" %}</th>
-                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
-                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Duration" %}</th>
-                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Visibility" %}</th>
-                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
-                    <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for video in videos %}
-                <tr x-data="{ autoFilling: false }">
-                    <td class="ps-4 py-3">
-                        <div class="d-flex align-items-center">
-                            <div class="video-thumbnail me-3 rounded overflow-hidden position-relative" style="width: 80px; height: 50px; background-color: #f8f9fa;">
-                                {% if video.videometa.thumbnail %}
-                                    <img src="{{ video.videometa.thumbnail.url }}" alt="Thumbnail" class="w-100 h-100 object-fit-cover">
-                                {% else %}
-                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-danger-subtle">
-                                        <i class="bi bi-play-circle text-danger"></i>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <div class="fw-bold text-dark">{{ video.title_ar }}</div>
-                                {% if video.title_en %}
-                                    <div class="small text-muted">{{ video.title_en }}</div>
-                                {% endif %}
-                                {% if not video.videometa.has_seo %}
-                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
-                                        <i class="bi bi-exclamation-triangle me-1"></i>{% trans "No SEO" %}
-                                    </span>
-                                {% endif %}
-                                {% if not video.videometa.has_metadata %}
-                                    <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
-                                        <i class="bi bi-info-circle me-1"></i>{% trans "Incomplete" %}
-                                    </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="d-flex flex-wrap gap-1">
-                            {% for tag in video.tags.all %}
-                                <span class="badge bg-light text-secondary border rounded-pill fw-normal">
-                                    {{ tag.name }}
-                                </span>
-                            {% empty %}
-                                <span class="text-muted small">-</span>
-                            {% endfor %}
-                        </div>
-                    </td>
-                    <td>
-                        {% if video.videometa.duration_seconds %}
-                            <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">
-                                <i class="bi bi-clock me-1"></i>{{ video.videometa.duration_seconds }}s
-                            </span>
-                        {% else %}
-                            <span class="text-muted small">-</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="form-check form-switch px-0">
-                            <input class="form-check-input ms-0 toggle-status-btn" type="checkbox" 
-                                   data-id="{{ video.id }}"
-                                   {% if video.is_active %}checked{% endif %}
-                                   onchange="toggleStatus('{{ video.id }}', this)">
-                        </div>
-                    </td>
-                    <td>
-                        {% if video.live_task %}
-                            <div class="d-flex align-items-center text-primary" title="{{ video.live_task.step }}">
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                <span class="small">{{ video.live_task.progress }}%</span>
-                            </div>
-                        {% elif video.processing_status == 'completed' %}
-                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
-                                {% trans "Ready" %}
-                            </span>
-                        {% elif video.processing_status == 'processing' %}
-                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
-                                {% trans "Processing" %}
-                            </span>
-                        {% elif video.processing_status == 'failed' %}
-                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2">
-                                {% trans "Failed" %}
-                            </span>
-                        {% else %}
-                             <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">{{ video.processing_status|title }}</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end pe-4">
-                        <div class="btn-group">
-                            {% if not video.videometa.has_seo %}
-                            <button type="button" 
-                                    class="btn btn-sm btn-warning text-white" 
-                                    title="{% trans 'Auto-Fill SEO' %}"
-                                    @click="autoFillMetadata('{{ video.id }}', $event.target)"
-                                    :disabled="autoFilling">
-                                <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
-                                <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
-                            </button>
-                            {% endif %}
-                            <a href="{% url 'frontend_api:admin_content_detail' video.id %}" 
-                               class="btn btn-sm btn-light" 
-                               title="{% trans 'Edit' %}">
-                                <i class="bi bi-pencil"></i>
-                            </a>
-                            <a href="{% url 'frontend_api:video_detail' video.id %}" 
-                               class="btn btn-sm btn-light" 
-                               title="{% trans 'Preview' %}" target="_blank">
-                                <i class="bi bi-eye"></i>
-                            </a>
-                            <a href="{% url 'frontend_api:content_delete_confirm' video.id %}" 
-                               class="btn btn-sm btn-light text-danger" 
-                               title="{% trans 'Delete' %}">
-                                <i class="bi bi-trash"></i>
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center py-5 text-muted">
-                        <div class="mb-3">
-                            <i class="bi bi-camera-video display-4 text-secondary opacity-50"></i>
-                        </div>
-                        <h6 class="fw-bold">{% trans "No videos found" %}</h6>
-                        <a href="{% url 'frontend_api:upload_content' %}?type=video" class="btn btn-danger text-white rounded-pill px-4 mt-2">
-                            {% trans "Add Video" %}
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<!-- Bulk Actions Bar -->
+<div class="card border-0 shadow-sm rounded-4 mb-3" id="bulkActionsBar" style="display: none;">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <span class="text-muted me-3">
+                    <i class="bi bi-check-circle me-1"></i>
+                    <span id="selectedCount">0</span> {% trans "selected" %}
+                </span>
+            </div>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-warning text-white" onclick="bulkGenerateSEO()">
+                    <i class="bi bi-sparkles me-1"></i>{% trans "Generate SEO" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-success" onclick="bulkActivate()">
+                    <i class="bi bi-eye me-1"></i>{% trans "Activate" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="bulkDeactivate()">
+                    <i class="bi bi-eye-slash me-1"></i>{% trans "Deactivate" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="bulkDelete()">
+                    <i class="bi bi-trash me-1"></i>{% trans "Delete" %}
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden" id="video-table-container">
+    {% include "admin/partials/video_table.html" %}
+</div>
+
 <script>
+// Bulk Selection Functions
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (count > 0) {
+        bulkBar.style.display = 'block';
+        selectedCount.textContent = count;
+    } else {
+        bulkBar.style.display = 'none';
+    }
+    
+    // Update master checkbox state
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+    const masterCheckbox = document.getElementById('selectAll');
+    if (masterCheckbox) {
+        masterCheckbox.checked = count === allCheckboxes.length && count > 0;
+        masterCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+}
+
+function getSelectedIds() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.dataset.contentId);
+}
+
+// Bulk Actions
+function bulkGenerateSEO() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one video" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Generate SEO metadata for selected videos?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}<br>` +
+                   `{% trans "This will use AI to generate SEO metadata for all selected videos." %}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkAction('{% url "frontend_api:api_auto_fill_metadata" %}', selectedIds);
+    });
+}
+
+function bulkActivate() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one video" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Activate selected videos?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkToggleStatus(selectedIds, true);
+    });
+}
+
+function bulkDeactivate() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one video" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Deactivate selected videos?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkToggleStatus(selectedIds, false);
+    });
+}
+
+function bulkDelete() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one video" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Delete selected videos?" %}';
+    const details = `<strong class="text-danger">{% trans "WARNING:" %}</strong> ` +
+                   `{% trans "This will permanently delete" %} ${selectedIds.length} {% trans "video(s)." %}<br>` +
+                   `{% trans "This action cannot be undone!" %}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkDelete(selectedIds);
+    });
+}
+
+// Perform Bulk Actions
+function refreshTable() {
+    const filterForm = document.querySelector('form[hx-get]');
+    if (filterForm) {
+        // Trigger HTMX request by dispatching submit event
+        filterForm.dispatchEvent(new Event('submit', { cancelable: true }));
+        
+        // Reset check-all and bulk bar
+        setTimeout(() => {
+            const masterCheckbox = document.getElementById('selectAll');
+            if (masterCheckbox) {
+                masterCheckbox.checked = false;
+                masterCheckbox.indeterminate = false;
+            }
+            const bulkBar = document.getElementById('bulkActionsBar');
+            if (bulkBar) bulkBar.style.display = 'none';
+        }, 100);
+    } else {
+        window.location.reload();
+    }
+}
+
+function performBulkAction(url, contentIds) {
+    const data = { content_ids: contentIds };
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || '{% trans "Action completed successfully" %}', 'success');
+            refreshTable();
+        } else {
+            showToast(data.error || '{% trans "Action failed" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function performBulkToggleStatus(contentIds, status) {
+    fetch('{% url "frontend_api:api_toggle_content_status" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            content_ids: contentIds,
+            is_active: status,
+            bulk: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || '{% trans "Status updated successfully" %}', 'success');
+            refreshTable();
+        } else {
+            showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function performBulkDelete(contentIds) {
+    fetch('{% url "frontend_api:bulk_operations" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'operation': 'delete',
+            'content_ids': contentIds.join(',')
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            showToast('{% trans "Videos deleted successfully" %}', 'success');
+            refreshTable();
+        } else {
+            showToast('{% trans "Failed to delete videos" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+// Single Item Actions
+function confirmAutoFill(contentId, title) {
+    const message = '{% trans "Generate SEO metadata for this video?" %}';
+    const details = `<strong>{% trans "Video:" %}</strong> ${title}<br>` +
+                   `{% trans "This will use AI to generate SEO metadata." %}`;
+    
+    showConfirmation(message, details, function() {
+        autoFillMetadata(contentId);
+    });
+}
+
 function toggleStatus(contentId, checkbox) {
     checkbox.disabled = true;
     
@@ -221,11 +325,7 @@ function toggleStatus(contentId, checkbox) {
     });
 }
 
-function autoFillMetadata(contentId, button) {
-    const row = button.closest('tr');
-    const alpineData = Alpine.$data(row);
-    alpineData.autoFilling = true;
-    
+function autoFillMetadata(contentId) {
     fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
         method: 'POST',
         headers: {
@@ -240,15 +340,13 @@ function autoFillMetadata(contentId, button) {
     .then(data => {
         if (data.success) {
             showToast('{% trans "Auto-fill started! Processing in background..." %}', 'success');
-            // Reload page after 3 seconds to show updated status
-            setTimeout(() => window.location.reload(), 3000);
+            // Refresh table after a delay to show updated status
+            setTimeout(() => refreshTable(), 2000);
         } else {
-            alpineData.autoFilling = false;
             showToast(data.error || '{% trans "Failed to start auto-fill" %}', 'danger');
         }
     })
     .catch(error => {
-        alpineData.autoFilling = false;
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
