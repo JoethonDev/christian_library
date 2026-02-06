@@ -83,9 +83,6 @@ urlpatterns += [
     # robots.txt
     path('robots.txt', robots_txt, name='robots_txt'),
 ]
-urlpatterns += [
-    path('robots.txt', robots_txt, name='robots_txt'),
-]
 
 # Internationalized URL patterns
 urlpatterns += i18n_patterns(

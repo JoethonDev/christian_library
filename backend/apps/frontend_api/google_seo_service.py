@@ -52,7 +52,7 @@ def ping_google_sitemap(request=None):
             return False
             
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error ping Google sitemap: {e}")
+        logger.error(f"Error pinging Google sitemap: {e}")
         return False
     except Exception as e:
         logger.error(f"Unexpected error pinging Google sitemap: {e}")
