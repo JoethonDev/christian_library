@@ -856,27 +856,30 @@ def api_content_seo(request, content_id):
                 'seo_meta_description_ar': content.seo_meta_description_ar or '',
                 'seo_keywords_en': content.seo_keywords_en or '',
                 'seo_keywords_ar': content.seo_keywords_ar or '',
-                'structured_data': content.structured_data or '{}'
+                'structured_data': json.dumps(content.structured_data) if content.structured_data else '{}',
+                'transcript': content.transcript or '',
+                'notes': content.notes or ''
             })
         
         elif request.method == 'POST':
             # Update SEO data
             data = json.loads(request.body)
             
-            content.seo_title_en = data.get('seo_title_en', '')[:60]
-            content.seo_title_ar = data.get('seo_title_ar', '')[:60]
+            content.seo_title_en = data.get('seo_title_en', '')[:70]
+            content.seo_title_ar = data.get('seo_title_ar', '')[:70]
             content.seo_meta_description_en = data.get('seo_meta_description_en', '')[:160]
             content.seo_meta_description_ar = data.get('seo_meta_description_ar', '')[:160]
             content.seo_keywords_en = data.get('seo_keywords_en', '')
             content.seo_keywords_ar = data.get('seo_keywords_ar', '')
+            content.transcript = data.get('transcript', '')
+            content.notes = data.get('notes', '')
             
             # Validate and save structured data
             structured_data = data.get('structured_data', '')
             if structured_data:
                 try:
-                    # Validate it's valid JSON
-                    json.loads(structured_data)
-                    content.structured_data = structured_data
+                    # Validate it's valid JSON and store as dict
+                    content.structured_data = json.loads(structured_data)
                 except json.JSONDecodeError:
                     return JsonResponse({'success': False, 'error': 'Invalid JSON in structured data'})
             
