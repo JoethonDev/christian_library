@@ -436,10 +436,10 @@ def api_toggle_content_status(request):
                 id__in=content_ids
             ).update(is_active=target_status)
             
-            status_text = "activated" if target_status else "deactivated"
+            status_text = _("activated") if target_status else _("deactivated")
             return JsonResponse({
                 'success': True,
-                'message': f'{updated_count} item(s) {status_text}',
+                'message': f'{updated_count} {_("item(s)")} {status_text}',
                 'updated_count': updated_count
             })
         
@@ -756,6 +756,5 @@ def api_auto_fill_metadata(request):
         
     except Exception as e:
         logger.error(f"Error triggering auto-fill: {str(e)}", exc_info=True)
-        return JsonResponse({'success': False, 'error': str(e)})
         return JsonResponse({'success': False, 'error': str(e)})
 

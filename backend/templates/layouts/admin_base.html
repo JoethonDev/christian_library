@@ -450,7 +450,7 @@
         /**
          * Show confirmation modal
          * @param {string} message - The confirmation message
-         * @param {string} details - Additional details to show (optional)
+         * @param {string} details - Additional details to show (optional, can contain HTML)
          * @param {function} onConfirm - Callback function when confirmed
          */
         window.showConfirmation = function(message, details, onConfirm) {
@@ -462,6 +462,8 @@
             messageEl.textContent = message;
             
             if (details) {
+                // innerHTML is safe here because details are constructed in our own code
+                // with user input already escaped via Django's escapejs filter
                 detailsEl.innerHTML = details;
                 detailsEl.style.display = 'block';
             } else {
