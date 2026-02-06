@@ -5,15 +5,17 @@ Tests cover:
 - ContentViewEvent model
 - DailyContentViewSummary model
 - Analytics tracking utility
+- AJAX tracking endpoint
 - Aggregation task
 - Analytics dashboard views
 - Analytics API endpoints
 """
-from django.test import TestCase, RequestFactory
+from django.test import TestCase, RequestFactory, Client
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta, date
 import uuid
+import json
 
 from apps.media_manager.models import (
     ContentItem, Tag, ContentViewEvent, DailyContentViewSummary,
@@ -398,3 +400,120 @@ class AnalyticsAPIViewTest(TestCase):
         # All returned data should be for PDF content
         for item in data['data']:
             self.assertEqual(item['content_type'], 'pdf')
+
+
+class AJAXTrackingEndpointTest(TestCase):
+    """Test the AJAX tracking endpoint"""
+    
+    def setUp(self):
+        """Set up test data"""
+        self.client = Client()
+        
+        self.tag = Tag.objects.create(
+            name_ar='تجريبي',
+            name_en='Test',
+            is_active=True
+        )
+        
+        self.content = ContentItem.objects.create(
+            title_ar='محتوى',
+            title_en='Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True
+        )
+    
+    def test_tracking_endpoint_success(self):
+        """Test successful tracking via AJAX endpoint"""
+        data = {
+            'content_type': 'video',
+            'content_id': str(self.content.id)
+        }
+        
+        response = self.client.post(
+            '/en/api/track-view/',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 200)
+        response_data = response.json()
+        self.assertTrue(response_data['success'])
+        self.assertTrue(response_data['tracked'])
+        
+        # Verify event was created
+        self.assertEqual(ContentViewEvent.objects.count(), 1)
+        event = ContentViewEvent.objects.first()
+        self.assertEqual(event.content_type, 'video')
+        self.assertEqual(str(event.content_id), str(self.content.id))
+    
+    def test_tracking_endpoint_invalid_json(self):
+        """Test endpoint with invalid JSON"""
+        response = self.client.post(
+            '/en/api/track-view/',
+            data='invalid json',
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 400)
+        response_data = response.json()
+        self.assertFalse(response_data['success'])
+        self.assertIn('Invalid JSON', response_data['error'])
+    
+    def test_tracking_endpoint_missing_fields(self):
+        """Test endpoint with missing required fields"""
+        data = {'content_type': 'video'}  # Missing content_id
+        
+        response = self.client.post(
+            '/en/api/track-view/',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 400)
+        response_data = response.json()
+        self.assertFalse(response_data['success'])
+        self.assertIn('required', response_data['error'])
+    
+    def test_tracking_endpoint_invalid_type(self):
+        """Test endpoint with invalid content type"""
+        data = {
+            'content_type': 'invalid',
+            'content_id': str(self.content.id)
+        }
+        
+        response = self.client.post(
+            '/en/api/track-view/',
+            data=json.dumps(data),
+            content_type='application/json'
+        )
+        
+        self.assertEqual(response.status_code, 400)
+        response_data = response.json()
+        self.assertFalse(response_data['success'])
+        self.assertIn('Invalid content_type', response_data['error'])
+    
+    def test_tracking_endpoint_get_not_allowed(self):
+        """Test that GET requests are not allowed"""
+        response = self.client.get('/en/api/track-view/')
+        self.assertEqual(response.status_code, 405)  # Method not allowed
+    
+    def test_tracking_concurrent_requests(self):
+        """Test that concurrent requests don't cause race conditions"""
+        data = {
+            'content_type': 'video',
+            'content_id': str(self.content.id)
+        }
+        
+        # Simulate concurrent requests
+        for _ in range(5):
+            response = self.client.post(
+                '/en/api/track-view/',
+                data=json.dumps(data),
+                content_type='application/json'
+            )
+            self.assertEqual(response.status_code, 200)
+        
+        # All 5 events should be recorded
+        self.assertEqual(ContentViewEvent.objects.count(), 5)

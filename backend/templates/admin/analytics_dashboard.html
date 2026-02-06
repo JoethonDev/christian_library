@@ -91,7 +91,14 @@
                 <p class="text-muted small mb-0">{{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</p>
             </div>
             <div class="card-body">
-                <canvas id="dailyViewsChart" style="max-height: 400px;"></canvas>
+                {% if daily_stats %}
+                    <canvas id="dailyViewsChart" style="max-height: 400px;"></canvas>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-graph-up fs-1 text-muted opacity-25 d-block mb-3"></i>
+                        <p class="text-muted mb-0">{% trans "No daily view data available yet" %}</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -103,7 +110,14 @@
                 <h5 class="card-title mb-0 fw-bold">{% trans "Views by Type" %}</h5>
             </div>
             <div class="card-body">
-                <canvas id="typeDistributionChart" style="max-height: 300px;"></canvas>
+                {% if totals_by_type %}
+                    <canvas id="typeDistributionChart" style="max-height: 300px;"></canvas>
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="bi bi-pie-chart fs-1 text-muted opacity-25 d-block mb-3"></i>
+                        <p class="text-muted mb-0">{% trans "No type distribution data yet" %}</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -154,9 +168,18 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted py-5">
-                            <i class="bi bi-inbox fs-1 d-block mb-3 opacity-25"></i>
-                            {% trans "No analytics data available for the selected period." %}
+                        <td colspan="4" class="text-center py-5">
+                            <div class="empty-state-container">
+                                <i class="bi bi-bar-chart fs-1 d-block mb-3 text-muted opacity-25"></i>
+                                <h5 class="text-muted mb-2">{% trans "No Analytics Data Yet" %}</h5>
+                                <p class="text-muted small mb-3">
+                                    {% trans "Content views will appear here once visitors start accessing your library." %}
+                                </p>
+                                <p class="text-muted small">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    {% trans "Analytics data is updated daily at midnight." %}
+                                </p>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -220,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Daily Views Chart
     const dailyCtx = document.getElementById('dailyViewsChart');
-    if (dailyCtx) {
+    if (dailyCtx && dailyStats.length > 0) {
         new Chart(dailyCtx, {
             type: 'line',
             data: {

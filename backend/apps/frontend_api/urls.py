@@ -77,11 +77,12 @@ urlpatterns = [
     path('admin-system/', RedirectView.as_view(pattern_name='frontend_api:system_monitor'), name='admin_system_monitor'),
     path('admin-bulk/', RedirectView.as_view(pattern_name='frontend_api:bulk_operations'), name='admin_bulk_operations'),
     
-    # API endpoints
+    # API endpoints (NOT cached - separate from content routes)
     path('api/health/', views.api_health, name='api_health'),
     path('api/home-data/', views.api_home_data, name='api_home_data'),
     path('api/search/', views.api_global_search, name='api_global_search'),
     path('api/stats/', views.api_content_stats, name='api_content_stats'),
+    path('api/track-view/', views.api_track_content_view, name='api_track_content_view'),
 
     path('api/toggle-status/', admin_views.api_toggle_content_status, name='api_toggle_content_status'),
     path('api/admin/r2-storage-usage/', admin_views.get_r2_storage_usage, name='api_r2_storage_usage'),

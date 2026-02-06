@@ -149,3 +149,12 @@
 </div>
 {% endif %}
 {% endblock %}
+
+{% block extra_js %}
+<!-- Analytics Tracking -->
+<script src="{% static 'js/analytics-tracking.js' %}"></script>
+<div data-analytics-track 
+     data-content-type="audio" 
+     data-content-id="{{ audio.id }}" 
+     style="display:none;"></div>
+{% endblock %}
