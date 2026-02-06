@@ -113,16 +113,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Direct action without confirmation
         showToast('{% trans "Generating metadata with AI..." %}', 'info');
         
+        // Build FormData with multiple content_ids parameters
+        const formData = new FormData();
+        formData.append('action', 'generate_seo');
+        selectedIds.forEach(id => {
+            formData.append('content_ids', id);
+        });
+        
         fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || '{{ csrf_token }}'
             },
-            body: new URLSearchParams({
-                'action': 'generate_seo',
-                'content_ids': selectedIds
-            })
+            body: formData
         })
         .then(response => response.json())
         .then(data => {

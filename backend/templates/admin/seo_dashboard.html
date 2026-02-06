@@ -219,16 +219,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Direct action without confirmation
         showToast('{% trans "Generating SEO metadata..." %}', 'info');
         
+        // Build FormData with multiple content_ids parameters
+        const formData = new FormData();
+        formData.append('action', 'generate_seo');
+        selectedIds.forEach(id => {
+            formData.append('content_ids', id);
+        });
+        
         fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || '{{ csrf_token }}'
             },
-            body: new URLSearchParams({
-                'action': 'generate_seo',
-                'content_ids': selectedIds
-            })
+            body: formData
         })
         .then(response => response.json())
         .then(data => {
@@ -303,6 +306,15 @@ function loadContentAnalysis() {
                     priorityText = 'Completed';
                 }
                 
+                // Show "Fix" button for items with missing SEO (high/medium priority), "View Details" for completed
+                const actionButton = item.priority === 'high' || item.priority === 'medium' 
+                    ? `<button class="btn btn-sm btn-warning rounded-pill px-3" onclick="fixSEO('${item.id}')">
+                           <i class="bi bi-magic me-1"></i>{% trans "Fix SEO" %}
+                       </button>`
+                    : `<button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showSEODetails('${item.id}')">
+                           <i class="bi bi-eye me-1"></i>{% trans "View Details" %}
+                       </button>`;
+                
                 const row = `
                     <tr>
                         <td class="ps-4"><input class="form-check-input" type="checkbox" name="content_id" value="${item.id}"></td>
@@ -318,9 +330,7 @@ function loadContentAnalysis() {
                             ${item.issues.length > 2 ? `<div class="small text-muted fst-italic">+${item.issues.length - 2} more</div>` : ''}
                         </td>
                         <td class="pe-4 text-end">
-                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showSEODetails('${item.id}')">
-                                <i class="bi bi-eye me-1"></i>{% trans "View Details" %}
-                            </button>
+                            ${actionButton}
                         </td>
                     </tr>
                     <tr id="seo-details-${item.id}" class="collapse">
@@ -439,6 +449,38 @@ function saveSEOData(contentId) {
     })
     .catch(err => {
         showToast('{% trans "An error occurred while saving" %}', 'danger');
+        console.error(err);
+    });
+}
+
+function fixSEO(contentId) {
+    // Queue SEO generation for this content item
+    showToast('{% trans "Generating SEO metadata..." %}', 'info');
+    
+    const formData = new FormData();
+    formData.append('action', 'generate_seo');
+    formData.append('content_ids', contentId);
+    
+    fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.success > 0) {
+            showToast('{% trans "SEO generation queued successfully" %}', 'success');
+            setTimeout(() => {
+                loadContentAnalysis(); // Refresh the table after a delay
+            }, 2000);
+        } else {
+            showToast(data.messages?.[0] || '{% trans "Failed to queue SEO generation" %}', 'danger');
+        }
+    })
+    .catch(err => {
+        showToast('{% trans "An error occurred while queueing SEO generation" %}', 'danger');
         console.error(err);
     });
 }

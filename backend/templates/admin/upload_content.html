@@ -342,9 +342,13 @@
                     document.querySelector('input[name="seo_keywords_ar"]').value = seo.ar.keywords.join(', ');
                 }
                 
-                // Structured Data - use English version (can combine both if needed)
-                if (seo.en && seo.en.structured_data) {
-                    document.getElementById('seo_structured_data').value = JSON.stringify(seo.en.structured_data, null, 2);
+                // Structured Data - combine both English and Arabic into a single JSON object
+                if ((seo.en && seo.en.structured_data) || (seo.ar && seo.ar.structured_data)) {
+                    const combinedStructuredData = {
+                        en: seo.en?.structured_data || {},
+                        ar: seo.ar?.structured_data || {}
+                    };
+                    document.getElementById('seo_structured_data').value = JSON.stringify(combinedStructuredData, null, 2);
                 }
                 
                 showToast('{% trans "SEO metadata generated successfully!" %}', 'success');
