@@ -9,6 +9,7 @@ from typing import Dict, Any
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse, HttpResponse, Http404
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 from rest_framework.decorators import api_view
 from django.utils.translation import get_language
@@ -16,6 +17,7 @@ from django.utils.translation import get_language
 from apps.media_manager.models import ContentItem, Tag
 from apps.frontend_api.services import ContentService, APIService
 from core.utils.cache_utils import cache_invalidator
+from apps.media_manager.analytics import record_content_view
 
 # Initialize services
 content_service = ContentService()
@@ -474,3 +476,64 @@ def component_showcase(request):
         'page_title': _('Component Showcase - Phase 4 Enhanced Media Components'),
         'meta_description': _('Showcase of enhanced media components with Coptic Orthodox theming and mobile-first responsive design'),
     })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_track_content_view(request):
+    """
+    AJAX endpoint for tracking content views.
+    Uses POST to avoid caching and ensure accurate tracking.
+    Separate from content-serving endpoints to prevent cache interference.
+    CSRF exempt as this is called from cached pages.
+    """
+    import json
+    
+    try:
+        # Parse JSON body
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Invalid JSON'
+            }, status=400)
+        
+        # Validate required fields
+        content_type = data.get('content_type')
+        content_id = data.get('content_id')
+        
+        if not content_type or not content_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'content_type and content_id are required'
+            }, status=400)
+        
+        # Validate content_type
+        valid_types = ['video', 'audio', 'pdf', 'static']
+        if content_type not in valid_types:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid content_type. Must be one of: {", ".join(valid_types)}'
+            }, status=400)
+        
+        # Record the view event (atomic operation)
+        try:
+            record_content_view(request, content_type, content_id)
+        except Exception as e:
+            logger.error(f"Error recording content view: {str(e)}", exc_info=True)
+            # Don't fail the request if tracking fails
+            pass
+        
+        # Return minimal response
+        return JsonResponse({
+            'success': True,
+            'tracked': True
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in api_track_content_view: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': 'Internal server error'
+        }, status=500)

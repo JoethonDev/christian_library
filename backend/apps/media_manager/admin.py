@@ -8,7 +8,7 @@ from django.utils.html import format_html
 from django.core.cache import cache
 import logging
 
-from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
+from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag, ContentViewEvent, DailyContentViewSummary
 from .forms import ContentItemForm
 from .services import ContentService, MediaUploadService
 
@@ -560,3 +560,47 @@ class PdfMetaAdmin(admin.ModelAdmin):
         return obj.is_ready_for_viewing()
     is_ready.short_description = _('Ready for Viewing')
     is_ready.boolean = True
+
+
+@admin.register(ContentViewEvent)
+class ContentViewEventAdmin(admin.ModelAdmin):
+    """Admin interface for ContentViewEvent"""
+    list_display = ['content_type', 'content_id', 'timestamp', 'ip_address', 'short_user_agent']
+    list_filter = ['content_type', 'timestamp']
+    search_fields = ['content_id', 'ip_address', 'user_agent']
+    readonly_fields = ['content_type', 'content_id', 'timestamp', 'user_agent', 'ip_address', 'referrer']
+    date_hierarchy = 'timestamp'
+    
+    def short_user_agent(self, obj):
+        """Display shortened user agent"""
+        if len(obj.user_agent) > 50:
+            return obj.user_agent[:50] + '...'
+        return obj.user_agent
+    short_user_agent.short_description = _('User Agent')
+    
+    def has_add_permission(self, request):
+        """Disable manual creation of view events"""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Make view events read-only"""
+        return False
+
+
+@admin.register(DailyContentViewSummary)
+class DailyContentViewSummaryAdmin(admin.ModelAdmin):
+    """Admin interface for DailyContentViewSummary"""
+    list_display = ['date', 'content_type', 'content_id', 'view_count']
+    list_filter = ['content_type', 'date']
+    search_fields = ['content_id']
+    readonly_fields = ['content_type', 'content_id', 'date', 'view_count']
+    date_hierarchy = 'date'
+    ordering = ['-date', '-view_count']
+    
+    def has_add_permission(self, request):
+        """Disable manual creation of summaries"""
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        """Make summaries read-only"""
+        return False

@@ -1,6 +1,7 @@
 <!-- templates/frontend_api/video_detail.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 {% get_current_language as LANGUAGE_CODE %}
 
 {% block title %}
@@ -179,4 +180,14 @@
     </a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<!-- Analytics Tracking -->
+<script src="{% static 'js/analytics-tracking.js' %}"></script>
+<div data-analytics-track 
+     data-content-type="video" 
+     data-content-id="{{ video.id }}" 
+     data-tracking-url="{% url 'frontend_api:api_track_content_view' %}"
+     style="display:none;"></div>
 {% endblock %}
