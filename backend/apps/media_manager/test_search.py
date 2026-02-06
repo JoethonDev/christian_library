@@ -146,9 +146,10 @@ class MultilingualSearchTest(TestCase):
     
     def test_empty_query_returns_all(self):
         """Test that empty query returns all active content"""
+        # Get expected count dynamically to make test robust
+        expected_count = ContentItem.objects.filter(is_active=True).count()
+        
         results = ContentItem.objects.search_optimized("")
-        # Count items created in setUp (4 items)
-        expected_count = 4
         self.assertEqual(results.count(), expected_count)
     
     def test_inactive_content_excluded(self):
@@ -367,9 +368,20 @@ class SearchPerformanceTest(TestCase):
         # Check query count (optimized with prefetch_related)
         queries = len(connection.queries)
         
-        # Should execute 2-3 queries: 1 main query + 1-2 for prefetch_related (tags and possibly metadata)
+        # Should execute 2-3 queries:
+        # 1. Main query with annotations (rank calculation)
+        # 2. Prefetch for tags (M2M relationship)
+        # 3. Possibly prefetch for metadata (videometa/audiometa/pdfmeta) if accessed
         self.assertLessEqual(queries, 3, f"Search executed {queries} queries, expected <= 3")
         self.assertGreaterEqual(queries, 1, f"Search must execute at least 1 query")
+        
+        # Verify that results are properly prefetched (accessing relations shouldn't trigger new queries)
+        if results:
+            reset_queries()
+            # Access tags for first result
+            _ = list(results[0].tags.all())
+            new_queries = len(connection.queries)
+            self.assertEqual(new_queries, 0, "Accessing prefetched tags should not trigger queries")
     
     def test_pagination_performance(self):
         """Test that paginated search is efficient and tags are prefetched"""

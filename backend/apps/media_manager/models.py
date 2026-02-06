@@ -70,9 +70,9 @@ ARABIC_CHAR_PATTERN = re.compile(r'[\u0600-\u06FF\u0750-\u077F]')
 def detect_query_language(query):
     """
     Detect if query contains Arabic characters.
-    Returns 'arabic' if Arabic chars detected, 'english' otherwise.
+    Returns 'ar' if Arabic chars detected, 'en' otherwise.
     """
-    return 'arabic' if ARABIC_CHAR_PATTERN.search(query) else 'english'
+    return 'ar' if ARABIC_CHAR_PATTERN.search(query) else 'en'
 
 
 class TagManager(models.Manager):
@@ -326,7 +326,9 @@ class ContentItemQuerySet(models.QuerySet):
         
         # Detect language if not specified (use module-level helper for performance)
         if language is None:
-            language = detect_query_language(query)
+            lang_code = detect_query_language(query)
+            # Map short code to PostgreSQL text search config name
+            language = 'arabic' if lang_code == 'ar' else 'english'
         
         # Try PostgreSQL FTS first (works for all content types now)
         try:
@@ -353,9 +355,9 @@ class ContentItemQuerySet(models.QuerySet):
             # Build comprehensive search conditions
             # FTS match OR text field matches (for items without search_vector)
             # Note: Tags are searched via Q object filters, not included in search_vector
-            # Simplified: rank check alone is sufficient since null search_vector results in rank=0.0
+            # Simplified: rank >= threshold is sufficient (null search_vector results in rank=0.0 < threshold)
             search_conditions = (
-                Q(rank__gte=FTS_RANK_THRESHOLD) |  # FTS match (rank > 0 means search_vector exists)
+                Q(rank__gte=FTS_RANK_THRESHOLD) |  # FTS match: rank >= 0.01 means search_vector exists and meets minimum relevance
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
