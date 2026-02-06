@@ -3,41 +3,40 @@ JSON-LD Schema Generator for SEO
 Generates structured data for different content types following Schema.org standards
 """
 import json
-from datetime import datetime
 from django.contrib.sites.models import Site
-from django.urls import reverse
+
+
+def _get_absolute_url(path, request=None):
+    """
+    Internal helper to build absolute URLs consistently across all schema generators.
+    Prioritizes request.build_absolute_uri, falls back to Site framework.
+    """
+    if not path:
+        return ""
+    if path.startswith('http'):
+        return path
+    
+    if request:
+        return request.build_absolute_uri(path)
+    
+    try:
+        current_site = Site.objects.get_current()
+        return f"https://{current_site.domain}{path}"
+    except:
+        return path
 
 
 def generate_breadcrumb_schema(breadcrumbs, request=None):
     """
-    Generate BreadcrumbList schema
-    
-    Args:
-        breadcrumbs: List of tuples (name, url)
-        request: Django request object for building absolute URLs
-    
-    Returns:
-        JSON-LD formatted breadcrumb schema
+    Generate BreadcrumbList structured data for search engine result pages.
     """
-    try:
-        current_site = Site.objects.get_current()
-        domain = current_site.domain
-        protocol = 'https' if (request and request.is_secure()) else 'https'
-    except:
-        domain = request.get_host() if request else 'example.com'
-        protocol = 'https'
-    
     items = []
     for position, (name, url) in enumerate(breadcrumbs, start=1):
-        # Make URL absolute if it's relative
-        if url.startswith('/'):
-            url = f"{protocol}://{domain}{url}"
-        
         items.append({
             "@type": "ListItem",
             "position": position,
             "name": name,
-            "item": url
+            "item": _get_absolute_url(url, request)
         })
     
     return {
@@ -47,227 +46,160 @@ def generate_breadcrumb_schema(breadcrumbs, request=None):
     }
 
 
-def generate_video_schema(content_item, request=None):
+def generate_video_schema(content_item, request=None, language='en'):
     """
-    Generate VideoObject schema for video content
-    
-    Args:
-        content_item: ContentItem object with content_type='video'
-        request: Django request object
-    
-    Returns:
-        JSON-LD formatted VideoObject schema
+    Generate VideoObject schema for rich video snippets in Google Search.
+    Uses optimized SEO metadata and canonical URLs from the model.
     """
-    try:
-        current_site = Site.objects.get_current()
-        domain = current_site.domain
-        protocol = 'https' if (request and request.is_secure()) else 'https'
-    except:
-        domain = request.get_host() if request else 'example.com'
-        protocol = 'https'
-    
-    url = f"{protocol}://{domain}{content_item.get_absolute_url()}"
+    url = content_item.get_canonical_url()
     
     schema = {
         "@context": "https://schema.org",
         "@type": "VideoObject",
-        "name": content_item.get_title('en') or content_item.get_title('ar'),
-        "description": content_item.get_description('en') or content_item.get_description('ar'),
+        "name": content_item.get_seo_title(language),
+        "description": content_item.get_seo_meta_description(language),
         "uploadDate": content_item.created_at.isoformat(),
-        "contentUrl": url,
+        "url": url,
     }
     
-    # Add optional fields if available
-    if hasattr(content_item, 'videometa') and content_item.videometa:
-        video_meta = content_item.videometa
+    video_meta = content_item.get_meta_object()
+    if video_meta and content_item.content_type == 'video':
+        # Re-using direct URL methods from models for accurate content discovery
+        schema["contentUrl"] = _get_absolute_url(video_meta.get_best_streaming_url(), request)
         
-        if video_meta.duration:
-            # Convert duration to ISO 8601 duration format (PT#H#M#S)
-            hours = int(video_meta.duration // 3600)
-            minutes = int((video_meta.duration % 3600) // 60)
-            seconds = int(video_meta.duration % 60)
-            duration_str = f"PT{hours}H{minutes}M{seconds}S" if hours else f"PT{minutes}M{seconds}S"
-            schema["duration"] = duration_str
+        # Re-using ISO duration method added to models
+        duration_iso = getattr(video_meta, 'get_duration_iso', lambda: None)()
+        if duration_iso:
+            schema["duration"] = duration_iso
         
-        if video_meta.thumbnail_url:
-            schema["thumbnailUrl"] = video_meta.thumbnail_url
+        # Safe access to optional thumbnail property
+        thumbnail_url = getattr(video_meta, 'thumbnail_url', None)
+        if thumbnail_url:
+            schema["thumbnailUrl"] = _get_absolute_url(thumbnail_url, request)
     
-    # Add keywords from SEO metadata
-    if content_item.seo_keywords_en:
-        keywords = [k.strip() for k in content_item.seo_keywords_en.split(',') if k.strip()]
+    # Populate keywords using localized SEO metadata
+    keywords_str = content_item.get_seo_keywords(language)
+    if keywords_str:
+        keywords = [k.strip() for k in keywords_str if k.strip()]
         if keywords:
-            schema["keywords"] = ", ".join(keywords[:10])  # Limit to 10 keywords
+            schema["keywords"] = ", ".join(keywords[:10])
     
     return schema
 
 
-def generate_audio_schema(content_item, request=None):
+def generate_audio_schema(content_item, request=None, language='en'):
     """
-    Generate AudioObject/Podcast schema for audio content
-    
-    Args:
-        content_item: ContentItem object with content_type='audio'
-        request: Django request object
-    
-    Returns:
-        JSON-LD formatted AudioObject schema
+    Generate AudioObject/Podcast schema for audio content.
     """
-    try:
-        current_site = Site.objects.get_current()
-        domain = current_site.domain
-        protocol = 'https' if (request and request.is_secure()) else 'https'
-    except:
-        domain = request.get_host() if request else 'example.com'
-        protocol = 'https'
-    
-    url = f"{protocol}://{domain}{content_item.get_absolute_url()}"
+    url = content_item.get_canonical_url()
     
     schema = {
         "@context": "https://schema.org",
         "@type": "AudioObject",
-        "name": content_item.get_title('en') or content_item.get_title('ar'),
-        "description": content_item.get_description('en') or content_item.get_description('ar'),
+        "name": content_item.get_seo_title(language),
+        "description": content_item.get_seo_meta_description(language),
         "uploadDate": content_item.created_at.isoformat(),
-        "contentUrl": url,
+        "url": url,
     }
     
-    # Add optional fields if available
-    if hasattr(content_item, 'audiometa') and content_item.audiometa:
-        audio_meta = content_item.audiometa
+    audio_meta = content_item.get_meta_object()
+    if audio_meta and content_item.content_type == 'audio':
+        # Use best available playback URL (R2 or local)
+        schema["contentUrl"] = _get_absolute_url(audio_meta.get_best_streaming_url(), request)
         
-        if audio_meta.duration:
-            # Convert duration to ISO 8601 duration format
-            hours = int(audio_meta.duration // 3600)
-            minutes = int((audio_meta.duration % 3600) // 60)
-            seconds = int(audio_meta.duration % 60)
-            duration_str = f"PT{hours}H{minutes}M{seconds}S" if hours else f"PT{minutes}M{seconds}S"
-            schema["duration"] = duration_str
-    
-    # Add keywords from SEO metadata
-    if content_item.seo_keywords_en:
-        keywords = [k.strip() for k in content_item.seo_keywords_en.split(',') if k.strip()]
+        duration_iso = getattr(audio_meta, 'get_duration_iso', lambda: None)()
+        if duration_iso:
+            schema["duration"] = duration_iso
+            
+    keywords_str = content_item.get_seo_keywords(language)
+    if keywords_str:
+        keywords = [k.strip() for k in keywords_str if k.strip()]
         if keywords:
             schema["keywords"] = ", ".join(keywords[:10])
     
     return schema
 
 
-def generate_book_schema(content_item, request=None):
+def generate_book_schema(content_item, request=None, language='en'):
     """
-    Generate Book schema for PDF content
-    
-    Args:
-        content_item: ContentItem object with content_type='pdf'
-        request: Django request object
-    
-    Returns:
-        JSON-LD formatted Book schema
+    Generate Book schema for PDF content, including page counts and text snippets.
     """
-    try:
-        current_site = Site.objects.get_current()
-        domain = current_site.domain
-        protocol = 'https' if (request and request.is_secure()) else 'https'
-    except:
-        domain = request.get_host() if request else 'example.com'
-        protocol = 'https'
-    
-    url = f"{protocol}://{domain}{content_item.get_absolute_url()}"
+    url = content_item.get_canonical_url()
     
     schema = {
         "@context": "https://schema.org",
         "@type": "Book",
-        "name": content_item.get_title('en') or content_item.get_title('ar'),
-        "description": content_item.get_description('en') or content_item.get_description('ar'),
+        "name": content_item.get_seo_title(language),
+        "description": content_item.get_seo_meta_description(language),
         "url": url,
         "datePublished": content_item.created_at.isoformat(),
     }
     
-    # Add optional fields if available
-    if hasattr(content_item, 'pdfmeta') and content_item.pdfmeta:
-        pdf_meta = content_item.pdfmeta
-        
+    pdf_meta = content_item.get_meta_object()
+    if pdf_meta and content_item.content_type == 'pdf':
         if pdf_meta.page_count:
             schema["numberOfPages"] = pdf_meta.page_count
     
-    # Add text content if available (for searchability)
+    # Include a sanitized snippet of extracted text for search indexing
     if content_item.book_content:
-        # Include a snippet of the content (first 500 characters)
         snippet = content_item.book_content[:500].strip()
         if snippet:
             schema["text"] = snippet + "..." if len(content_item.book_content) > 500 else snippet
     
-    # Add keywords from SEO metadata
-    if content_item.seo_keywords_en:
-        keywords = [k.strip() for k in content_item.seo_keywords_en.split(',') if k.strip()]
+    keywords_str = content_item.get_seo_keywords(language)
+    if keywords_str:
+        keywords = [k.strip() for k in keywords_str if k.strip()]
         if keywords:
             schema["keywords"] = ", ".join(keywords[:10])
     
     return schema
 
 
-def generate_creative_work_schema(content_item, request=None):
+def generate_creative_work_schema(content_item, request=None, language='en'):
     """
-    Generate generic CreativeWork schema for any content type
-    Fallback schema when specific type is not applicable
-    
-    Args:
-        content_item: ContentItem object
-        request: Django request object
-    
-    Returns:
-        JSON-LD formatted CreativeWork schema
+    Fallback generic CreativeWork schema for miscellaneous content types.
     """
-    try:
-        current_site = Site.objects.get_current()
-        domain = current_site.domain
-        protocol = 'https' if (request and request.is_secure()) else 'https'
-    except:
-        domain = request.get_host() if request else 'example.com'
-        protocol = 'https'
-    
-    url = f"{protocol}://{domain}{content_item.get_absolute_url()}"
+    url = content_item.get_canonical_url()
     
     schema = {
         "@context": "https://schema.org",
-        "@type": "CreativeWork",
-        "name": content_item.get_title('en') or content_item.get_title('ar'),
-        "description": content_item.get_description('en') or content_item.get_description('ar'),
+        "@type": content_item.get_schema_type(),
+        "name": content_item.get_seo_title(language),
+        "description": content_item.get_seo_meta_description(language),
         "url": url,
         "datePublished": content_item.created_at.isoformat(),
         "dateModified": content_item.updated_at.isoformat(),
     }
     
-    # Add keywords from SEO metadata
-    if content_item.seo_keywords_en:
-        keywords = [k.strip() for k in content_item.seo_keywords_en.split(',') if k.strip()]
+    keywords_str = content_item.get_seo_keywords(language)
+    if keywords_str:
+        keywords = [k.strip() for k in keywords_str if k.strip()]
         if keywords:
             schema["keywords"] = ", ".join(keywords[:10])
     
     return schema
 
 
-def generate_schema_for_content(content_item, request=None):
+def generate_schema_for_content(content_item, request=None, language='en'):
     """
-    Generate appropriate schema based on content type
-    
-    Args:
-        content_item: ContentItem object
-        request: Django request object
-    
-    Returns:
-        JSON-LD formatted schema appropriate for content type
+    Universal entry point for generating content-specific structured data.
+    Directly leverages model-level schema mapping and metadata accessors.
     """
-    if content_item.content_type == 'video':
-        return generate_video_schema(content_item, request)
-    elif content_item.content_type == 'audio':
-        return generate_audio_schema(content_item, request)
-    elif content_item.content_type == 'pdf':
-        return generate_book_schema(content_item, request)
-    else:
-        return generate_creative_work_schema(content_item, request)
+    ctype = content_item.content_type
+    if ctype == 'video':
+        return generate_video_schema(content_item, request, language)
+    elif ctype == 'audio':
+        return generate_audio_schema(content_item, request, language)
+    elif ctype == 'pdf':
+        return generate_book_schema(content_item, request, language)
+    return generate_creative_work_schema(content_item, request, language)
 
 
 def schema_to_json_ld(schema):
+    """
+    Convert a schema dictionary into a valid HTML <script> tag for injection.
+    """
+    return f'<script type="application/ld+json">\n{json.dumps(schema, ensure_ascii=False, indent=2)}\n</script>'
     """
     Convert schema dict to JSON-LD script tag
     
