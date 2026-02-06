@@ -443,31 +443,12 @@ class ContentItem(models.Model):
         from apps.media_manager.tasks import extract_and_index_contentitem
         extract_and_index_contentitem.delay(str(self.id))
 
-    def _filter_arabic_text(self, text):
-        """
-        Filter and keep only Arabic characters, numbers, and basic punctuation.
-        Removes English characters and other scripts.
-        """
-        if not text:
-            return ""
-        
-        # Arabic character ranges + whitespace + digits + basic punctuation
-        # Ranges: 0600-06FF (Arabic), 0750-077F (Arabic Supplement), 
-        # 08A0-08FF (Arabic Extended-A), FB50-FDFF (Arabic Presentation Forms-A),
-        # FE70-FEFF (Arabic Presentation Forms-B)
-        arabic_pattern = re.compile(r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\s0-9\.\,\!\?\(\)\[\]\-\_\:\/]+')
-        
-        matches = arabic_pattern.findall(text)
-        filtered = "".join(matches)
-        
-        # Clean up: replace multiple spaces/newlines with a single space
-        filtered = re.sub(r'\s+', ' ', filtered)
-        return filtered.strip()
-
     def extract_text_from_pdf(self):
         """
         Extract ONLY Arabic text from the associated PDF file (PdfMeta.original_file) and store in book_content.
         This should be called from a background task. Tries multiple methods for best results.
+        
+        Uses PdfProcessorService for text extraction, OCR, and normalization.
         """
         logger = logging.getLogger(__name__)
         
@@ -485,286 +466,21 @@ class ContentItem(models.Model):
                 return
             
             page_count = getattr(pdfmeta, 'page_count', 0) or 0
-            logger.info(f"Starting text extraction for PDF: {self.id} ({page_count} pages)")
             
-            # 1. Try PyMuPDF (usually best results for Arabic)
-            text_fitz = self._extract_text_with_pymupdf(pdf_path)
-            filtered_fitz = self._filter_arabic_text(text_fitz)
+            # Use the dedicated PDF processor service
+            from apps.media_manager.services.pdf_processor_service import create_pdf_processor
+            processor = create_pdf_processor(str(self.id))
             
-            # 2. Try pdfminer
-            text_miner = extract_text(pdf_path)
-            filtered_miner = self._filter_arabic_text(text_miner)
-            
-            # Pick the best of textual extraction
-            if len(filtered_fitz) >= len(filtered_miner):
-                best_text = filtered_fitz
-                method_used = "PyMuPDF"
-            else:
-                best_text = filtered_miner
-                method_used = "pdfminer"
-            
-            # Heuristic: if text is too short compared to page count, try OCR
-            # Average page is ~2000 chars. We use 300 chars per page as a "low quality" threshold.
-            threshold = max(500, page_count * 300)
-            
-            if len(best_text) < threshold:
-                logger.info(f"Text-based extraction ({method_used}) seems incomplete ({len(best_text)} characters for {page_count} pages). Attempting OCR.")
-                text_ocr = self._extract_text_with_ocr(pdf_path)
-                filtered_ocr = self._filter_arabic_text(text_ocr)
-                
-                if len(filtered_ocr) > len(best_text):
-                    best_text = filtered_ocr
-                    method_used = "Tesseract OCR"
-                    logger.info(f"OCR provided better results: {len(best_text)} characters")
-            
-            self.book_content = best_text
-            
-            # Apply Arabic text cleaning pipeline for search optimization
-            if best_text:
-                try:
-                    cleaned_text = self._apply_arabic_cleaning_pipeline(best_text)
-                    self.book_content = cleaned_text
-                    logger.info(f"Applied Arabic cleaning pipeline: {len(best_text)} → {len(cleaned_text)} characters")
-                except Exception as e:
-                    logger.error(f"Error in Arabic cleaning pipeline: {e}")
-                    # Keep original text if cleaning fails
+            self.book_content = processor.extract_text_from_pdf(pdf_path, page_count)
             
             if self.book_content:
-                logger.info(f"Successfully extracted and cleaned {len(self.book_content)} Arabic characters using {method_used} for PDF {self.id}")
+                logger.info(f"Successfully extracted and cleaned {len(self.book_content)} Arabic characters for PDF {self.id}")
             else:
                 logger.warning(f"No Arabic text could be extracted for PDF {self.id}")
             
         except Exception as e:
             logger.error(f"Error extracting text from PDF {self.id}: {str(e)}", exc_info=True)
             self.book_content = ''
-
-    def _extract_text_with_pymupdf(self, pdf_path):
-        """
-        Extract text using PyMuPDF (fitz) which often works better than pdfminer.
-        """
-        try:
-            text_content = []
-            with fitz.open(pdf_path) as doc:
-                for page_num in range(len(doc)):
-                    page = doc.load_page(page_num)
-                    page_text = page.get_text()
-                    if page_text.strip():
-                        text_content.append(page_text)
-            
-            return '\n\n'.join(text_content) if text_content else ''
-        except Exception as e:
-            logging.getLogger(__name__).warning(f"PyMuPDF extraction failed: {str(e)}")
-            return ''
-
-    def _preprocess_image_for_ocr(self, image_path):
-        """
-        Preprocess image to improve OCR accuracy for Arabic.
-        Steps: Grayscale, Denoising, Adaptive Thresholding, Deskewing.
-        """
-        try:
-            # Load image
-            img = cv2.imread(image_path)
-            if img is None:
-                return False
-
-            # 1. Convert to grayscale
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-            # 2. Denoising (fastNlMeansDenoising usually provides clean results for scans)
-            denoised = cv2.fastNlMeansDenoising(gray, h=10)
-
-            # 3. Adaptive Thresholding (Binarization)
-            # Helps with uneven illumination in page scans
-            thresh = cv2.adaptiveThreshold(
-                denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                cv2.THRESH_BINARY, 11, 2
-            )
-
-            # 4. Deskewing (Auto-rotation)
-            # Detect text orientation and rotate if necessary
-            coords = np.column_stack(np.where(thresh > 0))
-            if len(coords) > 0:
-                angle = cv2.minAreaRect(coords)[-1]
-                if angle < -45:
-                    angle = -(90 + angle)
-                else:
-                    angle = -angle
-                
-                if abs(angle) > 0.5:
-                    (h, w) = thresh.shape[:2]
-                    center = (w // 2, h // 2)
-                    M = cv2.getRotationMatrix2D(center, angle, 1.0)
-                    thresh = cv2.warpAffine(thresh, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-
-            # Save processed image back to original path
-            cv2.imwrite(image_path, thresh)
-            return True
-        except Exception as e:
-            logger.error(f"Image preprocessing failed for {image_path}: {e}")
-            return False
-
-    def _calculate_ocr_confidence(self, tsv_path):
-        """
-        Calculate average confidence score from Tesseract TSV output.
-        Returns a float between 0 and 100.
-        """
-        try:
-            if not os.path.exists(tsv_path):
-                return 0
-            
-            conf_scores = []
-            with open(tsv_path, 'r', encoding='utf-8') as f:
-                # TSV header: level, page_num, block_num, par_num, line_num, word_num, left, top, width, height, conf, text
-                header = f.readline()
-                for line in f:
-                    parts = line.strip().split('\t')
-                    if len(parts) >= 11:
-                        try:
-                            conf = float(parts[10])
-                            # Tesseract uses -1 for non-word blocks
-                            if conf > 0:
-                                conf_scores.append(conf)
-                        except (ValueError, IndexError):
-                            continue
-            
-            if not conf_scores:
-                return 0
-            
-            return sum(conf_scores) / len(conf_scores)
-        except Exception as e:
-            logger.error(f"Error calculating OCR confidence: {e}")
-            return 0
-
-    def _extract_text_with_ocr(self, pdf_path):
-        """
-        Extract text using OCR (Tesseract) for image-based PDFs.
-        Supports Arabic text recognition.
-        """
-        logger = logging.getLogger(__name__)
-        
-        try:
-            # Check if Tesseract is available
-            result = subprocess.run(['tesseract', '--version'], 
-                                  capture_output=True, text=True, check=True)
-            if 'tesseract' not in result.stdout.lower():
-                logger.warning("Tesseract OCR not available, skipping OCR extraction")
-                return ''
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            logger.warning("Tesseract OCR not available, skipping OCR extraction")
-            return ''
-        
-        try:
-            text_content = []
-            
-            # Convert PDF pages to images and perform OCR
-            with fitz.open(pdf_path) as doc:
-                for page_num in range(len(doc)):
-                    page = doc.load_page(page_num)
-                    
-                    # Convert page to image
-                    mat = fitz.Matrix(2.0, 2.0)  # Higher resolution for better OCR
-                    pix = page.get_pixmap(matrix=mat)
-                    img_data = pix.tobytes("png")
-                    
-                    # Create temporary image file for Tesseract
-                    import tempfile
-                    temp_dir = tempfile.gettempdir()
-                    temp_image_path = os.path.join(temp_dir, f"ocr_page_{self.id}_{page_num}.png")
-                    temp_text_path = os.path.join(temp_dir, f"ocr_text_{self.id}_{page_num}")
-                    
-                    try:
-                        # Save image temporarily
-                        with open(temp_image_path, "wb") as img_file:
-                            img_file.write(img_data)
-                        
-                        # Apply preprocessing to improve Arabic OCR results
-                        self._preprocess_image_for_ocr(temp_image_path)
-                        
-                        # Run Tesseract OCR with Arabic (Primary mode: PSM 6 for blocks of text)
-                        # We generate both .txt and .tsv (to get confidence scores)
-                        cmd = [
-                            'tesseract', 
-                            temp_image_path, 
-                            temp_text_path, 
-                            '-l', 'ara',      
-                            '--oem', '3',     
-                            '--psm', '6',
-                            'txt', 'tsv'      # Generate both output formats
-                        ]
-                        
-                        subprocess.run(cmd, check=True, capture_output=True)
-                        
-                        # Calculate confidence from TSV
-                        tsv_file = f"{temp_text_path}.tsv"
-                        avg_conf = self._calculate_ocr_confidence(tsv_file)
-                        
-                        # Read primary OCR output
-                        output_file = f"{temp_text_path}.txt"
-                        page_text = ""
-                        if os.path.exists(output_file):
-                            with open(output_file, 'r', encoding='utf-8') as f:
-                                page_text = f.read().strip()
-                        
-                        # Adaptive Fallback: If primary results are low quality (conf < 70% or short text), 
-                        # try PSM 3 (Fully automatic page segmentation)
-                        if avg_conf < 70 or len(page_text) < 50:
-                            cmd_alt = cmd.copy()
-                            cmd_alt[7] = '3'  # Try PSM 3
-                            subprocess.run(cmd_alt, check=True, capture_output=True)
-                            
-                            if os.path.exists(output_file):
-                                with open(output_file, 'r', encoding='utf-8') as f:
-                                    page_text_alt = f.read().strip()
-                                    new_conf = self._calculate_ocr_confidence(tsv_file)
-                                    # Keep the better result
-                                    if new_conf > avg_conf or len(page_text_alt) > len(page_text):
-                                        page_text = page_text_alt
-                                        avg_conf = new_conf
-                                        logger.info(f"Page {page_num}: PSM 3 improved results (conf: {avg_conf:.1f}%)")
-                        
-                        if page_text:
-                            text_content.append(page_text)
-                    
-                    except Exception as page_error:
-                        logger.warning(f"OCR failed for page {page_num}: {str(page_error)}")
-                        continue
-                    
-                    finally:
-                        # Clean up temporary files (.png, .txt, .tsv)
-                        for ext in ['.png', '.txt', '.tsv']:
-                            temp_file = temp_image_path if ext == '.png' else f"{temp_text_path}{ext}"
-                            if os.path.exists(temp_file):
-                                try:
-                                    os.remove(temp_file)
-                                except:
-                                    pass
-            
-            # Join all page texts
-            full_text = '\n\n'.join(text_content) if text_content else ''
-            
-            if full_text:
-                logger.info(f"OCR extraction completed for PDF {self.id}: {len(full_text)} characters")
-            
-            return full_text
-            
-        except Exception as e:
-            logger.error(f"OCR extraction failed for PDF {self.id}: {str(e)}", exc_info=True)
-            return ''
-
-    def _apply_arabic_cleaning_pipeline(self, text: str) -> str:
-        """
-        Apply comprehensive Arabic text cleaning pipeline for search optimization.
-        Uses the high-performance Arabic text processor.
-        """
-        try:
-            from core.utils.arabic_text_processor import create_search_ready_text
-            return create_search_ready_text(text)
-        except ImportError:
-            logger.warning("Arabic text processor not available, using basic filtering")
-            return self._filter_arabic_text(text)
-        except Exception as e:
-            logger.error(f"Error in Arabic cleaning pipeline: {e}")
-            return text  # Fallback to original text
 
     def update_search_vector(self):
         """
