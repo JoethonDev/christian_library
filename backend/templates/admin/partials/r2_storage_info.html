@@ -1,0 +1,112 @@
+{% load i18n %}
+
+<!-- Cloud Storage (R2) Partial -->
+<div id="r2-storage-wrapper-{{ section_id|default:'default' }}">
+    <div class="card border-0 shadow-sm rounded-4 {{ extra_card_class|default:'h-100' }}">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-cloud-arrow-up text-primary me-2"></i>{% trans "Cloud Storage (R2)" %}
+            </h5>
+            <button id="refresh-r2-{{ section_id|default:'default' }}" class="btn btn-sm btn-light border-0" title="{% trans 'Refresh Storage Info' %}">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="r2-container-{{ section_id|default:'default' }}">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">{% trans "Loading..." %}</span>
+                    </div>
+                    <p class="text-muted mt-2 mb-0">{% trans "Fetching storage data..." %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const sectionId = "{{ section_id|default:'default' }}";
+    const container = document.getElementById(`r2-container-${sectionId}`);
+    const refreshBtn = document.getElementById(`refresh-r2-${sectionId}`);
+
+    function renderDisplay(data) {
+        return `
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="p-3 bg-primary bg-opacity-10 rounded-3 text-center">
+                        <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Total Size" %}</div>
+                        <div class="h4 fw-bold text-primary mb-0">${data.total_size_gb} GB</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-3 bg-success bg-opacity-10 rounded-3 text-center">
+                        <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Objects" %}</div>
+                        <div class="h4 fw-bold text-success mb-0">${data.object_count}</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-2 text-center border rounded-3">
+                        <div class="fw-bold text-success">${data.completed || 0}</div>
+                        <div class="small text-muted text-uppercase fw-bold">{% trans "Synced" %}</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="p-2 text-center border rounded-3">
+                        <div class="fw-bold text-warning">${data.pending || 0}</div>
+                        <div class="small text-muted text-uppercase fw-bold">{% trans "Pending" %}</div>
+                    </div>
+                </div>
+                <div class="col-12 mt-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            <i class="bi bi-clock me-1"></i>{% trans "Last updated:" %} 
+                            ${new Date(data.last_updated).toLocaleString()}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function loadData(refresh = false) {
+        if (refresh) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>`;
+        }
+        
+        const url = '{% url "frontend_api:api_r2_storage_usage" %}' + (refresh ? '?refresh=true' : '');
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    container.innerHTML = renderDisplay(data);
+                } else {
+                    container.innerHTML = `
+                        <div class="text-center py-4 border rounded-3 bg-light">
+                            <i class="bi bi-exclamation-triangle text-warning fs-1"></i>
+                            <p class="text-muted mt-2 mb-0">${data.error || '{% trans "R2 is not configured" %}'}</p>
+                        </div>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching R2 storage:', error);
+                container.innerHTML = `
+                    <div class="text-center py-4 text-danger">
+                        <i class="bi bi-exclamation-circle fs-1"></i>
+                        <p class="mb-0 mt-2">{% trans "Failed to load R2 data" %}</p>
+                    </div>`;
+            });
+    }
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => loadData(true));
+    }
+
+    // Initial load
+    loadData();
+})();
+</script>

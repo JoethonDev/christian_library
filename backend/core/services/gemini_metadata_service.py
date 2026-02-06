@@ -1,6 +1,7 @@
 """
 Gemini AI Service for Metadata Generation
 Handles content metadata generation using Google Gemini API with standardized JSON response format.
+Uses Gemini 2.5 Flash for fast, reliable metadata generation.
 """
 import logging
 from typing import Dict, Tuple
@@ -10,7 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiMetadataService(BaseGeminiService):
-    """Service for generating content metadata using Gemini AI"""
+    """Service for generating content metadata using Gemini 2.5 Flash"""
+    
+    def __init__(self):
+        """Initialize with Gemini 2.5 Flash as default model"""
+        super().__init__(default_model=self.MODEL_2_5_FLASH)
     
     def generate_metadata(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
         """

@@ -106,112 +106,13 @@ function runAction(action) {
 }
 </script>
 
-<!-- R2 Storage -->
+<!-- R2 Storage Section -->
 {% if r2_enabled %}
-<div class="card border-0 shadow-sm rounded-4 mb-4">
-    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
-            <i class="bi bi-cloud me-2 text-primary"></i>
-            {% trans "Cloud Storage (R2)" %}
-        </h6>
-        <button class="btn btn-sm btn-outline-primary rounded-pill" onclick="refreshR2Stats()">
-            <i class="bi bi-arrow-clockwise me-1"></i>{% trans "Refresh" %}
-        </button>
-    </div>
-    <div class="card-body p-4 pt-0">
-        <div class="row g-3 mb-3">
-            <!-- Storage Size and Object Count -->
-            <div class="col-md-3">
-                <div class="p-3 bg-primary bg-opacity-10 rounded-3 text-center">
-                    <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Total Size" %}</div>
-                    <div class="h4 fw-bold text-primary mb-0" id="r2-total-size">
-                        {% if r2_stats.storage.success %}
-                            {{ r2_stats.storage.total_size_gb }} GB
-                        {% else %}
-                            <span class="small text-muted">{% trans "N/A" %}</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="p-3 bg-success bg-opacity-10 rounded-3 text-center">
-                    <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Objects" %}</div>
-                    <div class="h4 fw-bold text-success mb-0" id="r2-object-count">
-                        {% if r2_stats.storage.success %}
-                            {{ r2_stats.storage.object_count|default:0 }}
-                        {% else %}
-                            <span class="small text-muted">{% trans "N/A" %}</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Upload Status -->
-            <div class="col-md-6">
-                <div class="row g-2">
-                    <div class="col-6">
-                        <div class="p-2 text-center">
-                            <div class="h5 fw-bold text-success mb-0">{{ r2_stats.total.completed|default:0 }}</div>
-                            <div class="small text-muted text-uppercase fw-bold">{% trans "Synced" %}</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="p-2 text-center">
-                            <div class="h5 fw-bold text-warning mb-0">{{ r2_stats.total.pending|default:0 }}</div>
-                            <div class="small text-muted text-uppercase fw-bold">{% trans "Pending" %}</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="p-2 text-center">
-                            <div class="h5 fw-bold text-info mb-0">{{ r2_stats.total.uploading|default:0 }}</div>
-                            <div class="small text-muted text-uppercase fw-bold">{% trans "Uploading" %}</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="p-2 text-center">
-                            <div class="h5 fw-bold text-danger mb-0">{{ r2_stats.total.failed|default:0 }}</div>
-                            <div class="small text-muted text-uppercase fw-bold">{% trans "Failed" %}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        {% if r2_stats.storage.last_updated %}
-        <div class="text-center text-muted small">
-            <i class="bi bi-clock me-1"></i>
-            {% trans "Last updated:" %} {{ r2_stats.storage.last_updated }}
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<script>
-function refreshR2Stats() {
-    // Show loading state
-    document.getElementById('r2-total-size').innerHTML = '<div class="spinner-border spinner-border-sm"></div>';
-    document.getElementById('r2-object-count').innerHTML = '<div class="spinner-border spinner-border-sm"></div>';
-    
-    // Fetch fresh R2 stats
-    fetch('{% url "frontend_api:api_r2_storage_usage" %}?refresh=true')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                document.getElementById('r2-total-size').textContent = data.total_size_gb + ' GB';
-                document.getElementById('r2-object-count').textContent = data.object_count;
-            } else {
-                document.getElementById('r2-total-size').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
-                document.getElementById('r2-object-count').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
-            }
-        })
-        .catch(error => {
-            console.error('Error refreshing R2 stats:', error);
-            document.getElementById('r2-total-size').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
-            document.getElementById('r2-object-count').innerHTML = '<span class="small text-danger">{% trans "Error" %}</span>';
-        });
-}
-</script>
+{% include "admin/partials/r2_storage_info.html" with section_id="monitor" extra_card_class="mb-4" %}
 {% endif %}
+
+<!-- Gemini AI Rate Limits Section -->
+{% include "admin/partials/gemini_rate_limits.html" with section_id="monitor" layout="wide" extra_card_class="mb-4" refresh_interval=120000 %}
 
 <!-- Active Tasks -->
 <div class="card border-0 shadow-sm rounded-4">
