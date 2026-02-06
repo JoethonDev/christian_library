@@ -3,12 +3,16 @@
 {% load i18n %}
 
 {% block admin_content %}
+{% csrf_token %}
 <div class="row mb-4 align-items-center">
     <div class="col">
         <h1 class="h3 fw-bold text-dark mb-1">{% trans "Content Management" %}</h1>
         <p class="text-muted mb-0">{% trans "Manage your library's videos, audio messages, and documents" %}</p>
     </div>
-    <div class="col-auto">
+    <div class="col-auto d-flex gap-2">
+        <button id="bulk-generate-ai" class="btn btn-outline-primary rounded-pill px-4" style="display:none;">
+            <i class="bi bi-magic me-2"></i>{% trans "Generate with AI" %}
+        </button>
         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary text-white rounded-pill px-4 shadow-sm">
             <i class="bi bi-plus-lg me-2"></i>{% trans "Upload" %}
         </a>
@@ -63,4 +67,80 @@
         </div>
     </div>
 </div>
+
+<script>
+// Multi-selection for batch AI generation
+document.addEventListener('DOMContentLoaded', function() {
+    const bulkBtn = document.getElementById('bulk-generate-ai');
+    
+    // Update bulk button visibility based on selection
+    function updateBulkButton() {
+        const selected = document.querySelectorAll('input[name="content_select"]:checked').length;
+        if (selected > 0) {
+            bulkBtn.style.display = 'block';
+            bulkBtn.innerHTML = `<i class="bi bi-magic me-2"></i>{% trans "Generate AI for" %} ${selected} {% trans "items" %}`;
+        } else {
+            bulkBtn.style.display = 'none';
+        }
+    }
+    
+    // Listen for checkbox changes
+    document.addEventListener('change', function(e) {
+        if (e.target.name === 'content_select' || e.target.id === 'select-all') {
+            updateBulkButton();
+        }
+    });
+    
+    // Handle select all
+    document.addEventListener('change', function(e) {
+        if (e.target.id === 'select-all') {
+            document.querySelectorAll('input[name="content_select"]').forEach(cb => {
+                cb.checked = e.target.checked;
+            });
+            updateBulkButton();
+        }
+    });
+    
+    // Bulk AI generation
+    bulkBtn.addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('input[name="content_select"]:checked'))
+            .map(cb => cb.value);
+        
+        if (selectedIds.length === 0) {
+            return;
+        }
+        
+        // Direct action without confirmation
+        showToast('{% trans "Generating metadata with AI..." %}', 'info');
+        
+        fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || '{{ csrf_token }}'
+            },
+            body: new URLSearchParams({
+                'action': 'generate_seo',
+                'content_ids': selectedIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success || data.messages) {
+                showToast(`{% trans "Queued AI generation for" %} ${data.success || selectedIds.length} {% trans "items" %}`, 'success');
+                // Uncheck all
+                document.querySelectorAll('input[name="content_select"]').forEach(cb => cb.checked = false);
+                document.getElementById('select-all').checked = false;
+                updateBulkButton();
+            } else {
+                showToast(data.error || '{% trans "Failed to queue AI generation" %}', 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('{% trans "An error occurred while queueing AI generation" %}', 'danger');
+            console.error(err);
+        });
+    });
+});
+</script>
 {% endblock %}
