@@ -344,7 +344,7 @@ class ContentItemQuerySet(models.QuerySet):
             # Build comprehensive search conditions
             # FTS match OR text field matches (for items without search_vector)
             search_conditions = (
-                Q(search_vector__isnull=False, rank__gte=0.001) |  # FTS match
+                Q(search_vector__isnull=False, rank__gte=0.01) |  # FTS match with reasonable threshold
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
@@ -360,6 +360,8 @@ class ContentItemQuerySet(models.QuerySet):
             
         except Exception as e:
             # Fallback to basic text search if PostgreSQL FTS is not available
+            import logging
+            logger = logging.getLogger(__name__)
             logger.warning(f"FTS search failed, falling back to basic search: {e}")
             search_conditions = (
                 Q(title_ar__icontains=query) |

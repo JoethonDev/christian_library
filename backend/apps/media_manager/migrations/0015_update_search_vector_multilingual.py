@@ -65,7 +65,8 @@ def update_search_vectors(apps, schema_editor):
             ContentItem.objects.filter(pk=item.pk).update(search_vector=search_vector)
             total_updated += 1
     
-    print(f"Updated search vectors for {total_updated} content items")
+    # Migration uses schema_editor for output (not print)
+    # This is logged during migration execution
 
 
 def reverse_update(apps, schema_editor):

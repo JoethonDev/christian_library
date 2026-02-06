@@ -354,12 +354,9 @@ class SearchPerformanceTest(TestCase):
     
     def test_search_query_count(self):
         """Test that search executes minimal queries"""
-        from django.test.utils import override_settings
-        from django.db import connection
-        from django.test import TransactionTestCase
+        from django.db import connection, reset_queries
         
         # Enable query counting
-        from django.db import reset_queries
         reset_queries()
         
         # Perform search
