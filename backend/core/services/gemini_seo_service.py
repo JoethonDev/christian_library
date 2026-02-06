@@ -2,35 +2,15 @@
 Gemini AI Service for SEO Generation
 Handles SEO metadata generation using Google Gemini API with Google-optimized prompts.
 """
-import json
 import logging
 from typing import Dict, Tuple
-from django.conf import settings
-from google import genai
+from .gemini_base_service import BaseGeminiService
 
 logger = logging.getLogger(__name__)
 
 
-class GeminiSEOService:
+class GeminiSEOService(BaseGeminiService):
     """Service for generating SEO metadata using Gemini AI"""
-    
-    def __init__(self):
-        """Initialize Gemini client"""
-        try:
-            api_key = getattr(settings, 'GEMINI_API_KEY', None)
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY not found in settings")
-                
-            self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-3-flash-preview')
-            self.client = genai.Client(api_key=api_key)
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            self.client = None
-    
-    def is_available(self) -> bool:
-        """Check if Gemini service is available"""
-        return self.client is not None
     
     def generate_seo(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
         """
@@ -47,12 +27,14 @@ class GeminiSEOService:
                 "en": {
                     "meta_title": "...",
                     "description": "...",
-                    "keywords": [...]
+                    "keywords": [...],
+                    "structured_data": {...}
                 },
                 "ar": {
                     "meta_title": "...",
                     "description": "...",
-                    "keywords": [...]
+                    "keywords": [...],
+                    "structured_data": {...}
                 }
             }
         """
@@ -61,60 +43,74 @@ class GeminiSEOService:
             
         try:
             # Upload file to Gemini
-            uploaded_file = self.client.files.upload(file=file_path)
+            uploaded_file = self._upload_file(file_path)
             
             # Create SEO prompt
             prompt = self._create_seo_prompt(content_type)
             
-            # Generate content with Gemini
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[prompt, uploaded_file],
-                config={
-                    "temperature": 0.1,
-                    "top_p": 0.9,
-                    "top_k": 20,
-                    "response_mime_type": "application/json",
-                    "response_schema": {
+            # Define response schema with structured data
+            response_schema = {
+                "type": "object",
+                "properties": {
+                    "en": {
                         "type": "object",
                         "properties": {
-                            "en": {
-                                "type": "object",
-                                "properties": {
-                                    "meta_title": {"type": "string"},
-                                    "description": {"type": "string"},
-                                    "keywords": {
-                                        "type": "array",
-                                        "items": {"type": "string"},
-                                        "maxItems": 12
-                                    }
-                                },
-                                "required": ["meta_title", "description", "keywords"]
+                            "meta_title": {"type": "string"},
+                            "description": {"type": "string"},
+                            "keywords": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "maxItems": 12
                             },
-                            "ar": {
+                            "structured_data": {
                                 "type": "object",
                                 "properties": {
-                                    "meta_title": {"type": "string"},
+                                    "@context": {"type": "string"},
+                                    "@type": {"type": "string"},
+                                    "name": {"type": "string"},
                                     "description": {"type": "string"},
-                                    "keywords": {
-                                        "type": "array",
-                                        "items": {"type": "string"},
-                                        "maxItems": 12
-                                    }
+                                    "inLanguage": {"type": "string"}
                                 },
-                                "required": ["meta_title", "description", "keywords"]
+                                "required": ["@context", "@type", "name", "description"]
                             }
                         },
-                        "required": ["en", "ar"]
+                        "required": ["meta_title", "description", "keywords", "structured_data"]
+                    },
+                    "ar": {
+                        "type": "object",
+                        "properties": {
+                            "meta_title": {"type": "string"},
+                            "description": {"type": "string"},
+                            "keywords": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "maxItems": 12
+                            },
+                            "structured_data": {
+                                "type": "object",
+                                "properties": {
+                                    "@context": {"type": "string"},
+                                    "@type": {"type": "string"},
+                                    "name": {"type": "string"},
+                                    "description": {"type": "string"},
+                                    "inLanguage": {"type": "string"}
+                                },
+                                "required": ["@context", "@type", "name", "description"]
+                            }
+                        },
+                        "required": ["meta_title", "description", "keywords", "structured_data"]
                     }
-                }
-            )
+                },
+                "required": ["en", "ar"]
+            }
+            
+            # Generate content with Gemini
+            seo_data = self._generate_content(prompt, uploaded_file, response_schema)
             
             # Clean up uploaded file
-            self.client.files.delete(name=uploaded_file.name)
+            self._cleanup_file(uploaded_file)
             
-            # Parse and validate response
-            seo_data = json.loads(response.text)
+            # Validate and clean response
             cleaned_seo = self._validate_seo(seo_data)
             
             logger.info(f"Successfully generated SEO metadata for {content_type} file")
@@ -161,6 +157,11 @@ GOOGLE SEO REQUIREMENTS - STRICT CHARACTER LIMITS:
    - Consider search intent (informational, educational, devotional)
    - Examples: "Coptic Orthodox liturgy", "St. Mark teachings", "Egyptian Christian prayers"
 
+4. Structured Data (JSON-LD): Generate Schema.org markup for rich results
+   - Use appropriate @type based on content (VideoObject, AudioObject, Article, etc.)
+   - Include name, description, and inLanguage
+   - Ensure valid Schema.org format for Google rich results
+
 KEYWORD STRATEGY:
 - Prioritize keywords with high search volume in Coptic Orthodox context
 - Use natural language that matches how people search
@@ -177,12 +178,26 @@ Return SEO metadata in the following JSON format:
   "en": {{
     "meta_title": "English meta title (50-60 chars)",
     "description": "English meta description (150-160 chars)",
-    "keywords": ["keyword1", "keyword2", "..."]
+    "keywords": ["keyword1", "keyword2", "..."],
+    "structured_data": {{
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": "Title",
+      "description": "Description",
+      "inLanguage": "en"
+    }}
   }},
   "ar": {{
     "meta_title": "Arabic meta title (50-60 chars)",
     "description": "Arabic meta description (150-160 chars)",
-    "keywords": ["keyword1", "keyword2", "..."]
+    "keywords": ["keyword1", "keyword2", "..."],
+    "structured_data": {{
+      "@context": "https://schema.org",
+      "@type": "VideoObject",
+      "name": "العنوان",
+      "description": "الوصف",
+      "inLanguage": "ar"
+    }}
   }}
 }}"""
     
@@ -205,16 +220,23 @@ Return SEO metadata in the following JSON format:
                 else:
                     keywords = []
                 
+                # Validate structured data
+                structured_data = lang_data.get('structured_data', {})
+                if not isinstance(structured_data, dict):
+                    structured_data = {}
+                
                 cleaned[lang] = {
                     'meta_title': meta_title,
                     'description': description,
-                    'keywords': keywords
+                    'keywords': keywords,
+                    'structured_data': structured_data
                 }
             else:
                 cleaned[lang] = {
                     'meta_title': '',
                     'description': '',
-                    'keywords': []
+                    'keywords': [],
+                    'structured_data': {}
                 }
         
         return cleaned

@@ -2,35 +2,15 @@
 Gemini AI Service for Metadata Generation
 Handles content metadata generation using Google Gemini API with standardized JSON response format.
 """
-import json
 import logging
 from typing import Dict, Tuple
-from django.conf import settings
-from google import genai
+from .gemini_base_service import BaseGeminiService
 
 logger = logging.getLogger(__name__)
 
 
-class GeminiMetadataService:
+class GeminiMetadataService(BaseGeminiService):
     """Service for generating content metadata using Gemini AI"""
-    
-    def __init__(self):
-        """Initialize Gemini client"""
-        try:
-            api_key = getattr(settings, 'GEMINI_API_KEY', None)
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY not found in settings")
-                
-            self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-3-flash-preview')
-            self.client = genai.Client(api_key=api_key)
-            
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {e}")
-            self.client = None
-    
-    def is_available(self) -> bool:
-        """Check if Gemini service is available"""
-        return self.client is not None
     
     def generate_metadata(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
         """
@@ -44,8 +24,8 @@ class GeminiMetadataService:
             Tuple of (success: bool, metadata: dict)
             Metadata follows standardized JSON format:
             {
-                "en": {"title": "...", "description": "..."},
-                "ar": {"title": "...", "description": "..."}
+                "en": {"title": "...", "description": "...", "tags": [...]},
+                "ar": {"title": "...", "description": "...", "tags": [...]}
             }
         """
         if not self.is_available():
@@ -53,50 +33,52 @@ class GeminiMetadataService:
             
         try:
             # Upload file to Gemini
-            uploaded_file = self.client.files.upload(file=file_path)
+            uploaded_file = self._upload_file(file_path)
             
             # Create metadata prompt
             prompt = self._create_metadata_prompt(content_type)
             
-            # Generate content with Gemini
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[prompt, uploaded_file],
-                config={
-                    "temperature": 0.1,
-                    "top_p": 0.9,
-                    "top_k": 20,
-                    "response_mime_type": "application/json",
-                    "response_schema": {
+            # Define response schema with tags
+            response_schema = {
+                "type": "object",
+                "properties": {
+                    "en": {
                         "type": "object",
                         "properties": {
-                            "en": {
-                                "type": "object",
-                                "properties": {
-                                    "title": {"type": "string"},
-                                    "description": {"type": "string"}
-                                },
-                                "required": ["title", "description"]
-                            },
-                            "ar": {
-                                "type": "object",
-                                "properties": {
-                                    "title": {"type": "string"},
-                                    "description": {"type": "string"}
-                                },
-                                "required": ["title", "description"]
+                            "title": {"type": "string"},
+                            "description": {"type": "string"},
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "maxItems": 6
                             }
                         },
-                        "required": ["en", "ar"]
+                        "required": ["title", "description", "tags"]
+                    },
+                    "ar": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string"},
+                            "description": {"type": "string"},
+                            "tags": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "maxItems": 6
+                            }
+                        },
+                        "required": ["title", "description", "tags"]
                     }
-                }
-            )
+                },
+                "required": ["en", "ar"]
+            }
+            
+            # Generate content with Gemini
+            metadata = self._generate_content(prompt, uploaded_file, response_schema)
             
             # Clean up uploaded file
-            self.client.files.delete(name=uploaded_file.name)
+            self._cleanup_file(uploaded_file)
             
-            # Parse and validate response
-            metadata = json.loads(response.text)
+            # Validate and clean response
             cleaned_metadata = self._validate_metadata(metadata)
             
             logger.info(f"Successfully generated metadata for {content_type} file")
@@ -131,8 +113,15 @@ REQUIREMENTS:
 1. Analyze the actual content carefully
 2. Create concise, accurate titles (max 100 characters)
 3. Write descriptive summaries (2-3 sentences, max 200 characters)
-4. Ensure all content reflects Coptic Orthodox context
-5. Use natural, clear language appropriate for church members
+4. Generate 3-6 relevant tags/keywords for categorization
+5. Ensure all content reflects Coptic Orthodox context
+6. Use natural, clear language appropriate for church members
+
+TAGS GUIDANCE:
+- Tags should be short phrases or single words (e.g., "liturgy", "hymns", "st. george", "baptism")
+- Use both specific (saint names, feast names) and general (prayer, worship) tags
+- Include liturgical seasons or occasions when applicable
+- Keep tags in the respective language (English tags in English, Arabic tags in Arabic)
 
 THEOLOGICAL ACCURACY:
 - Reference specific Coptic Orthodox saints, liturgies, or teachings when applicable
@@ -143,11 +132,13 @@ Return metadata in the following JSON format:
 {{
   "en": {{
     "title": "English title",
-    "description": "English description"
+    "description": "English description",
+    "tags": ["tag1", "tag2", "tag3"]
   }},
   "ar": {{
     "title": "Arabic title",
-    "description": "Arabic description"
+    "description": "Arabic description",
+    "tags": ["علامة1", "علامة2", "علامة3"]
   }}
 }}"""
     
@@ -158,12 +149,21 @@ Return metadata in the following JSON format:
         for lang in ['en', 'ar']:
             if lang in metadata:
                 lang_data = metadata[lang]
+                # Get tags and validate
+                tags = lang_data.get('tags', [])
+                if isinstance(tags, list):
+                    # Clean and limit tags
+                    tags = [str(tag)[:50].strip() for tag in tags[:6] if tag]
+                else:
+                    tags = []
+                
                 cleaned[lang] = {
                     'title': str(lang_data.get('title', ''))[:100].strip(),
-                    'description': str(lang_data.get('description', ''))[:200].strip()
+                    'description': str(lang_data.get('description', ''))[:200].strip(),
+                    'tags': tags
                 }
             else:
-                cleaned[lang] = {'title': '', 'description': ''}
+                cleaned[lang] = {'title': '', 'description': '', 'tags': []}
         
         return cleaned
 
