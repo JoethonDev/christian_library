@@ -56,6 +56,9 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         # Extract text from PDF (includes OCR fallback)
         item.extract_text_from_pdf()
         
+        # Save the extracted content first
+        item.save(update_fields=["book_content"])
+        
         TaskMonitor.update_progress(
             self.request.id, 
             70,
@@ -63,11 +66,20 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
             'Search indexing'
         )
         
-        # Update search vector
-        item.update_search_vector()
-        
-        # Save changes
-        item.save(update_fields=["book_content", "search_vector"])
+        # Update search vector using UPDATE query to properly evaluate SearchVector expression
+        if item.book_content:
+            from django.contrib.postgres.search import SearchVector
+            
+            ContentItem.objects.filter(id=item.id).update(
+                search_vector=(
+                    SearchVector('title_ar', weight='A', config='arabic') +
+                    SearchVector('description_ar', weight='B', config='arabic') +
+                    SearchVector('book_content', weight='C', config='arabic')
+                )
+            )
+        else:
+            # Clear search vector if no content
+            ContentItem.objects.filter(id=item.id).update(search_vector=None)
         
         extracted_length = len(item.book_content) if item.book_content else 0
         logger.info(f"Successfully completed extraction and indexing for ContentItem {contentitem_id}: {extracted_length} characters")
