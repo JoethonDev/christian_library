@@ -399,7 +399,7 @@ function showSEODetails(contentId) {
                     </div>
                     <div class="col-12">
                         <label class="form-label small">Structured Data (JSON-LD)</label>
-                        <textarea class="form-control form-control-sm font-monospace" id="seo-structured-${contentId}" rows="4">${data.structured_data ? JSON.stringify(JSON.parse(data.structured_data), null, 2) : '{}'}</textarea>
+                        <textarea class="form-control form-control-sm font-monospace" id="seo-structured-${contentId}" rows="4">${data.structured_data ? (typeof data.structured_data === 'string' ? JSON.stringify(JSON.parse(data.structured_data), null, 2) : JSON.stringify(data.structured_data, null, 2)) : '{}'}</textarea>
                     </div>
                     <div class="col-md-12">
                         <label class="form-label small">Transcript (for Audio/Video SEO)</label>
