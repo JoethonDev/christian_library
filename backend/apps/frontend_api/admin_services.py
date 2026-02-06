@@ -17,6 +17,7 @@ from apps.frontend_api.services import ContentLanguageProcessor
 
 
 from apps.core.task_monitor import TaskMonitor
+from core.services.gemini_manager import get_gemini_manager
 
 
 class AdminService:
@@ -24,6 +25,7 @@ class AdminService:
     
     def __init__(self):
         self.language_processor = ContentLanguageProcessor()
+        self.gemini_manager = get_gemini_manager()
     
     def get_dashboard_data(self) -> Dict[str, Any]:
         """Get admin dashboard data with minimal queries (3-4 total) + task monitoring"""
@@ -73,12 +75,16 @@ class AdminService:
         # Add task monitoring data
         task_data = self._get_live_task_data()
         
+        # Add Gemini rate limit data
+        gemini_rate_limits = self._get_gemini_rate_limits()
+        
         return {
             'stats': stats,
             'recent_content': processed_recent,
             'processing_videos': processing_videos,
             'current_language': current_language,
             **task_data,
+            **gemini_rate_limits,
         }
     
     def _get_live_task_data(self) -> Dict[str, Any]:
@@ -99,6 +105,25 @@ class AdminService:
                 'task_stats': {},
                 'active_tasks': [],
                 'has_tasks': False,
+            }
+    
+    def _get_gemini_rate_limits(self) -> Dict[str, Any]:
+        """Get Gemini rate limit information for all models"""
+        try:
+            rate_limits = self.gemini_manager.get_rate_limit_status()
+            
+            return {
+                'gemini_rate_limits': rate_limits,
+                'gemini_metadata_available': self.gemini_manager.check_metadata_availability()[0],
+                'gemini_seo_available': self.gemini_manager.check_seo_availability()[0],
+            }
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Failed to get Gemini rate limits: {e}")
+            return {
+                'gemini_rate_limits': {},
+                'gemini_metadata_available': False,
+                'gemini_seo_available': False,
             }
     
     def get_content_list(

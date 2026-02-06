@@ -21,6 +21,13 @@ from apps.media_manager.services.upload_service import MediaUploadService
 from apps.media_manager.services.delete_service import MediaProcessingService
 from apps.media_manager.services.gemini_service import get_gemini_service
 from apps.frontend_api.admin_services import AdminService
+from core.services.gemini_manager import get_gemini_manager
+
+import logging
+import tempfile
+import json
+
+logger = logging.getLogger(__name__)
 
 # Initialize services
 content_service = ContentService()
@@ -695,7 +702,7 @@ def get_r2_storage_usage(request):
         return JsonResponse(usage_data)
         
     except Exception as e:
-        logger.error(f"Error fetching R2 storage usage: {str(e)}", exc_info=True)
+        print(f"Error fetching R2 storage usage: {str(e)}")
         return JsonResponse({
             'success': False,
             'error': str(e),
@@ -957,3 +964,37 @@ def api_content_seo(request, content_id):
             
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def api_gemini_rate_limits(request):
+    """API endpoint to get Gemini rate limit information"""
+    try:
+        gemini_manager = get_gemini_manager()
+        
+        # Check if force refresh requested
+        force_refresh = request.GET.get('refresh', 'false').lower() == 'true'
+        
+        if force_refresh:
+            rate_limits = gemini_manager.refresh_rate_limits()
+        else:
+            rate_limits = gemini_manager.get_rate_limit_status()
+        
+        # Check availability
+        metadata_available, metadata_msg = gemini_manager.check_metadata_availability()
+        seo_available, seo_msg = gemini_manager.check_seo_availability()
+        
+        return JsonResponse({
+            'success': True,
+            'rate_limits': rate_limits,
+            'metadata_available': metadata_available,
+            'metadata_message': metadata_msg,
+            'seo_available': seo_available,
+            'seo_message': seo_msg,
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

@@ -83,4 +83,5 @@ urlpatterns = [
     path('api/admin/r2-storage-usage/', admin_views.get_r2_storage_usage, name='api_r2_storage_usage'),
     path('api/content/<uuid:content_id>/seo/', admin_views.api_content_seo, name='api_content_seo'),
     path('api/admin/auto-fill-metadata/', admin_views.api_auto_fill_metadata, name='api_auto_fill_metadata'),
+    path('api/admin/gemini-rate-limits/', admin_views.api_gemini_rate_limits, name='api_gemini_rate_limits'),
 ]

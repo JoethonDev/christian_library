@@ -1395,6 +1395,19 @@ class VideoMeta(models.Model):
         else:
             return f"{minutes:02d}:{seconds:02d}"
     
+    def get_duration_iso(self):
+        """Get duration in ISO 8601 format (PT#H#M#S) for schema.org"""
+        if not self.duration_seconds:
+            return None
+        
+        hours = int(self.duration_seconds // 3600)
+        minutes = int((self.duration_seconds % 3600) // 60)
+        seconds = int(self.duration_seconds % 60)
+        
+        if hours:
+            return f"PT{hours}H{minutes}M{seconds}S"
+        return f"PT{minutes}M{seconds}S"
+    
     def get_hls_master_playlist(self):
         """Get the best available HLS playlist (highest quality first)"""
         if self.hls_720p_path:
@@ -1691,6 +1704,19 @@ class AudioMeta(models.Model):
         minutes = self.duration_seconds // 60
         seconds = self.duration_seconds % 60
         return f"{minutes:02d}:{seconds:02d}"
+    
+    def get_duration_iso(self):
+        """Get duration in ISO 8601 format (PT#H#M#S) for schema.org"""
+        if not self.duration_seconds:
+            return None
+        
+        hours = int(self.duration_seconds // 3600)
+        minutes = int((self.duration_seconds % 3600) // 60)
+        seconds = int(self.duration_seconds % 60)
+        
+        if hours:
+            return f"PT{hours}H{minutes}M{seconds}S"
+        return f"PT{minutes}M{seconds}S"
     
     # --- R2 Helper Methods ---
     def has_r2_files(self):

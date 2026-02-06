@@ -1,6 +1,7 @@
 """
 Gemini AI Service for SEO Generation
 Handles SEO metadata generation using Google Gemini API with Google-optimized prompts.
+Uses Gemini 3 Flash for highest quality SEO generation.
 """
 import logging
 from typing import Dict, Tuple
@@ -10,7 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiSEOService(BaseGeminiService):
-    """Service for generating SEO metadata using Gemini AI"""
+    """Service for generating SEO metadata using Gemini 3 Flash"""
+    
+    def __init__(self):
+        """Initialize with Gemini 3 Flash as default model"""
+        super().__init__(default_model=self.MODEL_3_FLASH)
     
     def generate_seo(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
         """

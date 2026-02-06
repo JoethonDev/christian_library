@@ -1,0 +1,209 @@
+{% load i18n %}
+
+<!-- Gemini AI Rate Limits Partial -->
+<div id="gemini-rate-limits-wrapper-{{ section_id|default:'default' }}">
+    <div class="card border-0 shadow-sm rounded-4 {{ extra_card_class|default:'h-100' }}">
+        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-dark">
+                <i class="bi bi-robot text-primary me-2"></i>{% trans "AI Credits & Rate Limits" %}
+            </h5>
+            <button id="refresh-gemini-{{ section_id|default:'default' }}" class="btn btn-sm btn-light border-0" title="{% trans 'Refresh Rate Limits' %}">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div class="card-body">
+            <div id="gemini-container-{{ section_id|default:'default' }}">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">{% trans "Loading..." %}</span>
+                    </div>
+                    <p class="text-muted mt-2 mb-0">{% trans "Fetching rate limit data..." %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const sectionId = "{{ section_id|default:'default' }}";
+    const layout = "{{ layout|default:'compact' }}";
+    const refreshInterval = {{ refresh_interval|default:300000 }}; // Default 5 mins
+    const container = document.getElementById(`gemini-container-${sectionId}`);
+    const refreshBtn = document.getElementById(`refresh-gemini-${sectionId}`);
+
+    function getStatusBadge(status) {
+        if (status === 'available') {
+            return `<span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle"></i> {% trans "Available" %}</span>`;
+        } else if (status === 'limited') {
+            return `<span class="badge bg-warning-subtle text-warning"><i class="bi bi-exclamation-triangle"></i> {% trans "Limited" %}</span>`;
+        } else if (status === 'exhausted') {
+            return `<span class="badge bg-danger-subtle text-danger"><i class="bi bi-x-circle"></i> {% trans "Exhausted" %}</span>`;
+        }
+        return `<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-question-circle"></i> {% trans "Unknown" %}</span>`;
+    }
+
+    function renderCompact(models, data) {
+        let html = '<div class="row g-3">';
+        models.forEach(model => {
+            const rateInfo = data.rate_limits[model.id] || {};
+            const remaining_min = rateInfo.remaining_requests_min || 0;
+            const limit_min = rateInfo.limit_per_minute || 0;
+            const remaining_day = rateInfo.remaining_requests_day || 0;
+            const limit_day = rateInfo.limit_per_day || 0;
+            const percent_min = limit_min > 0 ? Math.round((remaining_min / limit_min) * 100) : 0;
+            const percent_day = limit_day > 0 ? Math.round((remaining_day / limit_day) * 100) : 0;
+            const status = rateInfo.status || 'unknown';
+
+            html += `
+                <div class="col-12">
+                    <div class="border rounded-3 p-3 bg-${model.color}-subtle bg-opacity-10">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <div>
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="bi bi-${model.icon} text-${model.color} me-2"></i>${model.name}
+                                </h6>
+                                <small class="text-muted">${model.purpose}</small>
+                            </div>
+                            ${getStatusBadge(status)}
+                        </div>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted fw-medium">{% trans "Per Minute:" %}</small>
+                                <small class="fw-bold">${remaining_min} / ${limit_min}</small>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_min}%"></div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <small class="text-muted fw-medium">{% trans "Per Day:" %}</small>
+                                <small class="fw-bold">${remaining_day} / ${limit_day}</small>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_day}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function renderWide(models, data) {
+        let html = '<div class="gemini-wide-list">';
+        models.forEach(model => {
+            const rateInfo = data.rate_limits[model.id] || {};
+            const remaining_min = rateInfo.remaining_requests_min || 0;
+            const limit_min = rateInfo.limit_per_minute || 0;
+            const remaining_day = rateInfo.remaining_requests_day || 0;
+            const limit_day = rateInfo.limit_per_day || 0;
+            const percent_min = limit_min > 0 ? Math.round((remaining_min / limit_min) * 100) : 0;
+            const percent_day = limit_day > 0 ? Math.round((remaining_day / limit_day) * 100) : 0;
+            const status = rateInfo.status || 'unknown';
+
+            html += `
+                <div class="border rounded-3 p-3 mb-3 bg-${model.color}-subtle bg-opacity-10">
+                    <div class="row align-items-center">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-${model.color} bg-opacity-10 text-${model.color} rounded-3 p-3 me-3">
+                                    <i class="bi bi-${model.icon} fs-3"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-bold">${model.name}</h6>
+                                    <small class="text-muted">${model.purpose}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted fw-medium">{% trans "Per Minute" %}</small>
+                                    <small class="fw-bold">${remaining_min} / ${limit_min}</small>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_min}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted fw-medium">{% trans "Per Day" %}</small>
+                                    <small class="fw-bold">${remaining_day} / ${limit_day}</small>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_day}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            ${getStatusBadge(status)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    function loadData(refresh = false) {
+        if (refresh) {
+            container.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status"></div>
+                </div>`;
+        }
+        
+        const url = '{% url "frontend_api:api_gemini_rate_limits" %}' + (refresh ? '?refresh=true' : '');
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const models = [
+                    { id: 'gemini_3_flash', name: 'Gemini 3 Flash', purpose: '{% trans "Primary SEO" %}', color: 'primary', icon: 'lightning-fill' },
+                    { id: 'gemini_2_5_flash', name: 'Gemini 2.5 Flash', purpose: '{% trans "Primary Metadata" %}', color: 'info', icon: 'info-circle-fill' },
+                    { id: 'gemini_2_5_flash_lite', name: 'Gemini 2.5 Flash Lite', purpose: '{% trans "Fallback Layer" %}', color: 'secondary', icon: 'shield-check' }
+                ];
+                
+                let contentHtml = (layout === 'wide') ? renderWide(models, data) : renderCompact(models, data);
+                
+                const lastUpdated = data.rate_limits?.gemini_3_flash?.last_updated || new Date().toISOString();
+                contentHtml += `
+                    <div class="mt-3 pt-3 border-top text-center">
+                        <small class="text-muted">
+                            <i class="bi bi-clock me-1"></i>{% trans "Last updated:" %} 
+                            ${new Date(lastUpdated).toLocaleString()}
+                        </small>
+                    </div>`;
+                
+                container.innerHTML = contentHtml;
+            })
+            .catch(error => {
+                console.error('Error fetching Gemini rate limits:', error);
+                container.innerHTML = `
+                    <div class="text-center py-4 text-danger">
+                        <i class="bi bi-exclamation-triangle fs-1"></i>
+                        <p class="mb-0 mt-2">{% trans "Failed to load rate limits" %}</p>
+                    </div>`;
+            });
+    }
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => loadData(true));
+    }
+
+    // Initial load
+    loadData();
+    
+    // Polling
+    if (refreshInterval > 0) {
+        setInterval(() => loadData(), refreshInterval);
+    }
+})();
+</script>
