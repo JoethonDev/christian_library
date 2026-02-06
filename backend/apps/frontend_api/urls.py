@@ -47,6 +47,8 @@ urlpatterns = [
     path('dashboard/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
     path('dashboard/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
     path('dashboard/upload/generate-from-file/', admin_views.generate_metadata_from_file, name='generate_metadata_from_file'),
+    path('dashboard/upload/generate-metadata-only/', admin_views.generate_metadata_only, name='generate_metadata_only'),
+    path('dashboard/upload/generate-seo-only/', admin_views.generate_seo_only, name='generate_seo_only'),
     
     # Content type specific management (at /en/dashboard/videos/, etc.)
     path('dashboard/videos/', admin_views.video_management, name='video_management'),
@@ -78,5 +80,6 @@ urlpatterns = [
 
     path('api/toggle-status/', admin_views.api_toggle_content_status, name='api_toggle_content_status'),
     path('api/admin/r2-storage-usage/', admin_views.get_r2_storage_usage, name='api_r2_storage_usage'),
+    path('api/content/<uuid:content_id>/seo/', admin_views.api_content_seo, name='api_content_seo'),
     path('api/admin/auto-fill-metadata/', admin_views.api_auto_fill_metadata, name='api_auto_fill_metadata'),
 ]

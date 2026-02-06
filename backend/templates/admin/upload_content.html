@@ -90,8 +90,8 @@
                     <div class="mb-5">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <label class="form-label fw-bold text-uppercase small text-secondary mb-0">{% trans "Content Information" %}</label>
-                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" onclick="generateMetadata()">
-                                <i class="bi bi-magic me-1"></i>{% trans "Auto-Generate Metadata" %}
+                            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" onclick="generateMetadataAndSEO()">
+                                <i class="bi bi-magic me-1"></i>{% trans "Generate with AI" %}
                                 <span class="spinner-border spinner-border-sm d-none ms-1" id="magic-spinner"></span>
                             </button>
                         </div>
@@ -176,6 +176,14 @@
                                             <label class="form-label small text-muted">{% trans "Focus Keywords (AR)" %}</label>
                                             <input type="text" name="seo_keywords_ar" class="form-control form-control-sm" dir="rtl" placeholder="كلمة1, كلمة2">
                                         </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">{% trans "Transcript / Content Summary" %}</label>
+                                            <textarea name="transcript" class="form-control form-control-sm" rows="3" dir="rtl"></textarea>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label small text-muted">{% trans "Study Notes" %}</label>
+                                            <textarea name="notes" class="form-control form-control-sm" rows="3" dir="rtl"></textarea>
+                                        </div>
                                         <div class="col-12">
                                             <label class="form-label small text-muted d-flex justify-content-between">
                                                 {% trans "Structured Data (JSON-LD)" %}
@@ -218,7 +226,8 @@
 </style>
 
 <script>
-    function generateMetadata() {
+    // Dual-request workflow for parallel metadata and SEO generation
+    function generateMetadataAndSEO() {
         const fileInput = document.getElementById('file-input');
         if (!fileInput.files || !fileInput.files[0]) {
             showToast('{% trans "Please select a file first" %}', 'warning');
@@ -228,49 +237,154 @@
         const spinner = document.getElementById('magic-spinner');
         spinner.classList.remove('d-none');
         
-        const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
-        
         const contentType = document.querySelector('input[name="content_type"]:checked')?.value || '';
-        formData.append('content_type', contentType);
-
-        fetch('{% url "frontend_api:generate_metadata_from_file" %}', {
+        
+        // Create FormData for metadata request
+        const metadataFormData = new FormData();
+        metadataFormData.append('file', fileInput.files[0]);
+        metadataFormData.append('content_type', contentType);
+        
+        // Create FormData for SEO request
+        const seoFormData = new FormData();
+        seoFormData.append('file', fileInput.files[0]);
+        seoFormData.append('content_type', contentType);
+        
+        // Track completion status
+        let metadataCompleted = false;
+        let seoCompleted = false;
+        
+        // Helper function to hide spinner when both requests complete
+        function hideSpinnerIfBothComplete() {
+            if (metadataCompleted && seoCompleted) {
+                spinner.classList.add('d-none');
+            }
+        }
+        
+        // Parallel request 1: Generate metadata
+        fetch('{% url "frontend_api:generate_metadata_only" %}', {
             method: 'POST',
-            body: formData,
+            body: metadataFormData,
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}'
             }
         })
         .then(response => response.json())
         .then(data => {
-            spinner.classList.add('d-none');
+            metadataCompleted = true;
             if (data.success && data.metadata) {
+                // Populate metadata fields using standardized JSON format
                 const meta = data.metadata;
-                if (meta.title_ar) document.querySelector('input[name="title_ar"]').value = meta.title_ar;
-                if (meta.title_en) document.querySelector('input[name="title_en"]').value = meta.title_en;
-                if (meta.description_ar) document.querySelector('textarea[name="description_ar"]').value = meta.description_ar;
-                if (meta.description_en) document.querySelector('textarea[name="description_en"]').value = meta.description_en;
-                if (meta.tags) document.querySelector('input[name="tags"]').value = Array.isArray(meta.tags) ? meta.tags.join(', ') : meta.tags;
                 
-                // SEO fields
-                if (meta.seo_title_ar) document.querySelector('input[name="seo_title_ar"]').value = meta.seo_title_ar;
-                if (meta.seo_title_en) document.querySelector('input[name="seo_title_en"]').value = meta.seo_title_en;
-                if (meta.seo_description_ar) document.querySelector('textarea[name="seo_description_ar"]').value = meta.seo_description_ar;
-                if (meta.seo_description_en) document.querySelector('textarea[name="seo_description_en"]').value = meta.seo_description_en;
-                if (meta.seo_keywords_ar) document.querySelector('input[name="seo_keywords_ar"]').value = meta.seo_keywords_ar;
-                if (meta.seo_keywords_en) document.querySelector('input[name="seo_keywords_en"]').value = meta.seo_keywords_en;
-                if (meta.structured_data) document.getElementById('seo_structured_data').value = JSON.stringify(meta.structured_data, null, 2);
+                // English metadata
+                if (meta.en && meta.en.title) {
+                    document.querySelector('input[name="title_en"]').value = meta.en.title;
+                }
+                if (meta.en && meta.en.description) {
+                    document.querySelector('textarea[name="description_en"]').value = meta.en.description;
+                }
+                
+                // Arabic metadata
+                if (meta.ar && meta.ar.title) {
+                    document.querySelector('input[name="title_ar"]').value = meta.ar.title;
+                }
+                if (meta.ar && meta.ar.description) {
+                    document.querySelector('textarea[name="description_ar"]').value = meta.ar.description;
+                }
+                
+                // Tags - merge both languages
+                const tagsEn = (meta.en && meta.en.tags && Array.isArray(meta.en.tags)) ? meta.en.tags : [];
+                const tagsAr = (meta.ar && meta.ar.tags && Array.isArray(meta.ar.tags)) ? meta.ar.tags : [];
+                const allTags = [...tagsEn, ...tagsAr];
+                if (allTags.length > 0) {
+                    document.querySelector('input[name="tags"]').value = allTags.join(', ');
+                }
                 
                 showToast('{% trans "Metadata generated successfully!" %}', 'success');
             } else {
                 showToast(data.error || '{% trans "Failed to generate metadata" %}', 'danger');
             }
+            
+            hideSpinnerIfBothComplete();
         })
         .catch(error => {
-            spinner.classList.add('d-none');
-            console.error('Error:', error);
+            metadataCompleted = true;
+            console.error('Metadata generation error:', error);
             showToast('{% trans "An error occurred while generating metadata" %}', 'danger');
+            hideSpinnerIfBothComplete();
         });
+        
+        // Parallel request 2: Generate SEO
+        fetch('{% url "frontend_api:generate_seo_only" %}', {
+            method: 'POST',
+            body: seoFormData,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            seoCompleted = true;
+            if (data.success && data.seo) {
+                // Populate SEO fields using standardized JSON format
+                const seo = data.seo;
+                
+                // English SEO
+                if (seo.en && seo.en.meta_title) {
+                    document.querySelector('input[name="seo_title_en"]').value = seo.en.meta_title;
+                }
+                if (seo.en && seo.en.description) {
+                    document.querySelector('textarea[name="seo_description_en"]').value = seo.en.description;
+                }
+                if (seo.en && seo.en.keywords && Array.isArray(seo.en.keywords)) {
+                    document.querySelector('input[name="seo_keywords_en"]').value = seo.en.keywords.join(', ');
+                }
+                
+                // Arabic SEO
+                if (seo.ar && seo.ar.meta_title) {
+                    document.querySelector('input[name="seo_title_ar"]').value = seo.ar.meta_title;
+                }
+                if (seo.ar && seo.ar.description) {
+                    document.querySelector('textarea[name="seo_description_ar"]').value = seo.ar.description;
+                }
+                if (seo.ar && seo.ar.keywords && Array.isArray(seo.ar.keywords)) {
+                    document.querySelector('input[name="seo_keywords_ar"]').value = seo.ar.keywords.join(', ');
+                }
+                
+                // Transcript and Notes
+                if (seo.transcript) {
+                    document.querySelector('textarea[name="transcript"]').value = seo.transcript;
+                }
+                if (seo.notes) {
+                    document.querySelector('textarea[name="notes"]').value = seo.notes;
+                }
+                
+                // Structured Data - combine both English and Arabic into a single JSON object
+                if ((seo.en && seo.en.structured_data) || (seo.ar && seo.ar.structured_data)) {
+                    const combinedStructuredData = {
+                        en: seo.en?.structured_data || {},
+                        ar: seo.ar?.structured_data || {}
+                    };
+                    document.getElementById('seo_structured_data').value = JSON.stringify(combinedStructuredData, null, 2);
+                }
+                
+                showToast('{% trans "SEO metadata generated successfully!" %}', 'success');
+            } else {
+                showToast(data.error || '{% trans "Failed to generate SEO metadata" %}', 'danger');
+            }
+            
+            hideSpinnerIfBothComplete();
+        })
+        .catch(error => {
+            seoCompleted = true;
+            console.error('SEO generation error:', error);
+            showToast('{% trans "An error occurred while generating SEO metadata" %}', 'danger');
+            hideSpinnerIfBothComplete();
+        });
+    }
+    
+    // Keep backward compatibility with old function name
+    function generateMetadata() {
+        generateMetadataAndSEO();
     }
 
     function updateFileName(input) {

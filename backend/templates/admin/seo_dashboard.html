@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block admin_content %}
+{% csrf_token %}
 <div class="row align-items-center mb-4">
     <div class="col">
         <h1 class="h3 fw-bold text-dark mb-1">{% trans "SEO Dashboard" %}</h1>
@@ -215,11 +216,38 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        if (confirm(`{% trans "Generate SEO metadata for" %} ${selectedIds.length} {% trans "items?" %}`)) {
-            // Implementation typically requires an AJAX POST to backend endpoint
-             showToast('{% trans "Batch job started. Check System Monitor for progress." %}', 'info');
-             // In real imp: bulkSEOAction('generate_seo', selectedIds);
-        }
+        // Direct action without confirmation
+        showToast('{% trans "Generating SEO metadata..." %}', 'info');
+        
+        // Build FormData with multiple content_ids parameters
+        const formData = new FormData();
+        formData.append('action', 'generate_seo');
+        selectedIds.forEach(id => {
+            formData.append('content_ids', id);
+        });
+        
+        fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || '{{ csrf_token }}'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success || data.messages) {
+                showToast(`{% trans "Queued SEO generation for" %} ${data.success || selectedIds.length} {% trans "items" %}`, 'success');
+                // Uncheck all
+                document.querySelectorAll('input[name="content_id"]').forEach(cb => cb.checked = false);
+                document.getElementById('select-all').checked = false;
+            } else {
+                showToast(data.error || '{% trans "Failed to queue SEO generation" %}', 'danger');
+            }
+        })
+        .catch(err => {
+            showToast('{% trans "An error occurred while queueing SEO generation" %}', 'danger');
+            console.error(err);
+        });
     });
 
     document.getElementById('select-all').addEventListener('change', function() {
@@ -264,8 +292,28 @@ function loadContentAnalysis() {
 
             data.content_analysis.forEach(item => {
                 let scoreColor = item.seo_score >= 80 ? 'text-success' : (item.seo_score >= 50 ? 'text-warning' : 'text-danger');
-                let priorityBadge = item.priority === 'high' ? 'bg-danger-subtle text-danger' : 
-                                   (item.priority === 'medium' ? 'bg-warning-subtle text-warning' : 'bg-success-subtle text-success');
+                let priorityBadge, priorityText;
+                
+                if (item.priority === 'high') {
+                    priorityBadge = 'bg-danger-subtle text-danger';
+                    priorityText = 'High';
+                } else if (item.priority === 'medium') {
+                    priorityBadge = 'bg-warning-subtle text-warning';
+                    priorityText = 'Medium';
+                } else {
+                    // Change "low" to "completed"
+                    priorityBadge = 'bg-success-subtle text-success';
+                    priorityText = 'Completed';
+                }
+                
+                // Show "Fix" button for items with missing SEO (high/medium priority), "View Details" for completed
+                const actionButton = item.priority === 'high' || item.priority === 'medium' 
+                    ? `<button class="btn btn-sm btn-warning rounded-pill px-3" onclick="fixSEO('${item.id}')">
+                           <i class="bi bi-magic me-1"></i>{% trans "Fix SEO" %}
+                       </button>`
+                    : `<button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showSEODetails('${item.id}')">
+                           <i class="bi bi-eye me-1"></i>{% trans "View Details" %}
+                       </button>`;
                 
                 const row = `
                     <tr>
@@ -276,15 +324,20 @@ function loadContentAnalysis() {
                         </td>
                         <td><span class="badge bg-light text-secondary border fw-normal">${item.content_type}</span></td>
                         <td><span class="fw-bold ${scoreColor}">${item.seo_score}%</span></td>
-                        <td><span class="badge ${priorityBadge} border rounded-pill">${item.priority}</span></td>
+                        <td><span class="badge ${priorityBadge} border rounded-pill">${priorityText}</span></td>
                         <td>
                             ${item.issues.slice(0, 2).map(i => `<div class="small text-muted d-flex align-items-center"><i class="bi bi-dot"></i> ${i}</div>`).join('')}
                             ${item.issues.length > 2 ? `<div class="small text-muted fst-italic">+${item.issues.length - 2} more</div>` : ''}
                         </td>
                         <td class="pe-4 text-end">
-                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showToast('{% trans "Generating..." %}', 'info')">
-                                {% trans "Fix" %}
-                            </button>
+                            ${actionButton}
+                        </td>
+                    </tr>
+                    <tr id="seo-details-${item.id}" class="collapse">
+                        <td colspan="7" class="bg-light">
+                            <div class="p-4">
+                                <div id="seo-form-${item.id}">Loading...</div>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -296,5 +349,152 @@ function loadContentAnalysis() {
         })
         .catch(err => console.error(err));
 }
+
+function showSEODetails(contentId) {
+    const detailsRow = document.getElementById(`seo-details-${contentId}`);
+    const formContainer = document.getElementById(`seo-form-${contentId}`);
+    
+    // Toggle visibility
+    if (detailsRow.classList.contains('show')) {
+        detailsRow.classList.remove('show');
+        return;
+    }
+    
+    // Load SEO data
+    fetch(`/api/content/${contentId}/seo/`)
+        .then(response => response.json())
+        .then(data => {
+            const form = `
+                <div class="row g-3">
+                    <div class="col-12">
+                        <h6 class="fw-bold mb-3">SEO Metadata Editor</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Meta Title (EN)</label>
+                        <input type="text" class="form-control form-control-sm" id="seo-title-en-${contentId}" value="${data.seo_title_en || ''}" maxlength="60">
+                        <small class="text-muted">Max 60 characters</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Meta Title (AR)</label>
+                        <input type="text" class="form-control form-control-sm" id="seo-title-ar-${contentId}" value="${data.seo_title_ar || ''}" maxlength="60" dir="rtl">
+                        <small class="text-muted">Max 60 characters</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Meta Description (EN)</label>
+                        <textarea class="form-control form-control-sm" id="seo-desc-en-${contentId}" rows="2" maxlength="160">${data.seo_meta_description_en || ''}</textarea>
+                        <small class="text-muted">Max 160 characters</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Meta Description (AR)</label>
+                        <textarea class="form-control form-control-sm" id="seo-desc-ar-${contentId}" rows="2" maxlength="160" dir="rtl">${data.seo_meta_description_ar || ''}</textarea>
+                        <small class="text-muted">Max 160 characters</small>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Keywords (EN)</label>
+                        <input type="text" class="form-control form-control-sm" id="seo-keywords-en-${contentId}" value="${data.seo_keywords_en || ''}" placeholder="keyword1, keyword2">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small">Keywords (AR)</label>
+                        <input type="text" class="form-control form-control-sm" id="seo-keywords-ar-${contentId}" value="${data.seo_keywords_ar || ''}" placeholder="كلمة1, كلمة2" dir="rtl">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Structured Data (JSON-LD)</label>
+                        <textarea class="form-control form-control-sm font-monospace" id="seo-structured-${contentId}" rows="4">${data.structured_data ? JSON.stringify(JSON.parse(data.structured_data), null, 2) : '{}'}</textarea>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label small">Transcript (for Audio/Video SEO)</label>
+                        <textarea class="form-control form-control-sm" id="seo-transcript-${contentId}" rows="4">${data.transcript || ''}</textarea>
+                        <small class="text-muted">Full text for search engines to index spoken content</small>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label small">Internal Notes</label>
+                        <textarea class="form-control form-control-sm" id="seo-notes-${contentId}" rows="3">${data.notes || ''}</textarea>
+                    </div>
+                    <div class="col-12 text-end">
+                        <button class="btn btn-sm btn-secondary rounded-pill me-2" onclick="document.getElementById('seo-details-${contentId}').classList.remove('show')">Cancel</button>
+                        <button class="btn btn-sm btn-primary rounded-pill" onclick="saveSEOData('${contentId}')">
+                            <i class="bi bi-save me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            `;
+            formContainer.innerHTML = form;
+            detailsRow.classList.add('show');
+        })
+        .catch(err => {
+            formContainer.innerHTML = `<div class="alert alert-danger">Failed to load SEO data: ${err.message}</div>`;
+            detailsRow.classList.add('show');
+        });
+}
+
+function saveSEOData(contentId) {
+    const data = {
+        seo_title_en: document.getElementById(`seo-title-en-${contentId}`).value,
+        seo_title_ar: document.getElementById(`seo-title-ar-${contentId}`).value,
+        seo_meta_description_en: document.getElementById(`seo-desc-en-${contentId}`).value,
+        seo_meta_description_ar: document.getElementById(`seo-desc-ar-${contentId}`).value,
+        seo_keywords_en: document.getElementById(`seo-keywords-en-${contentId}`).value,
+        seo_keywords_ar: document.getElementById(`seo-keywords-ar-${contentId}`).value,
+        structured_data: document.getElementById(`seo-structured-${contentId}`).value,
+        transcript: document.getElementById(`seo-transcript-${contentId}`).value,
+        notes: document.getElementById(`seo-notes-${contentId}`).value
+    };
+    
+    fetch(`/api/content/${contentId}/seo/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            showToast('{% trans "SEO data saved successfully" %}', 'success');
+            document.getElementById(`seo-details-${contentId}`).classList.remove('show');
+            loadContentAnalysis(); // Refresh the table
+        } else {
+            showToast(result.error || '{% trans "Failed to save SEO data" %}', 'danger');
+        }
+    })
+    .catch(err => {
+        showToast('{% trans "An error occurred while saving" %}', 'danger');
+        console.error(err);
+    });
+}
+
+function fixSEO(contentId) {
+    // Queue SEO generation for this content item
+    showToast('{% trans "Generating SEO metadata..." %}', 'info');
+    
+    const formData = new FormData();
+    formData.append('action', 'generate_seo');
+    formData.append('content_ids', contentId);
+    
+    fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.success > 0) {
+            showToast('{% trans "SEO generation queued successfully" %}', 'success');
+            setTimeout(() => {
+                loadContentAnalysis(); // Refresh the table after a delay
+            }, 2000);
+        } else {
+            showToast(data.messages?.[0] || '{% trans "Failed to queue SEO generation" %}', 'danger');
+        }
+    })
+    .catch(err => {
+        showToast('{% trans "An error occurred while queueing SEO generation" %}', 'danger');
+        console.error(err);
+    });
+}
+
 </script>
 {% endblock %}

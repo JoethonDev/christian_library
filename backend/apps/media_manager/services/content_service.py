@@ -3,7 +3,9 @@ Content Management Service Layer
 Handles all business logic for content operations
 """
 from typing import Dict, List, Optional, Tuple, Union
-from django.db import transaction
+import uuid
+from django.db import transaction, models
+from django.db.models import Q
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.utils.translation import gettext_lazy as _
@@ -24,6 +26,68 @@ logger = logging.getLogger(__name__)
 class ContentService:
     """Service for managing content items and their lifecycle"""
     
+    @staticmethod
+    def _process_tags(tag_ids_or_names: List[str]) -> List[Tag]:
+        """
+        Process a list of tag IDs or names and return a list of Tag objects.
+        If a tag name doesn't exist, it creates a new tag.
+        Handles both Arabic and English names.
+        """
+        tag_objects = []
+        if not tag_ids_or_names:
+            return tag_objects
+            
+        # Clean the input: trim spaces and remove empty strings
+        clean_inputs = []
+        for t in tag_ids_or_names:
+            if isinstance(t, str):
+                parts = [p.strip() for p in t.split(',') if p.strip()]
+                clean_inputs.extend(parts)
+            elif t:
+                clean_inputs.append(t)
+        
+        for input_val in clean_inputs:
+            # Check if it's already a Tag object
+            if isinstance(input_val, Tag):
+                tag_objects.append(input_val)
+                continue
+                
+            # Check if it's a UUID
+            try:
+                uuid.UUID(str(input_val))
+                # It's a UUID, try to find the tag
+                tag = Tag.objects.filter(id=input_val, is_active=True).first()
+                if tag:
+                    tag_objects.append(tag)
+                continue
+            except (ValueError, TypeError):
+                # Not a UUID, it's a name
+                pass
+            
+            # Since it's a name, try to find an existing tag by name_ar or name_en
+            tag = Tag.objects.filter(
+                Q(name_ar__iexact=input_val) | Q(name_en__iexact=input_val)
+            ).first()
+            
+            if tag:
+                tag_objects.append(tag)
+            else:
+                # Create a new tag
+                # Heuristic: if it has Arabic characters, use as name_ar
+                is_arabic = any('\u0600' <= char <= '\u06FF' for char in str(input_val))
+                
+                try:
+                    if is_arabic:
+                        new_tag = Tag.objects.create(name_ar=input_val)
+                    else:
+                        # For English tags, use as name_ar (since it's required) and name_en
+                        new_tag = Tag.objects.create(name_ar=input_val, name_en=input_val)
+                    tag_objects.append(new_tag)
+                except Exception as e:
+                    logger.warning(f"Failed to create new tag '{input_val}': {e}")
+                    
+        return tag_objects
+
     @staticmethod
     def get_content_by_id(content_id: str, content_type: Optional[str] = None) -> ContentItem:
         """
@@ -149,6 +213,10 @@ class ContentService:
         seo_keywords_en: str = "",
         seo_meta_description_ar: str = "",
         seo_meta_description_en: str = "",
+        seo_title_ar: str = "",
+        seo_title_en: str = "",
+        transcript: str = "",
+        notes: str = "",
         seo_title_suggestions: str = "",
         structured_data: str = ""
     ) -> ContentItem:
@@ -188,13 +256,17 @@ class ContentService:
                     seo_keywords_en=seo_keywords_en,
                     seo_meta_description_ar=seo_meta_description_ar,
                     seo_meta_description_en=seo_meta_description_en,
+                    seo_title_ar=seo_title_ar,
+                    seo_title_en=seo_title_en,
+                    transcript=transcript,
+                    notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
                     structured_data=structured_data
                 )
                 
                 # Add tags if provided
                 if tag_ids:
-                    tags = Tag.objects.filter(id__in=tag_ids, is_active=True)
+                    tags = ContentService._process_tags(tag_ids)
                     content_item.tags.set(tags)
                 
                 logger.info(f"Created content item {content_item.id} of type {content_type}")
@@ -228,12 +300,20 @@ class ContentService:
                 content_item = ContentService.get_content_by_id(content_id)
                 
                 # Update fields
+                tags_to_set = None
                 for field, value in update_fields.items():
+                    if field == 'tags':
+                        tags_to_set = ContentService._process_tags(value)
+                        continue
                     if hasattr(content_item, field):
                         setattr(content_item, field, value)
                 
                 content_item.full_clean()
                 content_item.save()
+                
+                # Update tags if provided
+                if tags_to_set is not None:
+                    content_item.tags.set(tags_to_set)
                 
                 logger.info(f"Updated content item {content_item.id}")
                 return content_item

@@ -58,6 +58,8 @@ class MediaUploadService:
         seo_description_ar: str = "",
         seo_keywords_en: str = "",
         seo_keywords_ar: str = "",
+        transcript: str = "",
+        notes: str = "",
         seo_structured_data: str = ""
     ):
         """Create content item with complete metadata"""
@@ -84,6 +86,7 @@ class MediaUploadService:
                     file_obj, title_ar, title_en, description_ar, description_en,
                     tag_ids, seo_keywords_ar, seo_keywords_en,
                     seo_description_ar, seo_description_en,
+                    seo_title_ar, seo_title_en, transcript, notes,
                     seo_title_ar + ',' + seo_title_en if seo_title_en else seo_title_ar,
                     seo_structured_data
                 )
@@ -92,6 +95,7 @@ class MediaUploadService:
                     file_obj, title_ar, description_ar, title_en, description_en,
                     tag_ids, seo_keywords_ar, seo_keywords_en,
                     seo_description_ar, seo_description_en,
+                    seo_title_ar, seo_title_en, transcript, notes,
                     seo_title_ar + ',' + seo_title_en if seo_title_en else seo_title_ar,
                     seo_structured_data
                 )
@@ -100,6 +104,7 @@ class MediaUploadService:
                     file_obj, title_ar, description_ar, title_en, description_en,
                     tag_ids, seo_keywords_ar, seo_keywords_en,
                     seo_description_ar, seo_description_en,
+                    seo_title_ar, seo_title_en, transcript, notes,
                     seo_title_ar + ',' + seo_title_en if seo_title_en else seo_title_ar,
                     seo_structured_data
                 )
@@ -172,26 +177,16 @@ class MediaUploadService:
         seo_keywords_en: str = "",
         seo_meta_description_ar: str = "",
         seo_meta_description_en: str = "",
+        seo_title_ar: str = "",
+        seo_title_en: str = "",
+        transcript: str = "",
+        notes: str = "",
         seo_title_suggestions: str = "",
         structured_data: str = ""
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process video file
-        
-        Args:
-            file: Video file to upload
-            title_ar: Arabic title
-            title_en: English title  
-            description_ar: Arabic description
-            description_en: English description
-            tag_ids: List of tag UUIDs
-            seo_keywords_ar: Arabic SEO keywords
-            seo_keywords_en: English SEO keywords
-            seo_meta_description_ar: Arabic meta description
-            seo_meta_description_en: English meta description
-            seo_title_suggestions: JSON string of title suggestions
-            structured_data: JSON string of structured data
-            
+        ...
         Returns:
             Tuple of (success, message, content_item)
         """
@@ -214,6 +209,10 @@ class MediaUploadService:
                     seo_keywords_en=seo_keywords_en,
                     seo_meta_description_ar=seo_meta_description_ar,
                     seo_meta_description_en=seo_meta_description_en,
+                    seo_title_ar=seo_title_ar,
+                    seo_title_en=seo_title_en,
+                    transcript=transcript,
+                    notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
                     structured_data=structured_data
                 )
@@ -265,20 +264,16 @@ class MediaUploadService:
         seo_keywords_en: str = "",
         seo_meta_description_ar: str = "",
         seo_meta_description_en: str = "",
+        seo_title_ar: str = "",
+        seo_title_en: str = "",
+        transcript: str = "",
+        notes: str = "",
         seo_title_suggestions: str = "",
         structured_data: str = ""
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process audio file
-        
-        Args:
-            file: Audio file to upload
-            title_ar: Arabic title
-            description_ar: Arabic description
-            title_en: English title
-            description_en: English description
-            tag_ids: List of tag UUIDs
-            
+        ...
         Returns:
             Tuple of (success, message, content_item)
         """
@@ -300,6 +295,10 @@ class MediaUploadService:
                     seo_keywords_en=seo_keywords_en,
                     seo_meta_description_ar=seo_meta_description_ar,
                     seo_meta_description_en=seo_meta_description_en,
+                    seo_title_ar=seo_title_ar,
+                    seo_title_en=seo_title_en,
+                    transcript=transcript,
+                    notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
                     structured_data=structured_data
                 )
@@ -352,20 +351,16 @@ class MediaUploadService:
         seo_keywords_en: str = "",
         seo_meta_description_ar: str = "",
         seo_meta_description_en: str = "",
+        seo_title_ar: str = "",
+        seo_title_en: str = "",
+        transcript: str = "",
+        notes: str = "",
         seo_title_suggestions: str = "",
         structured_data: str = ""
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process PDF file
-        
-        Args:
-            file: PDF file to upload
-            title_ar: Arabic title
-            description_ar: Arabic description
-            title_en: English title
-            description_en: English description
-            tag_ids: List of tag UUIDs
-            
+        ...
         Returns:
             Tuple of (success, message, content_item)
         """
@@ -388,6 +383,10 @@ class MediaUploadService:
                     seo_keywords_en=seo_keywords_en,
                     seo_meta_description_ar=seo_meta_description_ar,
                     seo_meta_description_en=seo_meta_description_en,
+                    seo_title_ar=seo_title_ar,
+                    seo_title_en=seo_title_en,
+                    transcript=transcript,
+                    notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
                     structured_data=structured_data
                 )

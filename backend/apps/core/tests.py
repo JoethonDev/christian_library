@@ -480,3 +480,281 @@ class SystemMonitorTestCase(TestCase):
         self.assertIn('task_stats', data['task_monitor'])
         self.assertIn('has_tasks', data['task_monitor'])
 
+
+class GeminiMetadataServiceTest(TestCase):
+    """Test Gemini Metadata Service"""
+    
+    def setUp(self):
+        """Set up test fixtures"""
+        from core.services.gemini_metadata_service import GeminiMetadataService
+        self.service = GeminiMetadataService()
+    
+    def test_service_initialization(self):
+        """Test that service initializes properly"""
+        self.assertIsNotNone(self.service)
+        self.assertTrue(hasattr(self.service, 'generate_metadata'))
+        self.assertTrue(hasattr(self.service, 'is_available'))
+    
+    def test_validate_metadata(self):
+        """Test metadata validation"""
+        test_metadata = {
+            'en': {
+                'title': 'Test Video Title',
+                'description': 'This is a test description for a video about Coptic Orthodox liturgy.'
+            },
+            'ar': {
+                'title': 'عنوان الفيديو التجريبي',
+                'description': 'هذا وصف تجريبي لفيديو عن الليتورجيا القبطية الأرثوذكسية.'
+            }
+        }
+        
+        cleaned = self.service._validate_metadata(test_metadata)
+        
+        # Check structure
+        self.assertIn('en', cleaned)
+        self.assertIn('ar', cleaned)
+        
+        # Check English
+        self.assertIn('title', cleaned['en'])
+        self.assertIn('description', cleaned['en'])
+        self.assertEqual(cleaned['en']['title'], 'Test Video Title')
+        
+        # Check Arabic
+        self.assertIn('title', cleaned['ar'])
+        self.assertIn('description', cleaned['ar'])
+        self.assertEqual(cleaned['ar']['title'], 'عنوان الفيديو التجريبي')
+    
+    def test_validate_metadata_truncation(self):
+        """Test that metadata is properly truncated"""
+        long_title = 'A' * 150
+        long_description = 'B' * 300
+        
+        test_metadata = {
+            'en': {
+                'title': long_title,
+                'description': long_description
+            },
+            'ar': {
+                'title': long_title,
+                'description': long_description
+            }
+        }
+        
+        cleaned = self.service._validate_metadata(test_metadata)
+        
+        # Check truncation
+        self.assertEqual(len(cleaned['en']['title']), 100)
+        self.assertEqual(len(cleaned['en']['description']), 200)
+        self.assertEqual(len(cleaned['ar']['title']), 100)
+        self.assertEqual(len(cleaned['ar']['description']), 200)
+    
+    def test_metadata_prompt_contains_coptic_context(self):
+        """Test that metadata prompt includes Coptic Orthodox context"""
+        prompt = self.service._create_metadata_prompt('video')
+        
+        # Check for key phrases
+        self.assertIn('Coptic Orthodox', prompt)
+        self.assertIn('Christian', prompt)
+        self.assertIn('theological', prompt.lower())
+    
+    def test_singleton_pattern(self):
+        """Test that get_gemini_metadata_service returns singleton"""
+        from core.services.gemini_metadata_service import get_gemini_metadata_service
+        service1 = get_gemini_metadata_service()
+        service2 = get_gemini_metadata_service()
+        self.assertIs(service1, service2)
+
+
+class GeminiSEOServiceTest(TestCase):
+    """Test Gemini SEO Service"""
+    
+    def setUp(self):
+        """Set up test fixtures"""
+        from core.services.gemini_seo_service import GeminiSEOService
+        self.service = GeminiSEOService()
+    
+    def test_service_initialization(self):
+        """Test that service initializes properly"""
+        self.assertIsNotNone(self.service)
+        self.assertTrue(hasattr(self.service, 'generate_seo'))
+        self.assertTrue(hasattr(self.service, 'is_available'))
+    
+    def test_validate_seo(self):
+        """Test SEO validation"""
+        test_seo = {
+            'en': {
+                'meta_title': 'Coptic Orthodox Liturgy Video',
+                'description': 'Learn about the Divine Liturgy in the Coptic Orthodox Church with this comprehensive video guide covering hymns, prayers, and traditions.',
+                'keywords': ['Coptic Orthodox', 'Divine Liturgy', 'Coptic hymns', 'Egyptian Christianity']
+            },
+            'ar': {
+                'meta_title': 'فيديو الليتورجيا القبطية',
+                'description': 'تعلم عن القداس الإلهي في الكنيسة القبطية الأرثوذكسية من خلال هذا الدليل الشامل الذي يغطي الترانيم والصلوات والتقاليد.',
+                'keywords': ['القبطية الأرثوذكسية', 'القداس الإلهي', 'الترانيم القبطية', 'المسيحية المصرية']
+            }
+        }
+        
+        cleaned = self.service._validate_seo(test_seo)
+        
+        # Check structure
+        self.assertIn('en', cleaned)
+        self.assertIn('ar', cleaned)
+        
+        # Check English
+        self.assertIn('meta_title', cleaned['en'])
+        self.assertIn('description', cleaned['en'])
+        self.assertIn('keywords', cleaned['en'])
+        self.assertIsInstance(cleaned['en']['keywords'], list)
+        
+        # Check Arabic
+        self.assertIn('meta_title', cleaned['ar'])
+        self.assertIn('description', cleaned['ar'])
+        self.assertIn('keywords', cleaned['ar'])
+        self.assertIsInstance(cleaned['ar']['keywords'], list)
+    
+    def test_validate_seo_character_limits(self):
+        """Test that SEO metadata respects character limits"""
+        long_title = 'A' * 100
+        long_description = 'B' * 300
+        
+        test_seo = {
+            'en': {
+                'meta_title': long_title,
+                'description': long_description,
+                'keywords': []
+            },
+            'ar': {
+                'meta_title': long_title,
+                'description': long_description,
+                'keywords': []
+            }
+        }
+        
+        cleaned = self.service._validate_seo(test_seo)
+        
+        # Check character limits (meta_title: 60, description: 160)
+        self.assertLessEqual(len(cleaned['en']['meta_title']), 60)
+        self.assertLessEqual(len(cleaned['en']['description']), 160)
+        self.assertLessEqual(len(cleaned['ar']['meta_title']), 60)
+        self.assertLessEqual(len(cleaned['ar']['description']), 160)
+    
+    def test_validate_seo_keyword_limits(self):
+        """Test that keywords are limited to max 12"""
+        test_seo = {
+            'en': {
+                'meta_title': 'Title',
+                'description': 'Description',
+                'keywords': [f'keyword{i}' for i in range(20)]
+            },
+            'ar': {
+                'meta_title': 'عنوان',
+                'description': 'وصف',
+                'keywords': [f'كلمة{i}' for i in range(20)]
+            }
+        }
+        
+        cleaned = self.service._validate_seo(test_seo)
+        
+        # Check keyword limits
+        self.assertLessEqual(len(cleaned['en']['keywords']), 12)
+        self.assertLessEqual(len(cleaned['ar']['keywords']), 12)
+    
+    def test_seo_prompt_contains_google_optimization(self):
+        """Test that SEO prompt includes Google SEO requirements"""
+        prompt = self.service._create_seo_prompt('video')
+        
+        # Check for key SEO phrases
+        self.assertIn('50-60', prompt)  # Meta title character limit
+        self.assertIn('150-160', prompt)  # Meta description character limit
+        self.assertIn('Coptic Orthodox', prompt)
+        self.assertIn('SEO', prompt)
+        self.assertIn('keywords', prompt.lower())
+    
+    def test_singleton_pattern(self):
+        """Test that get_gemini_seo_service returns singleton"""
+        from core.services.gemini_seo_service import get_gemini_seo_service
+        service1 = get_gemini_seo_service()
+        service2 = get_gemini_seo_service()
+        self.assertIs(service1, service2)
+
+
+class MetadataEndpointTest(TestCase):
+    """Test metadata generation endpoint"""
+    
+    def setUp(self):
+        """Set up test fixtures"""
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            is_staff=True
+        )
+    
+    def test_endpoint_requires_post(self):
+        """Test that endpoint requires POST method"""
+        from django.test import Client
+        from django.urls import reverse
+        
+        client = Client()
+        client.login(username='testuser', password='testpass123')
+        url = reverse('frontend_api:generate_metadata_only')
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertIn('POST method required', data['error'])
+    
+    def test_endpoint_requires_file(self):
+        """Test that endpoint requires file parameter"""
+        from django.test import Client
+        from django.urls import reverse
+        
+        client = Client()
+        client.login(username='testuser', password='testpass123')
+        url = reverse('frontend_api:generate_metadata_only')
+        response = client.post(url, {})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertIn('File required', data['error'])
+
+
+class SEOEndpointTest(TestCase):
+    """Test SEO generation endpoint"""
+    
+    def setUp(self):
+        """Set up test fixtures"""
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123',
+            is_staff=True
+        )
+    
+    def test_endpoint_requires_post(self):
+        """Test that endpoint requires POST method"""
+        from django.test import Client
+        from django.urls import reverse
+        
+        client = Client()
+        client.login(username='testuser', password='testpass123')
+        url = reverse('frontend_api:generate_seo_only')
+        response = client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertIn('POST method required', data['error'])
+    
+    def test_endpoint_requires_file(self):
+        """Test that endpoint requires file parameter"""
+        from django.test import Client
+        from django.urls import reverse
+        
+        client = Client()
+        client.login(username='testuser', password='testpass123')
+        url = reverse('frontend_api:generate_seo_only')
+        response = client.post(url, {})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertIn('File required', data['error'])
+
+

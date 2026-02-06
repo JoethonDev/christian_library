@@ -190,6 +190,8 @@ def handle_content_upload(request):
         seo_description_ar = request.POST.get('seo_description_ar', '')
         seo_keywords_en = request.POST.get('seo_keywords_en', '')
         seo_keywords_ar = request.POST.get('seo_keywords_ar', '')
+        transcript = request.POST.get('transcript', '')
+        notes = request.POST.get('notes', '')
         seo_structured_data = request.POST.get('seo_structured_data', '')
         
         # Create content item using upload service
@@ -206,6 +208,8 @@ def handle_content_upload(request):
             seo_description_ar=seo_description_ar,
             seo_keywords_en=seo_keywords_en,
             seo_keywords_ar=seo_keywords_ar,
+            transcript=transcript,
+            notes=notes,
             seo_structured_data=seo_structured_data
         )
         
@@ -713,3 +717,185 @@ def api_auto_fill_metadata(request):
         logger.error(f"Error triggering auto-fill: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)})
 
+
+
+def _save_uploaded_file_temporarily(file_obj):
+    """Helper function to save uploaded file temporarily and return its path"""
+    file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
+        for chunk in file_obj.chunks():
+            temp_file.write(chunk)
+        return temp_file.name
+
+
+def _cleanup_temp_file(file_path):
+    """Helper function to clean up temporary file with proper error handling"""
+    try:
+        os.unlink(file_path)
+    except OSError as e:
+        logger.warning(f"Failed to clean up temporary file {file_path}: {e}")
+
+
+def _determine_content_type(file_obj, content_type_param):
+    """Helper function to determine content type from file or parameter"""
+    if content_type_param:
+        return content_type_param, None
+    
+    # Determine content type from file extension
+    file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else ''
+    if file_extension in ['mp4', 'avi', 'mov', 'mkv']:
+        return 'video', None
+    elif file_extension in ['mp3', 'wav', 'flac', 'm4a']:
+        return 'audio', None
+    elif file_extension in ['pdf']:
+        return 'pdf', None
+    else:
+        return None, 'Unsupported file type'
+
+
+def generate_metadata_only(request):
+    """Generate metadata only from uploaded file (new separated endpoint)"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'})
+    
+    try:
+        from core.services.gemini_metadata_service import get_gemini_metadata_service
+        
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return JsonResponse({'success': False, 'error': 'File required'})
+        
+        # Determine content type
+        content_type, error = _determine_content_type(file_obj, request.POST.get('content_type', ''))
+        if error:
+            return JsonResponse({'success': False, 'error': error})
+        
+        # Use Gemini metadata service
+        metadata_service = get_gemini_metadata_service()
+        if not metadata_service.is_available():
+            return JsonResponse({'success': False, 'error': 'AI service not available'})
+        
+        # Save file temporarily for processing
+        temp_file_path = _save_uploaded_file_temporarily(file_obj)
+        
+        try:
+            # Generate metadata using the temporary file
+            success, metadata = metadata_service.generate_metadata(temp_file_path, content_type)
+            
+            if success and metadata:
+                return JsonResponse({
+                    'success': True,
+                    'metadata': metadata
+                })
+            else:
+                error_msg = metadata.get('error', 'Failed to generate metadata') if isinstance(metadata, dict) else 'Failed to generate metadata'
+                return JsonResponse({'success': False, 'error': error_msg})
+                
+        finally:
+            _cleanup_temp_file(temp_file_path)
+                
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def generate_seo_only(request):
+    """Generate SEO metadata only from uploaded file (new separated endpoint)"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'})
+    
+    try:
+        from core.services.gemini_seo_service import get_gemini_seo_service
+        
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return JsonResponse({'success': False, 'error': 'File required'})
+        
+        # Determine content type
+        content_type, error = _determine_content_type(file_obj, request.POST.get('content_type', ''))
+        if error:
+            return JsonResponse({'success': False, 'error': error})
+        
+        # Use Gemini SEO service
+        seo_service = get_gemini_seo_service()
+        if not seo_service.is_available():
+            return JsonResponse({'success': False, 'error': 'AI service not available'})
+        
+        # Save file temporarily for processing
+        temp_file_path = _save_uploaded_file_temporarily(file_obj)
+        
+        try:
+            # Generate SEO metadata using the temporary file
+            success, seo_data = seo_service.generate_seo(temp_file_path, content_type)
+            
+            if success and seo_data:
+                return JsonResponse({
+                    'success': True,
+                    'seo': seo_data
+                })
+            else:
+                error_msg = seo_data.get('error', 'Failed to generate SEO metadata') if isinstance(seo_data, dict) else 'Failed to generate SEO metadata'
+                return JsonResponse({'success': False, 'error': error_msg})
+                
+        finally:
+            _cleanup_temp_file(temp_file_path)
+                
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+
+@login_required
+def api_content_seo(request, content_id):
+    """API endpoint to get or update SEO metadata for a content item"""
+    try:
+        content = get_object_or_404(ContentItem, id=content_id)
+        
+        if request.method == 'GET':
+            # Return current SEO data
+            return JsonResponse({
+                'success': True,
+                'seo_title_en': content.seo_title_en or '',
+                'seo_title_ar': content.seo_title_ar or '',
+                'seo_meta_description_en': content.seo_meta_description_en or '',
+                'seo_meta_description_ar': content.seo_meta_description_ar or '',
+                'seo_keywords_en': content.seo_keywords_en or '',
+                'seo_keywords_ar': content.seo_keywords_ar or '',
+                'structured_data': json.dumps(content.structured_data) if content.structured_data else '{}',
+                'transcript': content.transcript or '',
+                'notes': content.notes or ''
+            })
+        
+        elif request.method == 'POST':
+            # Update SEO data
+            data = json.loads(request.body)
+            
+            content.seo_title_en = data.get('seo_title_en', '')[:70]
+            content.seo_title_ar = data.get('seo_title_ar', '')[:70]
+            content.seo_meta_description_en = data.get('seo_meta_description_en', '')[:160]
+            content.seo_meta_description_ar = data.get('seo_meta_description_ar', '')[:160]
+            content.seo_keywords_en = data.get('seo_keywords_en', '')
+            content.seo_keywords_ar = data.get('seo_keywords_ar', '')
+            content.transcript = data.get('transcript', '')
+            content.notes = data.get('notes', '')
+            
+            # Validate and save structured data
+            structured_data = data.get('structured_data', '')
+            if structured_data:
+                try:
+                    # Validate it's valid JSON and store as dict
+                    content.structured_data = json.loads(structured_data)
+                except json.JSONDecodeError:
+                    return JsonResponse({'success': False, 'error': 'Invalid JSON in structured data'})
+            
+            content.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'SEO data updated successfully'
+            })
+        
+        else:
+            return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+            
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})

@@ -15,6 +15,11 @@ class Migration(migrations.Migration):
             name='processing_status',
             field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed'), ('failed', 'Failed')], db_index=True, default='pending', max_length=20, verbose_name='Processing Status'),
         ),
+        migrations.AddField(
+            model_name='contentitem',
+            name='seo_processing_status',
+            field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed'), ('failed', 'Failed')], db_index=True, default='pending', max_length=20, verbose_name='SEO Processing Status'),
+        ),
         migrations.AlterField(
             model_name='contentitem',
             name='is_active',
