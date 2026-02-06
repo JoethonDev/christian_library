@@ -3,11 +3,12 @@ from django.urls import reverse
 from django.core.cache import cache
 from django.utils import timezone
 from django.contrib.sites.models import Site
+from django.conf import settings
 from apps.media_manager.models import ContentItem
 
 
 class HomeSitemap(Sitemap):
-    """Home page sitemap with highest priority - Auto-updated"""
+    """Static pages sitemap with highest priority - Auto-updated"""
     priority = 1.0
     changefreq = 'daily'
     i18n = True
@@ -19,8 +20,8 @@ class HomeSitemap(Sitemap):
         return reverse(item)
     
     def lastmod(self, item):
-        # Cache lastmod for home page based on latest content update
-        cache_key = 'sitemap_home_lastmod'
+        # Cache lastmod for pages sitemap based on latest content update
+        cache_key = 'sitemap_pages_lastmod'
         lastmod = cache.get(cache_key)
         if not lastmod:
             latest_content = ContentItem.objects.filter(is_active=True).order_by('-updated_at').first()
@@ -86,6 +87,15 @@ class VideoSitemap(Sitemap):
         if obj.has_seo_metadata():
             return 0.9  # Higher priority for SEO-optimized content
         return 0.7
+    
+    def get_languages_for_item(self, obj):
+        """Return available languages for this video"""
+        languages = []
+        if obj.title_ar or obj.description_ar:
+            languages.append('ar')
+        if obj.title_en or obj.description_en:
+            languages.append('en')
+        return languages if languages else ['ar', 'en']  # Default to both
 
 
 class AudioSitemap(Sitemap):
@@ -111,6 +121,15 @@ class AudioSitemap(Sitemap):
         if obj.has_seo_metadata():
             return 0.8  # Higher priority for SEO-optimized content
         return 0.6
+    
+    def get_languages_for_item(self, obj):
+        """Return available languages for this audio"""
+        languages = []
+        if obj.title_ar or obj.description_ar:
+            languages.append('ar')
+        if obj.title_en or obj.description_en:
+            languages.append('en')
+        return languages if languages else ['ar', 'en']
 
 
 class PdfSitemap(Sitemap):
@@ -148,6 +167,15 @@ class PdfSitemap(Sitemap):
                 priority += 0.05
         
         return min(priority, 0.9)  # Cap at 0.9
+    
+    def get_languages_for_item(self, obj):
+        """Return available languages for this PDF"""
+        languages = []
+        if obj.title_ar or obj.description_ar:
+            languages.append('ar')
+        if obj.title_en or obj.description_en:
+            languages.append('en')
+        return languages if languages else ['ar', 'en']
 
 
 # Legacy sitemaps for backward compatibility

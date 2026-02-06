@@ -20,8 +20,8 @@ def invalidate_sitemap_cache_and_notify(sender, instance, created, **kwargs):
     Also notifies Google of the update
     """
     try:
-        # Invalidate home page sitemap cache
-        cache.delete('sitemap_home_lastmod')
+        # Invalidate pages sitemap cache
+        cache.delete('sitemap_pages_lastmod')
         
         # Invalidate content type specific cache
         content_type = instance.content_type
@@ -74,8 +74,8 @@ def invalidate_sitemap_cache_on_delete(sender, instance, **kwargs):
     Also notifies Google of the deletion
     """
     try:
-        # Invalidate home page sitemap cache
-        cache.delete('sitemap_home_lastmod')
+        # Invalidate pages sitemap cache
+        cache.delete('sitemap_pages_lastmod')
         
         # Invalidate content type specific cache
         content_type = instance.content_type

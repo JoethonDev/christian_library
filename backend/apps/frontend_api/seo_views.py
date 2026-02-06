@@ -310,7 +310,7 @@ def seo_monitoring_api(request):
         }
         
         # Check each sitemap section
-        sections = ["home", "content-lists", "videos", "audios", "pdfs"]
+        sections = ["pages", "content-lists", "videos", "audios", "pdfs"]
         for section in sections:
             cache_key = f"sitemap_{section.replace('-', '_')}_lastmod"
             last_mod = cache.get(cache_key)

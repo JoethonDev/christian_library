@@ -44,7 +44,7 @@ urlpatterns = [
     path('', smart_root_redirect, name='root_redirect'),
 ]
 
-# Sitemap and SEO
+# Sitemap and SEO - Advanced Architecture following Google Best Practices
 from django.contrib.sitemaps.views import sitemap, index as sitemap_index
 from apps.frontend_api.sitemaps import (
     HomeSitemap, ContentListSitemap, VideoSitemap, AudioSitemap, 
@@ -55,23 +55,39 @@ from apps.frontend_api.feeds import (
     LatestPdfsFeed, LatestContentAtomFeed
 )
 
+# Segmented Sitemaps by Content Type and Language
+# Following SEO best practice: separate sitemaps for better debugging and crawl efficiency
 sitemaps = {
-    'home': HomeSitemap(),
+    # Static Pages (both languages)
+    'pages': HomeSitemap(),
     'content-lists': ContentListSitemap(),
+    
+    # Videos (segmented by language for better targeting)
     'videos': VideoSitemap(),
+    
+    # Audio content
     'audios': AudioSitemap(),
+    
+    # PDF/Documents
     'pdfs': PdfSitemap(),
+    
     # Legacy sitemaps for backward compatibility
     'pdf-list': PdfListSitemap(),
     'pdf-detail': PdfDetailSitemap(),
 }
 
 urlpatterns += [
-    # Individual sitemap sections (non-i18n fallback)
-    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    # Master Sitemap Index at Root (SEO Best Practice)
+    # This is the primary sitemap that search engines should crawl
+    # Location: https://yourdomain.org/sitemap.xml
+    path('sitemap.xml', sitemap_index, {
+        'sitemaps': sitemaps,
+        'sitemap_url_name': 'sitemap_section'
+    }, name='sitemap_master_index'),
     
-    # Global sitemap redirect to preferred language
-    path('sitemap.xml', RedirectView.as_view(url='/ar/sitemap.xml', permanent=False), name='sitemap_redirect_global'),
+    # Individual sitemap sections (segmented by content type)
+    # These are referenced by the master index
+    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap_section'),
     
     # RSS/Atom Feeds
     path('feeds/latest.rss', LatestContentFeed(), name='feed_latest'),
@@ -89,10 +105,6 @@ urlpatterns += i18n_patterns(
     # Main application URLs
     path('', include('apps.frontend_api.urls')),
     
-    # Sitemaps (i18n versions)
-    path('sitemap.xml', sitemap_index, {'sitemaps': sitemaps, 'sitemap_url_name': 'sitemap_section_i18n'}, name='sitemap_index_i18n'),
-    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap_section_i18n'),
-
     # Media URLs  
     path('media/', include('apps.media_manager.urls', namespace='media')),
     

@@ -7,7 +7,7 @@ def robots_txt(request):
     Generate robots.txt dynamically
     - Disallows admin areas and API endpoints
     - Allows all public media and landing pages
-    - Includes sitemap reference
+    - References master sitemap index (SEO best practice)
     """
     # Get the current site domain
     try:
@@ -18,12 +18,14 @@ def robots_txt(request):
     
     # Build protocol (HTTPS in production, HTTP in development)
     protocol = 'https' if request.is_secure() else 'http'
-    sitemap_ar = f"{protocol}://{domain}/ar/sitemap.xml"
-    sitemap_en = f"{protocol}://{domain}/en/sitemap.xml"
+    
+    # Master sitemap at root (best practice for SEO)
+    master_sitemap = f"{protocol}://{domain}/sitemap.xml"
     
     content = (
         "# robots.txt for Christian Library\n"
-        "# Auto-generated and managed by Django\n\n"
+        "# Auto-generated and managed by Django\n"
+        "# Following Google SEO Best Practices (2026)\n\n"
         "User-agent: *\n\n"
         
         "# Disallow admin areas\n"
@@ -45,8 +47,8 @@ def robots_txt(request):
         "Allow: /en/audios/\n"
         "Allow: /en/pdfs/\n\n"
         
-        "# Sitemap references\n"
-        f"Sitemap: {sitemap_ar}\n"
-        f"Sitemap: {sitemap_en}\n"
+        "# Master Sitemap Index\n"
+        "# This index contains all segmented sitemaps (by content type and language)\n"
+        f"Sitemap: {master_sitemap}\n"
     )
     return HttpResponse(content, content_type="text/plain")
