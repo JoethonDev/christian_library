@@ -423,6 +423,7 @@ def aggregate_daily_content_views():
     Aggregate ContentViewEvent records into DailyContentViewSummary.
     Should be run nightly via Celery Beat to maintain performance.
     Processes events from yesterday and updates summary records.
+    Counts both total views and unique views (by IP address).
     """
     from django.db.models import Count
     from django.utils import timezone
@@ -453,19 +454,33 @@ def aggregate_daily_content_views():
         
         aggregated_count = 0
         for event_data in events:
+            # Count total views
+            total_views = event_data['count']
+            
+            # Count unique views (distinct IP addresses)
+            unique_views = ContentViewEvent.objects.filter(
+                timestamp__gte=start_datetime,
+                timestamp__lte=end_datetime,
+                content_type=event_data['content_type'],
+                content_id=event_data['content_id']
+            ).values('ip_address').distinct().count()
+            
             # Update or create summary record
             summary, created = DailyContentViewSummary.objects.update_or_create(
                 content_type=event_data['content_type'],
                 content_id=event_data['content_id'],
                 date=yesterday,
-                defaults={'view_count': event_data['count']}
+                defaults={
+                    'view_count': total_views,
+                    'unique_view_count': unique_views
+                }
             )
             aggregated_count += 1
             
             if created:
-                logger.debug(f"Created summary: {event_data['content_type']} - {event_data['content_id']} on {yesterday}: {event_data['count']} views")
+                logger.debug(f"Created summary: {event_data['content_type']} - {event_data['content_id']} on {yesterday}: {total_views} views ({unique_views} unique)")
             else:
-                logger.debug(f"Updated summary: {event_data['content_type']} - {event_data['content_id']} on {yesterday}: {event_data['count']} views")
+                logger.debug(f"Updated summary: {event_data['content_type']} - {event_data['content_id']} on {yesterday}: {total_views} views ({unique_views} unique)")
         
         logger.info(f"Successfully aggregated {aggregated_count} content view summaries for {yesterday}")
         

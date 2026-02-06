@@ -1006,6 +1006,7 @@ def analytics_dashboard(request):
     Analytics dashboard showing content viewing statistics.
     Displays charts and tables for content view analytics.
     Includes historical summaries and real-time events for today.
+    Shows both total views and unique views (by IP).
     """
     from datetime import timedelta, date
     from django.db.models import Sum, Count
@@ -1023,10 +1024,18 @@ def analytics_dashboard(request):
             date__range=(start_date, end_date)
         )
         
-        # Daily stats by content type (historical)
-        daily_stats_list = list(summaries.values('content_type', 'date').annotate(
-            total_views=Sum('view_count')
-        ).order_by('date', 'content_type'))
+        # Daily stats by content type (historical) - convert dates to strings
+        daily_stats_list = []
+        for stat in summaries.values('content_type', 'date').annotate(
+            total_views=Sum('view_count'),
+            unique_views=Sum('unique_view_count')
+        ).order_by('date', 'content_type'):
+            daily_stats_list.append({
+                'content_type': stat['content_type'],
+                'date': stat['date'].isoformat(),  # Convert date to ISO string
+                'total_views': stat['total_views'],
+                'unique_views': stat['unique_views']
+            })
 
         # 2. Real-time Data for today from events
         today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1036,12 +1045,22 @@ def analytics_dashboard(request):
             total_views=Count('id')
         )
         
+        # Calculate unique views for today (distinct IPs per content type)
+        today_unique_stats = {}
+        for content_type in ['video', 'audio', 'pdf', 'static']:
+            unique_count = today_events.filter(
+                content_type=content_type
+            ).values('ip_address').distinct().count()
+            if unique_count > 0:
+                today_unique_stats[content_type] = unique_count
+        
         # Add today's stats to daily_stats_list
         for stat in today_stats:
             daily_stats_list.append({
                 'content_type': stat['content_type'],
-                'date': end_date,
-                'total_views': stat['total_views']
+                'date': end_date.isoformat(),  # Convert date to ISO string
+                'total_views': stat['total_views'],
+                'unique_views': today_unique_stats.get(stat['content_type'], 0)
             })
         
         # Sort combined list by date and content_type
@@ -1049,9 +1068,17 @@ def analytics_dashboard(request):
         
         # 3. Combine top content from summaries and today's events
         # Get historical IDs and counts
-        hist_top_qs = summaries.values('content_type', 'content_id').annotate(total_views=Sum('view_count'))
-        hist_top = { (item['content_type'], str(item['content_id'])): item['total_views'] 
-                    for item in hist_top_qs }
+        hist_top_qs = summaries.values('content_type', 'content_id').annotate(
+            total_views=Sum('view_count'),
+            unique_views=Sum('unique_view_count')
+        )
+        hist_top = { 
+            (item['content_type'], str(item['content_id'])): {
+                'total_views': item['total_views'],
+                'unique_views': item['unique_views']
+            }
+            for item in hist_top_qs 
+        }
         
         # Get today's counts
         today_top_qs = today_events.values('content_type', 'content_id').annotate(total_views=Count('id'))
@@ -1060,11 +1087,29 @@ def analytics_dashboard(request):
         combined_top_map = hist_top.copy()
         for item in today_top_qs:
             key = (item['content_type'], str(item['content_id']))
-            combined_top_map[key] = combined_top_map.get(key, 0) + item['total_views']
+            # Count unique IPs for this content today
+            unique_today = today_events.filter(
+                content_type=item['content_type'],
+                content_id=item['content_id']
+            ).values('ip_address').distinct().count()
+            
+            if key in combined_top_map:
+                combined_top_map[key]['total_views'] += item['total_views']
+                combined_top_map[key]['unique_views'] += unique_today
+            else:
+                combined_top_map[key] = {
+                    'total_views': item['total_views'],
+                    'unique_views': unique_today
+                }
         
         # Convert back to list and sort
         top_content = [
-            {'content_type': k[0], 'content_id': k[1], 'total_views': v}
+            {
+                'content_type': k[0], 
+                'content_id': k[1], 
+                'total_views': v['total_views'],
+                'unique_views': v['unique_views']
+            }
             for k, v in combined_top_map.items()
         ]
         top_content.sort(key=lambda x: x['total_views'], reverse=True)
@@ -1089,18 +1134,40 @@ def analytics_dashboard(request):
                 item['content_object'] = None
         
         # 4. Calculate totals by content type (combined)
-        combined_totals_map = { t['content_type']: t['total_views'] for t in summaries.values('content_type').annotate(total_views=Sum('view_count')) }
+        combined_totals_map = {}
+        for t in summaries.values('content_type').annotate(
+            total_views=Sum('view_count'),
+            unique_views=Sum('unique_view_count')
+        ):
+            combined_totals_map[t['content_type']] = {
+                'total_views': t['total_views'],
+                'unique_views': t['unique_views']
+            }
+        
         for t in today_stats:
-            combined_totals_map[t['content_type']] = combined_totals_map.get(t['content_type'], 0) + t['total_views']
+            content_type = t['content_type']
+            if content_type in combined_totals_map:
+                combined_totals_map[content_type]['total_views'] += t['total_views']
+                combined_totals_map[content_type]['unique_views'] += today_unique_stats.get(content_type, 0)
+            else:
+                combined_totals_map[content_type] = {
+                    'total_views': t['total_views'],
+                    'unique_views': today_unique_stats.get(content_type, 0)
+                }
             
         totals_by_type = [
-            {'content_type': k, 'total_views': v}
+            {
+                'content_type': k, 
+                'total_views': v['total_views'],
+                'unique_views': v['unique_views']
+            }
             for k, v in combined_totals_map.items()
         ]
         totals_by_type.sort(key=lambda x: x['total_views'], reverse=True)
         
         # Overall totals
         total_views = sum(t['total_views'] for t in totals_by_type)
+        total_unique_views = sum(t['unique_views'] for t in totals_by_type)
         
         # Content item counts (distinct IDs across both)
         hist_ids = set(summaries.values_list('content_id', flat=True).distinct())
@@ -1112,6 +1179,7 @@ def analytics_dashboard(request):
             'top_content': top_content,
             'totals_by_type': totals_by_type,
             'total_views': total_views,
+            'total_unique_views': total_unique_views,
             'total_content_items': total_content_items,
             'start_date': start_date,
             'end_date': end_date,
@@ -1128,6 +1196,7 @@ def analytics_dashboard(request):
             'top_content': [],
             'totals_by_type': [],
             'total_views': 0,
+            'total_unique_views': 0,
             'total_content_items': 0,
         })
 

@@ -2108,7 +2108,13 @@ class DailyContentViewSummary(models.Model):
     )
     view_count = models.PositiveIntegerField(
         default=0,
-        verbose_name=_('View Count')
+        verbose_name=_('View Count'),
+        help_text=_('Total number of views')
+    )
+    unique_view_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_('Unique View Count'),
+        help_text=_('Number of unique views based on IP address')
     )
 
     class Meta:
@@ -2121,4 +2127,4 @@ class DailyContentViewSummary(models.Model):
         ordering = ['-date', '-view_count']
 
     def __str__(self):
-        return f"{self.content_type} - {self.content_id} on {self.date}: {self.view_count} views"
+        return f"{self.content_type} - {self.content_id} on {self.date}: {self.view_count} views ({self.unique_view_count} unique)"
