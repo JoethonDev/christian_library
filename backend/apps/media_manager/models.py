@@ -282,15 +282,15 @@ class ContentItemQuerySet(models.QuerySet):
         if not query:
             return qs.order_by('-created_at')
         
-        # Use FTS for PDFs, fallback for others
-        if not content_type or content_type == 'pdf':
-            # PostgreSQL FTS with Arabic config
+        # Use FTS for PDFs with content+title+description, fallback for others
+        if content_type == 'pdf':
+            # PostgreSQL FTS with Arabic config - searches content, title, and description
             search_query = SearchQuery(query, config='arabic')
             qs = qs.annotate(
                 rank=SearchRank(models.F('search_vector'), search_query)
             ).filter(rank__gte=0.1).order_by('-rank')
         else:
-            # Fallback search for video/audio
+            # Fallback search for video/audio or when no specific content type
             search_conditions = (
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |

@@ -261,10 +261,10 @@ class AdminService:
         
         if filters.get('search'):
             search_query = filters['search']
-            search_mode = filters.get('search_mode', 'title')
+            search_mode = filters.get('search_mode', 'content')  # Default to 'content' for PDFs
             
-            if content_type == 'pdf' and search_mode == 'content':
-                # Search within PDF content using PostgreSQL FTS
+            if content_type == 'pdf':
+                # Always search within PDF content, title, and description using PostgreSQL FTS
                 from django.contrib.postgres.search import SearchQuery, SearchRank
                 from django.db import connection
                 
@@ -279,10 +279,16 @@ class AdminService:
                         rank__gte=0.1
                     ).order_by('-rank')
                 else:
-                    # Fallback to simple content search
-                    content_qs = content_qs.filter(book_content__icontains=search_query)
+                    # Fallback to search in content, title, and description
+                    content_qs = content_qs.filter(
+                        Q(book_content__icontains=search_query) |
+                        Q(title_ar__icontains=search_query) |
+                        Q(title_en__icontains=search_query) |
+                        Q(description_ar__icontains=search_query) |
+                        Q(description_en__icontains=search_query)
+                    )
             else:
-                # Search in titles and descriptions
+                # Search in titles and descriptions for non-PDF content
                 content_qs = content_qs.filter(
                     Q(title_ar__icontains=search_query) |
                     Q(title_en__icontains=search_query)

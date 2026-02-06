@@ -66,39 +66,21 @@ class PdfProcessorService:
         start_total = time.perf_counter()
         self.logger.info(f"Starting text extraction for PDF: {self.content_item_id} ({page_count} pages)")
         
-        # # 1. Try PyMuPDF (usually best results for Arabic)
-        # text_fitz = self._extract_with_pymupdf(pdf_path)
-        # filtered_fitz = self._filter_arabic_text(text_fitz)
+        # 1. Try PyMuPDF (usually best results for Arabic)
+        text_fitz = self._extract_with_pymupdf(pdf_path)
+        filtered_fitz = self._filter_arabic_text(text_fitz)
         
-        # # 2. Try pdfminer
-        # text_miner = self._extract_with_pdfminer(pdf_path)
-        # filtered_miner = self._filter_arabic_text(text_miner)
+        # 2. Try pdfminer
+        text_miner = self._extract_with_pdfminer(pdf_path)
+        filtered_miner = self._filter_arabic_text(text_miner)
         
-        # # Pick the best of textual extraction
-        # if len(filtered_fitz) >= len(filtered_miner):
-        #     best_text = filtered_fitz
-        #     method_used = "PyMuPDF"
-        # else:
-        #     best_text = filtered_miner
-        #     method_used = "pdfminer"
-        
-        # # Heuristic: if text is too short compared to page count, try OCR
-        # # Average page is ~2000 chars. We use 300 chars per page as a "low quality" threshold.
-        # threshold = max(500, page_count * 300)
-        
-        # if len(best_text) < threshold:
-        # self.logger.info(
-        #     f"Text-based extraction ({method_used}) seems incomplete "
-        #     f"({len(best_text)} characters for {page_count} pages). Attempting OCR."
-        # )
-        best_text = ""
-        text_ocr = self._extract_with_ocr(pdf_path)
-        filtered_ocr = self._filter_arabic_text(text_ocr)
-        
-        if len(filtered_ocr) > len(best_text):
-            best_text = filtered_ocr
-            method_used = "Tesseract OCR"
-            self.logger.info(f"OCR provided better results: {len(best_text)} characters")
+        # Pick the best of textual extraction
+        if len(filtered_fitz) >= len(filtered_miner):
+            best_text = filtered_fitz
+            method_used = "PyMuPDF"
+        else:
+            best_text = filtered_miner
+            method_used = "pdfminer"
         
         # Apply comprehensive Arabic cleaning pipeline for search optimization
         final_text = ""
@@ -431,7 +413,7 @@ class PdfProcessorService:
     def _filter_arabic_text(self, text: str) -> str:
         """
         Filter and keep only Arabic characters and whitespace.
-        Removes English characters and other scripts.
+        Removes English/Latin characters, numbers, and other scripts.
         
         This is a basic filter applied before the comprehensive cleaning pipeline.
         
@@ -444,12 +426,13 @@ class PdfProcessorService:
         if not text:
             return ""
         
-        # Arabic character ranges + whitespace + digits + basic punctuation
+        # Keep ONLY Arabic character ranges and whitespace
         # Ranges: 0600-06FF (Arabic), 0750-077F (Arabic Supplement), 
         # 08A0-08FF (Arabic Extended-A), FB50-FDFF (Arabic Presentation Forms-A),
         # FE70-FEFF (Arabic Presentation Forms-B)
+        # Removed: numbers (0-9), English letters, and punctuation
         arabic_pattern = re.compile(
-            r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\s0-9\.\,\!\?\(\)\[\]\-\_\:\/]+'
+            r'[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF\s]+'
         )
         
         matches = arabic_pattern.findall(text)
