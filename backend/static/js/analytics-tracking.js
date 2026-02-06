@@ -11,11 +11,12 @@
      * Track a content view via AJAX
      * @param {string} contentType - Type of content (video, audio, pdf)
      * @param {string} contentId - UUID of the content
+     * @param {string} trackingUrl - The endpoint URL to send the tracking data
      */
-    function trackContentView(contentType, contentId) {
+    function trackContentView(contentType, contentId, trackingUrl) {
         // Validate inputs
-        if (!contentType || !contentId) {
-            console.warn('Analytics: Missing content type or ID');
+        if (!contentType || !contentId || !trackingUrl) {
+            console.warn('Analytics: Missing content type, ID, or URL');
             return;
         }
         
@@ -35,7 +36,7 @@
                 const blob = new Blob([JSON.stringify(trackingData)], {
                     type: 'application/json'
                 });
-                const success = navigator.sendBeacon('/api/track-view/', blob);
+                const success = navigator.sendBeacon(trackingUrl, blob);
                 if (success) {
                     console.debug('Analytics: View tracked via sendBeacon');
                     return;
@@ -46,7 +47,7 @@
         }
         
         // Fallback to fetch API
-        fetch('/api/track-view/', {
+        fetch(trackingUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -98,12 +99,15 @@
         if (trackingElement) {
             const contentType = trackingElement.getAttribute('data-content-type');
             const contentId = trackingElement.getAttribute('data-content-id');
+            const trackingUrl = trackingElement.getAttribute('data-tracking-url');
             
-            // Add a small delay to ensure page is fully loaded
-            // This prevents tracking bot/crawler visits
-            setTimeout(function() {
-                trackContentView(contentType, contentId);
-            }, 500);
+            if (contentType && contentId && trackingUrl) {
+                // Add a small delay to ensure page is fully loaded
+                // This prevents tracking bot/crawler visits
+                setTimeout(function() {
+                    trackContentView(contentType, contentId, trackingUrl);
+                }, 500);
+            }
         }
     }
     

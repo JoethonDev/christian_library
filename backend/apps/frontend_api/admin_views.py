@@ -1005,10 +1005,12 @@ def analytics_dashboard(request):
     """
     Analytics dashboard showing content viewing statistics.
     Displays charts and tables for content view analytics.
+    Includes historical summaries and real-time events for today.
     """
     from datetime import timedelta, date
     from django.db.models import Sum, Count
-    from apps.media_manager.models import DailyContentViewSummary, ContentItem
+    from django.utils import timezone
+    from apps.media_manager.models import DailyContentViewSummary, ContentViewEvent, ContentItem
     
     try:
         # Date range (last 30 days by default)
@@ -1016,22 +1018,57 @@ def analytics_dashboard(request):
         end_date = date.today()
         start_date = end_date - timedelta(days=days-1)
         
-        # Aggregate views by content type and date
+        # 1. Historical Data from summaries
         summaries = DailyContentViewSummary.objects.filter(
             date__range=(start_date, end_date)
         )
         
-        # Daily stats by content type
-        daily_stats = summaries.values('content_type', 'date').annotate(
+        # Daily stats by content type (historical)
+        daily_stats_list = list(summaries.values('content_type', 'date').annotate(
             total_views=Sum('view_count')
-        ).order_by('date', 'content_type')
+        ).order_by('date', 'content_type'))
+
+        # 2. Real-time Data for today from events
+        today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_events = ContentViewEvent.objects.filter(timestamp__gte=today_start)
         
-        # Top content by views (limit to top 20)
-        top_content = summaries.values(
-            'content_type', 'content_id'
-        ).annotate(
-            total_views=Sum('view_count')
-        ).order_by('-total_views')[:20]
+        today_stats = today_events.values('content_type').annotate(
+            total_views=Count('id')
+        )
+        
+        # Add today's stats to daily_stats_list
+        for stat in today_stats:
+            daily_stats_list.append({
+                'content_type': stat['content_type'],
+                'date': end_date,
+                'total_views': stat['total_views']
+            })
+        
+        # Sort combined list by date and content_type
+        daily_stats_list.sort(key=lambda x: (x['date'], x['content_type']))
+        
+        # 3. Combine top content from summaries and today's events
+        # Get historical IDs and counts
+        hist_top_qs = summaries.values('content_type', 'content_id').annotate(total_views=Sum('view_count'))
+        hist_top = { (item['content_type'], str(item['content_id'])): item['total_views'] 
+                    for item in hist_top_qs }
+        
+        # Get today's counts
+        today_top_qs = today_events.values('content_type', 'content_id').annotate(total_views=Count('id'))
+        
+        # Combine
+        combined_top_map = hist_top.copy()
+        for item in today_top_qs:
+            key = (item['content_type'], str(item['content_id']))
+            combined_top_map[key] = combined_top_map.get(key, 0) + item['total_views']
+        
+        # Convert back to list and sort
+        top_content = [
+            {'content_type': k[0], 'content_id': k[1], 'total_views': v}
+            for k, v in combined_top_map.items()
+        ]
+        top_content.sort(key=lambda x: x['total_views'], reverse=True)
+        top_content = top_content[:20]
         
         # Fetch ContentItem titles for top content
         content_ids = [item['content_id'] for item in top_content]
@@ -1051,19 +1088,29 @@ def analytics_dashboard(request):
                 item['title'] = 'Unknown (Deleted)'
                 item['content_object'] = None
         
-        # Calculate totals by content type
-        totals_by_type = summaries.values('content_type').annotate(
-            total_views=Sum('view_count')
-        ).order_by('-total_views')
+        # 4. Calculate totals by content type (combined)
+        combined_totals_map = { t['content_type']: t['total_views'] for t in summaries.values('content_type').annotate(total_views=Sum('view_count')) }
+        for t in today_stats:
+            combined_totals_map[t['content_type']] = combined_totals_map.get(t['content_type'], 0) + t['total_views']
+            
+        totals_by_type = [
+            {'content_type': k, 'total_views': v}
+            for k, v in combined_totals_map.items()
+        ]
+        totals_by_type.sort(key=lambda x: x['total_views'], reverse=True)
         
         # Overall totals
         total_views = sum(t['total_views'] for t in totals_by_type)
-        total_content_items = summaries.values('content_id').distinct().count()
+        
+        # Content item counts (distinct IDs across both)
+        hist_ids = set(summaries.values_list('content_id', flat=True).distinct())
+        today_ids = set(today_events.values_list('content_id', flat=True).distinct())
+        total_content_items = len(hist_ids | today_ids)
         
         context = {
-            'daily_stats': list(daily_stats),
-            'top_content': list(top_content),
-            'totals_by_type': list(totals_by_type),
+            'daily_stats': daily_stats_list,
+            'top_content': top_content,
+            'totals_by_type': totals_by_type,
             'total_views': total_views,
             'total_content_items': total_content_items,
             'start_date': start_date,
@@ -1090,10 +1137,12 @@ def api_analytics_views(request):
     """
     API endpoint for analytics data in JSON format.
     Used for AJAX requests and chart rendering.
+    Includes historical summaries and real-time events for today.
     """
     from datetime import timedelta, date
-    from django.db.models import Sum
-    from apps.media_manager.models import DailyContentViewSummary
+    from django.db.models import Sum, Count
+    from django.utils import timezone
+    from apps.media_manager.models import DailyContentViewSummary, ContentViewEvent
     
     try:
         # Date range parameters
@@ -1103,7 +1152,7 @@ def api_analytics_views(request):
         end_date = date.today()
         start_date = end_date - timedelta(days=days-1)
         
-        # Build queryset
+        # 1. Historical Data
         queryset = DailyContentViewSummary.objects.filter(
             date__range=(start_date, end_date)
         )
@@ -1124,6 +1173,28 @@ def api_analytics_views(request):
                 'date': stat['date'].isoformat(),
                 'total_views': stat['total_views']
             })
+            
+        # 2. Real-time Data for today (if within range)
+        if end_date >= start_date:
+            today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_queryset = ContentViewEvent.objects.filter(timestamp__gte=today_start)
+            
+            if content_type:
+                today_queryset = today_queryset.filter(content_type=content_type)
+                
+            today_stats = today_queryset.values('content_type').annotate(
+                total_views=Count('id')
+            )
+            
+            for stat in today_stats:
+                data.append({
+                    'content_type': stat['content_type'],
+                    'date': end_date.isoformat(),
+                    'total_views': stat['total_views']
+                })
+        
+        # Sort data by date
+        data.sort(key=lambda x: x['date'])
         
         return JsonResponse({
             'success': True,

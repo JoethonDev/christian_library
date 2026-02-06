@@ -1,6 +1,7 @@
 <!-- templates/frontend_api/pdf_detail.html - Coptic Orthodox Theme -->
 {% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 {% get_current_language as LANGUAGE_CODE %}
 
 {% block title %}
@@ -176,5 +177,6 @@
 <div data-analytics-track 
      data-content-type="pdf" 
      data-content-id="{{ pdf.id }}" 
+     data-tracking-url="{% url 'frontend_api:api_track_content_view' %}"
      style="display:none;"></div>
 {% endblock %}
