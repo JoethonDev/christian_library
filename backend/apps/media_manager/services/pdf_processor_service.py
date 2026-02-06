@@ -11,6 +11,7 @@ Extracted from ContentItem model to improve separation of concerns and testabili
 
 import os
 import re
+import time
 import logging
 import subprocess
 import tempfile
@@ -62,56 +63,62 @@ class PdfProcessorService:
             self.logger.error(f"PDF file does not exist at path: {pdf_path}")
             return ''
         
+        start_total = time.perf_counter()
         self.logger.info(f"Starting text extraction for PDF: {self.content_item_id} ({page_count} pages)")
         
-        # 1. Try PyMuPDF (usually best results for Arabic)
-        text_fitz = self._extract_with_pymupdf(pdf_path)
-        filtered_fitz = self._filter_arabic_text(text_fitz)
+        # # 1. Try PyMuPDF (usually best results for Arabic)
+        # text_fitz = self._extract_with_pymupdf(pdf_path)
+        # filtered_fitz = self._filter_arabic_text(text_fitz)
         
-        # 2. Try pdfminer
-        text_miner = self._extract_with_pdfminer(pdf_path)
-        filtered_miner = self._filter_arabic_text(text_miner)
+        # # 2. Try pdfminer
+        # text_miner = self._extract_with_pdfminer(pdf_path)
+        # filtered_miner = self._filter_arabic_text(text_miner)
         
-        # Pick the best of textual extraction
-        if len(filtered_fitz) >= len(filtered_miner):
-            best_text = filtered_fitz
-            method_used = "PyMuPDF"
-        else:
-            best_text = filtered_miner
-            method_used = "pdfminer"
+        # # Pick the best of textual extraction
+        # if len(filtered_fitz) >= len(filtered_miner):
+        #     best_text = filtered_fitz
+        #     method_used = "PyMuPDF"
+        # else:
+        #     best_text = filtered_miner
+        #     method_used = "pdfminer"
         
-        # Heuristic: if text is too short compared to page count, try OCR
-        # Average page is ~2000 chars. We use 300 chars per page as a "low quality" threshold.
-        threshold = max(500, page_count * 300)
+        # # Heuristic: if text is too short compared to page count, try OCR
+        # # Average page is ~2000 chars. We use 300 chars per page as a "low quality" threshold.
+        # threshold = max(500, page_count * 300)
         
-        if len(best_text) < threshold:
-            self.logger.info(
-                f"Text-based extraction ({method_used}) seems incomplete "
-                f"({len(best_text)} characters for {page_count} pages). Attempting OCR."
-            )
-            text_ocr = self._extract_with_ocr(pdf_path)
-            filtered_ocr = self._filter_arabic_text(text_ocr)
-            
-            if len(filtered_ocr) > len(best_text):
-                best_text = filtered_ocr
-                method_used = "Tesseract OCR"
-                self.logger.info(f"OCR provided better results: {len(best_text)} characters")
+        # if len(best_text) < threshold:
+        # self.logger.info(
+        #     f"Text-based extraction ({method_used}) seems incomplete "
+        #     f"({len(best_text)} characters for {page_count} pages). Attempting OCR."
+        # )
+        best_text = ""
+        text_ocr = self._extract_with_ocr(pdf_path)
+        filtered_ocr = self._filter_arabic_text(text_ocr)
+        
+        if len(filtered_ocr) > len(best_text):
+            best_text = filtered_ocr
+            method_used = "Tesseract OCR"
+            self.logger.info(f"OCR provided better results: {len(best_text)} characters")
         
         # Apply comprehensive Arabic cleaning pipeline for search optimization
+        final_text = ""
         if best_text:
             try:
-                cleaned_text = self._apply_arabic_cleaning_pipeline(best_text)
+                final_text = self._apply_arabic_cleaning_pipeline(best_text)
                 self.logger.info(
-                    f"Applied Arabic cleaning pipeline: {len(best_text)} → {len(cleaned_text)} characters"
+                    f"Applied Arabic cleaning pipeline: {len(best_text)} → {len(final_text)} characters"
                 )
-                return cleaned_text
             except Exception as e:
                 self.logger.error(f"Error in Arabic cleaning pipeline: {e}")
                 # Keep filtered text if cleaning fails
-                return best_text
+                final_text = best_text
         else:
             self.logger.warning(f"No Arabic text could be extracted for PDF {self.content_item_id}")
-            return ''
+            final_text = ""
+
+        total_time = time.perf_counter() - start_total
+        self.logger.info(f"Total extraction process for PDF {self.content_item_id} finished in {total_time:.3f}s")
+        return final_text
     
     def _extract_with_pymupdf(self, pdf_path: str) -> str:
         """
@@ -169,6 +176,7 @@ class PdfProcessorService:
             self.logger.warning("Tesseract OCR not available, skipping OCR extraction")
             return ''
         
+        start_ocr = time.perf_counter()
         try:
             text_content = []
             
@@ -182,11 +190,14 @@ class PdfProcessorService:
             # Join all page texts
             full_text = '\n\n'.join(text_content) if text_content else ''
             
+            ocr_time = time.perf_counter() - start_ocr
             if full_text:
                 self.logger.info(
                     f"OCR extraction completed for PDF {self.content_item_id}: "
-                    f"{len(full_text)} characters"
+                    f"{len(full_text)} characters in {ocr_time:.3f}s"
                 )
+            else:
+                self.logger.warning(f"OCR extracted 0 characters in {ocr_time:.3f}s")
             
             return full_text
             
@@ -205,6 +216,7 @@ class PdfProcessorService:
         Returns:
             Extracted text from the page
         """
+        start_page = time.perf_counter()
         try:
             page = doc.load_page(page_num)
             
@@ -276,10 +288,12 @@ class PdfProcessorService:
                                     f"Page {page_num}: PSM 3 improved results (conf: {avg_conf:.1f}%)"
                                 )
                 
+                page_time = time.perf_counter() - start_page
+                self.logger.info(f"Page {page_num}: OCR finished in {page_time:.3f}s (conf: {avg_conf:.1f}%)")
                 return page_text
             
             except Exception as page_error:
-                self.logger.warning(f"OCR failed for page {page_num}: {str(page_error)}")
+                self.logger.warning(f"OCR failed for page {page_num}: {str(page_error)} after {time.perf_counter() - start_page:.3f}s")
                 return ''
             
             finally:
@@ -308,6 +322,7 @@ class PdfProcessorService:
         Returns:
             True if successful, False otherwise
         """
+        start_pre = time.perf_counter()
         try:
             # Load image
             img = cv2.imread(image_path)
@@ -349,6 +364,9 @@ class PdfProcessorService:
 
             # Save processed image back to original path
             cv2.imwrite(image_path, thresh)
+            
+            pre_time = time.perf_counter() - start_pre
+            self.logger.info(f"Image preprocessing finished in {pre_time:.3f}s")
             return True
         except Exception as e:
             self.logger.error(f"Image preprocessing failed for {image_path}: {e}")
