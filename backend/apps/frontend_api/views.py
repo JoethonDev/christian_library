@@ -468,6 +468,42 @@ def api_content_stats(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
+@api_view(['GET'])
+def api_tag_search(request):
+    """
+    Tag search API endpoint - Search tags by name or description.
+    Query params:
+        - q: Search query (required)
+        - language: 'ar' or 'en' (optional, auto-detected if not provided)
+    Returns: List of matching tags with content counts
+    """
+    try:
+        query = request.GET.get('q', '').strip()
+        language = request.GET.get('language', get_language())
+        
+        if not query:
+            return JsonResponse({'success': False, 'error': 'Query parameter required'}, status=400)
+        
+        # Search tags using optimized manager method
+        tags = Tag.objects.search_tags(query, language)[:20]  # Limit to 20 results
+        
+        # Process tag list for API response
+        from apps.frontend_api.services import ContentLanguageProcessor
+        processor = ContentLanguageProcessor()
+        processed_tags = processor.process_tag_list(tags, language)
+        
+        return JsonResponse({
+            'success': True,
+            'query': query,
+            'count': len(processed_tags),
+            'tags': processed_tags
+        })
+        
+    except Exception as e:
+        logger.error(f"API tag search error: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
 def component_showcase(request):
     """Showcase page for Phase 4 enhanced media components"""
     from django.utils.translation import gettext as _

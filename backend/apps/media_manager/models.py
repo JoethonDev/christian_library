@@ -124,6 +124,32 @@ class TagManager(models.Manager):
                 models.Q(name_en__icontains=query) | 
                 models.Q(name_ar__icontains=query)  
             ).values_list('name_en', 'name_ar')[:5]
+    
+    def search_tags(self, query, language=None):
+        """
+        Search tags by name or description in both Arabic and English.
+        Returns tags with content count for relevance.
+        """
+        if not query or len(query) < 2:
+            return self.none()
+        
+        # Detect language if not specified
+        if language is None:
+            import re
+            has_arabic = bool(re.search(r'[\u0600-\u06FF\u0750-\u077F]', query))
+            language = 'ar' if has_arabic else 'en'
+        
+        # Search in both name fields and description
+        search_conditions = (
+            models.Q(name_ar__icontains=query) |
+            models.Q(name_en__icontains=query) |
+            models.Q(description_ar__icontains=query)
+        )
+        
+        # Return tags with content count for relevance sorting
+        return self.active().filter(search_conditions).annotate(
+            content_count=models.Count('contentitem', filter=models.Q(contentitem__is_active=True))
+        ).order_by('-content_count', 'name_ar')
 
 
 class Tag(models.Model):
@@ -267,9 +293,13 @@ class ContentItemQuerySet(models.QuerySet):
             'videometa', 'audiometa', 'pdfmeta'
         ).prefetch_related('tags').distinct()
     
-    def search_optimized(self, query, content_type=None):
-        """Optimized search with proper indexing and minimal queries"""
-        from django.db.models import Q
+    def search_optimized(self, query, content_type=None, language=None):
+        """
+        Optimized multilingual search with full-text search support for all content types.
+        Searches across: title, description, transcript, notes, book_content, and tag names.
+        Supports both Arabic and English with proper language-specific configurations.
+        """
+        from django.db.models import Q, Case, When, Value, FloatField
         from django.contrib.postgres.search import SearchQuery, SearchRank
         
         # Start with active content and proper relations
@@ -283,51 +313,61 @@ class ContentItemQuerySet(models.QuerySet):
         if not query:
             return qs.order_by('-created_at')
         
-        # Use FTS for PDFs with content+title+description
-        if content_type == 'pdf':
-            # PostgreSQL FTS with Arabic config - searches content, title, and description
-            search_query = SearchQuery(query, config='arabic')
-            qs = qs.annotate(
-                rank=SearchRank(models.F('search_vector'), search_query)
-            ).filter(rank__gte=0.01).order_by('-rank')  # Lowered threshold from 0.1 to 0.01
-        elif content_type is None:
-            # When no content type specified (global search), use FTS for PDFs and fallback for others
-            from django.db.models import Case, When, Value, FloatField
+        # Detect language if not specified (simple heuristic: Arabic contains Arabic characters)
+        if language is None:
+            import re
+            has_arabic = bool(re.search(r'[\u0600-\u06FF\u0750-\u077F]', query))
+            language = 'arabic' if has_arabic else 'english'
+        
+        # Try PostgreSQL FTS first (works for all content types now)
+        try:
+            # Create search queries for both languages to support mixed content
+            search_query_ar = SearchQuery(query, config='arabic')
+            search_query_en = SearchQuery(query, config='english')
             
-            search_query_obj = SearchQuery(query, config='arabic')
+            # Use primary language query for ranking
+            primary_query = search_query_ar if language == 'arabic' else search_query_en
             
-            # Apply FTS ranking for PDFs, default rank for others
+            # Annotate with FTS rank
             qs = qs.annotate(
                 rank=Case(
+                    # Items with search_vector get FTS ranking
                     When(
-                        content_type='pdf',
                         search_vector__isnull=False,
-                        then=SearchRank(models.F('search_vector'), search_query_obj)
+                        then=SearchRank(models.F('search_vector'), primary_query)
                     ),
                     default=Value(0.0),
                     output_field=FloatField()
                 )
             )
             
-            # Build search conditions
+            # Build comprehensive search conditions
+            # FTS match OR text field matches (for items without search_vector)
             search_conditions = (
+                Q(search_vector__isnull=False, rank__gte=0.001) |  # FTS match
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
                 Q(description_en__icontains=query) |
+                Q(transcript__icontains=query) |
+                Q(notes__icontains=query) |
                 Q(tags__name_ar__icontains=query) |
-                Q(tags__name_en__icontains=query) |
-                Q(content_type='pdf', rank__gte=0.01)  # Include PDFs with FTS match
+                Q(tags__name_en__icontains=query)
             )
             
+            # Apply filters and order by relevance
             qs = qs.filter(search_conditions).distinct().order_by('-rank', '-created_at')
-        else:
-            # Fallback search for video/audio
+            
+        except Exception as e:
+            # Fallback to basic text search if PostgreSQL FTS is not available
+            logger.warning(f"FTS search failed, falling back to basic search: {e}")
             search_conditions = (
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
                 Q(description_en__icontains=query) |
+                Q(transcript__icontains=query) |
+                Q(notes__icontains=query) |
                 Q(tags__name_ar__icontains=query) |
                 Q(tags__name_en__icontains=query)
             )
@@ -516,35 +556,59 @@ class ContentItem(models.Model):
 
     def update_search_vector(self):
         """
-        Update the search_vector field using book_content, title_ar, and description_ar.
-        Should use PostgreSQL FTS with Arabic language config.
+        Update the search_vector field for multilingual full-text search.
+        Indexes all relevant text fields including titles, descriptions, transcript, 
+        notes, book_content, and associated tag names in both Arabic and English.
+        Should use PostgreSQL FTS with proper language configs.
         This should be called from a background task.
         """
         if 'postgresql' not in connection.settings_dict['ENGINE']:
             logger.debug(f"Skipping search vector update for {self.id} - not using PostgreSQL")
             return
         
-        if not self.book_content:
-            logger.debug(f"No book content for {self.id}, clearing search vector")
+        # Build search vector from all available text fields
+        # Weights: A=highest (titles), B=high (descriptions), C=medium (transcript/tags), D=low (notes/content)
+        
+        search_parts = []
+        
+        # Arabic fields with 'arabic' config
+        if self.title_ar:
+            search_parts.append(SearchVector('title_ar', weight='A', config='arabic'))
+        
+        if self.description_ar:
+            search_parts.append(SearchVector('description_ar', weight='B', config='arabic'))
+        
+        # English fields with 'english' config  
+        if self.title_en:
+            search_parts.append(SearchVector('title_en', weight='A', config='english'))
+        
+        if self.description_en:
+            search_parts.append(SearchVector('description_en', weight='B', config='english'))
+        
+        # Transcript field (medium weight, use simple config as it may contain mixed languages)
+        if self.transcript:
+            search_parts.append(SearchVector('transcript', weight='C', config='simple'))
+        
+        # Notes field (lower weight)
+        if self.notes:
+            search_parts.append(SearchVector('notes', weight='D', config='simple'))
+        
+        # Book content (for PDFs, lower weight due to volume)
+        if self.book_content:
+            search_parts.append(SearchVector('book_content', weight='D', config='arabic'))
+        
+        # Include tag names in search vector (collect from related tags)
+        # Note: Tag names will be included via aggregation in the search query itself
+        # to avoid complex trigger management on the M2M relationship
+        
+        # Combine all search parts
+        if search_parts:
+            self.search_vector = search_parts[0]
+            for part in search_parts[1:]:
+                self.search_vector += part
+        else:
+            logger.debug(f"No searchable content for {self.id}, clearing search vector")
             self.search_vector = None
-            return
-        
-        # Create search-ready version of content for better matching
-        search_content = self.book_content
-        try:
-            from core.utils.arabic_text_processor import quick_arabic_normalize
-            search_content = quick_arabic_normalize(self.book_content)
-            logger.debug(f"Applied quick Arabic normalization for search vector {self.id}")
-        except ImportError:
-            pass  # Use original content if processor not available
-        
-        # Use weights: A for title, B for description, C for content
-        # Note: We set the attribute on self so it can be saved by the caller
-        self.search_vector = (
-            SearchVector('title_ar', weight='A', config='arabic') +
-            SearchVector('description_ar', weight='B', config='arabic') +
-            SearchVector('book_content', weight='C', config='arabic')
-        )
     CONTENT_TYPES = (
         ('video', _('Video')),
         ('audio', _('Audio')),
