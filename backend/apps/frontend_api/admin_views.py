@@ -437,9 +437,13 @@ def api_toggle_content_status(request):
             ).update(is_active=target_status)
             
             status_text = _("activated") if target_status else _("deactivated")
+            message = _("%(count)s item(s) %(status)s") % {
+                'count': updated_count,
+                'status': status_text
+            }
             return JsonResponse({
                 'success': True,
-                'message': f'{updated_count} {_("item(s)")} {status_text}',
+                'message': message,
                 'updated_count': updated_count
             })
         
