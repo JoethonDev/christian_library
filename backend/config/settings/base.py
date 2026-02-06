@@ -251,6 +251,8 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # Periodic tasks
+from celery.schedules import crontab
+
 CELERY_BEAT_SCHEDULE = {
     'cleanup-failed-uploads': {
         'task': 'core.tasks.media_processing.cleanup_failed_uploads',
@@ -258,7 +260,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     'aggregate-daily-content-views': {
         'task': 'apps.media_manager.tasks.aggregate_daily_content_views',
-        'schedule': 86400.0,  # Run daily at midnight
+        'schedule': crontab(hour=0, minute=0),  # Run daily at midnight
     },
 }
 

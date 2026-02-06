@@ -426,7 +426,7 @@ def aggregate_daily_content_views():
     """
     from django.db.models import Count
     from django.utils import timezone
-    from datetime import timedelta
+    from datetime import datetime, timedelta
     from apps.media_manager.models import ContentViewEvent, DailyContentViewSummary
     
     logger = logging.getLogger(__name__)
@@ -434,8 +434,8 @@ def aggregate_daily_content_views():
     try:
         # Process events from yesterday
         yesterday = timezone.now().date() - timedelta(days=1)
-        start_datetime = timezone.datetime.combine(yesterday, timezone.datetime.min.time())
-        end_datetime = timezone.datetime.combine(yesterday, timezone.datetime.max.time())
+        start_datetime = datetime.combine(yesterday, datetime.min.time())
+        end_datetime = datetime.combine(yesterday, datetime.max.time())
         
         # Make datetimes timezone-aware
         start_datetime = timezone.make_aware(start_datetime)
