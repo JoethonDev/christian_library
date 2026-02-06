@@ -256,6 +256,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'core.tasks.media_processing.cleanup_failed_uploads',
         'schedule': 3600.0,  # Run every hour
     },
+    'aggregate-daily-content-views': {
+        'task': 'apps.media_manager.tasks.aggregate_daily_content_views',
+        'schedule': 86400.0,  # Run daily at midnight
+    },
 }
 
 # File Upload Settings

@@ -35,6 +35,7 @@ See tests.py for FTS/Arabic search tests.
 from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 import uuid
@@ -2027,3 +2028,97 @@ class PdfMeta(models.Model):
             self.content_item.description_ar and 
             self.content_item.tags.exists()
         )
+
+
+# Analytics Models for Content Viewing Tracking
+class ContentViewEvent(models.Model):
+    """
+    Tracks individual content view events for analytics.
+    Records anonymous views for videos, audios, PDFs, and static pages.
+    """
+    CONTENT_TYPE_CHOICES = [
+        ('video', 'Video'),
+        ('audio', 'Audio'),
+        ('pdf', 'PDF'),
+        ('static', 'Static Page'),
+    ]
+    
+    content_type = models.CharField(
+        max_length=10, 
+        choices=CONTENT_TYPE_CHOICES, 
+        db_index=True,
+        verbose_name=_('Content Type')
+    )
+    content_id = models.UUIDField(
+        db_index=True,
+        verbose_name=_('Content ID'),
+        help_text=_('UUID for ContentItem or static page slug')
+    )
+    timestamp = models.DateTimeField(
+        default=timezone.now, 
+        db_index=True,
+        verbose_name=_('Timestamp')
+    )
+    user_agent = models.CharField(
+        max_length=256, 
+        blank=True,
+        verbose_name=_('User Agent')
+    )
+    ip_address = models.GenericIPAddressField(
+        blank=True, 
+        null=True,
+        verbose_name=_('IP Address')
+    )
+    referrer = models.CharField(
+        max_length=256, 
+        blank=True,
+        verbose_name=_('Referrer')
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['content_type', 'content_id', 'timestamp']),
+        ]
+        verbose_name = _('Content View Event')
+        verbose_name_plural = _('Content View Events')
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.content_type} - {self.content_id} at {self.timestamp}"
+
+
+class DailyContentViewSummary(models.Model):
+    """
+    Aggregated daily view counts for efficient reporting and analytics.
+    Updated nightly by Celery task from ContentViewEvent records.
+    """
+    content_type = models.CharField(
+        max_length=10, 
+        choices=ContentViewEvent.CONTENT_TYPE_CHOICES, 
+        db_index=True,
+        verbose_name=_('Content Type')
+    )
+    content_id = models.UUIDField(
+        db_index=True,
+        verbose_name=_('Content ID')
+    )
+    date = models.DateField(
+        db_index=True,
+        verbose_name=_('Date')
+    )
+    view_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_('View Count')
+    )
+
+    class Meta:
+        unique_together = ('content_type', 'content_id', 'date')
+        indexes = [
+            models.Index(fields=['content_type', 'content_id', 'date']),
+        ]
+        verbose_name = _('Daily Content View Summary')
+        verbose_name_plural = _('Daily Content View Summaries')
+        ordering = ['-date', '-view_count']
+
+    def __str__(self):
+        return f"{self.content_type} - {self.content_id} on {self.date}: {self.view_count} views"

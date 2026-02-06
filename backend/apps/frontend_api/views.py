@@ -16,6 +16,7 @@ from django.utils.translation import get_language
 from apps.media_manager.models import ContentItem, Tag
 from apps.frontend_api.services import ContentService, APIService
 from core.utils.cache_utils import cache_invalidator
+from apps.media_manager.analytics import record_content_view
 
 # Initialize services
 content_service = ContentService()
@@ -82,6 +83,9 @@ def video_detail(request, video_uuid):
     try:
         data = content_service.get_content_detail(str(video_uuid), 'video', user=request.user)
         
+        # Record analytics view event
+        record_content_view(request, 'video', video_uuid)
+        
         # Import schema generator
         from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
         
@@ -135,6 +139,9 @@ def audio_detail(request, audio_uuid):
     """Individual audio detail page - Optimized to 2 queries total"""
     try:
         data = content_service.get_content_detail(str(audio_uuid), 'audio', user=request.user)
+        
+        # Record analytics view event
+        record_content_view(request, 'audio', audio_uuid)
         
         # Import schema generator
         from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
@@ -191,6 +198,9 @@ def pdf_detail(request, pdf_uuid):
     try:
         # Get data using service (handles permissions internally now)
         data = content_service.get_content_detail(str(pdf_uuid), 'pdf', user=request.user)
+        
+        # Record analytics view event
+        record_content_view(request, 'pdf', pdf_uuid)
         
         # Import schema generator
         from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld

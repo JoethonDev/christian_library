@@ -415,3 +415,75 @@ def bulk_generate_seo_metadata(content_type=None, limit=None):
     except Exception as exc:
         logger.error(f"Error in bulk SEO metadata generation: {str(exc)}", exc_info=True)
         return 0
+
+
+@shared_task
+def aggregate_daily_content_views():
+    """
+    Aggregate ContentViewEvent records into DailyContentViewSummary.
+    Should be run nightly via Celery Beat to maintain performance.
+    Processes events from yesterday and updates summary records.
+    """
+    from django.db.models import Count
+    from django.utils import timezone
+    from datetime import timedelta
+    from apps.media_manager.models import ContentViewEvent, DailyContentViewSummary
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Process events from yesterday
+        yesterday = timezone.now().date() - timedelta(days=1)
+        start_datetime = timezone.datetime.combine(yesterday, timezone.datetime.min.time())
+        end_datetime = timezone.datetime.combine(yesterday, timezone.datetime.max.time())
+        
+        # Make datetimes timezone-aware
+        start_datetime = timezone.make_aware(start_datetime)
+        end_datetime = timezone.make_aware(end_datetime)
+        
+        logger.info(f"Aggregating view events for {yesterday}")
+        
+        # Get events from yesterday grouped by content_type and content_id
+        events = ContentViewEvent.objects.filter(
+            timestamp__gte=start_datetime,
+            timestamp__lte=end_datetime
+        ).values('content_type', 'content_id').annotate(
+            count=Count('id')
+        )
+        
+        aggregated_count = 0
+        for event_data in events:
+            # Update or create summary record
+            summary, created = DailyContentViewSummary.objects.update_or_create(
+                content_type=event_data['content_type'],
+                content_id=event_data['content_id'],
+                date=yesterday,
+                defaults={'view_count': event_data['count']}
+            )
+            aggregated_count += 1
+            
+            if created:
+                logger.debug(f"Created summary: {event_data['content_type']} - {event_data['content_id']} on {yesterday}: {event_data['count']} views")
+            else:
+                logger.debug(f"Updated summary: {event_data['content_type']} - {event_data['content_id']} on {yesterday}: {event_data['count']} views")
+        
+        logger.info(f"Successfully aggregated {aggregated_count} content view summaries for {yesterday}")
+        
+        # Optional: Clean up old events (older than 90 days) to save space
+        cleanup_threshold = timezone.now() - timedelta(days=90)
+        deleted_count, _ = ContentViewEvent.objects.filter(
+            timestamp__lt=cleanup_threshold
+        ).delete()
+        
+        if deleted_count > 0:
+            logger.info(f"Cleaned up {deleted_count} old view events (older than 90 days)")
+        
+        return {
+            'date': str(yesterday),
+            'aggregated': aggregated_count,
+            'cleaned_up': deleted_count
+        }
+        
+    except Exception as exc:
+        logger.error(f"Error in aggregate_daily_content_views: {str(exc)}", exc_info=True)
+        raise
