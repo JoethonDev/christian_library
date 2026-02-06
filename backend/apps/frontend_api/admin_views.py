@@ -998,3 +998,143 @@ def api_gemini_rate_limits(request):
             'success': False,
             'error': str(e)
         })
+
+
+@login_required
+def analytics_dashboard(request):
+    """
+    Analytics dashboard showing content viewing statistics.
+    Displays charts and tables for content view analytics.
+    """
+    from datetime import timedelta, date
+    from django.db.models import Sum, Count
+    from apps.media_manager.models import DailyContentViewSummary, ContentItem
+    
+    try:
+        # Date range (last 30 days by default)
+        days = int(request.GET.get('days', 30))
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days-1)
+        
+        # Aggregate views by content type and date
+        summaries = DailyContentViewSummary.objects.filter(
+            date__range=(start_date, end_date)
+        )
+        
+        # Daily stats by content type
+        daily_stats = summaries.values('content_type', 'date').annotate(
+            total_views=Sum('view_count')
+        ).order_by('date', 'content_type')
+        
+        # Top content by views (limit to top 20)
+        top_content = summaries.values(
+            'content_type', 'content_id'
+        ).annotate(
+            total_views=Sum('view_count')
+        ).order_by('-total_views')[:20]
+        
+        # Fetch ContentItem titles for top content
+        content_ids = [item['content_id'] for item in top_content]
+        content_map = {
+            str(c.id): c 
+            for c in ContentItem.objects.filter(id__in=content_ids).only('id', 'title_ar', 'title_en', 'content_type')
+        }
+        
+        # Add titles to top content items
+        for item in top_content:
+            content_id = str(item['content_id'])
+            if content_id in content_map:
+                content = content_map[content_id]
+                item['title'] = content.title_ar or content.title_en or 'Unknown'
+                item['content_object'] = content
+            else:
+                item['title'] = 'Unknown (Deleted)'
+                item['content_object'] = None
+        
+        # Calculate totals by content type
+        totals_by_type = summaries.values('content_type').annotate(
+            total_views=Sum('view_count')
+        ).order_by('-total_views')
+        
+        # Overall totals
+        total_views = sum(t['total_views'] for t in totals_by_type)
+        total_content_items = summaries.values('content_id').distinct().count()
+        
+        context = {
+            'daily_stats': list(daily_stats),
+            'top_content': list(top_content),
+            'totals_by_type': list(totals_by_type),
+            'total_views': total_views,
+            'total_content_items': total_content_items,
+            'start_date': start_date,
+            'end_date': end_date,
+            'days': days,
+        }
+        
+        return render(request, 'admin/analytics_dashboard.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in analytics_dashboard: {str(e)}", exc_info=True)
+        return render(request, 'admin/analytics_dashboard.html', {
+            'error': str(e),
+            'daily_stats': [],
+            'top_content': [],
+            'totals_by_type': [],
+            'total_views': 0,
+            'total_content_items': 0,
+        })
+
+
+@login_required
+def api_analytics_views(request):
+    """
+    API endpoint for analytics data in JSON format.
+    Used for AJAX requests and chart rendering.
+    """
+    from datetime import timedelta, date
+    from django.db.models import Sum
+    from apps.media_manager.models import DailyContentViewSummary
+    
+    try:
+        # Date range parameters
+        days = int(request.GET.get('days', 30))
+        content_type = request.GET.get('content_type', None)
+        
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days-1)
+        
+        # Build queryset
+        queryset = DailyContentViewSummary.objects.filter(
+            date__range=(start_date, end_date)
+        )
+        
+        if content_type:
+            queryset = queryset.filter(content_type=content_type)
+        
+        # Aggregate by date and content type
+        stats = queryset.values('content_type', 'date').annotate(
+            total_views=Sum('view_count')
+        ).order_by('date')
+        
+        # Format for response
+        data = []
+        for stat in stats:
+            data.append({
+                'content_type': stat['content_type'],
+                'date': stat['date'].isoformat(),
+                'total_views': stat['total_views']
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'data': data,
+            'start_date': start_date.isoformat(),
+            'end_date': end_date.isoformat(),
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in api_analytics_views: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

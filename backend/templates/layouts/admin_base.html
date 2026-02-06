@@ -279,6 +279,12 @@
 
             <div class="admin-section-label">{% trans "Analytics & System" %}</div>
             
+            <a href="{% url 'frontend_api:analytics_dashboard' %}" 
+               class="nav-link-admin {% if 'analytics' in request.path %}active{% endif %}">
+                <i class="bi bi-bar-chart nav-link-icon"></i>
+                {% trans "Content Analytics" %}
+            </a>
+            
             <a href="{% url 'frontend_api:seo_dashboard' %}" 
                class="nav-link-admin {% if 'seo' in request.path %}active{% endif %}">
                 <i class="bi bi-graph-up-arrow nav-link-icon"></i>

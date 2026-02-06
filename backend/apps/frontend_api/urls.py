@@ -59,6 +59,10 @@ urlpatterns = [
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
     path('dashboard/bulk/', admin_views.bulk_operations, name='bulk_operations'),
     
+    # Analytics dashboard
+    path('dashboard/analytics/', admin_views.analytics_dashboard, name='analytics_dashboard'),
+    path('dashboard/analytics/api/', admin_views.api_analytics_views, name='api_analytics_views'),
+    
     # SEO Dashboard (at /en/dashboard/seo/)
     path('dashboard/seo/', seo_views.SEODashboardView.as_view(), name='seo_dashboard'),
     path('dashboard/seo/analytics-api/', seo_views.seo_analytics_api, name='seo_analytics_api'),

@@ -1,0 +1,280 @@
+<!-- templates/admin/analytics_dashboard.html - Content Analytics Dashboard -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Content Analytics" %}</h1>
+        <p class="text-muted mb-0">{% trans "Viewing statistics and content performance metrics" %}</p>
+    </div>
+    <div class="col-auto">
+        <!-- Date range selector -->
+        <div class="btn-group" role="group">
+            <a href="?days=7" class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-outline-primary{% endif %}">7 {% trans "Days" %}</a>
+            <a href="?days=30" class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-outline-primary{% endif %}">30 {% trans "Days" %}</a>
+            <a href="?days=90" class="btn btn-sm {% if days == 90 %}btn-primary{% else %}btn-outline-primary{% endif %}">90 {% trans "Days" %}</a>
+        </div>
+    </div>
+</div>
+
+{% if error %}
+<div class="alert alert-danger" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>{% trans "Error:" %}</strong> {{ error }}
+</div>
+{% endif %}
+
+<!-- Summary Cards -->
+<div class="row g-4 mb-5">
+    <!-- Total Views -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2">
+                        <i class="bi bi-eye fs-4"></i>
+                    </div>
+                </div>
+                <h2 class="fw-bold text-dark mb-1">{{ total_views|default:"0"|floatformat:0 }}</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase">{% trans "Total Views" %}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content Items Viewed -->
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-success bg-opacity-10 text-success rounded-3 p-2">
+                        <i class="bi bi-collection fs-4"></i>
+                    </div>
+                </div>
+                <h2 class="fw-bold text-dark mb-1">{{ total_content_items|default:"0" }}</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase">{% trans "Items Viewed" %}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Views by Type -->
+    {% for type_stat in totals_by_type %}
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-info bg-opacity-10 text-info rounded-3 p-2">
+                        {% if type_stat.content_type == 'video' %}
+                            <i class="bi bi-play-circle fs-4"></i>
+                        {% elif type_stat.content_type == 'audio' %}
+                            <i class="bi bi-mic fs-4"></i>
+                        {% elif type_stat.content_type == 'pdf' %}
+                            <i class="bi bi-file-pdf fs-4"></i>
+                        {% endif %}
+                    </div>
+                </div>
+                <h2 class="fw-bold text-dark mb-1">{{ type_stat.total_views|default:"0"|floatformat:0 }}</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase">{{ type_stat.content_type|title }} {% trans "Views" %}</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Charts Section -->
+<div class="row g-4 mb-5">
+    <!-- Daily Views Chart -->
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-0 pt-4 pb-3">
+                <h5 class="card-title mb-0 fw-bold">{% trans "Daily Views by Content Type" %}</h5>
+                <p class="text-muted small mb-0">{{ start_date|date:"M d, Y" }} - {{ end_date|date:"M d, Y" }}</p>
+            </div>
+            <div class="card-body">
+                <canvas id="dailyViewsChart" style="max-height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Content Type Distribution -->
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-0 pt-4 pb-3">
+                <h5 class="card-title mb-0 fw-bold">{% trans "Views by Type" %}</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="typeDistributionChart" style="max-height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Content Table -->
+<div class="card border-0 shadow-sm rounded-4 mb-5">
+    <div class="card-header bg-white border-0 pt-4 pb-3">
+        <h5 class="card-title mb-0 fw-bold">{% trans "Top 20 Most Viewed Content" %}</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="border-0 ps-4">#</th>
+                        <th class="border-0">{% trans "Title" %}</th>
+                        <th class="border-0">{% trans "Type" %}</th>
+                        <th class="border-0 text-end pe-4">{% trans "Total Views" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in top_content %}
+                    <tr>
+                        <td class="ps-4 text-muted">{{ forloop.counter }}</td>
+                        <td>
+                            {% if item.content_object %}
+                                <a href="{% url 'frontend_api:admin_content_detail' item.content_id %}" class="text-decoration-none text-dark fw-medium">
+                                    {{ item.title }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">{{ item.title }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ item.content_type }}-subtle text-{{ item.content_type }}">
+                                {% if item.content_type == 'video' %}
+                                    <i class="bi bi-play-circle me-1"></i>
+                                {% elif item.content_type == 'audio' %}
+                                    <i class="bi bi-mic me-1"></i>
+                                {% elif item.content_type == 'pdf' %}
+                                    <i class="bi bi-file-pdf me-1"></i>
+                                {% endif %}
+                                {{ item.content_type|title }}
+                            </span>
+                        </td>
+                        <td class="text-end pe-4 fw-bold">{{ item.total_views|floatformat:0 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-1 d-block mb-3 opacity-25"></i>
+                            {% trans "No analytics data available for the selected period." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Prepare data for charts
+    const dailyStats = {{ daily_stats|safe }};
+    const totalsByType = {{ totals_by_type|safe }};
+    
+    // Process daily stats by content type
+    const dates = [...new Set(dailyStats.map(s => s.date))].sort();
+    const contentTypes = [...new Set(dailyStats.map(s => s.content_type))];
+    
+    // Color scheme
+    const colorMap = {
+        'video': {
+            background: 'rgba(220, 53, 69, 0.2)',
+            border: 'rgba(220, 53, 69, 1)'
+        },
+        'audio': {
+            background: 'rgba(255, 193, 7, 0.2)',
+            border: 'rgba(255, 193, 7, 1)'
+        },
+        'pdf': {
+            background: 'rgba(13, 110, 253, 0.2)',
+            border: 'rgba(13, 110, 253, 1)'
+        },
+        'static': {
+            background: 'rgba(25, 135, 84, 0.2)',
+            border: 'rgba(25, 135, 84, 1)'
+        }
+    };
+    
+    // Build datasets for line chart
+    const datasets = contentTypes.map(type => {
+        const data = dates.map(date => {
+            const stat = dailyStats.find(s => s.date === date && s.content_type === type);
+            return stat ? stat.total_views : 0;
+        });
+        
+        return {
+            label: type.charAt(0).toUpperCase() + type.slice(1),
+            data: data,
+            borderColor: colorMap[type]?.border || 'rgba(75, 192, 192, 1)',
+            backgroundColor: colorMap[type]?.background || 'rgba(75, 192, 192, 0.2)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+        };
+    });
+    
+    // Daily Views Chart
+    const dailyCtx = document.getElementById('dailyViewsChart');
+    if (dailyCtx) {
+        new Chart(dailyCtx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Type Distribution Pie Chart
+    const typeCtx = document.getElementById('typeDistributionChart');
+    if (typeCtx && totalsByType.length > 0) {
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: totalsByType.map(t => t.content_type.charAt(0).toUpperCase() + t.content_type.slice(1)),
+                datasets: [{
+                    data: totalsByType.map(t => t.total_views),
+                    backgroundColor: totalsByType.map(t => colorMap[t.content_type]?.border || 'rgba(75, 192, 192, 1)'),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
