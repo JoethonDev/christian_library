@@ -294,6 +294,9 @@ def video_management(request):
         'current_language': get_language(),
     }
     
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/video_table.html', context)
+        
     return render(request, 'admin/video_management.html', context)
 
 
@@ -323,6 +326,9 @@ def audio_management(request):
         'current_language': get_language(),
     }
     
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/audio_table.html', context)
+        
     return render(request, 'admin/audio_management.html', context)
 
 
@@ -352,6 +358,9 @@ def pdf_management(request):
         'current_language': get_language(),
     }
     
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/pdf_table.html', context)
+        
     return render(request, 'admin/pdf_management.html', context)
 
 

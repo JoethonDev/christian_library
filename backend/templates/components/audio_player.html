@@ -47,7 +47,7 @@
                             aria-label="{% trans 'Audio options' %}">
                         <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; background: white; border: 1px solid rgba(221, 153, 51, 0.2) !important;">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; background: white; border: 1px solid rgba(221, 153, 51, 0.2) !important;z-index: 999999;">
                         <li><a class="dropdown-item d-flex align-items-center hover-bg-golden" href="{{ audio.audiometa.get_direct_download_url }}" download>
                             <i class="bi bi-download text-maroon me-2"></i>{% trans "Download Audio" %}
                         </a></li>
