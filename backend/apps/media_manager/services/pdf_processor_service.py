@@ -234,7 +234,7 @@ class PdfProcessorService:
                     '-l', 'ara',      
                     '--oem', '3',     
                     '--psm', '6',
-                    'txt', 'tsv'  # Generate both text and confidence output
+                    'txt', 'tsv'  # Generate both text and confidence output.
                 ]
                 
                 subprocess.run(cmd, check=True, capture_output=True)
@@ -252,8 +252,16 @@ class PdfProcessorService:
                 
                 # Adaptive Fallback: If primary results are low quality, try PSM 3
                 if avg_conf < 70 or len(page_text) < 50:
-                    cmd_alt = cmd.copy()
-                    cmd_alt[7] = '3'  # Try PSM 3 (Fully automatic page segmentation)
+                    # Create new command with PSM 3 instead of PSM 6
+                    cmd_alt = [
+                        'tesseract', 
+                        temp_image_path, 
+                        temp_text_path, 
+                        '-l', 'ara',      
+                        '--oem', '3',     
+                        '--psm', '3',  # Fully automatic page segmentation
+                        'txt', 'tsv'
+                    ]
                     subprocess.run(cmd_alt, check=True, capture_output=True)
                     
                     if os.path.exists(output_file):
@@ -281,7 +289,8 @@ class PdfProcessorService:
                     if os.path.exists(temp_file):
                         try:
                             os.remove(temp_file)
-                        except:
+                        except OSError:
+                            # Ignore cleanup errors
                             pass
         
         except Exception as e:

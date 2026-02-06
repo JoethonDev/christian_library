@@ -387,10 +387,20 @@ function setSearchMode(mode) {
     
     searchModeInput.value = mode;
     
+    // Clear existing content
+    searchModeHint.textContent = '';
+    
+    // Create icon element
+    const icon = document.createElement('i');
+    
     if (mode === 'content') {
-        searchModeHint.innerHTML = '<i class="bi bi-file-text"></i> {% trans "Searching within PDF content" %}';
+        icon.className = 'bi bi-file-text';
+        searchModeHint.appendChild(icon);
+        searchModeHint.appendChild(document.createTextNode(' {% trans "Searching within PDF content" %}'));
     } else {
-        searchModeHint.innerHTML = '<i class="bi bi-card-heading"></i> {% trans "Searching titles and descriptions" %}';
+        icon.className = 'bi bi-card-heading';
+        searchModeHint.appendChild(icon);
+        searchModeHint.appendChild(document.createTextNode(' {% trans "Searching titles and descriptions" %}'));
     }
     
     // Trigger form submission to update results

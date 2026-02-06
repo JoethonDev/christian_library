@@ -164,7 +164,6 @@ class PDFContentSearchAPIView(View):
             language = request.GET.get('language', 'ar')
             
             # PostgreSQL Full-Text Search with Arabic configuration
-            from django.contrib.postgres.search import SearchQuery, SearchRank
             from django.db import connection
             
             # Check if PostgreSQL is available
