@@ -323,7 +323,7 @@ function bulkGenerateSEO() {
                    `{% trans "This will use AI to generate SEO metadata for all selected PDFs." %}`;
     
     showConfirmation(message, details, function() {
-        performBulkAction('{% url "frontend_api:api_auto_fill_metadata" %}', selectedIds, 'generate_seo');
+        performBulkAction('{% url "frontend_api:api_auto_fill_metadata" %}', selectedIds);
     });
 }
 
@@ -375,10 +375,8 @@ function bulkDelete() {
 }
 
 // Perform Bulk Actions
-function performBulkAction(url, contentIds, actionType) {
-    const data = actionType === 'generate_seo' 
-        ? { content_ids: contentIds }
-        : { content_ids: contentIds };
+function performBulkAction(url, contentIds) {
+    const data = { content_ids: contentIds };
     
     fetch(url, {
         method: 'POST',
