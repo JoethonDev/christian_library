@@ -5,6 +5,7 @@ from typing import Optional, Tuple, Union
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from django.utils import timezone
+from core.services.r2_service import get_r2_service
 try:
     from storages.backends.s3boto3 import S3Boto3Storage
 except ImportError:
@@ -109,25 +110,16 @@ class R2MediaStorage:
 
 class R2Service:
     """
-    Service for managing R2 uploads with status and progress tracking
+    Service for managing R2 uploads with status and progress tracking.
+    Uses the modular R2Service for all operations.
     """
     
     def __init__(self):
-        self.use_r2 = getattr(settings, 'R2_ENABLED', False)
+        self._r2_service = get_r2_service()
+        self.use_r2 = self._r2_service.enabled
         if self.use_r2:
-            try:
-                self.s3_client = boto3.client(
-                    's3',
-                    endpoint_url=settings.R2_ENDPOINT_URL,
-                    aws_access_key_id=settings.R2_ACCESS_KEY_ID,
-                    aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
-                    region_name=getattr(settings, 'R2_REGION_NAME', 'auto')
-                )
-                self.bucket_name = settings.R2_BUCKET_NAME
-                logger.info("R2 service initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to initialize R2 service: {str(e)}")
-                self.use_r2 = False
+            self.s3_client = self._r2_service.client
+            self.bucket_name = self._r2_service.bucket_name
     
     def upload_file_with_progress(
         self,
@@ -167,31 +159,27 @@ class R2Service:
                     meta_instance.r2_upload_progress = progress
                     meta_instance.save(update_fields=['r2_upload_progress'])
             
-            # Perform upload
-            self.s3_client.upload_file(
+            # Use modular R2Service for upload
+            success, result = self._r2_service.upload_file(
                 local_file_path,
-                self.bucket_name,
                 r2_key,
-                Callback=progress_callback
+                callback=progress_callback
             )
             
-            # Generate public URL - use R2.dev format without bucket name
-            # Format: https://pub-{public-id}.r2.dev/{r2_key}
-            r2_public_url = os.environ.get('R2_PUBLIC_MEDIA_URL')
-            if r2_public_url:
-                r2_url = f"{r2_public_url}/{r2_key}"
+            if success:
+                # Update model with success
+                setattr(meta_instance, field_name, result)  # result is the URL
+                meta_instance.r2_upload_status = 'completed'
+                meta_instance.r2_upload_progress = 100
+                meta_instance.save(update_fields=[field_name, 'r2_upload_status', 'r2_upload_progress'])
+                
+                logger.info(f"Successfully uploaded {local_file_path} to R2: {r2_key}")
+                return True, "Upload completed successfully"
             else:
-                # Fallback to constructing from endpoint URL but remove bucket name
-                r2_url = f"{settings.R2_ENDPOINT_URL.replace('https://', 'https://pub-').replace('.r2.cloudflarestorage.com', '.r2.dev')}/{r2_key}"
-            
-            # Update model with success
-            setattr(meta_instance, field_name, r2_url)
-            meta_instance.r2_upload_status = 'completed'
-            meta_instance.r2_upload_progress = 100
-            meta_instance.save(update_fields=[field_name, 'r2_upload_status', 'r2_upload_progress'])
-            
-            logger.info(f"Successfully uploaded {local_file_path} to R2: {r2_key}")
-            return True, "Upload completed successfully"
+                # Update model with failure
+                meta_instance.r2_upload_status = 'failed'
+                meta_instance.save(update_fields=['r2_upload_status'])
+                return False, result  # result is the error message
             
         except Exception as e:
             logger.error(f"R2 upload failed for {local_file_path}: {str(e)}")
@@ -276,11 +264,14 @@ class R2Service:
                             # Use consistent relative path for segments
                             r2_segment_key = f"{playlist_rel_dir}/{file_name}"
                             try:
-                                self.s3_client.upload_file(
+                                # Use modular R2Service for segment upload
+                                seg_success, seg_result = self._r2_service.upload_file(
                                     segment_path,
-                                    self.bucket_name,
                                     r2_segment_key
                                 )
+                                if not seg_success:
+                                    logger.error(f"Failed to upload segment {file_name}: {seg_result}")
+                                    success_all = False
                             except Exception as e:
                                 logger.error(f"Failed to upload segment {file_name}: {e}")
                                 success_all = False

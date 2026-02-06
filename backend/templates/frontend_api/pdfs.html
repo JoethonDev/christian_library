@@ -10,38 +10,41 @@
 
 {% block content %}
 <!-- Header Section -->
-<div class="d-flex align-items-center mb-5">
-    <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
-         style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 16px; border: 3px solid var(--color-golden-ochre);">
-        <i class="bi bi-journal-bookmark text-white fs-2"></i>
+<div class="d-flex align-items-center mb-3 mb-md-5">
+    <div class="d-none d-md-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+         style="width: 48px; height: 48px; background: var(--color-maroon); border-radius: 12px; border: 2px solid var(--color-golden-ochre);">
+        <i class="bi bi-journal-bookmark text-white" style="font-size: 1.5rem;"></i>
     </div>
     <div class="flex-grow-1">
-        <h2 class="heading-font text-maroon mb-1 fw-bold">{% trans "Digital Library" %}</h2>
-        <p class="body-font text-muted mb-0">{% trans "Explore our collection of spiritual literature, sacred texts, and manuscripts" %}</p>
+        <h2 class="heading-font text-maroon mb-1 fw-bold" style="font-size: clamp(1.5rem, 4vw, 1.875rem);">
+            <i class="bi bi-journal-bookmark me-2 text-golden d-inline d-md-none" style="font-size: 1.25rem;"></i>
+            {% trans "Digital Library" %}
+        </h2>
+        <p class="body-font text-muted mb-0" style="font-size: clamp(0.875rem, 2vw, 1rem);">{% trans "Explore our collection of spiritual literature, sacred texts, and manuscripts" %}</p>
     </div>
 </div>
 
 <!-- Search and Filter Section -->
-<div class="card card-coptic mb-5">
+<div class="card card-coptic mb-3 mb-md-5">
     <div class="card-header-coptic">
-        <h4 class="heading-font text-white mb-0 text-center">{% trans "Search Books & Documents" %}</h4>
+        <h4 class="heading-font text-white mb-0 text-center" style="font-size: clamp(1rem, 3vw, 1.25rem);">{% trans "Search Books & Documents" %}</h4>
     </div>
-    <div class="card-body p-4">
-        <form method="get" action="{% url 'frontend_api:pdfs' %}" class="row g-3 align-items-end">
-            <div class="col-lg-6">
-                <label class="form-label fw-medium text-maroon">{% trans "Search Books & Documents" %}</label>
+    <div class="card-body p-3 p-md-4">
+        <form method="get" action="{% url 'frontend_api:pdfs' %}" class="row g-2 g-md-3 align-items-end">
+            <div class="col-12 col-md-6 col-lg-6">
+                <label class="form-label fw-medium text-maroon mb-1 mb-md-2" style="font-size: 0.9rem;">{% trans "Search Books & Documents" %}</label>
                 <div class="position-relative">
-                    <input type="search" class="form-control form-control-lg border-2 ps-5" 
+                    <input type="search" class="form-control border-2 ps-4 ps-md-5" 
                            placeholder="{% trans 'Search books, manuscripts, documents...' %}"
                            name="search" value="{{ search_query }}"
-                           style="border-color: var(--color-golden-ochre); border-radius: 12px;">
-                    <i class="bi bi-search position-absolute text-golden" style="left: 1rem; top: 50%; transform: translateY(-50%);"></i>
+                           style="border-color: var(--color-golden-ochre); border-radius: 12px; min-height: 44px; font-size: 1rem;">
+                    <i class="bi bi-search position-absolute text-golden" style="left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 1rem;"></i>
                 </div>
             </div>
-            <div class="col-lg-4">
-                <label class="form-label fw-medium text-maroon">{% trans "Filter by Category" %}</label>
+            <div class="col-12 col-md-6 col-lg-4">
+                <label class="form-label fw-medium text-maroon mb-1 mb-md-2" style="font-size: 0.9rem;">{% trans "Filter by Category" %}</label>
                 <select class="form-select border-2" name="tag" 
-                        style="border-color: var(--color-golden-ochre); border-radius: 12px;">
+                        style="border-color: var(--color-golden-ochre); border-radius: 12px; min-height: 44px; font-size: 1rem;">
                     <option value="">{% trans "All Categories" %}</option>
                     {% for tag in available_tags %}
                         <option value="{{ tag.slug }}" {% if tag_filter == tag.slug %}selected{% endif %}>
@@ -55,13 +58,13 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-lg-2">
-                <button type="submit" class="btn btn-primary w-100 mb-2">
-                    <i class="bi bi-funnel me-2"></i>{% trans "Filter" %}
+            <div class="col-12 col-lg-2">
+                <button type="submit" class="btn btn-primary w-100" style="min-height: 44px; font-size: 1rem;">
+                    <i class="bi bi-funnel me-2" style="font-size: 1rem;"></i>{% trans "Filter" %}
                 </button>
-                <div class="text-center p-2 rounded-3" style="background: var(--color-golden-ochre-10);">
-                    <small class="fw-bold text-golden">{{ total_count }}</small><br>
-                    <small class="body-font text-muted">{% trans "documents" %}</small>
+                <div class="text-center p-2 rounded-3 mt-2" style="background: var(--color-golden-ochre-10);">
+                    <small class="fw-bold text-golden" style="font-size: 0.9rem;">{{ total_count }}</small><br>
+                    <small class="body-font text-muted" style="font-size: 0.8rem;">{% trans "documents" %}</small>
                 </div>
             </div>
         </form>
@@ -69,84 +72,72 @@
 </div>
 
 <!-- Document Statistics -->
-<div class="row g-4 mb-5">
-    <div class="col-lg-3 col-md-6">
+<div class="row g-3 g-md-4 mb-3 mb-md-5">
+    <div class="col-6 col-lg-3">
         <div class="card card-coptic text-center h-100 hover-maroon-glow">
-            <div class="card-body py-4">
-                <div class="mb-3">
-                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
-                         style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
-                        <i class="bi bi-book text-white fs-2"></i>
-                    </div>
+            <div class="card-body py-3 py-md-4 px-2 px-md-3">
+                <div class="mb-2 mb-md-3">
+                    <i class="bi bi-book text-maroon" style="font-size: 2rem;"></i>
                 </div>
-                <h3 class="heading-font text-maroon fw-bold mb-2">{{ total_count|default:0 }}</h3>
-                <p class="body-font text-muted mb-0">{% trans "Total Books" %}</p>
+                <h3 class="heading-font text-maroon fw-bold mb-1 mb-md-2" style="font-size: clamp(1.25rem, 3vw, 1.5rem);">{{ total_count|default:0 }}</h3>
+                <p class="body-font text-muted mb-0" style="font-size: clamp(0.75rem, 2vw, 0.875rem);">{% trans "Total Books" %}</p>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6">
+    <div class="col-6 col-lg-3">
         <div class="card card-coptic text-center h-100 hover-golden-glow">
-            <div class="card-body py-4">
-                <div class="mb-3">
-                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
-                         style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
-                        <i class="bi bi-journal-text text-white fs-2"></i>
-                    </div>
+            <div class="card-body py-3 py-md-4 px-2 px-md-3">
+                <div class="mb-2 mb-md-3">
+                    <i class="bi bi-journal-text text-golden" style="font-size: 2rem;"></i>
                 </div>
-                <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Sacred" %}</h3>
-                <p class="body-font text-muted mb-0">{% trans "Scripture & Texts" %}</p>
+                <h3 class="heading-font text-maroon fw-bold mb-1 mb-md-2" style="font-size: clamp(1.25rem, 3vw, 1.5rem);">{% trans "Sacred" %}</h3>
+                <p class="body-font text-muted mb-0" style="font-size: clamp(0.75rem, 2vw, 0.875rem);">{% trans "Scripture & Texts" %}</p>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6">
+    <div class="col-6 col-lg-3">
         <div class="card card-coptic text-center h-100 hover-maroon-glow">
-            <div class="card-body py-4">
-                <div class="mb-3">
-                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
-                         style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
-                        <i class="bi bi-bookmark-star text-white fs-2"></i>
-                    </div>
+            <div class="card-body py-3 py-md-4 px-2 px-md-3">
+                <div class="mb-2 mb-md-3">
+                    <i class="bi bi-bookmark-star text-maroon" style="font-size: 2rem;"></i>
                 </div>
-                <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Devotional" %}</h3>
-                <p class="body-font text-muted mb-0">{% trans "Spiritual Readings" %}</p>
+                <h3 class="heading-font text-maroon fw-bold mb-1 mb-md-2" style="font-size: clamp(1.25rem, 3vw, 1.5rem);">{% trans "Devotional" %}</h3>
+                <p class="body-font text-muted mb-0" style="font-size: clamp(0.75rem, 2vw, 0.875rem);">{% trans "Spiritual Readings" %}</p>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6">
+    <div class="col-6 col-lg-3">
         <div class="card card-coptic text-center h-100 hover-golden-glow">
-            <div class="card-body py-4">
-                <div class="mb-3">
-                    <div class="d-inline-flex align-items-center justify-content-center sacred-shadow" 
-                         style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
-                        <i class="bi bi-download text-white fs-2"></i>
-                    </div>
+            <div class="card-body py-3 py-md-4 px-2 px-md-3">
+                <div class="mb-2 mb-md-3">
+                    <i class="bi bi-download text-golden" style="font-size: 2rem;"></i>
                 </div>
-                <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Offline" %}</h3>
-                <p class="body-font text-muted mb-0">{% trans "Available Downloads" %}</p>
+                <h3 class="heading-font text-maroon fw-bold mb-1 mb-md-2" style="font-size: clamp(1.25rem, 3vw, 1.5rem);">{% trans "Offline" %}</h3>
+                <p class="body-font text-muted mb-0" style="font-size: clamp(0.75rem, 2vw, 0.875rem);">{% trans "Available Downloads" %}</p>
             </div>
         </div>
     </div>
 </div>
 
 <!-- PDF Grid -->
-<div id="pdf-grid" class="row g-4 mb-5">
+<div id="pdf-grid" class="row g-3 g-md-4 mb-3 mb-md-5">
     {% include "frontend_api/partials/pdf_grid.html" %}
 </div>
 
 <!-- Pagination -->
 {% if is_paginated %}
-<nav aria-label="{% trans 'Book pagination' %}" class="mb-5">
+<nav aria-label="{% trans 'Book pagination' %}" class="mb-3 mb-md-5">
     <div class="d-flex justify-content-center">
         <div class="pagination-container">
-            <ul class="pagination pagination-lg">
+            <ul class="pagination pagination-sm pagination-md-lg">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                        <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
                             <i class="bi bi-chevron-double-left"></i>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
                             <i class="bi bi-chevron-left"></i>
                         </a>
                     </li>
@@ -155,27 +146,27 @@
                 {% for page_num in page_obj.paginator.page_range %}
                     {% if page_num == page_obj.number %}
                         <li class="page-item active">
-                            <span class="page-link">{{ page_num }}</span>
+                            <span class="page-link" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">{{ page_num }}</span>
                         </li>
                     {% elif page_num == 1 or page_num == page_obj.paginator.num_pages or page_num >= page_obj.number|add:-2 and page_num <= page_obj.number|add:2 %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">{{ page_num }}</a>
+                            <a class="page-link" href="?page={{ page_num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">{{ page_num }}</a>
                         </li>
                     {% elif page_num == 2 or page_num == page_obj.paginator.num_pages|add:-1 %}
                         <li class="page-item disabled">
-                            <span class="page-link">...</span>
+                            <span class="page-link" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">...</span>
                         </li>
                     {% endif %}
                 {% endfor %}
                 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
                             <i class="bi bi-chevron-right"></i>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
                             <i class="bi bi-chevron-double-right"></i>
                         </a>
                     </li>
@@ -188,8 +179,8 @@
 
 <!-- Back to Top Button -->
 <div class="text-center mb-3">
-    <button class="btn btn-secondary rounded-pill px-4" onclick="scrollToTop()">
-        <i class="bi bi-arrow-up me-2"></i>{% trans "Back to Top" %}
+    <button class="btn btn-secondary rounded-pill px-3 px-md-4 py-2" onclick="scrollToTop()" style="min-height: 44px; font-size: 1rem;">
+        <i class="bi bi-arrow-up me-2" style="font-size: 1rem;"></i>{% trans "Back to Top" %}
     </button>
 </div>
 

@@ -1448,6 +1448,25 @@ class VideoMeta(models.Model):
             return self.file_size_mb * 1024 * 1024
             
         return 0
+    
+    @property
+    def has_seo(self):
+        """Check if content has SEO metadata"""
+        return bool(
+            self.content_item.seo_keywords_ar or 
+            self.content_item.seo_keywords_en or 
+            self.content_item.seo_meta_description_ar or 
+            self.content_item.seo_meta_description_en
+        )
+    
+    @property
+    def has_metadata(self):
+        """Check if video has complete metadata"""
+        return bool(
+            self.duration_seconds and 
+            self.content_item.description_ar and 
+            self.content_item.tags.exists()
+        )
 
 
 class AudioMetaQuerySet(models.QuerySet):
@@ -1673,6 +1692,25 @@ class AudioMeta(models.Model):
             return self.file_size_mb * 1024 * 1024
             
         return 0
+    
+    @property
+    def has_seo(self):
+        """Check if content has SEO metadata"""
+        return bool(
+            self.content_item.seo_keywords_ar or 
+            self.content_item.seo_keywords_en or 
+            self.content_item.seo_meta_description_ar or 
+            self.content_item.seo_meta_description_en
+        )
+    
+    @property
+    def has_metadata(self):
+        """Check if audio has complete metadata"""
+        return bool(
+            self.duration_seconds and 
+            self.content_item.description_ar and 
+            self.content_item.tags.exists()
+        )
 
 
 class PdfMetaQuerySet(models.QuerySet):
@@ -1905,3 +1943,22 @@ class PdfMeta(models.Model):
             
         file_obj = self.get_viewing_file()
         return file_obj.url if file_obj else None
+    
+    @property
+    def has_seo(self):
+        """Check if content has SEO metadata"""
+        return bool(
+            self.content_item.seo_keywords_ar or 
+            self.content_item.seo_keywords_en or 
+            self.content_item.seo_meta_description_ar or 
+            self.content_item.seo_meta_description_en
+        )
+    
+    @property
+    def has_metadata(self):
+        """Check if PDF has complete metadata"""
+        return bool(
+            self.page_count and 
+            self.content_item.description_ar and 
+            self.content_item.tags.exists()
+        )
