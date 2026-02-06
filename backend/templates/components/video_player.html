@@ -1,35 +1,35 @@
 <!-- templates/components/video_player.html -->
 {% load i18n %}
-<div class="modern-video-player rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #E6E6FA 0%, rgba(139, 0, 0, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); box-shadow: 0 8px 32px rgba(230, 230, 250, 0.2);">
+<div class="modern-video-player">
     <!-- Enhanced Header with Mobile-First Design -->
-    <div class="video-header p-3 p-md-4" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(230, 230, 250, 0.2) 100%); backdrop-filter: blur(15px); border-bottom: 1px solid rgba(184, 134, 11, 0.1);">
+    <div class="video-header p-3 p-md-4" style="background: linear-gradient(135deg, rgba(128, 0, 0, 0.08) 0%, rgba(221, 153, 51, 0.08) 100%); border-bottom: 1px solid rgba(221, 153, 51, 0.15);">
         <div class="d-flex align-items-start gap-3">
             <!-- Enhanced Coptic Video Icon -->
             <div class="video-icon flex-shrink-0">
-                <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #E6E6FA, #4B0082); border-radius: 20px; width: 56px; height: 56px; box-shadow: 0 6px 20px rgba(230, 230, 250, 0.4);">
-                    <i class="bi bi-camera-video-fill text-white" style="font-size: 1.5rem;"></i>
+                <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); border-radius: 16px; width: 56px; height: 56px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
+                    <i class="bi bi-play-circle-fill text-white" style="font-size: 1.75rem;"></i>
                 </div>
             </div>
             <!-- Title and Metadata -->
             <div class="flex-grow-1 min-w-0">
-                <h6 class="video-title mb-1 fw-bold" style="color: #8B0000; font-family: 'Crimson Text', serif; font-size: 1.2rem; line-height: 1.3;">{{ video.title_ar }}</h6>
+                <h6 class="video-title mb-1 fw-bold heading-font" style="color: var(--color-maroon); font-size: 1.2rem; line-height: 1.3;">{{ video.title_ar }}</h6>
                 <div class="video-metadata">
                     {% if video.tags.exists %}
                     <div class="d-flex flex-wrap gap-1 mb-1">
                         {% for tag in video.tags.all %}
-                        <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem; padding: 0.3rem 0.6rem;">{{ tag.name }}</span>
+                        <span class="badge rounded-pill" style="background: rgba(128, 0, 0, 0.1); color: var(--color-maroon); font-size: 0.75rem; padding: 0.3rem 0.6rem; border: 1px solid rgba(128, 0, 0, 0.2);">{{ tag.name }}</span>
                         {% endfor %}
                     </div>
                     {% endif %}
                     <div class="d-flex align-items-center gap-3 text-muted small">
                         {% if video.videometa.duration_seconds %}
                         <span>
-                            <i class="bi bi-clock me-1"></i>{{ video.videometa.get_duration_formatted }}
+                            <i class="bi bi-clock-fill me-1 text-maroon" style="opacity: 0.7;"></i>{{ video.videometa.get_duration_formatted }}
                         </span>
                         {% endif %}
                         {% if video.videometa.resolution_width and video.videometa.resolution_height %}
                         <span>
-                            <i class="bi bi-aspect-ratio me-1"></i>{{ video.videometa.resolution_width }}x{{ video.videometa.resolution_height }}
+                            <i class="bi bi-aspect-ratio me-1 text-maroon" style="opacity: 0.7;"></i>{{ video.videometa.resolution_width }}x{{ video.videometa.resolution_height }}
                         </span>
                         {% endif %}
                     </div>
@@ -40,20 +40,20 @@
             <div class="video-actions flex-shrink-0">
                 <div class="dropdown">
                     <button class="btn btn-link p-2" type="button" data-bs-toggle="dropdown" 
-                            style="color: #4B0082; border-radius: 12px; min-width: 44px; height: 44px;" 
+                            style="color: var(--color-maroon); border-radius: 12px; min-width: 44px; height: 44px;" 
                             aria-label="{% trans 'Video options' %}">
                         <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow" style="border-radius: 12px; border: 1px solid rgba(184, 134, 11, 0.2);">
+                    <ul class="dropdown-menu dropdown-menu-end shadow" style="border-radius: 12px; border: 1px solid rgba(221, 153, 51, 0.2);">
                         <li><a class="dropdown-item d-flex align-items-center" href="{{ video.videometa.get_direct_download_url }}">
-                            <i class="bi bi-download me-2" style="color: #B8860B;"></i>{% trans "Download Video" %}
+                            <i class="bi bi-download me-2 text-maroon"></i>{% trans "Download Video" %}
                         </a></li>
                         <li><button class="dropdown-item d-flex align-items-center" type="button" onclick="toggleFullscreen('video-{{ video.id }}')">
-                            <i class="bi bi-arrows-fullscreen me-2" style="color: #4B0082;"></i>{% trans "Fullscreen" %}
+                            <i class="bi bi-arrows-fullscreen me-2 text-maroon"></i>{% trans "Fullscreen" %}
                         </button></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><span class="dropdown-item-text small text-muted">
-                            <i class="bi bi-info-circle me-1"></i>
+                            <i class="bi bi-info-circle me-1 text-maroon" style="opacity: 0.7;"></i>
                             {% if video.videometa.file_size_mb %}{{ video.videometa.file_size_mb }} MB{% endif %}
                             {% if video.videometa.bitrate %}• {{ video.videometa.bitrate }} kbps{% endif %}
                         </span></li>
@@ -64,8 +64,8 @@
         </div>
     </div>
     
-    <!-- Enhanced Video Player Container -->
-    <div class="video-container position-relative" style="background: #000; border-radius: 0 0 24px 24px; overflow: hidden;">
+    <!-- Video Player Container -->
+    <div class="video-container position-relative" style="background: #000;">
         {% if video.videometa %}
             <!-- Quality Selector Overlay -->
             {% if available_qualities and available_qualities|length > 1 %}
@@ -86,7 +86,7 @@
                    preload="metadata" 
                    playsinline 
                    webkit-playsinline
-                   style="width: 100%; height: auto; max-height: 70vh; object-fit: contain; background: #000; border-radius: 0 0 24px 24px;"
+                   style="width: 100%; height: auto; object-fit: contain; background: #000; display: block;"
                    poster="{% if video.videometa.thumbnail %}{{ video.videometa.thumbnail.url }}{% endif %}">
                 
                 <!-- HLS and multiple source formats -->
@@ -100,7 +100,7 @@
                     {% trans "Your browser does not support the video tag. Please" %}
                     {% if video.videometa.get_playback_file %}
                     <a href="{{ video.videometa.get_direct_download_url }}" 
-                       class="text-decoration-none" style="color: #B8860B;">
+                       class="text-decoration-none" style="color: var(--color-maroon);">
                         {% trans "download the video" %}
                     </a> {% trans "to view it offline." %}
                     {% else %}
@@ -112,7 +112,7 @@
             <!-- Loading Overlay -->
             <div id="video-loading-{{ video.id }}" class="position-absolute top-0 start-0 w-100 h-100 align-items-center justify-content-center" style="background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px); z-index: 10; display: none;">
                 <div class="text-center text-white">
-                    <div class="spinner-border mb-2" style="color: #B8860B;" role="status">
+                    <div class="spinner-border mb-2" style="color: var(--color-maroon);" role="status">
                         <span class="visually-hidden">{% trans "Loading..." %}</span>
                     </div>
                     <div class="small">{% trans "Loading spiritual content..." %}</div>
@@ -122,10 +122,10 @@
             <!-- Enhanced Error State -->
             <div class="video-error text-center py-5" style="min-height: 300px; display: flex; align-items: center; justify-content: center;">
                 <div>
-                    <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: rgba(220, 53, 69, 0.1); width: 80px; height: 80px;">
-                        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                    <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); width: 80px; height: 80px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
+                        <i class="bi bi-exclamation-triangle text-white" style="font-size: 2rem;"></i>
                     </div>
-                    <h6 class="text-muted mb-2">{% trans "Video Not Available" %}</h6>
+                    <h6 class="text-maroon mb-2">{% trans "Video Not Available" %}</h6>
                     <p class="text-muted small mb-0">{% trans "The video file is currently being processed or not found." %}</p>
                 </div>
             </div>
@@ -263,22 +263,17 @@ function toggleFullscreen(videoId) {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.modern-video-player:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(230, 230, 250, 0.3);
-}
-
 .video-title {
     overflow-wrap: break-word;
     hyphens: auto;
 }
 
-video::-webkit-media-controls-panel {
-    background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
+video {
+    display: block;
 }
 
-video::-webkit-media-controls {
-    border-radius: 0 0 24px 24px;
+video::-webkit-media-controls-panel {
+    background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
 }
 
 #quality-select option {
@@ -290,9 +285,6 @@ video::-webkit-media-controls {
 @media (max-width: 768px) {
     .video-header {
         padding: 1rem !important;
-    }
-    video {
-        max-height: 60vh !important;
     }
 }
 </style>

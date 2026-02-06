@@ -17,102 +17,92 @@
 
 {% block content %}
 <!-- Back Navigation -->
-<div class="mb-4">
-    <a href="{% url 'frontend_api:videos' %}" class="btn btn-secondary rounded-pill px-4">
-        <i class="bi bi-arrow-left me-2"></i>{% trans "Back to Video Library" %}
+<div class="mb-3 mb-md-4">
+    <a href="{% url 'frontend_api:videos' %}" class="btn back-button rounded-pill px-3 px-md-4 py-2 smooth-transition">
+        <i class="bi bi-arrow-left me-1 me-md-2" style="font-size: 1rem;"></i>
+        <span class="d-none d-sm-inline">{% trans "Back to Video Library" %}</span>
+        <span class="d-inline d-sm-none">{% trans "Back" %}</span>
     </a>
 </div>
 
-<div class="row">
+<div class="row g-3 g-lg-4">
     <!-- Main Video Content -->
     <div class="col-lg-8">
         <!-- Video Information -->
-        <div class="card card-coptic mb-4">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-start gap-3">
-                    <div class="flex-shrink-0">
-                        <div class="d-flex align-items-center justify-content-center sacred-shadow" 
-                             style="background: var(--color-maroon); width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
-                            <i class="bi bi-play-circle text-white" style="font-size: 1.2rem;"></i>
-                        </div>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h1 class="heading-font text-maroon mb-3 fw-bold">
-                            {% if LANGUAGE_CODE == 'ar' %}{{ video.title_ar_display }}{% else %}{{ video.title_en_display }}{% endif %}
-                        </h1>
-                        
-                        {% if LANGUAGE_CODE == 'ar' and video.description_ar_display or LANGUAGE_CODE == 'en' and video.description_en_display %}
-                        <p class="body-font text-muted mb-4 lh-base">
-                            {% if LANGUAGE_CODE == 'ar' %}{{ video.description_ar_display }}{% else %}{{ video.description_en_display }}{% endif %}
-                        </p>
-                        {% endif %}
-                        
-                        <!-- Video Metadata -->
-                        <div class="row g-3 mb-4">
-                            {% if video.videometa.duration_seconds %}
-                            <div class="col-auto">
-                                <div class="d-flex align-items-center text-muted">
-                                    <i class="bi bi-clock text-golden me-2"></i>
-                                    <span class="body-font">{{ video.videometa.get_duration_formatted }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
-                            
-                            {% if video.tags.exists %}
-                            <div class="col-auto">
-                                <div class="d-flex align-items-center text-muted">
-                                    <i class="bi bi-tags text-golden me-2"></i>
-                                    <span class="body-font">
-                                        {% for tag in video.tags.all %}
-                                            {% if LANGUAGE_CODE == 'ar' %}
-                                                {{ tag.name_ar|default:tag.name_en }}
-                                            {% else %}
-                                                {{ tag.name_en|default:tag.name_ar }}
-                                            {% endif %}
-                                            {% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </span>
-                                </div>
-                            </div>
-                            {% endif %}
-                            
-                            {% if video.created_at %}
-                            <div class="col-auto">
-                                <div class="d-flex align-items-center text-muted">
-                                    <i class="bi bi-calendar3 text-golden me-2"></i>
-                                    <span class="body-font">{{ video.created_at|date:"F d, Y" }}</span>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Download Button -->
-                        {% if video.videometa %}
-                        <div class="mb-3">
-                            <a href="{{ video.videometa.get_direct_download_url }}" 
-                               class="btn btn-primary rounded-pill px-4 py-2" download>
-                                <i class="bi bi-download me-2"></i>{% trans "Download Video" %}
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
+        <div class="card card-coptic section-spacing mobile-compact">
+            <div class="card-body p-3 p-md-4 p-lg-5">
+                <!-- Title and Description -->
+                <div class="mb-4">
+                    <h1 class="heading-font text-maroon mb-3 fw-bold page-title">
+                        {% if LANGUAGE_CODE == 'ar' %}{{ video.title_ar_display }}{% else %}{{ video.title_en_display }}{% endif %}
+                    </h1>
+                    
+                    {% if LANGUAGE_CODE == 'ar' and video.description_ar_display or LANGUAGE_CODE == 'en' and video.description_en_display %}
+                    <p class="body-font text-muted mb-0 lh-base" style="font-size: 1.05rem; color: #555 !important;">
+                        {% if LANGUAGE_CODE == 'ar' %}{{ video.description_ar_display }}{% else %}{{ video.description_en_display }}{% endif %}
+                    </p>
+                    {% endif %}
                 </div>
+                
+                <!-- Video Metadata -->
+                <div class="d-flex flex-wrap gap-3 mb-4">
+                    {% if video.videometa.duration_seconds %}
+                    <div class="d-flex align-items-center metadata-text">
+                        <i class="bi bi-clock text-golden me-2" style="font-size: 1.1rem;"></i>
+                        <span class="body-font fw-medium">{{ video.videometa.get_duration_formatted }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if video.created_at %}
+                    <div class="d-flex align-items-center metadata-text">
+                        <i class="bi bi-calendar3 text-golden me-2" style="font-size: 1.1rem;"></i>
+                        <span class="body-font fw-medium">{{ video.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if video.tags.exists %}
+                    <div class="d-flex align-items-center metadata-text flex-wrap">
+                        <i class="bi bi-tags text-golden me-2" style="font-size: 1.1rem;"></i>
+                        <span class="body-font fw-medium">
+                            {% for tag in video.tags.all %}
+                                {% if LANGUAGE_CODE == 'ar' %}
+                                    {{ tag.name_ar|default:tag.name_en }}
+                                {% else %}
+                                    {{ tag.name_en|default:tag.name_ar }}
+                                {% endif %}
+                                {% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </span>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Download Button - Desktop Only -->
+                {% if video.videometa %}
+                <div class="d-none d-lg-block">
+                    <a href="{{ video.videometa.get_direct_download_url }}" 
+                       class="btn btn-primary rounded-pill px-4 py-2 touch-target smooth-transition" 
+                       download>
+                        <i class="bi bi-download me-2" style="font-size: 1.1rem;"></i>{% trans "Download Video" %}
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
 
         <!-- Video Player -->
-        <div class="card card-coptic mb-4">
-            <div class="card-header-coptic">
-                <h4 class="heading-font text-white mb-0 text-center">
-                    <i class="bi bi-play-circle me-2"></i>{% trans "Video Player" %}
+        <div class="card card-coptic section-spacing player-container video-player-enhanced">
+            <div class="card-header-coptic d-none d-md-block">
+                <h4 class="heading-font text-white mb-0 section-title">
+                    <i class="bi bi-play-circle me-2" style="font-size: 1.25rem;"></i>{% trans "Video Player" %}
                 </h4>
             </div>
             <div class="card-body p-0">
-                <div class="ratio ratio-16x9" style="background: linear-gradient(135deg, #000 0%, #333 100%);">
-                    <div hx-get="{% url 'frontend_api:video_player' video.id %}" hx-trigger="load" class="d-flex align-items-center justify-content-center">
-                        <div class="text-center">
-                            <div class="spinner-border text-light mb-3" style="width: 2.2rem; height: 2.2rem;"></div>
-                            <h5 class="text-light" style="font-size: 1rem;">{% trans "Loading video player..." %}</h5>
+                <div hx-get="{% url 'frontend_api:video_player' video.id %}" hx-trigger="load" class="video-player-wrapper">
+                    <div class="d-flex align-items-center justify-content-center loading-overlay" style="min-height: 400px; background: linear-gradient(135deg, #000 0%, #1a1a1a 100%);">
+                        <div class="text-center px-3">
+                            <div class="spinner-border text-light mb-3" style="width: 2.5rem; height: 2.5rem;"></div>
+                            <h5 class="text-light mb-0" style="font-size: 1.05rem;">{% trans "Loading video player..." %}</h5>
                         </div>
                     </div>
                 </div>
@@ -123,43 +113,40 @@
     <!-- Sidebar -->
     <div class="col-lg-4">
         <!-- Related Videos -->
-        <div class="card card-coptic">
+        <div class="card card-coptic related-sidebar">
             <div class="card-header-coptic">
-                <h5 class="heading-font text-white mb-0 text-center">
-                    <i class="bi bi-collection-play me-2"></i>{% trans "Related Videos" %}
+                <h5 class="heading-font text-white mb-0 section-title">
+                    <i class="bi bi-collection-play me-2" style="font-size: 1.125rem;"></i>{% trans "Related Videos" %}
                 </h5>
             </div>
-            <div class="card-body p-4">
+            <div class="card-body p-3 p-md-4">
                 {% if related_videos %}
                     <div class="d-flex flex-column gap-3">
                         {% for item in related_videos %}
-                        <a href="{% url 'frontend_api:video_detail' item.id %}" class="text-decoration-none">
-                            <div class="card card-coptic h-100 hover-maroon-glow" style="transition: transform 0.3s ease;">
+                        <a href="{% url 'frontend_api:video_detail' item.id %}" class="text-decoration-none smooth-transition">
+                            <div class="card card-coptic h-100 hover-maroon-glow">
                                 <div class="card-body p-3">
                                     <div class="d-flex gap-3">
                                         <div class="flex-shrink-0">
                                             {% if item.videometa.thumbnail %}
                                                 <img src="{{ item.videometa.thumbnail.url }}" alt="{% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}" 
-                                                     class="rounded" style="width: 80px; height: 60px; object-fit: cover; border: 1px solid var(--color-golden-ochre);">
+                                                     class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
                                             {% elif item.thumbnail %}
                                                 <img src="{{ item.thumbnail.url }}" alt="{% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}" 
-                                                     class="rounded" style="width: 80px; height: 60px; object-fit: cover; border: 1px solid var(--color-golden-ochre);">
+                                                     class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
                                             {% else %}
                                                 <div class="d-flex align-items-center justify-content-center rounded" 
-                                                     style="width: 80px; height: 60px; background: var(--color-maroon-10); border: 1px solid var(--color-golden-ochre);">
+                                                     style="width: 80px; height: 60px; background: var(--color-off-white);">
                                                     <i class="bi bi-play-circle text-maroon" style="font-size: 1.5rem;"></i>
                                                 </div>
                                             {% endif %}
                                         </div>
                                         <div class="flex-grow-1 min-w-0">
-                                            <h6 class="heading-font text-maroon fw-bold mb-2 text-truncate">
+                                            <h6 class="heading-font text-maroon fw-bold mb-2 text-truncate" style="font-size: 0.95rem; line-height: 1.3;">
                                                 {% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}
                                             </h6>
-                                            <p class="body-font text-muted small mb-1 text-truncate">
-                                                {% if LANGUAGE_CODE == 'ar' %}{{ item.description_ar_display|truncatewords:8 }}{% else %}{{ item.description_en_display|truncatewords:8 }}{% endif %}
-                                            </p>
                                             {% if item.videometa.duration_seconds %}
-                                            <div class="body-font text-muted small">
+                                            <div class="body-font text-muted" style="font-size: 0.85rem;">
                                                 <i class="bi bi-clock text-golden me-1"></i>{{ item.videometa.get_duration_formatted }}
                                             </div>
                                             {% endif %}
@@ -171,11 +158,8 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="text-center py-4">
-                        <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
-                             style="width: 80px; height: 80px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
-                            <i class="bi bi-collection text-white" style="font-size: 2rem;"></i>
-                        </div>
+                    <div class="empty-state">
+                        <i class="bi bi-collection text-maroon mb-3"></i>
                         <p class="body-font text-muted mb-0">{% trans "No related videos available" %}</p>
                     </div>
                 {% endif %}
@@ -183,4 +167,16 @@
         </div>
     </div>
 </div>
+
+<!-- Sticky Mobile Actions -->
+{% if video.videometa %}
+<div class="sticky-actions-mobile">
+    <a href="{{ video.videometa.get_direct_download_url }}" 
+       class="btn btn-primary w-100 rounded-pill py-3 touch-target smooth-transition" 
+       download>
+        <i class="bi bi-download me-2" style="font-size: 1.2rem;"></i>
+        <span class="fw-bold">{% trans "Download Video" %}</span>
+    </a>
+</div>
+{% endif %}
 {% endblock %}
