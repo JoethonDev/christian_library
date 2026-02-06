@@ -44,12 +44,17 @@ urlpatterns = [
     path('', smart_root_redirect, name='root_redirect'),
 ]
 
-# Sitemap
-from django.contrib.sitemaps.views import sitemap
+# Sitemap and SEO
+from django.contrib.sitemaps.views import sitemap, index as sitemap_index
 from apps.frontend_api.sitemaps import (
     HomeSitemap, ContentListSitemap, VideoSitemap, AudioSitemap, 
     PdfSitemap, SEOOptimizedSitemap, PdfListSitemap, PdfDetailSitemap
 )
+from apps.frontend_api.feeds import (
+    LatestContentFeed, LatestVideosFeed, LatestAudiosFeed, 
+    LatestPdfsFeed, LatestContentAtomFeed
+)
+
 sitemaps = {
     'home': HomeSitemap(),
     'content-lists': ContentListSitemap(),
@@ -61,10 +66,21 @@ sitemaps = {
     'pdf-list': PdfListSitemap(),
     'pdf-detail': PdfDetailSitemap(),
 }
+
 urlpatterns += [
-    path('sitemap.xml', sitemap, {'sitemaps': sitemaps}, name='django_sitemap'),
-]
-urlpatterns += [
+    # Main sitemap (index of all sitemaps)
+    path('sitemap.xml', sitemap_index, {'sitemaps': sitemaps}, name='sitemap_index'),
+    # Individual sitemap sections
+    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='django_sitemap'),
+    
+    # RSS/Atom Feeds
+    path('feeds/latest.rss', LatestContentFeed(), name='feed_latest'),
+    path('feeds/latest.atom', LatestContentAtomFeed(), name='feed_latest_atom'),
+    path('feeds/videos.rss', LatestVideosFeed(), name='feed_videos'),
+    path('feeds/audios.rss', LatestAudiosFeed(), name='feed_audios'),
+    path('feeds/pdfs.rss', LatestPdfsFeed(), name='feed_pdfs'),
+    
+    # robots.txt
     path('robots.txt', robots_txt, name='robots_txt'),
 ]
 

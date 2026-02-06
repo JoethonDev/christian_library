@@ -2,6 +2,7 @@ from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
 from django.core.cache import cache
 from django.utils import timezone
+from django.contrib.sites.models import Site
 from apps.media_manager.models import ContentItem
 
 
