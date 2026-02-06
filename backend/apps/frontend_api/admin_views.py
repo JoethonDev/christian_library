@@ -422,11 +422,28 @@ def bulk_operations(request):
 @login_required
 @require_http_methods(["POST"])
 def api_toggle_content_status(request):
-    """API endpoint to toggle content status - Single query"""
+    """API endpoint to toggle content status - Supports single and bulk operations"""
     try:
         data = json.loads(request.body)
         content_id = data.get('content_id')
+        content_ids = data.get('content_ids')
+        is_bulk = data.get('bulk', False)
+        target_status = data.get('is_active', True)
         
+        # Handle bulk operation
+        if is_bulk and content_ids:
+            updated_count = ContentItem.objects.filter(
+                id__in=content_ids
+            ).update(is_active=target_status)
+            
+            status_text = "activated" if target_status else "deactivated"
+            return JsonResponse({
+                'success': True,
+                'message': f'{updated_count} item(s) {status_text}',
+                'updated_count': updated_count
+            })
+        
+        # Handle single operation
         if not content_id:
             return JsonResponse({'success': False, 'error': 'Content ID required'})
         
@@ -676,8 +693,8 @@ def get_r2_storage_usage(request):
 @csrf_exempt
 def api_auto_fill_metadata(request):
     """
-    Trigger auto-fill action for content item (SEO metadata generation).
-    This endpoint is called from the management dashboard via HTMX.
+    Trigger auto-fill action for content item(s) (SEO metadata generation).
+    Supports both single and bulk operations.
     """
     import logging
     logger = logging.getLogger(__name__)
@@ -685,7 +702,35 @@ def api_auto_fill_metadata(request):
     try:
         data = json.loads(request.body)
         content_id = data.get('content_id')
+        content_ids = data.get('content_ids')
         
+        # Handle bulk operation
+        if content_ids:
+            from apps.media_manager.tasks import generate_seo_metadata_task
+            
+            task_ids = []
+            success_count = 0
+            
+            for cid in content_ids:
+                try:
+                    # Verify content exists
+                    content = ContentItem.objects.get(id=cid)
+                    task = generate_seo_metadata_task.delay(str(cid))
+                    task_ids.append(task.id)
+                    success_count += 1
+                except ContentItem.DoesNotExist:
+                    logger.warning(f"Content {cid} not found for bulk SEO generation")
+                    continue
+            
+            logger.info(f"Bulk auto-fill triggered for {success_count} items")
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'SEO generation started for {success_count} item(s)',
+                'task_ids': task_ids
+            })
+        
+        # Handle single operation
         if not content_id:
             return JsonResponse({'success': False, 'error': 'No content ID provided'})
         
@@ -711,5 +756,6 @@ def api_auto_fill_metadata(request):
         
     except Exception as e:
         logger.error(f"Error triggering auto-fill: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)})
         return JsonResponse({'success': False, 'error': str(e)})
 

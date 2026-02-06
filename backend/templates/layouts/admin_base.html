@@ -374,6 +374,26 @@
         </div>
     </div>
 
+    <!-- Confirmation Modal (Reusable) -->
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmationModalLabel">{% trans "Confirm Action" %}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmationMessage">{% trans "Are you sure you want to perform this action?" %}</p>
+                    <div id="confirmationDetails" class="alert alert-info small" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                    <button type="button" class="btn btn-primary" id="confirmActionBtn">{% trans "Confirm" %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     
@@ -425,6 +445,42 @@
             
             const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
             toast.show();
+        };
+
+        /**
+         * Show confirmation modal
+         * @param {string} message - The confirmation message
+         * @param {string} details - Additional details to show (optional)
+         * @param {function} onConfirm - Callback function when confirmed
+         */
+        window.showConfirmation = function(message, details, onConfirm) {
+            const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+            const confirmBtn = document.getElementById('confirmActionBtn');
+            const messageEl = document.getElementById('confirmationMessage');
+            const detailsEl = document.getElementById('confirmationDetails');
+            
+            messageEl.textContent = message;
+            
+            if (details) {
+                detailsEl.innerHTML = details;
+                detailsEl.style.display = 'block';
+            } else {
+                detailsEl.style.display = 'none';
+            }
+            
+            // Remove old event listeners
+            const newConfirmBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+            
+            // Add new event listener
+            newConfirmBtn.addEventListener('click', function() {
+                modal.hide();
+                if (typeof onConfirm === 'function') {
+                    onConfirm();
+                }
+            });
+            
+            modal.show();
         };
 
         // Override default alert if we want to be aggressive, 

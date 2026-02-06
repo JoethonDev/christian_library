@@ -45,12 +45,43 @@
     </div>
 </div>
 
+<!-- Bulk Actions Bar -->
+<div class="card border-0 shadow-sm rounded-4 mb-3" id="bulkActionsBar" style="display: none;">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <span class="text-muted me-3">
+                    <i class="bi bi-check-circle me-1"></i>
+                    <span id="selectedCount">0</span> {% trans "selected" %}
+                </span>
+            </div>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-warning text-white" onclick="bulkGenerateSEO()">
+                    <i class="bi bi-sparkles me-1"></i>{% trans "Generate SEO" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-success" onclick="bulkActivate()">
+                    <i class="bi bi-eye me-1"></i>{% trans "Activate" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary" onclick="bulkDeactivate()">
+                    <i class="bi bi-eye-slash me-1"></i>{% trans "Deactivate" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" onclick="bulkDelete()">
+                    <i class="bi bi-trash me-1"></i>{% trans "Delete" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="bg-light">
                 <tr>
-                    <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Audio Content" %}</th>
+                    <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0" style="width: 40px;">
+                        <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
+                    </th>
+                    <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Audio Content" %}</th>
                     <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
                     <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Duration" %}</th>
                     <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Visibility" %}</th>
@@ -62,6 +93,11 @@
                 {% for audio in audios %}
                 <tr x-data="{ autoFilling: false }">
                     <td class="ps-4 py-3">
+                        <input type="checkbox" class="form-check-input row-checkbox" 
+                               data-content-id="{{ audio.id }}" 
+                               onchange="updateBulkActions()">
+                    </td>
+                    <td class="py-3">
                         <div class="d-flex align-items-center">
                             <div class="rounded p-2 me-3 bg-warning-subtle text-warning">
                                 <i class="bi bi-mic fs-4"></i>
@@ -140,7 +176,7 @@
                             <button type="button" 
                                     class="btn btn-sm btn-warning text-white" 
                                     title="{% trans 'Auto-Fill SEO' %}"
-                                    @click="autoFillMetadata('{{ audio.id }}', $event.target)"
+                                    @click="confirmAutoFill('{{ audio.id }}', '{{ audio.title_ar|escapejs }}')"
                                     :disabled="autoFilling">
                                 <i class="bi" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
                             </button>
@@ -165,7 +201,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center py-5 text-muted">
+                    <td colspan="7" class="text-center py-5 text-muted">
                         <div class="mb-3">
                             <i class="bi bi-music-note-beamed display-4 text-secondary opacity-50"></i>
                         </div>
@@ -182,6 +218,198 @@
 </div>
 
 <script>
+// Bulk Selection Functions
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    const count = checkboxes.length;
+    const bulkBar = document.getElementById('bulkActionsBar');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (count > 0) {
+        bulkBar.style.display = 'block';
+        selectedCount.textContent = count;
+    } else {
+        bulkBar.style.display = 'none';
+    }
+    
+    // Update master checkbox state
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+    const masterCheckbox = document.getElementById('selectAll');
+    if (masterCheckbox) {
+        masterCheckbox.checked = count === allCheckboxes.length && count > 0;
+        masterCheckbox.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+}
+
+function getSelectedIds() {
+    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.dataset.contentId);
+}
+
+// Bulk Actions
+function bulkGenerateSEO() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one audio file" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Generate SEO metadata for selected audio files?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}<br>` +
+                   `{% trans "This will use AI to generate SEO metadata for all selected audio files." %}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkAction('{% url "frontend_api:api_auto_fill_metadata" %}', selectedIds, 'generate_seo');
+    });
+}
+
+function bulkActivate() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one audio file" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Activate selected audio files?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkToggleStatus(selectedIds, true);
+    });
+}
+
+function bulkDeactivate() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one audio file" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Deactivate selected audio files?" %}';
+    const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkToggleStatus(selectedIds, false);
+    });
+}
+
+function bulkDelete() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showToast('{% trans "Please select at least one audio file" %}', 'warning');
+        return;
+    }
+    
+    const message = '{% trans "Delete selected audio files?" %}';
+    const details = `<strong class="text-danger">{% trans "WARNING:" %}</strong> ` +
+                   `{% trans "This will permanently delete" %} ${selectedIds.length} {% trans "audio file(s)." %}<br>` +
+                   `{% trans "This action cannot be undone!" %}`;
+    
+    showConfirmation(message, details, function() {
+        performBulkDelete(selectedIds);
+    });
+}
+
+// Perform Bulk Actions
+function performBulkAction(url, contentIds, actionType) {
+    const data = actionType === 'generate_seo' 
+        ? { content_ids: contentIds }
+        : { content_ids: contentIds };
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || '{% trans "Action completed successfully" %}', 'success');
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            showToast(data.error || '{% trans "Action failed" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function performBulkToggleStatus(contentIds, status) {
+    fetch('{% url "frontend_api:api_toggle_content_status" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            content_ids: contentIds,
+            is_active: status,
+            bulk: true
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || '{% trans "Status updated successfully" %}', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function performBulkDelete(contentIds) {
+    fetch('{% url "frontend_api:bulk_operations" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'operation': 'delete',
+            'content_ids': contentIds.join(',')
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            showToast('{% trans "Audio files deleted successfully" %}', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast('{% trans "Failed to delete audio files" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+// Single Item Actions
+function confirmAutoFill(contentId, title) {
+    const message = '{% trans "Generate SEO metadata for this audio file?" %}';
+    const details = `<strong>{% trans "Audio:" %}</strong> ${title}<br>` +
+                   `{% trans "This will use AI to generate SEO metadata." %}`;
+    
+    showConfirmation(message, details, function() {
+        autoFillMetadata(contentId);
+    });
+}
+
 function toggleStatus(contentId, checkbox) {
     checkbox.disabled = true;
     
@@ -214,11 +442,7 @@ function toggleStatus(contentId, checkbox) {
     });
 }
 
-function autoFillMetadata(contentId, button) {
-    const row = button.closest('tr');
-    const alpineData = Alpine.$data(row);
-    alpineData.autoFilling = true;
-    
+function autoFillMetadata(contentId) {
     fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
         method: 'POST',
         headers: {
@@ -236,12 +460,10 @@ function autoFillMetadata(contentId, button) {
             // Reload page after 3 seconds to show updated status
             setTimeout(() => window.location.reload(), 3000);
         } else {
-            alpineData.autoFilling = false;
             showToast(data.error || '{% trans "Failed to start auto-fill" %}', 'danger');
         }
     })
     .catch(error => {
-        alpineData.autoFilling = false;
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
