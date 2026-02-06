@@ -48,7 +48,7 @@ urlpatterns = [
 from django.contrib.sitemaps.views import sitemap, index as sitemap_index
 from apps.frontend_api.sitemaps import (
     HomeSitemap, ContentListSitemap, VideoSitemap, AudioSitemap, 
-    PdfSitemap, SEOOptimizedSitemap, PdfListSitemap, PdfDetailSitemap
+    PdfSitemap, PdfListSitemap, PdfDetailSitemap
 )
 from apps.frontend_api.feeds import (
     LatestContentFeed, LatestVideosFeed, LatestAudiosFeed, 
@@ -61,17 +61,17 @@ sitemaps = {
     'videos': VideoSitemap(),
     'audios': AudioSitemap(),
     'pdfs': PdfSitemap(),
-    'seo-optimized': SEOOptimizedSitemap(),
     # Legacy sitemaps for backward compatibility
     'pdf-list': PdfListSitemap(),
     'pdf-detail': PdfDetailSitemap(),
 }
 
 urlpatterns += [
-    # Main sitemap (index of all sitemaps)
-    path('sitemap.xml', sitemap_index, {'sitemaps': sitemaps}, name='sitemap_index'),
-    # Individual sitemap sections
-    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='django_sitemap'),
+    # Individual sitemap sections (non-i18n fallback)
+    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
+    
+    # Global sitemap redirect to preferred language
+    path('sitemap.xml', RedirectView.as_view(url='/ar/sitemap.xml', permanent=False), name='sitemap_redirect_global'),
     
     # RSS/Atom Feeds
     path('feeds/latest.rss', LatestContentFeed(), name='feed_latest'),
@@ -83,15 +83,16 @@ urlpatterns += [
     # robots.txt
     path('robots.txt', robots_txt, name='robots_txt'),
 ]
-urlpatterns += [
-    path('robots.txt', robots_txt, name='robots_txt'),
-]
 
 # Internationalized URL patterns
 urlpatterns += i18n_patterns(
     # Main application URLs
     path('', include('apps.frontend_api.urls')),
     
+    # Sitemaps (i18n versions)
+    path('sitemap.xml', sitemap_index, {'sitemaps': sitemaps, 'sitemap_url_name': 'sitemap_section_i18n'}, name='sitemap_index_i18n'),
+    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='sitemap_section_i18n'),
+
     # Media URLs  
     path('media/', include('apps.media_manager.urls', namespace='media')),
     

@@ -10,6 +10,9 @@ from django.views.generic import TemplateView
 from apps.media_manager.models import ContentItem, Tag
 from collections import Counter
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(staff_member_required, name='dispatch')
@@ -265,11 +268,11 @@ def bulk_seo_actions_api(request):
             id__in=content_ids,
             is_active=True
         ).update(
-            seo_keywords_ar=[],
-            seo_keywords_en=[],
+            seo_keywords_ar='',
+            seo_keywords_en='',
             seo_meta_description_ar='',
             seo_meta_description_en='',
-            seo_title_suggestions=[],
+            seo_title_suggestions='',
             structured_data={}
         )
         results['success'] = updated
@@ -307,9 +310,9 @@ def seo_monitoring_api(request):
         }
         
         # Check each sitemap section
-        sections = ["home", "content-lists", "videos", "audios", "pdfs", "seo-optimized"]
+        sections = ["home", "content-lists", "videos", "audios", "pdfs"]
         for section in sections:
-            cache_key = f"sitemap_{section.replace(\"-\", \"_\")}_lastmod"
+            cache_key = f"sitemap_{section.replace('-', '_')}_lastmod"
             last_mod = cache.get(cache_key)
             sitemap_status["sections"].append({
                 "name": section,

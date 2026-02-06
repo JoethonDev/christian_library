@@ -18,7 +18,8 @@ def robots_txt(request):
     
     # Build protocol (HTTPS in production, HTTP in development)
     protocol = 'https' if request.is_secure() else 'http'
-    sitemap_url = f"{protocol}://{domain}/sitemap.xml"
+    sitemap_ar = f"{protocol}://{domain}/ar/sitemap.xml"
+    sitemap_en = f"{protocol}://{domain}/en/sitemap.xml"
     
     content = (
         "# robots.txt for Christian Library\n"
@@ -44,7 +45,8 @@ def robots_txt(request):
         "Allow: /en/audios/\n"
         "Allow: /en/pdfs/\n\n"
         
-        "# Sitemap reference\n"
-        f"Sitemap: {sitemap_url}\n"
+        "# Sitemap references\n"
+        f"Sitemap: {sitemap_ar}\n"
+        f"Sitemap: {sitemap_en}\n"
     )
     return HttpResponse(content, content_type="text/plain")

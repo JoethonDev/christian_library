@@ -10,6 +10,7 @@ class HomeSitemap(Sitemap):
     """Home page sitemap with highest priority - Auto-updated"""
     priority = 1.0
     changefreq = 'daily'
+    i18n = True
     
     def items(self):
         return ['frontend_api:home']
@@ -32,6 +33,7 @@ class ContentListSitemap(Sitemap):
     """Content listing pages sitemap - Auto-updated based on content changes"""
     priority = 0.8
     changefreq = 'daily'
+    i18n = True
     
     def items(self):
         return [
@@ -65,6 +67,7 @@ class VideoSitemap(Sitemap):
     """Video content sitemap with SEO optimization - Auto-updated"""
     priority = 0.8  # High priority for video content
     changefreq = 'weekly'
+    i18n = True
     
     def items(self):
         return ContentItem.objects.filter(
@@ -89,6 +92,7 @@ class AudioSitemap(Sitemap):
     """Audio content sitemap with SEO optimization"""
     priority = 0.7
     changefreq = 'weekly'
+    i18n = True
     
     def items(self):
         return ContentItem.objects.filter(
@@ -113,6 +117,7 @@ class PdfSitemap(Sitemap):
     """PDF content sitemap with SEO optimization"""
     priority = 0.6
     changefreq = 'weekly'
+    i18n = True
     
     def items(self):
         return ContentItem.objects.filter(
@@ -143,29 +148,6 @@ class PdfSitemap(Sitemap):
                 priority += 0.05
         
         return min(priority, 0.9)  # Cap at 0.9
-
-
-class SEOOptimizedSitemap(Sitemap):
-    """Special sitemap for content with full SEO metadata"""
-    priority = 0.9
-    changefreq = 'weekly'
-    
-    def items(self):
-        """Return only content items with complete SEO metadata"""
-        return ContentItem.objects.filter(
-            is_active=True,
-            seo_keywords_ar__len__gt=0,
-            seo_keywords_en__len__gt=0,
-        ).exclude(
-            seo_meta_description_ar='',
-            seo_meta_description_en=''
-        ).order_by('-updated_at')
-    
-    def location(self, obj):
-        return obj.get_absolute_url()
-    
-    def lastmod(self, obj):
-        return obj.updated_at
 
 
 # Legacy sitemaps for backward compatibility
