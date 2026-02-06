@@ -353,8 +353,9 @@ class ContentItemQuerySet(models.QuerySet):
             # Build comprehensive search conditions
             # FTS match OR text field matches (for items without search_vector)
             # Note: Tags are searched via Q object filters, not included in search_vector
+            # Simplified: rank check alone is sufficient since null search_vector results in rank=0.0
             search_conditions = (
-                Q(search_vector__isnull=False, rank__gte=FTS_RANK_THRESHOLD) |  # FTS match with threshold from module constant
+                Q(rank__gte=FTS_RANK_THRESHOLD) |  # FTS match (rank > 0 means search_vector exists)
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
@@ -609,7 +610,9 @@ class ContentItem(models.Model):
         
         # Note: Tag names are NOT included in search_vector to avoid complex M2M triggers.
         # Tags are searched separately via Q object filters in the search_optimized() method.
-        # This keeps the search vector updates simple and performant.
+        # Performance trade-off: Including tags in search_vector would require triggers on the
+        # M2M through table (contentitem_tags), significantly complicating the implementation
+        # and potentially impacting performance on every tag add/remove operation.
         
         # Combine all search parts
         if search_parts:

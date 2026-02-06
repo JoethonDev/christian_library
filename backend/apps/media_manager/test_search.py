@@ -147,7 +147,9 @@ class MultilingualSearchTest(TestCase):
     def test_empty_query_returns_all(self):
         """Test that empty query returns all active content"""
         results = ContentItem.objects.search_optimized("")
-        self.assertEqual(results.count(), 4)  # All test items
+        # Count items created in setUp (4 items)
+        expected_count = 4
+        self.assertEqual(results.count(), expected_count)
     
     def test_inactive_content_excluded(self):
         """Test that inactive content is not returned"""
@@ -355,7 +357,6 @@ class SearchPerformanceTest(TestCase):
     def test_search_query_count(self):
         """Test that search executes minimal queries"""
         from django.db import connection, reset_queries
-        from django.test.utils import override_settings
         
         # Enable query counting
         reset_queries()
