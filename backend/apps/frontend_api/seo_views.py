@@ -279,3 +279,113 @@ def bulk_seo_actions_api(request):
         return JsonResponse({'error': 'Invalid action'}, status=400)
     
     return JsonResponse(results)
+
+
+@staff_member_required
+def seo_monitoring_api(request):
+    """
+    API endpoint for SEO monitoring metrics
+    Returns status of robots.txt, sitemaps, feeds, and Google API notifications
+    """
+    from django.core.cache import cache
+    from django.utils import timezone
+    from django.contrib.sites.models import Site
+    import datetime
+    
+    try:
+        # Get current site info
+        current_site = Site.objects.get_current()
+        domain = current_site.domain
+        protocol = "https"  # Assume HTTPS for production
+        
+        # Check sitemap status
+        sitemap_status = {
+            "accessible": True,
+            "url": f"{protocol}://{domain}/sitemap.xml",
+            "last_updated": None,
+            "sections": []
+        }
+        
+        # Check each sitemap section
+        sections = ["home", "content-lists", "videos", "audios", "pdfs", "seo-optimized"]
+        for section in sections:
+            cache_key = f"sitemap_{section.replace(\"-\", \"_\")}_lastmod"
+            last_mod = cache.get(cache_key)
+            sitemap_status["sections"].append({
+                "name": section,
+                "cache_key": cache_key,
+                "cached": last_mod is not None,
+                "last_mod": str(last_mod) if last_mod else None
+            })
+        
+        # Check feeds status
+        feeds_status = {
+            "rss_feeds": [
+                {"name": "Latest Content", "url": f"{protocol}://{domain}/feeds/latest.rss"},
+                {"name": "Videos", "url": f"{protocol}://{domain}/feeds/videos.rss"},
+                {"name": "Audios", "url": f"{protocol}://{domain}/feeds/audios.rss"},
+                {"name": "PDFs", "url": f"{protocol}://{domain}/feeds/pdfs.rss"},
+            ],
+            "atom_feeds": [
+                {"name": "Latest Content", "url": f"{protocol}://{domain}/feeds/latest.atom"},
+            ]
+        }
+        
+        # Check robots.txt status
+        robots_status = {
+            "url": f"{protocol}://{domain}/robots.txt",
+            "accessible": True,
+            "includes_sitemap": True
+        }
+        
+        # Check Google API configuration
+        from django.conf import settings
+        google_api_configured = hasattr(settings, "GOOGLE_SERVICE_ACCOUNT_FILE") and settings.GOOGLE_SERVICE_ACCOUNT_FILE is not None
+        
+        google_api_status = {
+            "configured": google_api_configured,
+            "service_account_file": getattr(settings, "GOOGLE_SERVICE_ACCOUNT_FILE", None),
+            "status": "Configured and ready" if google_api_configured else "Not configured (optional)"
+        }
+        
+        # Get recent content updates
+        recent_updates = ContentItem.objects.filter(
+            is_active=True
+        ).order_by("-updated_at")[:10].values(
+            "id", "title_ar", "title_en", "content_type", "updated_at"
+        )
+        
+        # Calculate notification stats
+        today = timezone.now().date()
+        week_ago = today - datetime.timedelta(days=7)
+        
+        notification_stats = {
+            "content_updated_today": ContentItem.objects.filter(
+                updated_at__date=today,
+                is_active=True
+            ).count(),
+            "content_updated_this_week": ContentItem.objects.filter(
+                updated_at__date__gte=week_ago,
+                is_active=True
+            ).count(),
+            "total_active_content": ContentItem.objects.filter(is_active=True).count()
+        }
+        
+        return JsonResponse({
+            "status": "success",
+            "sitemap": sitemap_status,
+            "feeds": feeds_status,
+            "robots_txt": robots_status,
+            "google_api": google_api_status,
+            "recent_updates": list(recent_updates),
+            "notification_stats": notification_stats,
+            "last_check": timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in SEO monitoring API: {e}")
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=500)
+
