@@ -1,0 +1,28 @@
+{% comment %}
+SEO Meta Tags Template
+Included by the seo_meta_tags template tag
+{% endcomment %}
+
+{# Basic meta tags #}
+<meta name="description" content="{{ description }}">
+<meta name="keywords" content="{{ keywords }}">
+
+{# Open Graph tags for social sharing #}
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="{{ description }}">
+<meta property="og:url" content="{{ absolute_url }}">
+<meta property="og:type" content="article">
+{% if image_url %}
+<meta property="og:image" content="{{ image_url }}">
+{% endif %}
+
+{# Twitter Card tags #}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="{{ description }}">
+{% if image_url %}
+<meta name="twitter:image" content="{{ image_url }}">
+{% endif %}
+
+{# Language and content type #}
+<meta property="og:locale" content="{% if language == 'ar' %}ar_EG{% else %}en_US{% endif %}">
