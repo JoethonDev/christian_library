@@ -282,15 +282,46 @@ class ContentItemQuerySet(models.QuerySet):
         if not query:
             return qs.order_by('-created_at')
         
-        # Use FTS for PDFs with content+title+description, fallback for others
+        # Use FTS for PDFs with content+title+description
         if content_type == 'pdf':
             # PostgreSQL FTS with Arabic config - searches content, title, and description
             search_query = SearchQuery(query, config='arabic')
             qs = qs.annotate(
                 rank=SearchRank(models.F('search_vector'), search_query)
-            ).filter(rank__gte=0.1).order_by('-rank')
+            ).filter(rank__gte=0.01).order_by('-rank')  # Lowered threshold from 0.1 to 0.01
+        elif content_type is None:
+            # When no content type specified (global search), use FTS for PDFs and fallback for others
+            from django.db.models import Case, When, Value, FloatField
+            
+            search_query_obj = SearchQuery(query, config='arabic')
+            
+            # Apply FTS ranking for PDFs, default rank for others
+            qs = qs.annotate(
+                rank=Case(
+                    When(
+                        content_type='pdf',
+                        search_vector__isnull=False,
+                        then=SearchRank(models.F('search_vector'), search_query_obj)
+                    ),
+                    default=Value(0.0),
+                    output_field=FloatField()
+                )
+            )
+            
+            # Build search conditions
+            search_conditions = (
+                Q(title_ar__icontains=query) |
+                Q(title_en__icontains=query) |
+                Q(description_ar__icontains=query) |
+                Q(description_en__icontains=query) |
+                Q(tags__name_ar__icontains=query) |
+                Q(tags__name_en__icontains=query) |
+                Q(content_type='pdf', rank__gte=0.01)  # Include PDFs with FTS match
+            )
+            
+            qs = qs.filter(search_conditions).distinct().order_by('-rank', '-created_at')
         else:
-            # Fallback search for video/audio or when no specific content type
+            # Fallback search for video/audio
             search_conditions = (
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
