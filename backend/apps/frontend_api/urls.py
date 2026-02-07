@@ -69,6 +69,7 @@ urlpatterns = [
     path('dashboard/seo/content-analysis-api/', seo_views.seo_content_analysis_api, name='seo_content_analysis_api'),
     path('dashboard/seo/bulk-actions-api/', seo_views.bulk_seo_actions_api, name='bulk_seo_actions_api'),
     path('dashboard/seo/monitoring-api/', seo_views.seo_monitoring_api, name='seo_monitoring_api'),
+    path('dashboard/seo/site-config-api/', seo_views.site_seo_api, name='site_seo_api'),
     
     # Legacy admin interfaces (redirects to dashboard for backward compatibility)
     path('admin/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_redirect'),

@@ -19,9 +19,61 @@
         <button id="refresh-analysis" class="btn btn-white border shadow-sm rounded-pill">
             <i class="bi bi-arrow-clockwise me-1"></i>{% trans "Refresh" %}
         </button>
+        <button id="edit-site-seo" class="btn btn-dark shadow-sm rounded-pill" onclick="toggleSiteSEOEditor()">
+            <i class="bi bi-gear me-1"></i>{% trans "Site SEO Settings" %}
+        </button>
         <button id="bulk-generate-seo" class="btn btn-primary shadow-sm rounded-pill">
             <i class="bi bi-magic me-1"></i>{% trans "Auto-Generate SEO" %}
         </button>
+    </div>
+</div>
+
+<!-- Site SEO Editor (Collapsible) -->
+<div id="site-seo-editor" class="card border-0 shadow-sm rounded-4 mb-4 d-none">
+    <div class="card-header bg-dark text-white rounded-top-4 py-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-globe me-2"></i>Global Website & Organization SEO</h6>
+        <button class="btn-close btn-close-white" onclick="toggleSiteSEOEditor()"></button>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3" id="site-seo-form">
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted text-uppercase">Library Name (EN)</label>
+                <input type="text" id="site-name-en" class="form-control" value="{{ site_config.site_name_en }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted text-uppercase">Library Name (AR)</label>
+                <input type="text" id="site-name-ar" class="form-control" value="{{ site_config.site_name_ar }}" dir="rtl">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted text-uppercase">Website URL</label>
+                <input type="url" id="site-url" class="form-control" value="{{ site_config.website_url }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted text-uppercase">Logo URL</label>
+                <input type="url" id="site-logo" class="form-control" value="{{ site_config.logo_url }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted text-uppercase">Description (EN)</label>
+                <textarea id="site-desc-en" class="form-control" rows="2">{{ site_config.description_en }}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label small fw-bold text-muted text-uppercase">Description (AR)</label>
+                <textarea id="site-desc-ar" class="form-control" rows="2" dir="rtl">{{ site_config.description_ar }}</textarea>
+            </div>
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <label class="form-label small fw-bold text-muted text-uppercase mb-0">Organization Structured Data (JSON-LD)</label>
+                    <span class="badge bg-info-subtle text-info">Bilingual Format</span>
+                </div>
+                <textarea id="site-structured" class="form-control font-monospace small" rows="6">{{ site_config.structured_data|json_script:"site-structured-data-raw" }}{% if site_config.structured_data %}{{ site_config.structured_data|json_script:"dummy"|linebreaksbr }}{% endif %}</textarea>
+                <div id="site-structured-editor" style="height: 200px; border: 1px solid #dee2e6; border-radius: 0.375rem;"></div>
+            </div>
+            <div class="col-12 text-end pt-2">
+                <button class="btn btn-primary rounded-pill px-4" onclick="saveSiteSEO()">
+                    <i class="bi bi-save me-1"></i>Save Site Configuration
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -255,6 +307,72 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+function toggleSiteSEOEditor() {
+    const editor = document.getElementById('site-seo-editor');
+    editor.classList.toggle('d-none');
+    
+    if (!editor.classList.contains('d-none')) {
+        // Load fresh data
+        fetch('{% url "frontend_api:site_seo_api" %}')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('site-name-en').value = data.site_name_en;
+                document.getElementById('site-name-ar').value = data.site_name_ar;
+                document.getElementById('site-url').value = data.website_url;
+                document.getElementById('site-logo').value = data.logo_url;
+                document.getElementById('site-desc-en').value = data.description_en;
+                document.getElementById('site-desc-ar').value = data.description_ar;
+                document.getElementById('site-structured').value = JSON.stringify(data.structured_data, null, 2);
+            });
+    }
+}
+
+function saveSiteSEO() {
+    const data = {
+        site_name_en: document.getElementById('site-name-en').value,
+        site_name_ar: document.getElementById('site-name-ar').value,
+        website_url: document.getElementById('site-url').value,
+        logo_url: document.getElementById('site-logo').value,
+        description_en: document.getElementById('site-desc-en').value,
+        description_ar: document.getElementById('site-desc-ar').value,
+    };
+    
+    try {
+        data.structured_data = JSON.parse(document.getElementById('site-structured').value);
+    } catch(e) {
+        showToast('Invalid JSON in Structured Data', 'danger');
+        return;
+    }
+    
+    fetch('{% url "frontend_api:site_seo_api" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(result => {
+        if (result.success) {
+            showToast('Site SEO updated successfully', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(result.error || 'Failed to update Site SEO', 'danger');
+        }
+    });
+}
+
+function getPrettyJson(data) {
+    if (!data) return '{}';
+    if (typeof data === 'string') {
+        try {
+            return JSON.stringify(JSON.parse(data), null, 2);
+        } catch(e) { return data; }
+    }
+    return JSON.stringify(data, null, 2);
+}
+
 function loadSEOAnalytics() {
     fetch('{% url "frontend_api:seo_analytics_api" %}')
         .then(response => response.json())
@@ -350,79 +468,55 @@ function loadContentAnalysis() {
         .catch(err => console.error(err));
 }
 
+// Update showSEODetails to use getPrettyJson
 function showSEODetails(contentId) {
     const detailsRow = document.getElementById(`seo-details-${contentId}`);
     const formContainer = document.getElementById(`seo-form-${contentId}`);
     
-    // Toggle visibility
     if (detailsRow.classList.contains('show')) {
         detailsRow.classList.remove('show');
         return;
     }
     
-    // Load SEO data
     fetch(`/api/content/${contentId}/seo/`)
         .then(response => response.json())
         .then(data => {
+            const prettyJson = getPrettyJson(data.structured_data);
             const form = `
                 <div class="row g-3">
-                    <div class="col-12">
-                        <h6 class="fw-bold mb-3">SEO Metadata Editor</h6>
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <h6 class="fw-bold mb-0">SEO Metadata Editor</h6>
+                        <span class="badge bg-secondary">ID: ${contentId}</span>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small">Meta Title (EN)</label>
-                        <input type="text" class="form-control form-control-sm" id="seo-title-en-${contentId}" value="${data.seo_title_en || ''}" maxlength="60">
-                        <small class="text-muted">Max 60 characters</small>
+                        <label class="form-label small fw-bold">Title (EN)</label>
+                        <input type="text" class="form-control" id="seo-title-en-${contentId}" value="${data.seo_title_en || ''}">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small">Meta Title (AR)</label>
-                        <input type="text" class="form-control form-control-sm" id="seo-title-ar-${contentId}" value="${data.seo_title_ar || ''}" maxlength="60" dir="rtl">
-                        <small class="text-muted">Max 60 characters</small>
+                        <label class="form-label small fw-bold">Title (AR)</label>
+                        <input type="text" class="form-control" id="seo-title-ar-${contentId}" value="${data.seo_title_ar || ''}" dir="rtl">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small">Meta Description (EN)</label>
-                        <textarea class="form-control form-control-sm" id="seo-desc-en-${contentId}" rows="2" maxlength="160">${data.seo_meta_description_en || ''}</textarea>
-                        <small class="text-muted">Max 160 characters</small>
+                        <label class="form-label small fw-bold">Meta Desc (EN)</label>
+                        <textarea class="form-control" id="seo-desc-en-${contentId}" rows="2">${data.seo_meta_description_en || ''}</textarea>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small">Meta Description (AR)</label>
-                        <textarea class="form-control form-control-sm" id="seo-desc-ar-${contentId}" rows="2" maxlength="160" dir="rtl">${data.seo_meta_description_ar || ''}</textarea>
-                        <small class="text-muted">Max 160 characters</small>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small">Keywords (EN)</label>
-                        <input type="text" class="form-control form-control-sm" id="seo-keywords-en-${contentId}" value="${data.seo_keywords_en || ''}" placeholder="keyword1, keyword2">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label small">Keywords (AR)</label>
-                        <input type="text" class="form-control form-control-sm" id="seo-keywords-ar-${contentId}" value="${data.seo_keywords_ar || ''}" placeholder="كلمة1, كلمة2" dir="rtl">
+                        <label class="form-label small fw-bold">Meta Desc (AR)</label>
+                        <textarea class="form-control" id="seo-desc-ar-${contentId}" rows="2" dir="rtl">${data.seo_meta_description_ar || ''}</textarea>
                     </div>
                     <div class="col-12">
-                        <label class="form-label small">Structured Data (JSON-LD)</label>
-                        <textarea class="form-control form-control-sm font-monospace" id="seo-structured-${contentId}" rows="4">${data.structured_data ? JSON.stringify(JSON.parse(data.structured_data), null, 2) : '{}'}</textarea>
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label small">Transcript (for Audio/Video SEO)</label>
-                        <textarea class="form-control form-control-sm" id="seo-transcript-${contentId}" rows="4">${data.transcript || ''}</textarea>
-                        <small class="text-muted">Full text for search engines to index spoken content</small>
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label small">Internal Notes</label>
-                        <textarea class="form-control form-control-sm" id="seo-notes-${contentId}" rows="3">${data.notes || ''}</textarea>
+                        <label class="form-label small fw-bold">Bilingual JSON-LD (en/ar keys)</label>
+                        <textarea class="form-control font-monospace small" id="seo-structured-${contentId}" rows="8">${prettyJson}</textarea>
                     </div>
                     <div class="col-12 text-end">
-                        <button class="btn btn-sm btn-secondary rounded-pill me-2" onclick="document.getElementById('seo-details-${contentId}').classList.remove('show')">Cancel</button>
-                        <button class="btn btn-sm btn-primary rounded-pill" onclick="saveSEOData('${contentId}')">
+                        <button class="btn btn-sm btn-white border rounded-pill me-2" onclick="document.getElementById('seo-details-${contentId}').classList.remove('show')">Cancel</button>
+                        <button class="btn btn-sm btn-primary rounded-pill px-4" onclick="saveSEOData('${contentId}')">
                             <i class="bi bi-save me-1"></i>Save Changes
                         </button>
                     </div>
                 </div>
             `;
             formContainer.innerHTML = form;
-            detailsRow.classList.add('show');
-        })
-        .catch(err => {
-            formContainer.innerHTML = `<div class="alert alert-danger">Failed to load SEO data: ${err.message}</div>`;
             detailsRow.classList.add('show');
         });
 }
@@ -433,12 +527,21 @@ function saveSEOData(contentId) {
         seo_title_ar: document.getElementById(`seo-title-ar-${contentId}`).value,
         seo_meta_description_en: document.getElementById(`seo-desc-en-${contentId}`).value,
         seo_meta_description_ar: document.getElementById(`seo-desc-ar-${contentId}`).value,
-        seo_keywords_en: document.getElementById(`seo-keywords-en-${contentId}`).value,
-        seo_keywords_ar: document.getElementById(`seo-keywords-ar-${contentId}`).value,
-        structured_data: document.getElementById(`seo-structured-${contentId}`).value,
-        transcript: document.getElementById(`seo-transcript-${contentId}`).value,
-        notes: document.getElementById(`seo-notes-${contentId}`).value
+        structured_data: document.getElementById(`seo-structured-${contentId}`).value
     };
+    
+    // Optional fields that might be missing in newer simplified UI
+    const keywordsEn = document.getElementById(`seo-keywords-en-${contentId}`);
+    if (keywordsEn) data.seo_keywords_en = keywordsEn.value;
+    
+    const keywordsAr = document.getElementById(`seo-keywords-ar-${contentId}`);
+    if (keywordsAr) data.seo_keywords_ar = keywordsAr.value;
+    
+    const transcript = document.getElementById(`seo-transcript-${contentId}`);
+    if (transcript) data.transcript = transcript.value;
+    
+    const notes = document.getElementById(`seo-notes-${contentId}`);
+    if (notes) data.notes = notes.value;
     
     fetch(`/api/content/${contentId}/seo/`, {
         method: 'POST',

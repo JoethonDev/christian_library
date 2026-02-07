@@ -4,10 +4,11 @@
 from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q, Avg, Max, Min
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
-from apps.media_manager.models import ContentItem, Tag
+from apps.media_manager.models import ContentItem, Tag, SiteConfiguration
 from collections import Counter
 import json
 
@@ -36,6 +37,7 @@ class SEODashboardView(TemplateView):
             'seo_complete': seo_complete,
             'seo_coverage_percent': round((seo_complete / total_content * 100) if total_content > 0 else 0, 1),
             'seo_pending': total_content - seo_complete,
+            'site_config': SiteConfiguration.objects.first(),
         })
         
         # Content type breakdown
@@ -388,4 +390,43 @@ def seo_monitoring_api(request):
             "status": "error",
             "message": str(e)
         }, status=500)
+
+
+@staff_member_required
+@require_http_methods(["GET", "POST"])
+def site_seo_api(request):
+    """API for getting and updating global Site SEO configuration"""
+    config = SiteConfiguration.objects.first()
+    if not config:
+        config = SiteConfiguration.objects.create(site_name_en="Christian Library")
+    
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            config.site_name_en = data.get('site_name_en', config.site_name_en)
+            config.site_name_ar = data.get('site_name_ar', config.site_name_ar)
+            config.description_en = data.get('description_en', config.description_en)
+            config.description_ar = data.get('description_ar', config.description_ar)
+            config.logo_url = data.get('logo_url', config.logo_url)
+            config.website_url = data.get('website_url', config.website_url)
+            
+            # Save the JSON fields if provided
+            if 'structured_data' in data:
+                config.structured_data = data['structured_data']
+                
+            config.save()
+            return JsonResponse({'success': True, 'message': 'Site SEO updated'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+            
+    # GET request
+    return JsonResponse({
+        'site_name_en': config.site_name_en,
+        'site_name_ar': config.site_name_ar,
+        'description_en': config.description_en,
+        'description_ar': config.description_ar,
+        'logo_url': config.logo_url,
+        'website_url': config.website_url,
+        'structured_data': config.structured_data
+    })
 
