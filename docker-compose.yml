@@ -170,6 +170,13 @@ volumes:
 
 networks:
   backend:
-    internal: true  # Isolated from outside
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:db8:10::/64
   frontend:
     driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:db8:11::/64
