@@ -61,7 +61,7 @@ import cv2
 import numpy as np
 
 # Module-level constants
-FTS_RANK_THRESHOLD = 0.01  # Minimum rank for FTS results (balance between precision and recall)
+FTS_RANK_THRESHOLD = 0.1  # Minimum rank for FTS results (10% relevance - stricter for better precision)
 
 # Pre-compiled regex for Arabic character detection (optimization)
 ARABIC_CHAR_PATTERN = re.compile(r'[\u0600-\u06FF\u0750-\u077F]')
@@ -357,7 +357,7 @@ class ContentItemQuerySet(models.QuerySet):
             # Note: Tags are searched via Q object filters, not included in search_vector
             # Simplified: rank >= threshold is sufficient (null search_vector results in rank=0.0 < threshold)
             search_conditions = (
-                Q(rank__gte=FTS_RANK_THRESHOLD) |  # FTS match: rank >= 0.01 means search_vector exists and meets minimum relevance
+                Q(rank__gte=FTS_RANK_THRESHOLD) |  # FTS match: rank >= 0.1 means search_vector exists and meets 10% minimum relevance
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
