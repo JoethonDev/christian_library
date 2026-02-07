@@ -81,6 +81,7 @@ urlpatterns = [
     path('api/health/', views.api_health, name='api_health'),
     path('api/home-data/', views.api_home_data, name='api_home_data'),
     path('api/search/', views.api_global_search, name='api_global_search'),
+    path('api/search/tags/', views.api_tag_search, name='api_tag_search'),
     path('api/stats/', views.api_content_stats, name='api_content_stats'),
     path('api/track-view/', views.api_track_content_view, name='api_track_content_view'),
 

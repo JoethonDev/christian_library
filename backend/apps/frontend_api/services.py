@@ -255,13 +255,8 @@ class ContentService:
         """Unified search with all filters - optimized queries"""
         current_language = get_language()
         
-        if not any([search_query, content_type_filter, tag_filter]):
-            return {
-                'results': [],
-                'available_tags': [],
-                'pagination': None,
-                'total_count': 0
-            }
+        # Allow search by tag filter alone (without search query)
+        # Original condition was too restrictive
         
         # Single optimized search query
         results_qs = ContentItem.objects.search_optimized(search_query, content_type_filter)
@@ -270,12 +265,19 @@ class ContentService:
         if tag_filter:
             results_qs = results_qs.filter(tags__id=tag_filter)
         
-        # Apply sorting (if not using FTS ranking)
-        if sort_by in ['title_ar', 'title_en'] or (not search_query or content_type_filter != 'pdf'):
+        # Apply sorting
+        # If search query is provided, results are already sorted by rank in search_optimized
+        # Only override sorting if explicitly requested or if no search query
+        if not search_query:
+            # No search query - sort by date or specified field
             if sort_by in ['title_ar', 'title_en']:
                 results_qs = results_qs.order_by(sort_by)
             else:
                 results_qs = results_qs.order_by('-created_at')
+        elif sort_by in ['title_ar', 'title_en']:
+            # Search query present but user wants to sort by title
+            results_qs = results_qs.order_by(sort_by)
+        # else: keep the FTS ranking order from search_optimized (-rank, -created_at)
         
         # Pagination
         paginator = Paginator(results_qs, per_page)
