@@ -76,8 +76,9 @@ COPY --chown=app:app docker/entrypoint.sh /app/entrypoint.sh
 COPY --chown=app:app docker/healthcheck.sh /app/healthcheck.sh
 COPY --chown=app:app docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Make executable
-RUN chmod +x /app/entrypoint.sh /app/healthcheck.sh
+# Fix line endings (CRLF to LF) for Windows compatibility and make executable
+RUN sed -i 's/\r$//' /app/entrypoint.sh /app/healthcheck.sh && \
+    chmod +x /app/entrypoint.sh /app/healthcheck.sh
 
 # Directory structure for App
 RUN mkdir -p /app/staticfiles /app/media /app/logs && \

@@ -52,8 +52,11 @@ case "$1" in
         wait_for_service "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "Redis"
         
         echo "⏰ Starting Celery Beat..."
-        rm -f celerybeat.pid
-        exec celery -A config beat -l info
+        # Use /tmp for pid and schedule files to avoid permission/locking issues in /app
+        rm -f /tmp/celerybeat.pid
+        # Verify python path and settings
+        echo "🔍 Environment: DJANGO_SETTINGS_MODULE=$DJANGO_SETTINGS_MODULE"
+        exec celery -A config beat -l info --pidfile=/tmp/celerybeat.pid --schedule=/tmp/celerybeat-schedule
         ;;
         
     supervisord)

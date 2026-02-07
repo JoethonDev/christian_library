@@ -95,8 +95,12 @@ services:
     command: ["worker"]
     env_file: .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
     volumes:
       - media_data:/app/media
       - logs_data:/app/logs
@@ -118,8 +122,12 @@ services:
     command: ["beat"]
     env_file: .env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
     volumes:
       - logs_data:/app/logs
     networks:
