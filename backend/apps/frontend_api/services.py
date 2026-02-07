@@ -88,6 +88,9 @@ class ContentService:
         # Query 3: Get popular tags with content count (if not cached)
         popular_tags = Tag.objects.popular(limit=8)
         
+        # Query 4: Get all active tags for the search filter
+        all_tags = Tag.objects.active().order_by('name_ar')
+        
         # Process in memory - zero additional queries
         current_language = get_language()
         
@@ -103,6 +106,9 @@ class ContentService:
             ),
             'popular_tags': self.language_processor.process_tag_list(
                 popular_tags, current_language
+            ),
+            'available_tags': self.language_processor.process_tag_list(
+                all_tags, current_language
             ),
             'stats': stats
         }
