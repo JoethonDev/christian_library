@@ -1,6 +1,6 @@
 services:
   #============================================================================
-  # Database Service (PostgreSQL 16)
+  # Database Service (IPv4 Internal Only)
   #============================================================================
   db:
     image: postgres:16-alpine
@@ -19,11 +19,11 @@ services:
       retries: 5
     networks:
       - backend
-    # Optimization: Tune for 8GB RAM VPS
+    # Tuning for 8GB RAM
     command: >
       postgres 
       -c shared_buffers=2GB 
-      -c effective_cache_size=2GB 
+      -c effective_cache_size=6GB 
       -c maintenance_work_mem=512MB 
       -c checkpoint_completion_target=0.9 
       -c wal_buffers=16MB 
@@ -35,7 +35,7 @@ services:
       -c max_wal_size=4GB
 
   #============================================================================
-  # Redis Service (Caching & Broker)
+  # Redis Service (IPv4 Internal Only)
   #============================================================================
   redis:
     image: redis:7.2-alpine
@@ -52,7 +52,7 @@ services:
       - backend
 
   #============================================================================
-  # Django Application (Gunicorn)
+  # Django Application
   #============================================================================
   app:
     build:
@@ -79,7 +79,7 @@ services:
       start_period: 30s
     networks:
       - backend
-      - frontend
+      - frontend   # Needs Frontend to reach Internet/R2
     deploy:
       resources:
         limits:
@@ -102,6 +102,7 @@ services:
       - logs_data:/app/logs
     networks:
       - backend
+      - frontend   # <--- ADDED: Needs Frontend to reach R2
     deploy:
       resources:
         limits:
@@ -123,9 +124,10 @@ services:
       - logs_data:/app/logs
     networks:
       - backend
+      - frontend   # <--- ADDED
 
   #============================================================================
-  # Nginx (Reverse Proxy & IPv6 Gateway)
+  # Nginx (Reverse Proxy)
   #============================================================================
   nginx:
     image: nginx:alpine
@@ -170,10 +172,9 @@ volumes:
 
 networks:
   backend:
-    enable_ipv6: true
-    ipam:
-      config:
-        - subnet: 2001:db8:10::/64
+    driver: bridge
+    # IPv6 DISABLED here. This fixes the DB healthcheck & entrypoint script.
+    
   frontend:
     driver: bridge
     enable_ipv6: true
