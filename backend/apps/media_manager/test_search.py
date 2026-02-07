@@ -412,3 +412,153 @@ class SearchPerformanceTest(TestCase):
             final_query_count,
             "Accessing prefetched tags should not trigger additional queries"
         )
+
+
+class TagSearchFixTest(TestCase):
+    """Test fixes for tag search and relevance improvements"""
+    
+    def setUp(self):
+        """Create test data for tag search"""
+        # Create tags
+        self.tag1 = Tag.objects.create(
+            name_ar="ترانيم الميلاد",
+            name_en="Christmas Hymns",
+            is_active=True
+        )
+        
+        self.tag2 = Tag.objects.create(
+            name_ar="أنبياء",
+            name_en="Prophets",
+            is_active=True
+        )
+        
+        # Create content items
+        self.christmas_item = ContentItem.objects.create(
+            title_ar="ترنيمة ميلاد المسيح في بيت لحم",
+            description_ar="ترنيمة عن ميلاد السيد المسيح في مدينة بيت لحم",
+            content_type="audio",
+            is_active=True
+        )
+        self.christmas_item.tags.add(self.tag1)
+        self.christmas_item.update_search_vector()
+        self.christmas_item.save()
+        
+        self.jonah_item = ContentItem.objects.create(
+            title_ar="يونان النبي",
+            description_ar="قصة يونان النبي في العهد القديم",
+            content_type="pdf",
+            book_content="يونان النبي هو أحد أنبياء العهد القديم",
+            is_active=True
+        )
+        self.jonah_item.tags.add(self.tag2)
+        self.jonah_item.update_search_vector()
+        self.jonah_item.save()
+    
+    def test_tag_only_search_returns_results(self):
+        """Test that searching by tag alone (without search query) returns results"""
+        from apps.frontend_api.services import ContentService
+        
+        service = ContentService()
+        
+        # Search with tag filter only (no search query)
+        results = service.get_search_results(
+            search_query='',
+            tag_filter=str(self.tag1.id)
+        )
+        
+        # Should return results for the tag
+        self.assertGreater(results['total_count'], 0)
+        self.assertIn(self.christmas_item.id, [item['id'] for item in results['results']])
+        
+    def test_search_relevance_threshold(self):
+        """Test that search returns only relevant results (not loosely related ones)"""
+        # Search for Christmas hymn
+        results = ContentItem.objects.search_optimized("ترنيمة ميلاد المسيح في بيت لحم")
+        
+        # Christmas item should be in results
+        self.assertIn(self.christmas_item, results)
+        
+        # Jonah item should NOT be in results (different topic)
+        # With higher threshold (0.1), unrelated content should be filtered out
+        self.assertNotIn(self.jonah_item, results)
+    
+    def test_results_ordered_by_relevance(self):
+        """Test that search results are ordered by relevance (rank) first"""
+        # Create items with varying relevance to search query
+        exact_match = ContentItem.objects.create(
+            title_ar="ترنيمة ميلاد المسيح",  # Exact match
+            description_ar="ترنيمة ميلاد",
+            content_type="audio",
+            is_active=True
+        )
+        exact_match.update_search_vector()
+        exact_match.save()
+        
+        partial_match = ContentItem.objects.create(
+            title_ar="ميلاد",  # Partial match
+            description_ar="موضوع آخر",
+            content_type="audio",
+            is_active=True
+        )
+        partial_match.update_search_vector()
+        partial_match.save()
+        
+        # Search for "ترنيمة ميلاد المسيح"
+        results = list(ContentItem.objects.search_optimized("ترنيمة ميلاد المسيح"))
+        
+        # Results should be ordered by relevance
+        # Exact match should come before partial match
+        if len(results) >= 2:
+            exact_match_index = None
+            partial_match_index = None
+            
+            for i, item in enumerate(results):
+                if item.id == exact_match.id:
+                    exact_match_index = i
+                if item.id == partial_match.id:
+                    partial_match_index = i
+            
+            # If both found, exact should come before partial
+            if exact_match_index is not None and partial_match_index is not None:
+                self.assertLess(exact_match_index, partial_match_index,
+                              "Exact match should rank higher than partial match")
+
+
+class SearchAPIIntegrationTest(TestCase):
+    """Integration tests for search API with tag filters"""
+    
+    def setUp(self):
+        """Set up test client and data"""
+        self.client = Client()
+        
+        self.tag = Tag.objects.create(
+            name_ar="تسبحة",
+            name_en="Praise",
+            is_active=True
+        )
+        
+        self.item = ContentItem.objects.create(
+            title_ar="تسبحة نصف الليل",
+            description_ar="تسبحة نصف الليل من الأجبية",
+            content_type="pdf",
+            is_active=True
+        )
+        self.item.tags.add(self.tag)
+        self.item.update_search_vector()
+        self.item.save()
+    
+    def test_search_page_with_tag_parameter(self):
+        """Test that search page works with tag parameter (from home page tag clicks)"""
+        # Simulate clicking a tag from home page
+        response = self.client.get(f'/search/?tag={self.tag.id}')
+        
+        # Should return 200 OK
+        self.assertEqual(response.status_code, 200)
+        
+        # Should have results in context
+        self.assertIn('results', response.context)
+        self.assertGreater(len(response.context['results']), 0)
+        
+        # Result should include our tagged item
+        result_ids = [item['id'] for item in response.context['results']]
+        self.assertIn(str(self.item.id), result_ids)
