@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.core.cache import cache
+from django.conf import settings
 import logging
 
 from .models import (
@@ -244,14 +245,36 @@ class PdfMetaInline(admin.StackedInline):
 @admin.register(ContentItem)
 class ContentItemAdmin(admin.ModelAdmin):
     form = ContentItemForm
-    list_display = ['title_display', 'content_type_display', 'tags_display', 'seo_status_display', 'status_display', 'is_active', 'created_at']
-    list_filter = ['content_type', 'is_active', 'created_at', 'tags']
+    list_display = ['title_display', 'content_type_display', 'tags_display', 'media_status_display', 'seo_status_display', 'is_active', 'created_at']
+    list_filter = ['content_type', 'is_active', 'processing_status', 'seo_processing_status', 'created_at', 'tags']
     search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 'seo_keywords_ar', 'seo_keywords_en']
     readonly_fields = ['id', 'created_at', 'updated_at', 'content_url', 'seo_metadata_preview']
     
+    # Status display configuration (shared across status display methods)
+    STATUS_COLORS = {
+        'pending': 'orange',
+        'processing': 'blue',
+        'completed': 'green',
+        'failed': 'red',
+    }
+    
+    STATUS_LABELS = {
+        'pending': _('Pending'),
+        'processing': _('Processing'),
+        'completed': _('Ready'),
+        'failed': _('Failed'),
+    }
+    
+    STATUS_SYMBOLS = {
+        'pending': '○',  # Empty circle
+        'processing': '◐',  # Half circle
+        'completed': '✓',  # Checkmark
+        'failed': '✗',  # X mark
+    }
+    
     fieldsets = (
         (_('Basic Information'), {
-            'fields': ('title_ar', 'title_en', 'description_ar', 'description_en')
+            'fields': ('title_ar', 'title_en', 'description_ar', 'description_en', 'notes', 'transcript')
         }),
         (_('Classification'), {
             'fields': ('content_type', 'tags')
@@ -327,38 +350,39 @@ class ContentItemAdmin(admin.ModelAdmin):
     tags_display.short_description = _('Tags')
     tags_display.allow_tags = True
     
-    def status_display(self, obj):
-        """Display processing status with visual indicators"""
+    def media_status_display(self, obj):
+        """Display media processing status (HLS/OCR/R2) with visual indicators"""
         try:
             meta = obj.get_meta_object()
             if not meta:
                 return format_html('<span style="color: gray;">-</span>')
             
-            status_colors = {
-                'pending': 'orange',
-                'processing': 'blue',
-                'completed': 'green',
-                'failed': 'red',
-            }
+            # Show both file processing and R2 upload status
+            file_color = self.STATUS_COLORS.get(meta.processing_status, 'gray')
+            file_label = self.STATUS_LABELS.get(meta.processing_status, meta.processing_status)
             
-            status_labels = {
-                'pending': _('Pending'),
-                'processing': _('Processing'),
-                'completed': _('Ready'),
-                'failed': _('Failed'),
-            }
-            
-            color = status_colors.get(meta.processing_status, 'gray')
-            label = status_labels.get(meta.processing_status, meta.processing_status)
+            # R2 status (if enabled)
+            r2_status = ''
+            if getattr(settings, 'R2_ENABLED', False) and hasattr(meta, 'r2_upload_status'):
+                r2_color = self.STATUS_COLORS.get(meta.r2_upload_status, 'gray')
+                if meta.r2_upload_status == 'completed':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ R2 Ready</small>'
+                elif meta.r2_upload_status == 'uploading':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ Uploading...</small>'
+                elif meta.r2_upload_status == 'pending':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ R2 Pending</small>'
+                elif meta.r2_upload_status == 'failed':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ R2 Failed</small>'
             
             return format_html(
-                '<span style="color: {}; font-weight: bold;">● {}</span>',
-                color,
-                label
+                '<span style="color: {}; font-weight: bold;">● File: {}</span>{}',
+                file_color,
+                file_label,
+                r2_status
             )
         except Exception:
             return format_html('<span style="color: gray;">-</span>')
-    status_display.short_description = _('Status')
+    media_status_display.short_description = _('Media Status')
     
     def content_url(self, obj):
         """Display content URL for frontend"""
@@ -389,20 +413,24 @@ class ContentItemAdmin(admin.ModelAdmin):
         )
     
     def seo_status_display(self, obj):
-        """Display SEO metadata status"""
-        if obj.has_seo_metadata():
+        """Display SEO generation status with processing state"""
+        color = self.STATUS_COLORS.get(obj.seo_processing_status, 'gray')
+        label = self.STATUS_LABELS.get(obj.seo_processing_status, obj.seo_processing_status)
+        symbol = self.STATUS_SYMBOLS.get(obj.seo_processing_status, '○')
+        
+        # Show keyword count if SEO is ready
+        extra_info = ''
+        if obj.seo_processing_status == 'completed' and obj.has_seo_metadata():
             keyword_count = len(obj.seo_keywords_ar) + len(obj.seo_keywords_en)
-            return format_html(
-                '<span style="color: green; font-weight: bold;">✓ SEO Ready</span><br>'
-                '<small>{} keywords</small>',
-                keyword_count
-            )
-        else:
-            return format_html(
-                '<span style="color: orange;">⚠ SEO Pending</span><br>'
-                '<small><a href="#" onclick="generateSEO({});">Generate</a></small>',
-                obj.pk
-            )
+            extra_info = f'<br><small>{keyword_count} keywords</small>'
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{} AI: {}</span>{}',
+            color,
+            symbol,
+            label,
+            extra_info
+        )
     seo_status_display.short_description = _('SEO Status')
     seo_status_display.allow_tags = True
     
@@ -457,7 +485,7 @@ class ContentItemAdmin(admin.ModelAdmin):
     seo_metadata_preview.short_description = _('SEO Metadata Preview')
     seo_metadata_preview.allow_tags = True
 
-    actions = ['make_active', 'make_inactive', 'reprocess_media', 'generate_seo_metadata']
+    actions = ['make_active', 'make_inactive', 'reprocess_media', 'generate_seo_metadata', 'force_regenerate_seo']
     
     def make_active(self, request, queryset):
         """Bulk activate content"""
@@ -519,6 +547,28 @@ class ContentItemAdmin(admin.ModelAdmin):
         if count > 0:
             messages.success(request, _(f'{count} items queued for SEO metadata generation.'))
     generate_seo_metadata.short_description = _('Generate SEO metadata')
+    
+    def force_regenerate_seo(self, request, queryset):
+        """Force regenerate SEO metadata for selected items (even if they already have SEO data)"""
+        from apps.media_manager.tasks import generate_seo_metadata_task
+        count = 0
+        for obj in queryset:
+            try:
+                # Check if media file exists
+                meta = obj.get_meta_object()
+                if meta and hasattr(meta, 'original_file') and meta.original_file:
+                    # Call with force_regenerate=True
+                    generate_seo_metadata_task.delay(str(obj.id), force_regenerate=True)
+                    count += 1
+                else:
+                    messages.warning(request, _(f'No media file found for "{obj.get_title()}"'))
+            except Exception as e:
+                logger.error(f"Error queuing force SEO regeneration for {obj.id}: {str(e)}")
+                messages.error(request, _(f'Error queuing forced SEO for "{obj.get_title()}": {str(e)}'))
+                
+        if count > 0:
+            messages.success(request, _(f'{count} items queued for FORCED SEO metadata regeneration.'))
+    force_regenerate_seo.short_description = _('Force Regenerate SEO (even if exists)')
 
 
 # Register individual meta models for direct access if needed

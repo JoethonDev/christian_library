@@ -251,6 +251,55 @@ CELERY_TASK_ACKS_LATE = True
 # Celery 6.0+ compatibility: retry broker connection on startup
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
+# Celery Task Routing Configuration
+# Separate queues per media type to ensure sequential processing within each type
+CELERY_TASK_ROUTES = {
+    # Video processing tasks -> 'videos' queue
+    'core.tasks.media_processing.process_video_to_hls': {'queue': 'videos'},
+    'core.tasks.media_processing.upload_video_to_r2': {'queue': 'videos'},
+    
+    # Audio processing tasks -> 'audios' queue
+    'core.tasks.media_processing.process_audio_compression': {'queue': 'audios'},
+    'core.tasks.media_processing.upload_audio_to_r2': {'queue': 'audios'},
+    
+    # PDF processing tasks -> 'pdfs' queue
+    'core.tasks.media_processing.process_pdf_optimization': {'queue': 'pdfs'},
+    'core.tasks.media_processing.upload_pdf_to_r2': {'queue': 'pdfs'},
+    'apps.media_manager.tasks.extract_and_index_contentitem': {'queue': 'pdfs'},
+    
+    # SEO generation tasks -> 'seo' queue (can run in parallel)
+    'apps.media_manager.tasks.generate_seo_metadata_task': {'queue': 'seo'},
+    
+    # Other tasks use default queue
+}
+
+# Define queue configurations
+# Each media type queue processes one item at a time (FIFO)
+# SEO queue can process multiple items in parallel
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TASK_QUEUES = {
+    'default': {
+        'exchange': 'default',
+        'routing_key': 'default',
+    },
+    'videos': {
+        'exchange': 'videos',
+        'routing_key': 'videos',
+    },
+    'audios': {
+        'exchange': 'audios',
+        'routing_key': 'audios',
+    },
+    'pdfs': {
+        'exchange': 'pdfs',
+        'routing_key': 'pdfs',
+    },
+    'seo': {
+        'exchange': 'seo',
+        'routing_key': 'seo',
+    },
+}
+
 # Periodic tasks
 from celery.schedules import crontab
 

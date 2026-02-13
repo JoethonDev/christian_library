@@ -538,20 +538,132 @@ SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 ```
 
+## ⚙️ Celery Worker Architecture
+
+The application uses a **queue-based Celery architecture** to ensure sequential processing of media files by type while allowing parallel SEO generation.
+
+### Queue Configuration
+
+| Queue | Purpose | Concurrency | Processing |
+|-------|---------|-------------|------------|
+| `videos` | Video HLS encoding & R2 upload | 1 | Sequential (one at a time) |
+| `audios` | Audio compression & R2 upload | 1 | Sequential (one at a time) |
+| `pdfs` | PDF optimization & text extraction | 1 | Sequential (one at a time) |
+| `seo` | AI-powered SEO metadata generation | 4 | Parallel (up to 4 concurrent) |
+| `default` | Miscellaneous tasks | 2 | Parallel (up to 2 concurrent) |
+
+### Worker Services (Docker Compose)
+
+```yaml
+# Separate worker for each queue
+services:
+  celery_worker_videos:
+    command: ["worker", "-Q", "videos", "-c", "1", "-n", "videos@%h"]
+  
+  celery_worker_audios:
+    command: ["worker", "-Q", "audios", "-c", "1", "-n", "audios@%h"]
+  
+  celery_worker_pdfs:
+    command: ["worker", "-Q", "pdfs", "-c", "1", "-n", "pdfs@%h"]
+  
+  celery_worker_seo:
+    command: ["worker", "-Q", "seo", "-c", "4", "-n", "seo@%h"]
+  
+  celery_worker_default:
+    command: ["worker", "-Q", "default", "-c", "2", "-n", "default@%h"]
+```
+
+### Processing Flow
+
+```
+Upload Media File
+      ↓
+┌─────────────────────────────────────┐
+│  Sequential File Processing         │
+│  (Queue: videos/audios/pdfs)        │
+│  - One file at a time per type      │
+│  - HLS encoding / Compression / OCR │
+│  - Mark processing_status=completed │
+└─────────────────────────────────────┘
+      ↓
+┌─────────────────────────────────────┐
+│  Parallel Execution (After File)    │
+│  ┌──────────────┐  ┌──────────────┐ │
+│  │ R2 Upload    │  │ SEO Generation│ │
+│  │ (Same Queue) │  │ (SEO Queue)   │ │
+│  └──────────────┘  └──────────────┘ │
+└─────────────────────────────────────┘
+      ↓
+┌─────────────────────────────────────┐
+│  Cleanup (When Both Complete)       │
+│  - Delete local files after:        │
+│    1. R2 upload completed           │
+│    2. SEO generation completed      │
+└─────────────────────────────────────┘
+```
+
+### Benefits
+
+- **Sequential Media Processing**: Videos/audios/PDFs process one at a time (prevents resource exhaustion)
+- **Type Isolation**: Video processing doesn't block PDF extraction (separate queues)
+- **Parallel SEO**: AI metadata generation runs concurrently (faster completion)
+- **Resource Control**: Each queue has specific concurrency limits
+
+### Local Development (Manual Workers)
+
+```bash
+# Start workers for specific queues (separate terminals)
+celery -A config worker -Q videos -c 1 --loglevel=info -n videos@localhost
+celery -A config worker -Q audios -c 1 --loglevel=info -n audios@localhost
+celery -A config worker -Q pdfs -c 1 --loglevel=info -n pdfs@localhost
+celery -A config worker -Q seo -c 4 --loglevel=info -n seo@localhost
+celery -A config worker -Q default -c 2 --loglevel=info -n default@localhost
+
+# Or start all workers in one process (for development only)
+celery -A config worker -Q videos,audios,pdfs,seo,default -c 4 --loglevel=info
+```
+
+### Monitoring Workers
+
+```bash
+# Check active workers
+docker-compose exec celery_worker_videos celery -A config inspect active
+
+# View all registered tasks
+docker-compose exec celery_worker_videos celery -A config inspect registered
+
+# Monitor queue lengths
+docker-compose exec redis redis-cli LLEN videos
+docker-compose exec redis redis-cli LLEN audios
+docker-compose exec redis redis-cli LLEN pdfs
+docker-compose exec redis redis-cli LLEN seo
+
+# View worker logs
+docker-compose logs -f celery_worker_videos
+docker-compose logs -f celery_worker_seo
+```
+
 ## 🔧 Troubleshooting
 
 ### Common Issues
 
 #### 1. Media Processing Failures
 ```bash
-# Check Celery worker status
-docker-compose exec celery celery -A config inspect active
+# Check specific worker status
+docker-compose exec celery_worker_videos celery -A config inspect active
+docker-compose exec celery_worker_pdfs celery -A config inspect active
 
-# View processing logs
-docker-compose logs -f celery
+# View processing logs for specific media types
+docker-compose logs -f celery_worker_videos
+docker-compose logs -f celery_worker_audios
+docker-compose logs -f celery_worker_pdfs
+docker-compose logs -f celery_worker_seo
 
-# Restart media processing
-docker-compose restart celery
+# Restart specific worker
+docker-compose restart celery_worker_videos
+
+# Restart all workers
+docker-compose restart celery_worker_videos celery_worker_audios celery_worker_pdfs celery_worker_seo celery_worker_default
 ```
 
 #### 2. SSL Certificate Issues
@@ -617,8 +729,15 @@ docker-compose exec redis redis-cli info keyspace
 
 #### Media Processing Performance
 ```bash
-# Monitor processing queue
-docker-compose exec celery celery -A config inspect stats
+# Monitor processing queue for specific media types
+docker-compose exec celery_worker_videos celery -A config inspect stats
+docker-compose exec celery_worker_pdfs celery -A config inspect stats
+
+# Check queue lengths in Redis
+docker-compose exec redis redis-cli LLEN videos
+docker-compose exec redis redis-cli LLEN audios
+docker-compose exec redis redis-cli LLEN pdfs
+docker-compose exec redis redis-cli LLEN seo
 
 # Check disk usage
 df -h

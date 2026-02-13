@@ -42,9 +42,14 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
             )
             return
         
-        # Update task status to indicate processing has started
-        item.processing_status = 'processing'
-        item.save(update_fields=['processing_status'])
+        # Update task status to indicate processing has started (only if not already completed)
+        # For PDFs, the file processing (optimization) completes first, then text extraction happens
+        # We don't want to overwrite 'completed' status from file processing
+        if item.processing_status != 'completed':
+            item.processing_status = 'processing'
+            item.save(update_fields=['processing_status'])
+        else:
+            logger.debug(f"ContentItem {contentitem_id} already has processing_status='completed', skipping update")
         
         TaskMonitor.update_progress(
             self.request.id, 
@@ -145,11 +150,15 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=60)
-def generate_seo_metadata_task(self, contentitem_id):
+def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
     """
     Generate SEO metadata for content using Gemini AI.
     Retries up to 2 times with 2-minute delays on failure.
     Now decoupled from R2 upload and activation.
+    
+    Args:
+        contentitem_id: ID of the ContentItem to generate SEO for
+        force_regenerate: If True, regenerate even if SEO data already exists
     """
     logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
@@ -158,13 +167,25 @@ def generate_seo_metadata_task(self, contentitem_id):
     TaskMonitor.register_task(
         task_id=self.request.id,
         task_name='AI SEO Metadata Generation',
-        metadata={'content_id': contentitem_id, 'attempt': self.request.retries + 1}
+        metadata={'content_id': contentitem_id, 'attempt': self.request.retries + 1, 'force': force_regenerate}
     )
     
     try:
-        logger.info(f"Starting SEO metadata generation for ContentItem {contentitem_id}")
+        logger.info(f"Starting SEO metadata generation for ContentItem {contentitem_id} (force={force_regenerate})")
         
         item = ContentItem.objects.get(id=contentitem_id)
+        
+        # Skip if SEO metadata already exists (unless force_regenerate is True)
+        if not force_regenerate and item.has_seo_metadata():
+            logger.info(f"ContentItem {contentitem_id} already has SEO metadata. Skipping generation (use force_regenerate=True to override).")
+            item.seo_processing_status = 'completed'
+            item.save(update_fields=['seo_processing_status'])
+            TaskMonitor.update_task_status(
+                self.request.id, 
+                'SUCCESS', 
+                {'message': 'SEO metadata already exists - skipped', 'progress': 100}
+            )
+            return
         
         # Update SEO status to processing
         item.seo_processing_status = 'processing'
@@ -239,14 +260,17 @@ def generate_seo_metadata_task(self, contentitem_id):
             success_update = item.update_seo_from_gemini(seo_metadata)
             
             if success_update:
-                # Mark processing as completed
+                # Mark SEO processing as completed
                 item.seo_processing_status = 'completed'
-                # If it's a video or audio, we also mark the main processing status as completed
-                # (For PDF, it's marked completed after optimization but before OCR/SEO)
-                if item.content_type in ['video', 'audio']:
-                    item.processing_status = 'completed'
                 
-                item.save(update_fields=['seo_processing_status', 'processing_status'])
+                # Only update processing_status if not already completed
+                # (The file processing task should have already marked it as completed)
+                update_fields = ['seo_processing_status']
+                if item.processing_status != 'completed':
+                    item.processing_status = 'completed'
+                    update_fields.append('processing_status')
+                
+                item.save(update_fields=update_fields)
                 
                 logger.info(f"Successfully generated and updated SEO metadata for ContentItem {contentitem_id}")
                 
@@ -367,7 +391,7 @@ def finalize_media_processing(contentitem_id):
                     if hasattr(meta, 'optimized_file') and meta.optimized_file and os.path.exists(meta.optimized_file.path):
                         local_paths.append(str(meta.optimized_file.path))
                 
-                if local_paths:
+                if local_paths and item.has_seo_metadata():
                     delete_files_task.delay(local_paths)
                     logger.info(f"Queued deletion for {len(local_paths)} paths for item {item.id}")
                     
