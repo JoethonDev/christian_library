@@ -517,12 +517,21 @@ class ContentItem(models.Model):
     def save(self, *args, **kwargs):
         """
         Override save to trigger background extraction/indexing if relevant fields change.
-        Extraction and FTS update are always done in the background (never synchronously).
+        Also synchronizes JSON-LD structured data with model fields.
         Ensuring structured_data is synchronized with basic fields.
         Populates title_ar from filename if empty.
         """
         update_fields = kwargs.get('update_fields')
-        is_new = self._state.adding
+        
+        # Synchronize structured data before saving if it's not being explicitly 
+        # provided (like from Gemini AI or manual JSON edit)
+        if not update_fields or ('title_en' in update_fields or 'title_ar' in update_fields):
+            self.sync_structured_data()
+            if update_fields and 'structured_data' not in update_fields:
+                if isinstance(update_fields, list):
+                    update_fields.append('structured_data')
+                elif isinstance(update_fields, tuple):
+                    kwargs['update_fields'] = list(update_fields) + ['structured_data']
 
         # Default title_ar to filename if empty and we have a linked meta object
         if not self.title_ar:
@@ -544,7 +553,7 @@ class ContentItem(models.Model):
                     update_fields.append('structured_data')
                 elif isinstance(update_fields, set):
                     update_fields.add('structured_data')
-        
+
         super().save(*args, **kwargs)
         
         # Only trigger for PDFs
@@ -1029,6 +1038,14 @@ class ContentItem(models.Model):
             return self.structured_data
             
         return ''
+
+    @property
+    def structured_data_en_json(self):
+        return self.get_structured_data_json('en')
+
+    @property
+    def structured_data_ar_json(self):
+        return self.get_structured_data_json('ar')
 
     def get_canonical_url(self):
         """Get canonical URL for SEO"""
@@ -2141,3 +2158,79 @@ class DailyContentViewSummary(models.Model):
 
     def __str__(self):
         return f"{self.content_type} - {self.content_id} on {self.date}: {self.view_count} views ({self.unique_view_count} unique)"
+
+
+class SiteConfiguration(models.Model):
+    """
+    Global site configuration for SEO and branding.
+    Used for the homepage SEO and as the 'publisher' for all content.
+    """
+    site_name_en = models.CharField(max_length=255, default="Christian Library")
+    site_name_ar = models.CharField(max_length=255, default="المكتبة المسيحية")
+    description_en = models.TextField(blank=True)
+    description_ar = models.TextField(blank=True)
+    logo_url = models.URLField(blank=True, help_text="URL to the organization logo")
+    website_url = models.URLField(blank=True, help_text="Primary website URL")
+    
+    # Global Structured Data (Organization/Website)
+    structured_data = models.JSONField(
+        default=dict, 
+        blank=True,
+        help_text="Bilingual JSON-LD for Organization. Use {'en': {...}, 'ar': {...}} structure."
+    )
+    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Site Configuration"
+        verbose_name_plural = "Site Configuration"
+
+    def __str__(self):
+        return f"Site Configuration ({self.site_name_en})"
+
+    def save(self, *args, **kwargs):
+        self.sync_structured_data()
+        super().save(*args, **kwargs)
+
+    def sync_structured_data(self):
+        """Synchronize the JSON-LD with field values for Organization/Website"""
+        if not isinstance(self.structured_data, dict) or not self.structured_data:
+            self.structured_data = {"en": {}, "ar": {}}
+            
+        organization_id = "#organization"
+        if self.website_url:
+            organization_id = f"{self.website_url.rstrip('/')}/#organization"
+
+        for lang in ['en', 'ar']:
+            if lang not in self.structured_data:
+                self.structured_data[lang] = {}
+            
+            name = self.site_name_en if lang == 'en' else self.site_name_ar
+            description = self.description_en if lang == 'en' else self.description_ar
+            
+            self.structured_data[lang].update({
+                "@context": "https://schema.org",
+                "@type": "Organization",
+                "@id": organization_id,
+                "name": name,
+                "description": description,
+                "url": self.website_url,
+                "logo": self.logo_url
+            })
+
+    def get_structured_data_json(self, lang='en'):
+        """Get structured data as JSON string for a specific language"""
+        import json
+        if self.structured_data and isinstance(self.structured_data, dict):
+            if lang in self.structured_data:
+                return json.dumps(self.structured_data[lang], ensure_ascii=False, indent=2)
+            return json.dumps(self.structured_data, ensure_ascii=False, indent=2)
+        return ''
+
+    @property
+    def structured_data_en_json(self):
+        return self.get_structured_data_json('en')
+
+    @property
+    def structured_data_ar_json(self):
+        return self.get_structured_data_json('ar')

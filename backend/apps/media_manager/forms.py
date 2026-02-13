@@ -5,17 +5,30 @@ import os
 
 
 class ContentItemForm(forms.ModelForm):
-    """Enhanced form for ContentItem with validation"""
+    """Enhanced form for ContentItem with validation and JSON support"""
     title_ar = forms.CharField(required=False, widget=forms.TextInput(attrs={'dir': 'rtl', 'class': 'text-right'}))
     
     class Meta:
         model = ContentItem
-        fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 
-                 'content_type', 'tags', 'structured_data', 'is_active']
+        fields = [
+            'title_ar', 'title_en', 
+            'description_ar', 'description_en', 
+            'seo_title_ar', 'seo_title_en',
+            'seo_meta_description_ar', 'seo_meta_description_en',
+            'seo_keywords_ar', 'seo_keywords_en',
+            'content_type', 'tags', 'structured_data', 'is_active', 'structured_data'
+        ]
         widgets = {
-            'description_ar': forms.Textarea(attrs={'rows': 4}),
-            'description_en': forms.Textarea(attrs={'rows': 4}),
+            'description_ar': forms.Textarea(attrs={'rows': 3}),
+            'description_en': forms.Textarea(attrs={'rows': 3}),
+            'seo_meta_description_ar': forms.Textarea(attrs={'rows': 2}),
+            'seo_meta_description_en': forms.Textarea(attrs={'rows': 2}),
             'tags': forms.CheckboxSelectMultiple(),
+            'structured_data': forms.Textarea(attrs={
+                'rows': 15, 
+                'class': 'vLargeTextField font-monospace',
+                'style': 'font-family: monospace;'
+            }),
             'structured_data': forms.Textarea(attrs={
                 'rows': 10, 
                 'class': 'font-monospace',
@@ -30,6 +43,34 @@ class ContentItemForm(forms.ModelForm):
             if 'ar' in field_name and field_name != 'title_ar': # Skip title_ar as handled above
                 field.widget.attrs['dir'] = 'rtl'
                 field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' text-right'
+        
+        # Pretty-print JSON for the form
+        if self.instance and self.instance.pk and self.instance.structured_data:
+            import json
+            try:
+                self.initial['structured_data'] = json.dumps(
+                    self.instance.structured_data, 
+                    indent=4, 
+                    ensure_ascii=False
+                )
+            except (ValueError, TypeError):
+                pass
+
+    def clean_structured_data(self):
+        data = self.cleaned_data.get('structured_data')
+        if not data:
+            return {}
+        
+        if isinstance(data, str):
+            try:
+                import json
+                parsed_data = json.loads(data)
+                if not isinstance(parsed_data, dict):
+                    raise ValidationError("Structured data must be a JSON object (dictionary)")
+                return parsed_data
+            except json.JSONDecodeError as e:
+                raise ValidationError(f"Invalid JSON format: {str(e)}")
+        return data
         
         # Pretty print JSON if it exists
         if self.instance and self.instance.pk and self.instance.structured_data:
