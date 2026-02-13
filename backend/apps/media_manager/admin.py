@@ -271,13 +271,14 @@ class ContentItemAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (_('Basic Information'), {
-            'fields': ('title_ar', 'title_en', 'description_ar', 'description_en')
+            'fields': ('title_ar', 'title_en', 'description_ar', 'description_en', 'notes', 'transcript')
         }),
         (_('Classification'), {
             'fields': ('content_type', 'tags')
         }),
         (_('SEO Metadata (AI Generated)'), {
             'fields': (
+                'seo_title_ar', 'seo_title_en',
                 'tags_en', 
                 'seo_keywords_ar', 'seo_keywords_en',
                 'seo_meta_description_ar', 'seo_meta_description_en',
@@ -481,7 +482,7 @@ class ContentItemAdmin(admin.ModelAdmin):
     seo_metadata_preview.short_description = _('SEO Metadata Preview')
     seo_metadata_preview.allow_tags = True
 
-    actions = ['make_active', 'make_inactive', 'reprocess_media', 'generate_seo_metadata']
+    actions = ['make_active', 'make_inactive', 'reprocess_media', 'generate_seo_metadata', 'force_regenerate_seo']
     
     def make_active(self, request, queryset):
         """Bulk activate content"""
@@ -543,6 +544,28 @@ class ContentItemAdmin(admin.ModelAdmin):
         if count > 0:
             messages.success(request, _(f'{count} items queued for SEO metadata generation.'))
     generate_seo_metadata.short_description = _('Generate SEO metadata')
+    
+    def force_regenerate_seo(self, request, queryset):
+        """Force regenerate SEO metadata for selected items (even if they already have SEO data)"""
+        from apps.media_manager.tasks import generate_seo_metadata_task
+        count = 0
+        for obj in queryset:
+            try:
+                # Check if media file exists
+                meta = obj.get_meta_object()
+                if meta and hasattr(meta, 'original_file') and meta.original_file:
+                    # Call with force_regenerate=True
+                    generate_seo_metadata_task.delay(str(obj.id), force_regenerate=True)
+                    count += 1
+                else:
+                    messages.warning(request, _(f'No media file found for "{obj.get_title()}"'))
+            except Exception as e:
+                logger.error(f"Error queuing force SEO regeneration for {obj.id}: {str(e)}")
+                messages.error(request, _(f'Error queuing forced SEO for "{obj.get_title()}": {str(e)}'))
+                
+        if count > 0:
+            messages.success(request, _(f'{count} items queued for FORCED SEO metadata regeneration.'))
+    force_regenerate_seo.short_description = _('Force Regenerate SEO (even if exists)')
 
 
 # Register individual meta models for direct access if needed

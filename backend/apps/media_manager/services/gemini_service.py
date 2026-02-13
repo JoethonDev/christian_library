@@ -933,6 +933,22 @@ ALL fields are required and must contain appropriate content.
             metadata.get('seo_meta_description_en', defaults['seo_meta_description_en'])
         ).strip()[:160]
         
+        # SEO Titles
+        cleaned['seo_title_ar'] = str(
+            metadata.get('seo_title_ar', '')
+        ).strip()[:70]
+        cleaned['seo_title_en'] = str(
+            metadata.get('seo_title_en', '')
+        ).strip()[:70]
+        
+        # Transcript and Notes
+        cleaned['transcript'] = str(
+            metadata.get('transcript', '')
+        ).strip()
+        cleaned['notes'] = str(
+            metadata.get('notes', '')
+        ).strip()
+        
         # SEO Title Suggestions (max 3, max 60 chars each)
         cleaned['seo_title_suggestions'] = self._validate_string_array(
             metadata.get('seo_title_suggestions', []), max_items=3, max_length=60

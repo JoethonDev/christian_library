@@ -150,11 +150,15 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
 
 
 @shared_task(bind=True, max_retries=2, default_retry_delay=60)
-def generate_seo_metadata_task(self, contentitem_id):
+def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
     """
     Generate SEO metadata for content using Gemini AI.
     Retries up to 2 times with 2-minute delays on failure.
     Now decoupled from R2 upload and activation.
+    
+    Args:
+        contentitem_id: ID of the ContentItem to generate SEO for
+        force_regenerate: If True, regenerate even if SEO data already exists
     """
     logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
@@ -163,13 +167,25 @@ def generate_seo_metadata_task(self, contentitem_id):
     TaskMonitor.register_task(
         task_id=self.request.id,
         task_name='AI SEO Metadata Generation',
-        metadata={'content_id': contentitem_id, 'attempt': self.request.retries + 1}
+        metadata={'content_id': contentitem_id, 'attempt': self.request.retries + 1, 'force': force_regenerate}
     )
     
     try:
-        logger.info(f"Starting SEO metadata generation for ContentItem {contentitem_id}")
+        logger.info(f"Starting SEO metadata generation for ContentItem {contentitem_id} (force={force_regenerate})")
         
         item = ContentItem.objects.get(id=contentitem_id)
+        
+        # Skip if SEO metadata already exists (unless force_regenerate is True)
+        if not force_regenerate and item.has_seo_metadata():
+            logger.info(f"ContentItem {contentitem_id} already has SEO metadata. Skipping generation (use force_regenerate=True to override).")
+            item.seo_processing_status = 'completed'
+            item.save(update_fields=['seo_processing_status'])
+            TaskMonitor.update_task_status(
+                self.request.id, 
+                'SUCCESS', 
+                {'message': 'SEO metadata already exists - skipped', 'progress': 100}
+            )
+            return
         
         # Update SEO status to processing
         item.seo_processing_status = 'processing'

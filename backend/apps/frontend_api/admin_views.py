@@ -91,12 +91,50 @@ def content_detail(request, content_id):
                 title_en = request.POST.get('title_en')
                 description_ar = request.POST.get('description_ar')
                 description_en = request.POST.get('description_en')
+                notes = request.POST.get('notes', '')
+                transcript = request.POST.get('transcript', '')
+                seo_title_ar = request.POST.get('seo_title_ar', '')
+                seo_title_en = request.POST.get('seo_title_en', '')
+                tags_input = request.POST.get('tags', '')
                 
+                # Update basic fields
                 content.title_ar = title_ar
                 content.title_en = title_en
                 content.description_ar = description_ar
                 content.description_en = description_en
-                content.save(update_fields=['title_ar', 'title_en', 'description_ar', 'description_en', 'updated_at'])
+                content.notes = notes
+                content.transcript = transcript
+                content.seo_title_ar = seo_title_ar
+                content.seo_title_en = seo_title_en
+                content.save(update_fields=[
+                    'title_ar', 'title_en', 'description_ar', 'description_en',
+                    'notes', 'transcript', 'seo_title_ar', 'seo_title_en', 'updated_at'
+                ])
+                
+                # Handle tags - parse comma-separated tag names
+                if tags_input:
+                    from apps.media_manager.models import Tag
+                    tag_names = [name.strip() for name in tags_input.split(',') if name.strip()]
+                    tag_objects = []
+                    
+                    for tag_name in tag_names:
+                        # Try to find existing tag by Arabic name
+                        tag = Tag.objects.filter(name_ar=tag_name, is_active=True).first()
+                        if tag:
+                            tag_objects.append(tag)
+                        else:
+                            # Create new tag if it doesn't exist
+                            try:
+                                tag = Tag.objects.create(name_ar=tag_name, is_active=True)
+                                tag_objects.append(tag)
+                                logger.info(f"Created new tag: {tag_name}")
+                            except Exception as e:
+                                logger.warning(f"Could not create tag '{tag_name}': {e}")
+                    
+                    # Update the tags relationship
+                    content.tags.set(tag_objects)
+                    logger.info(f"Updated tags for content {content_id}: {tag_names}")
+                
                 messages.success(request, _("Sacred metadata updated successfully"))
             
             # Re-fetch content to reflect changes
