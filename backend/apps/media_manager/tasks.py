@@ -247,8 +247,11 @@ def generate_seo_metadata_task(self, contentitem_id):
                 
                 # Only update processing_status if not already completed
                 # (The file processing task should have already marked it as completed)
+                # Note: content_type check is defensive - this task should only run for media types
                 update_fields = ['seo_processing_status']
                 if item.processing_status != 'completed':
+                    # Defensive check: ensure we only set for media content types
+                    # This task is triggered from media processing, so should always be true
                     if item.content_type in ['video', 'audio', 'pdf']:
                         item.processing_status = 'completed'
                         update_fields.append('processing_status')

@@ -416,8 +416,16 @@ class ContentItemAdmin(admin.ModelAdmin):
             'failed': _('Failed'),
         }
         
+        status_symbols = {
+            'pending': '○',  # Empty circle
+            'processing': '◐',  # Half circle
+            'completed': '✓',  # Checkmark
+            'failed': '✗',  # X mark
+        }
+        
         color = status_colors.get(obj.seo_processing_status, 'gray')
         label = status_labels.get(obj.seo_processing_status, obj.seo_processing_status)
+        symbol = status_symbols.get(obj.seo_processing_status, '○')
         
         # Show keyword count if SEO is ready
         extra_info = ''
@@ -426,8 +434,9 @@ class ContentItemAdmin(admin.ModelAdmin):
             extra_info = f'<br><small>{keyword_count} keywords</small>'
         
         return format_html(
-            '<span style="color: {}; font-weight: bold;">✓ AI: {}</span>{}',
+            '<span style="color: {}; font-weight: bold;">{} AI: {}</span>{}',
             color,
+            symbol,
             label,
             extra_info
         )
