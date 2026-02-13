@@ -48,6 +48,8 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         if item.processing_status != 'completed':
             item.processing_status = 'processing'
             item.save(update_fields=['processing_status'])
+        else:
+            logger.debug(f"ContentItem {contentitem_id} already has processing_status='completed', skipping update")
         
         TaskMonitor.update_progress(
             self.request.id, 

@@ -359,8 +359,7 @@ class ContentItemAdmin(admin.ModelAdmin):
             
             # R2 status (if enabled)
             r2_status = ''
-            r2_enabled = hasattr(settings, 'R2_ENABLED') and settings.R2_ENABLED
-            if r2_enabled and hasattr(meta, 'r2_upload_status'):
+            if getattr(settings, 'R2_ENABLED', False) and hasattr(meta, 'r2_upload_status'):
                 r2_color = self.STATUS_COLORS.get(meta.r2_upload_status, 'gray')
                 if meta.r2_upload_status == 'completed':
                     r2_status = f'<br><small style="color: {r2_color};">☁ R2 Ready</small>'
