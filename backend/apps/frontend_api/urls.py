@@ -40,6 +40,7 @@ urlpatterns = [
     path('dashboard/content/', admin_views.content_list, name='admin_content_list'),
     path('dashboard/content/<uuid:content_id>/', admin_views.content_detail, name='admin_content_detail'),
     path('dashboard/content/<uuid:content_id>/delete/', admin_views.content_delete_confirm, name='content_delete_confirm'),
+    path('dashboard/content/<uuid:content_id>/delete-local/', admin_views.delete_local_confirm, name='delete_local_confirm'),
     path('dashboard/content/delete/<uuid:content_id>/', admin_views.content_delete_confirm, name='admin_content_delete'),
     
     # Upload functionality (at /en/dashboard/upload/)
@@ -69,6 +70,7 @@ urlpatterns = [
     path('dashboard/seo/content-analysis-api/', seo_views.seo_content_analysis_api, name='seo_content_analysis_api'),
     path('dashboard/seo/bulk-actions-api/', seo_views.bulk_seo_actions_api, name='bulk_seo_actions_api'),
     path('dashboard/seo/monitoring-api/', seo_views.seo_monitoring_api, name='seo_monitoring_api'),
+    path('dashboard/seo/site-config-api/', seo_views.site_seo_api, name='site_seo_api'),
     
     # Legacy admin interfaces (redirects to dashboard for backward compatibility)
     path('admin/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_redirect'),

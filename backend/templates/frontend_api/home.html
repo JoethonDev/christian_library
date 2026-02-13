@@ -2,6 +2,10 @@
 {% extends "base.html" %}
 {% load i18n static %}
 
+{% block meta %}
+    {% include "includes/seo_meta.html" %}
+{% endblock %}
+
 {% block content %}
 
 <!-- Main Title Section -->
@@ -10,9 +14,9 @@
         <h1 class="hero-title-coptic">
             {% get_current_language as LANGUAGE_CODE %}
             {% if LANGUAGE_CODE == 'ar' %}
-                مكتبة الحبر الجليل الانبا ابرام مطران الفيوم و رئيس دير الملاك غبريال النقلون
+                مكتبة الحبر الجليل الانبا ابرام مطران الفيوم و رئيس اديرتها
             {% else %}
-                Library of His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of Archangel Gabriel Monastery, Naqlun
+                Library of His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of its Monasteries
             {% endif %}
         </h1>
     </div>

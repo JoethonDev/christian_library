@@ -27,6 +27,7 @@ case "$1" in
         echo "🗃️  Checking migrations..."
         # In production, automated migrations can be risky. 
         # Uncomment next line if you want auto-migrations on startup.
+        python manage.py makemigrations --merge --noinput
         python manage.py migrate --noinput
         
         echo "🚀 Starting Gunicorn (Gevent)..."

@@ -83,7 +83,7 @@
         </div>
         
         <!-- Download Button - Desktop Only -->
-        {% if pdf.pdfmeta %}
+        {% if pdf.pdfmeta.get_direct_download_url %}
         <div class="d-none d-lg-block">
             <a href="{{ pdf.pdfmeta.get_direct_download_url }}" 
                class="btn btn-primary rounded-pill px-4 py-2 touch-target smooth-transition" 
@@ -159,7 +159,7 @@
 {% endif %}
 
 <!-- Sticky Mobile Actions -->
-{% if pdf.pdfmeta %}
+{% if pdf.pdfmeta.get_direct_download_url %}
 <div class="sticky-actions-mobile">
     <a href="{{ pdf.pdfmeta.get_direct_download_url }}" 
        class="btn btn-primary w-100 rounded-pill py-3 touch-target smooth-transition" 

@@ -79,7 +79,7 @@
                 </div>
                 
                 <!-- Download Button - Desktop Only -->
-                {% if video.videometa %}
+                {% if video.videometa.get_direct_download_url %}
                 <div class="d-none d-lg-block">
                     <a href="{{ video.videometa.get_direct_download_url }}" 
                        class="btn btn-primary rounded-pill px-4 py-2 touch-target smooth-transition" 
@@ -170,7 +170,7 @@
 </div>
 
 <!-- Sticky Mobile Actions -->
-{% if video.videometa %}
+{% if video.videometa.get_direct_download_url %}
 <div class="sticky-actions-mobile">
     <a href="{{ video.videometa.get_direct_download_url }}" 
        class="btn btn-primary w-100 rounded-pill py-3 touch-target smooth-transition" 

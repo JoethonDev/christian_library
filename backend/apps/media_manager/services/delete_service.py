@@ -58,3 +58,71 @@ class MediaProcessingService:
         except Exception as e:
             logger.error(f"[MediaProcessingService] Error deleting content id={content_item.id}: {str(e)}")
             return False, f"Error deleting content: {str(e)}"
+
+    def delete_local_file_only(self, content_item):
+        """
+        Delete ONLY local files for content item, keeping database record and R2 copy.
+        Returns (success: bool, message: str)
+        """
+        logger = logging.getLogger(__name__)
+        try:
+            logger.info(f"[MediaProcessingService] Local file deletion requested for ContentItem id={content_item.id}")
+            
+            files_to_delete = []
+            meta = None
+            
+            if content_item.content_type == 'video':
+                meta = getattr(content_item, 'videometa', None)
+                if meta:
+                    if not meta.r2_original_video_url:
+                        return False, "Cannot delete local file: Not yet uploaded to R2."
+                    if meta.original_file:
+                        files_to_delete.append(meta.original_file.path)
+                    if meta.hls_720p_path:
+                        files_to_delete.append(os.path.join(self.media_root, meta.hls_720p_path))
+                    if meta.hls_480p_path:
+                        files_to_delete.append(os.path.join(self.media_root, meta.hls_480p_path))
+            
+            elif content_item.content_type == 'audio':
+                meta = getattr(content_item, 'audiometa', None)
+                if meta:
+                    if not meta.r2_original_audio_url:
+                        return False, "Cannot delete local file: Not yet uploaded to R2."
+                    if meta.original_file:
+                        files_to_delete.append(meta.original_file.path)
+            
+            elif content_item.content_type == 'pdf':
+                meta = getattr(content_item, 'pdfmeta', None)
+                if meta:
+                    if not meta.r2_original_file_url:
+                        return False, "Cannot delete local file: Not yet uploaded to R2."
+                    if meta.original_file:
+                        files_to_delete.append(meta.original_file.path)
+                    if meta.optimized_file:
+                        files_to_delete.append(meta.optimized_file.path)
+
+            if not files_to_delete:
+                return False, "No local files found to delete."
+
+            # Clear the FileField values in DB without deleting the record
+            if meta:
+                if content_item.content_type == 'video':
+                    meta.original_file.name = ''
+                    # Also clear HLS paths as they are local too
+                    meta.hls_720p_path = ''
+                    meta.hls_480p_path = ''
+                elif content_item.content_type == 'audio':
+                    meta.original_file.name = ''
+                elif content_item.content_type == 'pdf':
+                    meta.original_file.name = ''
+                    meta.optimized_file.name = ''
+                meta.save()
+
+            # Schedule physical deletion
+            delete_files_task.delay(files_to_delete)
+            
+            return True, "Local files deletion scheduled. R2 copy and database record preserved."
+
+        except Exception as e:
+            logger.error(f"[MediaProcessingService] Error deleting local files for content id={content_item.id}: {str(e)}")
+            return False, f"Error deleting local files: {str(e)}"

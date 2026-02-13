@@ -3,117 +3,107 @@
 {% get_current_language as LANGUAGE_CODE %}
 
 {% comment %}
-    SEO Meta Tags Template for Content Items
+    SEO Meta Tags Template
     Usage: {% include "includes/seo_meta.html" with content_item=object %}
 {% endcomment %}
 
 {% if content_item %}
-    <!-- Primary SEO Meta Tags -->
+    <!-- Primary SEO Meta Tags: Content Item -->
     {% if LANGUAGE_CODE == 'ar' %}
+        <title>{{ content_item.seo_title_ar_display|default:content_item.title_ar }}</title>
         <meta name="description" content="{{ content_item.seo_meta_description_ar_display }}">
-    {% else %}
-        <meta name="description" content="{{ content_item.seo_meta_description_en_display }}">
-    {% endif %}
-    
-    {% if LANGUAGE_CODE == 'ar' and content_item.seo_keywords_ar_string %}
-    <meta name="keywords" content="{{ content_item.seo_keywords_ar_string }}">
-    {% elif LANGUAGE_CODE == 'en' and content_item.seo_keywords_en_string %}
-    <meta name="keywords" content="{{ content_item.seo_keywords_en_string }}">
-    {% endif %}
-    
-    <!-- Canonical URL -->
-    <link rel="canonical" href="{{ content_item.get_canonical_url }}">
-    
-    <!-- Language Alternatives -->
-    {% if LANGUAGE_CODE == 'ar' and content_item.seo_meta_description_en %}
-    <link rel="alternate" hreflang="en" href="{{ content_item.get_canonical_url }}?lang=en">
-    {% elif LANGUAGE_CODE == 'en' and content_item.seo_meta_description_ar %}
-    <link rel="alternate" hreflang="ar" href="{{ content_item.get_canonical_url }}?lang=ar">
-    {% endif %}
-    
-    <!-- Open Graph Meta Tags -->
-    {% if LANGUAGE_CODE == 'ar' %}
         <meta property="og:title" content="{{ content_item.seo_title_ar_display }}">
-    {% else %}
-        <meta property="og:title" content="{{ content_item.seo_title_en_display }}">
-    {% endif %}
-    {% if LANGUAGE_CODE == 'ar' %}
         <meta property="og:description" content="{{ content_item.seo_meta_description_ar_display }}">
-    {% else %}
-        <meta property="og:description" content="{{ content_item.seo_meta_description_en_display }}">
-    {% endif %}
-    <meta property="og:url" content="{{ content_item.get_canonical_url }}">
-    <meta property="og:type" content="article">
-    <meta property="og:site_name" content="{% trans 'Christian Library' %}">
-    <meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_EG{% else %}en_US{% endif %}">
-    
-    {% comment %}
-    Add thumbnail/image when available:
-    {% if content_item.thumbnail %}
-    <meta property="og:image" content="{{ content_item.thumbnail.url }}">
-    {% if LANGUAGE_CODE == 'ar' %}
-        <meta property="og:image:alt" content="{{ content_item.title_ar_display }}">
-    {% else %}
-        <meta property="og:image:alt" content="{{ content_item.title_en_display }}">
-    {% endif %}
-    {% endif %}
-    {% endcomment %}
-    
-    <!-- Twitter Card Meta Tags -->
-    <meta name="twitter:card" content="summary">
-    {% if LANGUAGE_CODE == 'ar' %}
         <meta name="twitter:title" content="{{ content_item.seo_title_ar_display }}">
-    {% else %}
-        <meta name="twitter:title" content="{{ content_item.seo_title_en_display }}">
-    {% endif %}
-    {% if LANGUAGE_CODE == 'ar' %}
         <meta name="twitter:description" content="{{ content_item.seo_meta_description_ar_display }}">
     {% else %}
+        <title>{{ content_item.seo_title_en_display|default:content_item.title_en }}</title>
+        <meta name="description" content="{{ content_item.seo_meta_description_en_display }}">
+        <meta property="og:title" content="{{ content_item.seo_title_en_display }}">
+        <meta property="og:description" content="{{ content_item.seo_meta_description_en_display }}">
+        <meta name="twitter:title" content="{{ content_item.seo_title_en_display }}">
         <meta name="twitter:description" content="{{ content_item.seo_meta_description_en_display }}">
     {% endif %}
     
-    <!-- Content Type Specific Meta Tags -->
+    {% if LANGUAGE_CODE == 'ar' and content_item.seo_keywords_ar_string %}
+        <meta name="keywords" content="{{ content_item.seo_keywords_ar_string }}">
+    {% elif LANGUAGE_CODE == 'en' and content_item.seo_keywords_en_string %}
+        <meta name="keywords" content="{{ content_item.seo_keywords_en_string }}">
+    {% endif %}
+    
+    <link rel="canonical" href="{{ content_item.get_canonical_url }}">
+    <meta property="og:url" content="{{ content_item.get_canonical_url }}">
+    
+    <!-- Open Graph Type -->
     {% if content_item.content_type == 'video' %}
-    <meta property="og:type" content="video.other">
-    {% if content_item.videometa.duration_seconds %}
-    <meta property="video:duration" content="{{ content_item.videometa.duration_seconds }}">
-    {% endif %}
+        <meta property="og:type" content="video.other">
     {% elif content_item.content_type == 'audio' %}
-    <meta property="og:type" content="music.song">
-    {% if content_item.audiometa.duration_seconds %}
-    <meta property="music:duration" content="{{ content_item.audiometa.duration_seconds }}">
+        <meta property="og:type" content="music.song">
+    {% else %}
+        <meta property="og:type" content="article">
     {% endif %}
-    {% elif content_item.content_type == 'pdf' %}
-    <meta property="og:type" content="article">
+
+    <!-- Language Alternatives -->
+    {% if LANGUAGE_CODE == 'ar' and content_item.seo_meta_description_en %}
+        <link rel="alternate" hreflang="en" href="{{ content_item.get_canonical_url }}?lang=en">
+    {% elif LANGUAGE_CODE == 'en' and content_item.seo_meta_description_ar %}
+        <link rel="alternate" hreflang="ar" href="{{ content_item.get_canonical_url }}?lang=ar">
+    {% endif %}
+
+{% elif site_config %}
+    <!-- Primary SEO Meta Tags: Site Home -->
+    {% if LANGUAGE_CODE == 'ar' %}
+        <title>{{ site_config.site_name_ar }}</title>
+        <meta name="description" content="{{ site_config.description_ar }}">
+        <meta property="og:title" content="{{ site_config.site_name_ar }}">
+        <meta property="og:description" content="{{ site_config.description_ar }}">
+        <meta name="twitter:title" content="{{ site_config.site_name_ar }}">
+        <meta name="twitter:description" content="{{ site_config.description_ar }}">
+    {% else %}
+        <title>{{ site_config.site_name_en }}</title>
+        <meta name="description" content="{{ site_config.description_en }}">
+        <meta property="og:title" content="{{ site_config.site_name_en }}">
+        <meta property="og:description" content="{{ site_config.description_en }}">
+        <meta name="twitter:title" content="{{ site_config.site_name_en }}">
+        <meta name="twitter:description" content="{{ site_config.description_en }}">
     {% endif %}
     
-    <!-- Coptic Orthodox Church Meta Tags -->
-    <meta name="author" content="{% trans 'Coptic Orthodox Church' %}">
-    <meta name="publisher" content="{% trans 'Coptic Orthodox Church' %}">
-    <meta name="content-language" content="{{ LANGUAGE_CODE }}">
-    
-    <!-- SEO Alternative Titles for A/B Testing (Hidden) -->
-    {% if content_item.seo_title_suggestions %}
-    {% for alt_title in content_item.seo_title_suggestions %}
-    <meta name="alternative-title-{{ forloop.counter }}" content="{{ alt_title }}">
-    {% endfor %}
-    {% endif %}
-    
-    <!-- Structured Data (JSON-LD) -->
-    {% if content_item.structured_data %}
-    <script type="application/ld+json">
-        {{ content_item.get_structured_data_json|safe }}
-    </script>
-    {% endif %}
-    
-    <!-- Additional SEO Tags for Religious Content -->
-    <meta name="subject" content="{% trans 'Religious Content' %}, {% trans 'Coptic Orthodox Church' %}">
-    <meta name="coverage" content="{% trans 'Egypt' %}">
-    <meta name="distribution" content="global">
-    <meta name="rating" content="general">
-    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
-    
-    <!-- Preconnect for Performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="canonical" href="{{ site_config.website_url }}">
+    <meta property="og:url" content="{{ site_config.website_url }}">
+    <meta property="og:type" content="website">
 {% endif %}
+
+<!-- Shared Social & Branding Tags (Always visible) -->
+<meta property="og:site_name" content="{% if LANGUAGE_CODE == 'ar' %}{{ site_config.site_name_ar|default:'Christian Library' }}{% else %}{{ site_config.site_name_en|default:'Christian Library' }}{% endif %}">
+<meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_EG{% else %}en_US{% endif %}">
+<meta name="twitter:card" content="summary_large_image">
+
+{% if content_item.thumbnail %}
+    <meta property="og:image" content="{{ content_item.thumbnail.url }}">
+{% elif site_config.logo_url %}
+    <meta property="og:image" content="{{ site_config.logo_url }}">
+{% endif %}
+
+<meta name="author" content="{% trans 'Coptic Orthodox Church' %}">
+<meta name="publisher" content="{% trans 'Coptic Orthodox Church' %}">
+<meta name="content-language" content="{{ LANGUAGE_CODE }}">
+
+<!-- Structured Data (JSON-LD Array) -->
+<script type="application/ld+json">
+[
+    {% if site_config %}
+        {% if LANGUAGE_CODE == 'ar' %}{{ site_config.structured_data_ar_json|safe }}{% else %}{{ site_config.structured_data_en_json|safe }}{% endif %}
+        {% if content_item and content_item.structured_data %},{% endif %}
+    {% endif %}
+
+    {% if content_item and content_item.structured_data %}
+        {% if LANGUAGE_CODE == 'ar' %}{{ content_item.structured_data_ar_json|safe }}{% else %}{{ content_item.structured_data_en_json|safe }}{% endif %}
+    {% endif %}
+]
+</script>
+
+<!-- Standards & Performance -->
+<meta name="subject" content="{% trans 'Religious Content' %}, {% trans 'Coptic Orthodox Church' %}">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
