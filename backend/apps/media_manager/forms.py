@@ -6,6 +6,7 @@ import os
 
 class ContentItemForm(forms.ModelForm):
     """Enhanced form for ContentItem with validation and JSON support"""
+    title_ar = forms.CharField(required=False, widget=forms.TextInput(attrs={'dir': 'rtl', 'class': 'text-right'}))
     
     class Meta:
         model = ContentItem
@@ -15,7 +16,7 @@ class ContentItemForm(forms.ModelForm):
             'seo_title_ar', 'seo_title_en',
             'seo_meta_description_ar', 'seo_meta_description_en',
             'seo_keywords_ar', 'seo_keywords_en',
-            'content_type', 'tags', 'is_active', 'structured_data'
+            'content_type', 'tags', 'structured_data', 'is_active', 'structured_data'
         ]
         widgets = {
             'description_ar': forms.Textarea(attrs={'rows': 3}),
@@ -28,13 +29,18 @@ class ContentItemForm(forms.ModelForm):
                 'class': 'vLargeTextField font-monospace',
                 'style': 'font-family: monospace;'
             }),
+            'structured_data': forms.Textarea(attrs={
+                'rows': 10, 
+                'class': 'font-monospace',
+                'placeholder': '{ "@context": "https://schema.org", ... }'
+            }),
         }
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Add CSS classes for RTL support
         for field_name, field in self.fields.items():
-            if 'ar' in field_name:
+            if 'ar' in field_name and field_name != 'title_ar': # Skip title_ar as handled above
                 field.widget.attrs['dir'] = 'rtl'
                 field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' text-right'
         
@@ -62,6 +68,31 @@ class ContentItemForm(forms.ModelForm):
                 if not isinstance(parsed_data, dict):
                     raise ValidationError("Structured data must be a JSON object (dictionary)")
                 return parsed_data
+            except json.JSONDecodeError as e:
+                raise ValidationError(f"Invalid JSON format: {str(e)}")
+        return data
+        
+        # Pretty print JSON if it exists
+        if self.instance and self.instance.pk and self.instance.structured_data:
+            try:
+                import json
+                self.initial['structured_data'] = json.dumps(
+                    self.instance.structured_data, 
+                    ensure_ascii=False, 
+                    indent=2
+                )
+            except Exception:
+                pass
+
+    def clean_structured_data(self):
+        data = self.cleaned_data.get('structured_data')
+        if not data:
+            return {}
+        
+        if isinstance(data, str):
+            try:
+                import json
+                return json.loads(data)
             except json.JSONDecodeError as e:
                 raise ValidationError(f"Invalid JSON format: {str(e)}")
         return data

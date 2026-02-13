@@ -47,13 +47,18 @@
                 </td>
                 <td>
                     <div class="d-flex flex-wrap gap-1">
-                        {% for tag in audio.tags.all %}
-                            <span class="badge bg-light text-secondary border rounded-pill fw-normal">
-                                {{ tag.name }}
-                            </span>
-                        {% empty %}
+                        {% if audio.tags.exists %}
+                            {% for tag in audio.tags.all|slice:":3" %}
+                                <span class="badge bg-light text-secondary border rounded-pill fw-normal">
+                                    {% if current_language == 'ar' %}{{ tag.name_ar }}{% else %}{{ tag.name_en }}{% endif %}
+                                </span>
+                            {% endfor %}
+                            {% if audio.tags.count > 3 %}
+                                <span class="badge bg-light text-secondary border rounded-pill fw-normal">+{{ audio.tags.count|add:"-3" }}</span>
+                            {% endif %}
+                        {% else %}
                             <span class="text-muted small">-</span>
-                        {% endfor %}
+                        {% endif %}
                     </div>
                 </td>
                 <td>

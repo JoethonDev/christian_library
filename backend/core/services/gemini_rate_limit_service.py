@@ -5,9 +5,10 @@ Manages rate limits and credits for Gemini models with Redis caching.
 import json
 import logging
 from typing import Dict, Optional, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime
 from django.core.cache import cache
 from django.conf import settings
+from django.utils import timezone
 from google import genai
 
 logger = logging.getLogger(__name__)
@@ -42,49 +43,59 @@ class GeminiRateLimitService:
     def get_rate_limit_info(self, model_name: str, force_refresh: bool = False) -> Dict:
         """
         Get rate limit information for a specific model.
+        Uses Redis counters for real-time tracking.
         
         Args:
             model_name: Name of the Gemini model
-            force_refresh: Force refresh from API even if cached
+            force_refresh: Force refresh from API even if cached (not used with counters)
             
         Returns:
-            Dict with rate limit info:
-            {
-                'limit_per_minute': int,
-                'limit_per_day': int,
-                'remaining_requests_minute': int,
-                'remaining_requests_day': int,
-                'last_updated': str (ISO format),
-                'status': 'available' | 'limited' | 'exhausted' | 'error'
-            }
+            Dict with rate limit info
         """
         if not self.is_initialized:
             return self._get_error_response("Service not initialized")
         
         # Normalize model name
         model_key = self._normalize_model_name(model_name)
-        cache_key = f"{self.REDIS_PREFIX}:{model_key}:rate_limit"
         
-        # Try to get from cache first
-        if not force_refresh:
-            cached_data = cache.get(cache_key)
-            if cached_data:
-                logger.debug(f"Rate limit data for {model_name} retrieved from cache")
-                return cached_data
+        # Get base limits (defaults for now)
+        base_limits = self._get_base_limits(model_name)
         
-        # Fetch from Gemini API
+        # Get current usage from Redis counters
+        now = timezone.now()
+        minute_key = f"{self.REDIS_PREFIX}:{model_key}:usage:min:{now.strftime('%Y%m%d%H%M')}"
+        day_key = f"{self.REDIS_PREFIX}:{model_key}:usage:day:{now.strftime('%Y%m%d')}"
+        
         try:
-            rate_limit_data = self._fetch_from_gemini_api(model_name)
+            used_minute = cache.get(minute_key, 0)
+            used_day = cache.get(day_key, 0)
             
-            # Cache the data
-            cache.set(cache_key, rate_limit_data, self.CACHE_EXPIRY)
-            logger.info(f"Rate limit data for {model_name} refreshed and cached")
-            
-            return rate_limit_data
-            
-        except Exception as e:
-            logger.error(f"Error fetching rate limit for {model_name}: {e}")
-            return self._get_error_response(str(e))
+            # Ensure they are integers
+            used_minute = int(used_minute) if used_minute is not None else 0
+            used_day = int(used_day) if used_day is not None else 0
+        except (ValueError, TypeError):
+            used_minute = 0
+            used_day = 0
+        
+        remaining_minute = max(0, base_limits['limit_per_minute'] - used_minute)
+        remaining_day = max(0, base_limits['limit_per_day'] - used_day)
+        
+        # Determine status
+        status = 'available'
+        if remaining_minute <= 0 or remaining_day <= 0:
+            status = 'exhausted'
+        elif remaining_minute < (base_limits['limit_per_minute'] / 3) or remaining_day < (base_limits['limit_per_day'] / 5):
+            status = 'limited'
+        
+        return {
+            'model': model_name,
+            'limit_per_minute': base_limits['limit_per_minute'],
+            'limit_per_day': base_limits['limit_per_day'],
+            'remaining_requests_minute': remaining_minute,
+            'remaining_requests_day': remaining_day,
+            'last_updated': now.isoformat(),
+            'status': status
+        }
     
     def get_all_models_info(self, force_refresh: bool = False) -> Dict:
         """
@@ -107,63 +118,59 @@ class GeminiRateLimitService:
     def check_availability(self, model_name: str, operation_type: str = 'metadata') -> Tuple[bool, str, Optional[str]]:
         """
         Check if a model is available for use.
-        
-        Args:
-            model_name: Name of the Gemini model
-            operation_type: Type of operation ('metadata' or 'seo')
-            
-        Returns:
-            Tuple of (is_available: bool, message: str, fallback_model: str or None)
         """
         rate_info = self.get_rate_limit_info(model_name)
         
         if rate_info['status'] == 'error':
             return False, rate_info.get('error', 'Unknown error'), self._get_fallback_model(model_name)
         
-        if rate_info['status'] == 'exhausted':
-            return False, f"Rate limit exhausted for {model_name}", self._get_fallback_model(model_name)
-        
-        if rate_info['status'] == 'limited':
-            # Check if we have enough quota
-            if rate_info.get('remaining_requests_minute', 0) < 1:
-                return False, f"Per-minute limit reached for {model_name}", self._get_fallback_model(model_name)
-            if rate_info.get('remaining_requests_day', 0) < 1:
-                return False, f"Daily limit reached for {model_name}", self._get_fallback_model(model_name)
+        if rate_info['remaining_requests_minute'] < 1:
+            return False, f"Per-minute limit reached for {model_name}", self._get_fallback_model(model_name)
+            
+        if rate_info['remaining_requests_day'] < 1:
+            return False, f"Daily limit reached for {model_name}", self._get_fallback_model(model_name)
         
         return True, "Available", None
     
     def record_usage(self, model_name: str):
         """
-        Record that a request was made to a model.
-        Updates the cached rate limit info.
+        Record that a request was made to a model using atomic counters.
         """
         model_key = self._normalize_model_name(model_name)
-        cache_key = f"{self.REDIS_PREFIX}:{model_key}:rate_limit"
+        now = timezone.now()
         
-        rate_info = cache.get(cache_key)
-        if rate_info and rate_info['status'] != 'error':
-            # Decrement remaining requests
-            rate_info['remaining_requests_minute'] = max(0, rate_info.get('remaining_requests_minute', 0) - 1)
-            rate_info['remaining_requests_day'] = max(0, rate_info.get('remaining_requests_day', 0) - 1)
-            
-            # Update status
-            if rate_info['remaining_requests_minute'] == 0 or rate_info['remaining_requests_day'] == 0:
-                rate_info['status'] = 'exhausted'
-            elif rate_info['remaining_requests_minute'] < 10 or rate_info['remaining_requests_day'] < 100:
-                rate_info['status'] = 'limited'
-            
-            # Re-cache
-            cache.set(cache_key, rate_info, self.CACHE_EXPIRY)
-    
-    def _fetch_from_gemini_api(self, model_name: str) -> Dict:
-        """
-        Fetch rate limit data from Gemini API.
+        # Keys for minute and day counters
+        # reset every minute: using %H%M
+        # reset every day: using %Y%m%d
+        minute_key = f"{self.REDIS_PREFIX}:{model_key}:usage:min:{now.strftime('%Y%m%d%H%M')}"
+        day_key = f"{self.REDIS_PREFIX}:{model_key}:usage:day:{now.strftime('%Y%m%d')}"
         
-        Note: The Google Gemini API doesn't have a direct rate limit endpoint.
-        We'll use sensible defaults based on the model tier and track usage.
-        """
-        # Default rate limits based on Gemini model tiers
-        # These should be configurable in settings
+        try:
+            # Atomic increment for minute counter (expires in 2 minutes)
+            if cache.get(minute_key) is None:
+                cache.set(minute_key, 1, 120)
+            else:
+                try:
+                    cache.incr(minute_key)
+                except (ValueError, TypeError):
+                    cache.set(minute_key, 1, 120)
+            
+            # Atomic increment for day counter (expires in 26 hours)
+            if cache.get(day_key) is None:
+                cache.set(day_key, 1, 93600)
+            else:
+                try:
+                    cache.incr(day_key)
+                except (ValueError, TypeError):
+                    cache.set(day_key, 1, 93600)
+                    
+            logger.info(f"Recorded usage for {model_name}. Keys: {minute_key}, {day_key}")
+        except Exception as e:
+            logger.error(f"Error recording usage for {model_name}: {e}")
+
+    def _get_base_limits(self, model_name: str) -> Dict:
+        """Get base rate limits for models"""
+        # Default rate limits based on Gemini model tiers (Free Tier)
         rate_limits = {
             self.MODEL_3_FLASH: {
                 'limit_per_minute': 5,  # Tier 1: 5 RPM
@@ -178,18 +185,7 @@ class GeminiRateLimitService:
                 'limit_per_day': 20,   # Tier 1: 20 RPD
             }
         }
-        
-        model_limits = rate_limits.get(model_name, rate_limits[self.MODEL_2_5_FLASH_LITE])
-        
-        return {
-            'model': model_name,
-            'limit_per_minute': model_limits['limit_per_minute'],
-            'limit_per_day': model_limits['limit_per_day'],
-            'remaining_requests_minute': model_limits['limit_per_minute'],
-            'remaining_requests_day': model_limits['limit_per_day'],
-            'last_updated': datetime.now().isoformat(),
-            'status': 'available'
-        }
+        return rate_limits.get(model_name, rate_limits[self.MODEL_2_5_FLASH])
     
     def _normalize_model_name(self, model_name: str) -> str:
         """Normalize model name for use as cache key"""

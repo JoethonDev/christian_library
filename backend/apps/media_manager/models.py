@@ -60,6 +60,19 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+# Module-level constants
+FTS_RANK_THRESHOLD = 0.1  # Minimum rank for FTS results (10% relevance - stricter for better precision)
+
+# Pre-compiled regex for Arabic character detection (optimization)
+ARABIC_CHAR_PATTERN = re.compile(r'[\u0600-\u06FF\u0750-\u077F]')
+
+
+def detect_query_language(query):
+    """
+    Detect if query contains Arabic characters.
+    Returns 'ar' if Arabic chars detected, 'en' otherwise.
+    """
+    return 'ar' if ARABIC_CHAR_PATTERN.search(query) else 'en'
 
 
 class TagManager(models.Manager):
@@ -124,6 +137,30 @@ class TagManager(models.Manager):
                 models.Q(name_en__icontains=query) | 
                 models.Q(name_ar__icontains=query)  
             ).values_list('name_en', 'name_ar')[:5]
+    
+    def search_tags(self, query, language=None):
+        """
+        Search tags by name or description in both Arabic and English.
+        Returns tags with content count for relevance.
+        """
+        if not query or len(query) < 2:
+            return self.none()
+        
+        # Detect language if not specified (use module-level helper)
+        if language is None:
+            language = 'ar' if detect_query_language(query) == 'arabic' else 'en'
+        
+        # Search in both name fields and description
+        search_conditions = (
+            models.Q(name_ar__icontains=query) |
+            models.Q(name_en__icontains=query) |
+            models.Q(description_ar__icontains=query)
+        )
+        
+        # Return tags with content count for relevance sorting
+        return self.active().filter(search_conditions).annotate(
+            content_count=models.Count('contentitem', filter=models.Q(contentitem__is_active=True))
+        ).order_by('-content_count', 'name_ar')
 
 
 class Tag(models.Model):
@@ -267,9 +304,13 @@ class ContentItemQuerySet(models.QuerySet):
             'videometa', 'audiometa', 'pdfmeta'
         ).prefetch_related('tags').distinct()
     
-    def search_optimized(self, query, content_type=None):
-        """Optimized search with proper indexing and minimal queries"""
-        from django.db.models import Q
+    def search_optimized(self, query, content_type=None, language=None):
+        """
+        Optimized multilingual search with full-text search support for all content types.
+        Searches across: title, description, transcript, notes, book_content, and tag names.
+        Supports both Arabic and English with proper language-specific configurations.
+        """
+        from django.db.models import Q, Case, When, Value, FloatField
         from django.contrib.postgres.search import SearchQuery, SearchRank
         
         # Start with active content and proper relations
@@ -283,51 +324,63 @@ class ContentItemQuerySet(models.QuerySet):
         if not query:
             return qs.order_by('-created_at')
         
-        # Use FTS for PDFs with content+title+description
-        if content_type == 'pdf':
-            # PostgreSQL FTS with Arabic config - searches content, title, and description
-            search_query = SearchQuery(query, config='arabic')
-            qs = qs.annotate(
-                rank=SearchRank(models.F('search_vector'), search_query)
-            ).filter(rank__gte=0.01).order_by('-rank')  # Lowered threshold from 0.1 to 0.01
-        elif content_type is None:
-            # When no content type specified (global search), use FTS for PDFs and fallback for others
-            from django.db.models import Case, When, Value, FloatField
+        # Detect language if not specified (use module-level helper for performance)
+        if language is None:
+            lang_code = detect_query_language(query)
+            # Map short code to PostgreSQL text search config name
+            language = 'arabic' if lang_code == 'ar' else 'english'
+        
+        # Try PostgreSQL FTS first (works for all content types now)
+        try:
+            # Create search queries for both languages to support mixed content
+            search_query_ar = SearchQuery(query, config='arabic')
+            search_query_en = SearchQuery(query, config='english')
             
-            search_query_obj = SearchQuery(query, config='arabic')
+            # Use primary language query for ranking
+            primary_query = search_query_ar if language == 'arabic' else search_query_en
             
-            # Apply FTS ranking for PDFs, default rank for others
+            # Annotate with FTS rank
             qs = qs.annotate(
                 rank=Case(
+                    # Items with search_vector get FTS ranking
                     When(
-                        content_type='pdf',
                         search_vector__isnull=False,
-                        then=SearchRank(models.F('search_vector'), search_query_obj)
+                        then=SearchRank(models.F('search_vector'), primary_query)
                     ),
                     default=Value(0.0),
                     output_field=FloatField()
                 )
             )
             
-            # Build search conditions
+            # Build comprehensive search conditions
+            # FTS match OR text field matches (for items without search_vector)
+            # Note: Tags are searched via Q object filters, not included in search_vector
+            # Simplified: rank >= threshold is sufficient (null search_vector results in rank=0.0 < threshold)
             search_conditions = (
+                Q(rank__gte=FTS_RANK_THRESHOLD) |  # FTS match: rank >= 0.1 means search_vector exists and meets 10% minimum relevance
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
                 Q(description_en__icontains=query) |
-                Q(tags__name_ar__icontains=query) |
-                Q(tags__name_en__icontains=query) |
-                Q(content_type='pdf', rank__gte=0.01)  # Include PDFs with FTS match
+                Q(transcript__icontains=query) |
+                Q(notes__icontains=query) |
+                Q(tags__name_ar__icontains=query) |  # Tag search via related field
+                Q(tags__name_en__icontains=query)    # Tag search via related field
             )
             
+            # Apply filters and order by relevance
             qs = qs.filter(search_conditions).distinct().order_by('-rank', '-created_at')
-        else:
-            # Fallback search for video/audio
+            
+        except Exception as e:
+            # Fallback to basic text search if PostgreSQL FTS is not available
+            logger.warning(f"FTS search failed, falling back to basic search: {e}")
             search_conditions = (
                 Q(title_ar__icontains=query) |
                 Q(title_en__icontains=query) |
                 Q(description_ar__icontains=query) |
                 Q(description_en__icontains=query) |
+                Q(transcript__icontains=query) |
+                Q(notes__icontains=query) |
                 Q(tags__name_ar__icontains=query) |
                 Q(tags__name_en__icontains=query)
             )
@@ -444,10 +497,29 @@ class ContentItemManager(models.Manager):
 
 
 class ContentItem(models.Model):
+    @staticmethod
+    def _clean_filename(filename):
+        """
+        Clean filename for use as title:
+        - Remove extension
+        - Replace underscores/hyphens with spaces
+        - Remove extra whitespace
+        """
+        if not filename:
+            return ""
+        name = os.path.splitext(filename)[0]
+        # Replace underscores and hyphens with spaces
+        name = name.replace('_', ' ').replace('-', ' ')
+        # Clean extra spaces
+        name = ' '.join(name.split())
+        return name
+
     def save(self, *args, **kwargs):
         """
         Override save to trigger background extraction/indexing if relevant fields change.
         Also synchronizes JSON-LD structured data with model fields.
+        Ensuring structured_data is synchronized with basic fields.
+        Populates title_ar from filename if empty.
         """
         update_fields = kwargs.get('update_fields')
         
@@ -460,6 +532,27 @@ class ContentItem(models.Model):
                     update_fields.append('structured_data')
                 elif isinstance(update_fields, tuple):
                     kwargs['update_fields'] = list(update_fields) + ['structured_data']
+
+        # Default title_ar to filename if empty and we have a linked meta object
+        if not self.title_ar:
+            meta = self.get_meta_object()
+            if meta and meta.original_file:
+                try:
+                    filename = os.path.basename(meta.original_file.name)
+                    if filename:
+                        self.title_ar = self._clean_filename(filename)
+                except Exception as e:
+                    logger.warning(f"Failed to extract title from filename: {e}")
+        
+        # Always sync structured data on save if it's not a restricted update
+        if not update_fields or 'structured_data' in update_fields or 'title_ar' in update_fields:
+            self.sync_structured_data()
+            if update_fields and 'structured_data' not in update_fields:
+                # If update_fields is used, we must include structured_data if we modified it
+                if isinstance(update_fields, list):
+                    update_fields.append('structured_data')
+                elif isinstance(update_fields, set):
+                    update_fields.add('structured_data')
 
         super().save(*args, **kwargs)
         
@@ -525,35 +618,61 @@ class ContentItem(models.Model):
 
     def update_search_vector(self):
         """
-        Update the search_vector field using book_content, title_ar, and description_ar.
-        Should use PostgreSQL FTS with Arabic language config.
+        Update the search_vector field for multilingual full-text search.
+        Indexes all relevant text fields including titles, descriptions, transcript, 
+        notes, book_content, and associated tag names in both Arabic and English.
+        Should use PostgreSQL FTS with proper language configs.
         This should be called from a background task.
         """
         if 'postgresql' not in connection.settings_dict['ENGINE']:
             logger.debug(f"Skipping search vector update for {self.id} - not using PostgreSQL")
             return
         
-        if not self.book_content:
-            logger.debug(f"No book content for {self.id}, clearing search vector")
+        # Build search vector from all available text fields
+        # Weights: A=highest (titles), B=high (descriptions), C=medium (transcript/tags), D=low (notes/content)
+        
+        search_parts = []
+        
+        # Arabic fields with 'arabic' config
+        if self.title_ar:
+            search_parts.append(SearchVector('title_ar', weight='A', config='arabic'))
+        
+        if self.description_ar:
+            search_parts.append(SearchVector('description_ar', weight='B', config='arabic'))
+        
+        # English fields with 'english' config  
+        if self.title_en:
+            search_parts.append(SearchVector('title_en', weight='A', config='english'))
+        
+        if self.description_en:
+            search_parts.append(SearchVector('description_en', weight='B', config='english'))
+        
+        # Transcript field (medium weight, use simple config as it may contain mixed languages)
+        if self.transcript:
+            search_parts.append(SearchVector('transcript', weight='C', config='simple'))
+        
+        # Notes field (lower weight)
+        if self.notes:
+            search_parts.append(SearchVector('notes', weight='D', config='simple'))
+        
+        # Book content (for PDFs, lower weight due to volume)
+        if self.book_content:
+            search_parts.append(SearchVector('book_content', weight='D', config='arabic'))
+        
+        # Note: Tag names are NOT included in search_vector to avoid complex M2M triggers.
+        # Tags are searched separately via Q object filters in the search_optimized() method.
+        # Performance trade-off: Including tags in search_vector would require triggers on the
+        # M2M through table (contentitem_tags), significantly complicating the implementation
+        # and potentially impacting performance on every tag add/remove operation.
+        
+        # Combine all search parts
+        if search_parts:
+            self.search_vector = search_parts[0]
+            for part in search_parts[1:]:
+                self.search_vector += part
+        else:
+            logger.debug(f"No searchable content for {self.id}, clearing search vector")
             self.search_vector = None
-            return
-        
-        # Create search-ready version of content for better matching
-        search_content = self.book_content
-        try:
-            from core.utils.arabic_text_processor import quick_arabic_normalize
-            search_content = quick_arabic_normalize(self.book_content)
-            logger.debug(f"Applied quick Arabic normalization for search vector {self.id}")
-        except ImportError:
-            pass  # Use original content if processor not available
-        
-        # Use weights: A for title, B for description, C for content
-        # Note: We set the attribute on self so it can be saved by the caller
-        self.search_vector = (
-            SearchVector('title_ar', weight='A', config='arabic') +
-            SearchVector('description_ar', weight='B', config='arabic') +
-            SearchVector('book_content', weight='C', config='arabic')
-        )
     CONTENT_TYPES = (
         ('video', _('Video')),
         ('audio', _('Audio')),
@@ -561,7 +680,7 @@ class ContentItem(models.Model):
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title_ar = models.CharField(max_length=200, verbose_name=_('Arabic Title'), db_index=True)
+    title_ar = models.CharField(max_length=200, blank=True, verbose_name=_('Arabic Title'), db_index=True)
     title_en = models.CharField(max_length=200, blank=True, verbose_name=_('English Title'), db_index=True)
     description_ar = models.TextField(verbose_name=_('Arabic Description'))
     description_en = models.TextField(blank=True, verbose_name=_('English Description'))
@@ -888,15 +1007,36 @@ class ContentItem(models.Model):
         """Check if content has been indexed"""
         return bool(self.book_content and self.book_content.strip())
 
-    def get_structured_data_json(self, lang='en'):
-        """Get structured data as JSON string for a specific language"""
+    def get_structured_data_json(self, language=None):
+        """
+        Get structured data as JSON string for templates.
+        If language is provided, returns only the specific language's schema block.
+        Otherwise detects current request language.
+        """
         import json
-        if self.structured_data and isinstance(self.structured_data, dict):
-            # Check if we have the bilingual format {en: ..., ar: ...}
-            if lang in self.structured_data:
-                return json.dumps(self.structured_data[lang], ensure_ascii=False, indent=2)
-            # Fallback for old content or if the language is missing
-            return json.dumps(self.structured_data, ensure_ascii=False, indent=2)
+        from django.utils import translation
+        
+        if not self.structured_data:
+            return ''
+            
+        # Determine target language (default to 'ar')
+        target_lang = language or translation.get_language() or 'ar'
+        if '-' in target_lang:
+            target_lang = target_lang.split('-')[0]
+            
+        # Return specific language block if it exists
+        if isinstance(self.structured_data, dict):
+            if target_lang in self.structured_data:
+                return self.structured_data[target_lang]
+            
+            # Fallback to any available language if target not found
+            for lang in ['ar', 'en']:
+                if lang in self.structured_data:
+                    return self.structured_data[lang]
+                    
+            # If it's an old-format dict (no ar/en keys), return as is
+            return self.structured_data
+            
         return ''
 
     @property
@@ -931,54 +1071,41 @@ class ContentItem(models.Model):
 
     def sync_structured_data(self):
         """
-        Synchronize the JSON-LD structured data with current model fields using bilingual nesting.
-        Ensures 'en' and 'ar' versions are maintained and linked to the organization.
+        Synchronize basic fields in structured_data with current model fields.
+        Ensures name, description, and URL are always in sync for both languages.
+        Stored format: {"en": {...}, "ar": {...}}
         """
-        if not isinstance(self.structured_data, dict) or not self.structured_data:
-            self.structured_data = {"en": {}, "ar": {}}
+        if not self.structured_data or not isinstance(self.structured_data, dict):
+            self.structured_data = {}
         
-        # Base schema type
-        schema_type = self.get_schema_type()
-        
-        # Get Site SEO Reference for publisher
-        from apps.media_manager.models import SiteConfiguration
-        site_config = SiteConfiguration.objects.first()
-        organization_id = "#organization"
-        if site_config and site_config.website_url:
-            organization_id = f"{site_config.website_url.rstrip('/')}/#organization"
-
+        # Ensure en and ar keys exist
         for lang in ['en', 'ar']:
-            # Ensure lang dict exists
             if lang not in self.structured_data or not isinstance(self.structured_data[lang], dict):
-                self.structured_data[lang] = {}
-            
-            # Setup context and type
-            self.structured_data[lang]["@context"] = "https://schema.org"
-            self.structured_data[lang]["@type"] = schema_type
-            self.structured_data[lang]["inLanguage"] = lang
-            
-            # Update core fields based on language
-            if lang == 'en':
-                self.structured_data['en']['name'] = self.title_en or self.title_ar
-                self.structured_data['en']['description'] = self.description_en or self.description_ar
-            else:
-                self.structured_data['ar']['name'] = self.title_ar or self.title_en
-                self.structured_data['ar']['description'] = self.description_ar or self.description_en
-            
-            # Add author/publisher reference
-            # For now, we use the Site SEO as the publisher
-            # and generic author if not explicitly defined
-            self.structured_data[lang]['publisher'] = {
-                "@id": organization_id
-            }
-            
-            # Link to the page
-            try:
-                self.structured_data[lang]['mainEntityOfPage'] = {
-                    "@type": "WebPage",
-                    "@id": self.get_canonical_url()
+                self.structured_data[lang] = {
+                    "@context": "https://schema.org",
+                    "@type": self.get_schema_type(),
+                    "inLanguage": lang
                 }
-            except:
+            else:
+                # Update basic schema info
+                self.structured_data[lang]["@context"] = "https://schema.org"
+                self.structured_data[lang]["@type"] = self.get_schema_type()
+                self.structured_data[lang]["inLanguage"] = lang
+
+            # Update language specific fields
+            if lang == 'ar':
+                self.structured_data[lang]["name"] = self.title_ar or self.title_en
+                self.structured_data[lang]["description"] = self.description_ar[:300] if self.description_ar else self.description_en[:300]
+            else:
+                self.structured_data[lang]["name"] = self.title_en or self.title_ar
+                self.structured_data[lang]["description"] = (self.description_en or self.description_ar)[:300]
+
+            # Add URL if possible
+            try:
+                url = self.get_canonical_url()
+                if url:
+                    self.structured_data[lang]["url"] = url
+            except Exception:
                 pass
             
         return self.structured_data
@@ -993,38 +1120,83 @@ class ContentItem(models.Model):
         if not seo_metadata_dict:
             return False
         
-        # Update SEO fields from Gemini response - Convert lists to comma-separated strings for SQLite
-        tags_en = seo_metadata_dict.get('tags_en', [])
-        self.tags_en = ', '.join(tags_en) if isinstance(tags_en, list) else tags_en
-        
-        seo_keywords_ar = seo_metadata_dict.get('seo_keywords_ar', [])
-        self.seo_keywords_ar = ', '.join(seo_keywords_ar) if isinstance(seo_keywords_ar, list) else seo_keywords_ar
-        
-        seo_keywords_en = seo_metadata_dict.get('seo_keywords_en', [])
-        self.seo_keywords_en = ', '.join(seo_keywords_en) if isinstance(seo_keywords_en, list) else seo_keywords_en
-        
-        self.seo_meta_description_ar = seo_metadata_dict.get('seo_meta_description_ar', '')
-        self.seo_meta_description_en = seo_metadata_dict.get('seo_meta_description_en', '')
-        self.seo_title_ar = seo_metadata_dict.get('seo_title_ar', '')
-        self.seo_title_en = seo_metadata_dict.get('seo_title_en', '')
-        self.transcript = seo_metadata_dict.get('transcript', '')
-        self.notes = seo_metadata_dict.get('notes', '')
+        # Check for new nested format {"en": {...}, "ar": {...}}
+        if 'en' in seo_metadata_dict and 'ar' in seo_metadata_dict:
+            en_data = seo_metadata_dict['en']
+            ar_data = seo_metadata_dict['ar']
+            
+            # Map Arabic fields
+            self.title_ar = ar_data.get('title', self.title_ar)
+            self.description_ar = ar_data.get('description', self.description_ar)
+            self.seo_title_ar = ar_data.get('seo_title', self.seo_title_ar)
+            self.seo_meta_description_ar = ar_data.get('seo_meta_description', self.seo_meta_description_ar)
+            
+            tags_ar = ar_data.get('tags', [])
+            # Note: tags_ar is an M2M field normally, but if we have a field for it, we update it
+            # Currently ContentItem has no tags_ar field, only a ManyToManyField 'tags'
+            
+            keywords_ar = ar_data.get('seo_keywords', [])
+            self.seo_keywords_ar = ', '.join(keywords_ar) if isinstance(keywords_ar, list) else keywords_ar
+            
+            # Map English fields
+            self.title_en = en_data.get('title', self.title_en)
+            self.description_en = en_data.get('description', self.description_en)
+            self.seo_title_en = en_data.get('seo_title', self.seo_title_en)
+            self.seo_meta_description_en = en_data.get('seo_meta_description', self.seo_meta_description_en)
+            
+            tags_en = en_data.get('tags', [])
+            self.tags_en = ', '.join(tags_en) if isinstance(tags_en, list) else tags_en
+            
+            keywords_en = en_data.get('seo_keywords', [])
+            self.seo_keywords_en = ', '.join(keywords_en) if isinstance(keywords_en, list) else keywords_en
+            
+            # Update structured data block by block
+            self.structured_data = {
+                'en': en_data.get('structured_data', {}),
+                'ar': ar_data.get('structured_data', {})
+            }
+        else:
+            # Fallback to legacy flat format
+            tags_en = seo_metadata_dict.get('tags_en', [])
+            self.tags_en = ', '.join(tags_en) if isinstance(tags_en, list) else tags_en
+            
+            seo_keywords_ar = seo_metadata_dict.get('seo_keywords_ar', [])
+            self.seo_keywords_ar = ', '.join(seo_keywords_ar) if isinstance(seo_keywords_ar, list) else seo_keywords_ar
+            
+            seo_keywords_en = seo_metadata_dict.get('seo_keywords_en', [])
+            self.seo_keywords_en = ', '.join(seo_keywords_en) if isinstance(seo_keywords_en, list) else seo_keywords_en # Fix: keywords_en was undefined in legacy 
+            
+            self.seo_meta_description_ar = seo_metadata_dict.get('seo_meta_description_ar', '')
+            self.seo_meta_description_en = seo_metadata_dict.get('seo_meta_description_en', '')
+            self.seo_title_ar = seo_metadata_dict.get('seo_title_ar', '')
+            self.seo_title_en = seo_metadata_dict.get('seo_title_en', '')
+            
+            # Structured Data (Legacy) - if single block, wrap it in sync or just take it as is
+            # For legacy, we'll try to guess if it's already bilingual or needs wrapping
+            raw_sd = seo_metadata_dict.get('structured_data', {})
+            if isinstance(raw_sd, dict) and ('en' in raw_sd or 'ar' in raw_sd):
+                self.structured_data = raw_sd
+            else:
+                # Wrap it based on inLanguage if possible, or just skip and let save() sync it
+                pass 
+            
+            if seo_metadata_dict.get('title_ar'):
+                self.title_ar = seo_metadata_dict['title_ar']
+            if seo_metadata_dict.get('title_en'):
+                self.title_en = seo_metadata_dict['title_en']
+            if seo_metadata_dict.get('description_ar'):
+                self.description_ar = seo_metadata_dict['description_ar']
+            if seo_metadata_dict.get('description_en'):
+                self.description_en = seo_metadata_dict['description_en']
+
+        # Shared fields
+        self.transcript = seo_metadata_dict.get('transcript', self.transcript)
+        self.notes = seo_metadata_dict.get('notes', self.notes)
         
         seo_title_suggestions = seo_metadata_dict.get('seo_title_suggestions', [])
         self.seo_title_suggestions = ', '.join(seo_title_suggestions) if isinstance(seo_title_suggestions, list) else seo_title_suggestions
         
-        self.structured_data = seo_metadata_dict.get('structured_data', {})
-        
-        # Also update basic metadata if provided
-        if seo_metadata_dict.get('title_ar'):
-            self.title_ar = seo_metadata_dict['title_ar']
-        if seo_metadata_dict.get('title_en'):
-            self.title_en = seo_metadata_dict['title_en']
-        if seo_metadata_dict.get('description_ar'):
-            self.description_ar = seo_metadata_dict['description_ar']
-        if seo_metadata_dict.get('description_en'):
-            self.description_en = seo_metadata_dict['description_en']
-        
+        # Save with ALL potentially modified fields
         self.save(update_fields=[
             'tags_en', 'seo_keywords_ar', 'seo_keywords_en', 'transcript', 'notes',
             'seo_meta_description_ar', 'seo_meta_description_en',
@@ -1195,6 +1367,18 @@ class VideoMeta(models.Model):
     
     # Use custom manager
     objects = VideoMetaManager()
+
+    def save(self, *args, **kwargs):
+        """Populate ContentItem title_ar from filename if empty"""
+        if self.original_file and not self.content_item.title_ar:
+            try:
+                filename = os.path.basename(self.original_file.name)
+                if filename:
+                    self.content_item.title_ar = ContentItem._clean_filename(filename)
+                    self.content_item.save(update_fields=['title_ar'])
+            except Exception as e:
+                logger.warning(f"Failed to populate title from video filename: {e}")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{_('Video')}: {self.content_item.title_ar}"
@@ -1490,6 +1674,18 @@ class AudioMeta(models.Model):
     # Use custom manager
     objects = AudioMetaManager()
 
+    def save(self, *args, **kwargs):
+        """Populate ContentItem title_ar from filename if empty"""
+        if self.original_file and not self.content_item.title_ar:
+            try:
+                filename = os.path.basename(self.original_file.name)
+                if filename:
+                    self.content_item.title_ar = ContentItem._clean_filename(filename)
+                    self.content_item.save(update_fields=['title_ar'])
+            except Exception as e:
+                logger.warning(f"Failed to populate title from audio filename: {e}")
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{_('Audio')}: {self.content_item.title_ar}"
     
@@ -1754,6 +1950,18 @@ class PdfMeta(models.Model):
     
     # Use custom manager
     objects = PdfMetaManager()
+
+    def save(self, *args, **kwargs):
+        """Populate ContentItem title_ar from filename if empty"""
+        if self.original_file and not self.content_item.title_ar:
+            try:
+                filename = os.path.basename(self.original_file.name)
+                if filename:
+                    self.content_item.title_ar = ContentItem._clean_filename(filename)
+                    self.content_item.save(update_fields=['title_ar'])
+            except Exception as e:
+                logger.warning(f"Failed to populate title from PDF filename: {e}")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{_('PDF')}: {self.content_item.title_ar}"

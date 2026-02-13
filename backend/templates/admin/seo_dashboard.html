@@ -505,8 +505,17 @@ function showSEODetails(contentId) {
                         <textarea class="form-control" id="seo-desc-ar-${contentId}" rows="2" dir="rtl">${data.seo_meta_description_ar || ''}</textarea>
                     </div>
                     <div class="col-12">
-                        <label class="form-label small fw-bold">Bilingual JSON-LD (en/ar keys)</label>
-                        <textarea class="form-control font-monospace small" id="seo-structured-${contentId}" rows="8">${prettyJson}</textarea>
+                        <label class="form-label small">Structured Data (JSON-LD)</label>
+                        <textarea class="form-control form-control-sm font-monospace" id="seo-structured-${contentId}" rows="4">${data.structured_data ? (typeof data.structured_data === 'string' ? JSON.stringify(JSON.parse(data.structured_data), null, 2) : JSON.stringify(data.structured_data, null, 2)) : '{}'}</textarea>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label small">Transcript (for Audio/Video SEO)</label>
+                        <textarea class="form-control form-control-sm" id="seo-transcript-${contentId}" rows="4">${data.transcript || ''}</textarea>
+                        <small class="text-muted">Full text for search engines to index spoken content</small>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label small">Internal Notes</label>
+                        <textarea class="form-control form-control-sm" id="seo-notes-${contentId}" rows="3">${data.notes || ''}</textarea>
                     </div>
                     <div class="col-12 text-end">
                         <button class="btn btn-sm btn-white border rounded-pill me-2" onclick="document.getElementById('seo-details-${contentId}').classList.remove('show')">Cancel</button>

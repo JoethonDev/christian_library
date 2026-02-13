@@ -106,7 +106,7 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label small text-muted">{% trans "Title" %}</label>
-                                        <input type="text" name="title_ar" class="form-control" required dir="rtl">
+                                        <input type="text" name="title_ar" class="form-control" dir="rtl">
                                     </div>
                                     <div class="mb-0">
                                         <label class="form-label small text-muted">{% trans "Description" %}</label>
@@ -390,13 +390,23 @@
     function updateFileName(input) {
         const displayContainer = document.getElementById('file-name-display');
         const nameSpan = document.getElementById('selected-file-name');
+        const titleArInput = document.querySelector('input[name="title_ar"]');
         
         if (input.files && input.files[0]) {
-            nameSpan.textContent = input.files[0].name;
+            const fileName = input.files[0].name;
+            nameSpan.textContent = fileName;
             displayContainer.classList.remove('d-none');
             
+            // Populate Arabic title if empty
+            if (titleArInput && !titleArInput.value) {
+                // Remove extension and replace separators with spaces
+                let defaultName = fileName.split('.').slice(0, -1).join('.');
+                defaultName = defaultName.replace(/[_-]/g, ' ').trim();
+                titleArInput.value = defaultName;
+            }
+            
             // Auto Select Type Attempt
-            const ext = input.files[0].name.split('.').pop().toLowerCase();
+            const ext = fileName.split('.').pop().toLowerCase();
             if(['mp4','avi','mov'].includes(ext)) document.getElementById('video-type').click();
             if(['mp3','wav'].includes(ext)) document.getElementById('audio-type').click();
             if(['pdf'].includes(ext)) document.getElementById('pdf-type').click();

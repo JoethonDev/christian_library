@@ -11,16 +11,20 @@
                         <i class="bi bi-book-half text-white"></i>
                     </div>
                     <div>
-                        <h6 class="mb-0 fw-bold heading-font" style="color: var(--color-golden-ochre);">{% trans "Christian Library" %}</h6>
-                        <small class="text-light opacity-75">{% trans "Sharing the Word of God" %}</small>
+                        <h6 class="mb-0 fw-bold heading-font" style="color: var(--color-golden-ochre);">
+                            {% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرام{% else %}Bishop Abram Library{% endif %}
+                        </h6>
+                        <small class="text-light opacity-75">
+                            {% if LANGUAGE_CODE == 'ar' %}التراث الروحي لمطرانية الفيوم{% else %}Spiritual Heritage of Fayoum Diocese{% endif %}
+                        </small>
                     </div>
                 </div>
                 <p class="small text-light opacity-75 body-font">
                     {% get_current_language as LANGUAGE_CODE %}
                     {% if LANGUAGE_CODE == 'ar' %}
-                        مكتبة رقمية متخصصة في المحتوى المسيحي الأرثوذكسي القبطي لنشر كلمة الله والتعليم الروحي.
+                        المكتبة الرقمية الرسمية لنيافة الحبر الجليل الأنبا أبرام مطران الفيوم ورئيس أديرتها، المخصصة لنشر الوسائط الروحية والكتب القبطية الأرثوذكسية.
                     {% else %}
-                        A digital library dedicated to Coptic Orthodox Christian content for sharing God's Word and spiritual education.
+                        The official digital library of His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of its monasteries, dedicated to sharing Coptic Orthodox spiritual media and educational resources.
                     {% endif %}
                 </p>
             </div>
@@ -64,19 +68,22 @@
                             Archangel Gabriel Monastery, Naqlun, Fayoum, Egypt
                         {% endif %}
                     </li>
-                    <li class="mb-2">
+
+                    <!-- <li class="mb-2">
                         <a href="mailto:info@library.example.com" class="text-decoration-none">
                             <i class="bi bi-envelope me-2"></i>info@library.example.com
                         </a>
                     </li>
                     <li class="mb-2 text-light opacity-75">
                         <i class="bi bi-phone me-2 text-golden"></i>+20 XXX XXXX XXX
-                    </li>
+                    </li> -->
+
                 </ul>
             </div>
             
             <!-- Column 4: Social & Apps -->
             <div class="col-lg-3 col-md-6 mb-4">
+                <!-- 
                 <h6 class="fw-bold heading-font mb-3" style="color: var(--color-golden-ochre);">{% trans "Follow Us" %}</h6>
                 <div class="d-flex gap-3 mb-3">
                     <a href="#" class="btn btn-outline-light btn-sm rounded-circle p-2" style="width: 40px; height: 40px; border-color: var(--color-golden-ochre);">
@@ -93,7 +100,6 @@
                     </a>
                 </div>
                 
-                <!-- App Store Links Placeholder -->
                 <div>
                     <h6 class="fw-bold heading-font mb-2 small" style="color: var(--color-golden-ochre);">{% trans "Download App" %}</h6>
                     <div class="d-flex flex-column gap-2">
@@ -105,6 +111,7 @@
                         </a>
                     </div>
                 </div>
+                -->
             </div>
         </div>
         
