@@ -243,7 +243,7 @@ class PdfMetaInline(admin.StackedInline):
 class ContentItemAdmin(admin.ModelAdmin):
     form = ContentItemForm
     list_display = ['title_display', 'content_type_display', 'tags_display', 'media_status_display', 'seo_status_display', 'is_active', 'created_at']
-    list_filter = ['content_type', 'is_active', 'created_at', 'tags']
+    list_filter = ['content_type', 'is_active', 'processing_status', 'seo_processing_status', 'created_at', 'tags']
     search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 'seo_keywords_ar', 'seo_keywords_en']
     readonly_fields = ['id', 'created_at', 'updated_at', 'content_url', 'seo_metadata_preview']
     
