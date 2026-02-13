@@ -247,6 +247,28 @@ class ContentItemAdmin(admin.ModelAdmin):
     search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 'seo_keywords_ar', 'seo_keywords_en']
     readonly_fields = ['id', 'created_at', 'updated_at', 'content_url', 'seo_metadata_preview']
     
+    # Status display configuration (shared across status display methods)
+    STATUS_COLORS = {
+        'pending': 'orange',
+        'processing': 'blue',
+        'completed': 'green',
+        'failed': 'red',
+    }
+    
+    STATUS_LABELS = {
+        'pending': _('Pending'),
+        'processing': _('Processing'),
+        'completed': _('Ready'),
+        'failed': _('Failed'),
+    }
+    
+    STATUS_SYMBOLS = {
+        'pending': '○',  # Empty circle
+        'processing': '◐',  # Half circle
+        'completed': '✓',  # Checkmark
+        'failed': '✗',  # X mark
+    }
+    
     fieldsets = (
         (_('Basic Information'), {
             'fields': ('title_ar', 'title_en', 'description_ar', 'description_en')
@@ -331,28 +353,15 @@ class ContentItemAdmin(admin.ModelAdmin):
             if not meta:
                 return format_html('<span style="color: gray;">-</span>')
             
-            status_colors = {
-                'pending': 'orange',
-                'processing': 'blue',
-                'completed': 'green',
-                'failed': 'red',
-            }
-            
-            status_labels = {
-                'pending': _('Pending'),
-                'processing': _('Processing'),
-                'completed': _('Ready'),
-                'failed': _('Failed'),
-            }
-            
             # Show both file processing and R2 upload status
-            file_color = status_colors.get(meta.processing_status, 'gray')
-            file_label = status_labels.get(meta.processing_status, meta.processing_status)
+            file_color = self.STATUS_COLORS.get(meta.processing_status, 'gray')
+            file_label = self.STATUS_LABELS.get(meta.processing_status, meta.processing_status)
             
             # R2 status (if enabled)
             r2_status = ''
-            if getattr(settings, 'R2_ENABLED', False) and hasattr(meta, 'r2_upload_status'):
-                r2_color = status_colors.get(meta.r2_upload_status, 'gray')
+            r2_enabled = hasattr(settings, 'R2_ENABLED') and settings.R2_ENABLED
+            if r2_enabled and hasattr(meta, 'r2_upload_status'):
+                r2_color = self.STATUS_COLORS.get(meta.r2_upload_status, 'gray')
                 if meta.r2_upload_status == 'completed':
                     r2_status = f'<br><small style="color: {r2_color};">☁ R2 Ready</small>'
                 elif meta.r2_upload_status == 'uploading':
@@ -402,30 +411,9 @@ class ContentItemAdmin(admin.ModelAdmin):
     
     def seo_status_display(self, obj):
         """Display SEO generation status with processing state"""
-        status_colors = {
-            'pending': 'orange',
-            'processing': 'blue',
-            'completed': 'green',
-            'failed': 'red',
-        }
-        
-        status_labels = {
-            'pending': _('Pending'),
-            'processing': _('Processing'),
-            'completed': _('Ready'),
-            'failed': _('Failed'),
-        }
-        
-        status_symbols = {
-            'pending': '○',  # Empty circle
-            'processing': '◐',  # Half circle
-            'completed': '✓',  # Checkmark
-            'failed': '✗',  # X mark
-        }
-        
-        color = status_colors.get(obj.seo_processing_status, 'gray')
-        label = status_labels.get(obj.seo_processing_status, obj.seo_processing_status)
-        symbol = status_symbols.get(obj.seo_processing_status, '○')
+        color = self.STATUS_COLORS.get(obj.seo_processing_status, 'gray')
+        label = self.STATUS_LABELS.get(obj.seo_processing_status, obj.seo_processing_status)
+        symbol = self.STATUS_SYMBOLS.get(obj.seo_processing_status, '○')
         
         # Show keyword count if SEO is ready
         extra_info = ''
