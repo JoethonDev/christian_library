@@ -909,7 +909,7 @@ class ContentItem(models.Model):
     # --- SEO Helper Methods ---
     def has_seo_metadata(self):
         """Check if this content item has SEO metadata generated"""
-        return bool(self.seo_keywords_ar or self.seo_keywords_en or self.seo_title_ar or self.seo_title_en or self.structured_data)
+        return bool(self.seo_keywords_ar or self.seo_keywords_en or self.seo_title_ar or self.seo_title_en)
 
     def get_seo_title(self, language='en'):
         """Get SEO title with fallback logic"""

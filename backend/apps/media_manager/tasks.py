@@ -391,7 +391,7 @@ def finalize_media_processing(contentitem_id):
                     if hasattr(meta, 'optimized_file') and meta.optimized_file and os.path.exists(meta.optimized_file.path):
                         local_paths.append(str(meta.optimized_file.path))
                 
-                if local_paths:
+                if local_paths and item.has_seo_metadata():
                     delete_files_task.delay(local_paths)
                     logger.info(f"Queued deletion for {len(local_paths)} paths for item {item.id}")
                     
