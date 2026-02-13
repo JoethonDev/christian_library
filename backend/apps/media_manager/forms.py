@@ -10,11 +10,16 @@ class ContentItemForm(forms.ModelForm):
     class Meta:
         model = ContentItem
         fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 
-                 'content_type', 'tags', 'is_active']
+                 'content_type', 'tags', 'structured_data', 'is_active']
         widgets = {
             'description_ar': forms.Textarea(attrs={'rows': 4}),
             'description_en': forms.Textarea(attrs={'rows': 4}),
             'tags': forms.CheckboxSelectMultiple(),
+            'structured_data': forms.Textarea(attrs={
+                'rows': 10, 
+                'class': 'font-monospace',
+                'placeholder': '{ "@context": "https://schema.org", ... }'
+            }),
         }
     
     def __init__(self, *args, **kwargs):
@@ -24,6 +29,31 @@ class ContentItemForm(forms.ModelForm):
             if 'ar' in field_name:
                 field.widget.attrs['dir'] = 'rtl'
                 field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' text-right'
+        
+        # Pretty print JSON if it exists
+        if self.instance and self.instance.pk and self.instance.structured_data:
+            try:
+                import json
+                self.initial['structured_data'] = json.dumps(
+                    self.instance.structured_data, 
+                    ensure_ascii=False, 
+                    indent=2
+                )
+            except Exception:
+                pass
+
+    def clean_structured_data(self):
+        data = self.cleaned_data.get('structured_data')
+        if not data:
+            return {}
+        
+        if isinstance(data, str):
+            try:
+                import json
+                return json.loads(data)
+            except json.JSONDecodeError as e:
+                raise ValidationError(f"Invalid JSON format: {str(e)}")
+        return data
 
     def clean_is_active(self):
         is_active = self.cleaned_data.get('is_active')

@@ -925,7 +925,7 @@ def api_content_seo(request, content_id):
                 'seo_meta_description_ar': content.seo_meta_description_ar or '',
                 'seo_keywords_en': content.seo_keywords_en or '',
                 'seo_keywords_ar': content.seo_keywords_ar or '',
-                'structured_data': json.dumps(content.structured_data) if content.structured_data else '{}',
+                'structured_data': content.structured_data if content.structured_data else {},
                 'transcript': content.transcript or '',
                 'notes': content.notes or ''
             })
@@ -944,13 +944,20 @@ def api_content_seo(request, content_id):
             content.notes = data.get('notes', '')
             
             # Validate and save structured data
-            structured_data = data.get('structured_data', '')
+            structured_data = data.get('structured_data', {})
             if structured_data:
-                try:
-                    # Validate it's valid JSON and store as dict
-                    content.structured_data = json.loads(structured_data)
-                except json.JSONDecodeError:
-                    return JsonResponse({'success': False, 'error': 'Invalid JSON in structured data'})
+                if isinstance(structured_data, str):
+                    try:
+                        # Validate it's valid JSON and store as dict
+                        content.structured_data = json.loads(structured_data)
+                    except json.JSONDecodeError:
+                        return JsonResponse({'success': False, 'error': 'Invalid JSON in structured data'})
+                elif isinstance(structured_data, dict):
+                    content.structured_data = structured_data
+                else:
+                    return JsonResponse({'success': False, 'error': 'Invalid format for structured data'})
+            else:
+                content.structured_data = {}
             
             content.save()
             

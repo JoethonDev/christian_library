@@ -847,10 +847,9 @@ ALL fields are required and must contain appropriate content.
         # Structured Data
         structured_data = metadata.get('structured_data', {})
         if isinstance(structured_data, dict):
-            import json
-            validated['structured_data'] = json.dumps(structured_data, ensure_ascii=False)
+            validated['structured_data'] = structured_data
         else:
-            validated['structured_data'] = '{}'
+            validated['structured_data'] = {}
         
         return validated
 
