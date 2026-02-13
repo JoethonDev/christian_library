@@ -6,6 +6,7 @@ import os
 
 class ContentItemForm(forms.ModelForm):
     """Enhanced form for ContentItem with validation"""
+    title_ar = forms.CharField(required=False, widget=forms.TextInput(attrs={'dir': 'rtl', 'class': 'text-right'}))
     
     class Meta:
         model = ContentItem
@@ -26,7 +27,7 @@ class ContentItemForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Add CSS classes for RTL support
         for field_name, field in self.fields.items():
-            if 'ar' in field_name:
+            if 'ar' in field_name and field_name != 'title_ar': # Skip title_ar as handled above
                 field.widget.attrs['dir'] = 'rtl'
                 field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' text-right'
         

@@ -497,14 +497,43 @@ class ContentItemManager(models.Manager):
 
 
 class ContentItem(models.Model):
+    @staticmethod
+    def _clean_filename(filename):
+        """
+        Clean filename for use as title:
+        - Remove extension
+        - Replace underscores/hyphens with spaces
+        - Remove extra whitespace
+        """
+        if not filename:
+            return ""
+        name = os.path.splitext(filename)[0]
+        # Replace underscores and hyphens with spaces
+        name = name.replace('_', ' ').replace('-', ' ')
+        # Clean extra spaces
+        name = ' '.join(name.split())
+        return name
+
     def save(self, *args, **kwargs):
         """
         Override save to trigger background extraction/indexing if relevant fields change.
         Extraction and FTS update are always done in the background (never synchronously).
-        Ensures structured_data is synchronized with basic fields.
+        Ensuring structured_data is synchronized with basic fields.
+        Populates title_ar from filename if empty.
         """
         update_fields = kwargs.get('update_fields')
         is_new = self._state.adding
+
+        # Default title_ar to filename if empty and we have a linked meta object
+        if not self.title_ar:
+            meta = self.get_meta_object()
+            if meta and meta.original_file:
+                try:
+                    filename = os.path.basename(meta.original_file.name)
+                    if filename:
+                        self.title_ar = self._clean_filename(filename)
+                except Exception as e:
+                    logger.warning(f"Failed to extract title from filename: {e}")
         
         # Always sync structured data on save if it's not a restricted update
         if not update_fields or 'structured_data' in update_fields or 'title_ar' in update_fields:
@@ -642,7 +671,7 @@ class ContentItem(models.Model):
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title_ar = models.CharField(max_length=200, verbose_name=_('Arabic Title'), db_index=True)
+    title_ar = models.CharField(max_length=200, blank=True, verbose_name=_('Arabic Title'), db_index=True)
     title_en = models.CharField(max_length=200, blank=True, verbose_name=_('English Title'), db_index=True)
     description_ar = models.TextField(verbose_name=_('Arabic Description'))
     description_en = models.TextField(blank=True, verbose_name=_('English Description'))
@@ -1322,6 +1351,18 @@ class VideoMeta(models.Model):
     # Use custom manager
     objects = VideoMetaManager()
 
+    def save(self, *args, **kwargs):
+        """Populate ContentItem title_ar from filename if empty"""
+        if self.original_file and not self.content_item.title_ar:
+            try:
+                filename = os.path.basename(self.original_file.name)
+                if filename:
+                    self.content_item.title_ar = ContentItem._clean_filename(filename)
+                    self.content_item.save(update_fields=['title_ar'])
+            except Exception as e:
+                logger.warning(f"Failed to populate title from video filename: {e}")
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{_('Video')}: {self.content_item.title_ar}"
     
@@ -1616,6 +1657,18 @@ class AudioMeta(models.Model):
     # Use custom manager
     objects = AudioMetaManager()
 
+    def save(self, *args, **kwargs):
+        """Populate ContentItem title_ar from filename if empty"""
+        if self.original_file and not self.content_item.title_ar:
+            try:
+                filename = os.path.basename(self.original_file.name)
+                if filename:
+                    self.content_item.title_ar = ContentItem._clean_filename(filename)
+                    self.content_item.save(update_fields=['title_ar'])
+            except Exception as e:
+                logger.warning(f"Failed to populate title from audio filename: {e}")
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{_('Audio')}: {self.content_item.title_ar}"
     
@@ -1880,6 +1933,18 @@ class PdfMeta(models.Model):
     
     # Use custom manager
     objects = PdfMetaManager()
+
+    def save(self, *args, **kwargs):
+        """Populate ContentItem title_ar from filename if empty"""
+        if self.original_file and not self.content_item.title_ar:
+            try:
+                filename = os.path.basename(self.original_file.name)
+                if filename:
+                    self.content_item.title_ar = ContentItem._clean_filename(filename)
+                    self.content_item.save(update_fields=['title_ar'])
+            except Exception as e:
+                logger.warning(f"Failed to populate title from PDF filename: {e}")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{_('PDF')}: {self.content_item.title_ar}"
