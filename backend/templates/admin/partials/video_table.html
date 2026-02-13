@@ -128,6 +128,13 @@
                            title="{% trans 'Preview' %}" target="_blank">
                             <i class="bi bi-eye"></i>
                         </a>
+                        {% if video.videometa.r2_original_video_url %}
+                        <a href="{% url 'frontend_api:delete_local_confirm' video.id %}" 
+                           class="btn btn-sm btn-light text-warning" 
+                           title="{% trans 'Delete Local Only' %}">
+                            <i class="bi bi-hdd"></i>
+                        </a>
+                        {% endif %}
                         <a href="{% url 'frontend_api:content_delete_confirm' video.id %}" 
                            class="btn btn-sm btn-light text-danger" 
                            title="{% trans 'Delete' %}">

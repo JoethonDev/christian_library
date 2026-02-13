@@ -1,0 +1,75 @@
+<!-- templates/admin/delete_local_confirm.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-4">
+                        <div class="d-inline-flex align-items-center justify-content-center p-4 rounded-circle bg-warning bg-opacity-10 text-warning mb-3">
+                            <i class="bi bi-hdd display-4"></i>
+                        </div>
+                        <h2 class="fw-bold mb-2">{% trans "Delete Local Files Only?" %}</h2>
+                        <p class="text-muted">{% trans "This will remove files from the local server to save space. The R2 cloud copy and database entry will be preserved." %}</p>
+                    </div>
+
+                    {% if not meta.has_seo %}
+                    <div class="alert alert-danger rounded-4 border-0 shadow-sm mb-4 text-start">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="bi bi-exclamation-octagon-fill fs-3"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1">{% trans "SEO Warning" %}</h6>
+                                <p class="small mb-0">
+                                    {% trans "SEO metadata has NOT been generated for this item yet. Local files are required for the AI to process and generate SEO. If you delete them now, you will NOT be able to generate SEO for this item later." %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="card bg-light border-0 rounded-3 mb-4 text-start">
+                        <div class="card-body d-flex align-items-center p-3">
+                            <div class="p-3 bg-white rounded-3 me-3 shadow-sm text-secondary">
+                                {% if content_item.content_type == 'video' %}
+                                    <i class="bi bi-camera-video fs-4"></i>
+                                {% elif content_item.content_type == 'audio' %}
+                                    <i class="bi bi-mic fs-4"></i>
+                                {% else %}
+                                    <i class="bi bi-file-text fs-4"></i>
+                                {% endif %}
+                            </div>
+                            <div class="overflow-hidden">
+                                <h6 class="fw-bold text-dark mb-1 text-truncate">{{ content_item.title_ar }}</h6>
+                                {% if content_item.title_en %}
+                                    <div class="small text-muted text-truncate">{{ content_item.title_en }}</div>
+                                {% endif %}
+                                <div class="badge bg-secondary-subtle text-secondary rounded-pill mt-2">
+                                    ID: {{ content_item.id|truncatechars:10 }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                             <button type="submit" class="btn btn-warning btn-lg rounded-pill shadow-sm fw-bold">
+                                <i class="bi bi-trash me-2"></i>{% trans "Delete Local Files" %}
+                            </button>
+                            <a href="{% url 'frontend_api:admin_content_detail' content_item.id %}" 
+                               class="btn btn-light btn-lg rounded-pill text-muted fw-semibold">
+                                {% trans "Cancel" %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

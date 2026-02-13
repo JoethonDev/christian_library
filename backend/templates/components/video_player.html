@@ -36,7 +36,7 @@
                 </div>
             </div>
             <!-- Enhanced Actions Menu -->
-            {% if video.videometa and video.videometa.get_playback_file %}
+            {% if video.videometa and video.videometa.get_best_streaming_url %}
             <div class="video-actions flex-shrink-0">
                 <div class="dropdown">
                     <button class="btn btn-link p-2" type="button" data-bs-toggle="dropdown" 
@@ -66,7 +66,7 @@
     
     <!-- Video Player Container -->
     <div class="video-container position-relative" style="background: #000;">
-        {% if video.videometa %}
+        {% if video.videometa and video.videometa.get_best_streaming_url %}
             <!-- Quality Selector Overlay -->
             {% if available_qualities and available_qualities|length > 1 %}
                 <div class="position-absolute top-0 end-0 p-2" style="z-index: 1000;">
