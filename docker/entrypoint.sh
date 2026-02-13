@@ -44,7 +44,16 @@ case "$1" in
         wait_for_service "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "Redis"
         
         echo "👷 Starting Celery Worker..."
-        exec celery -A config worker -l info --concurrency=${CELERY_CONCURRENCY:-2}
+        # If additional arguments are provided (e.g., -Q videos -c 1 -n videos@%h),
+        # use them. Otherwise, use default worker configuration.
+        if [ "$#" -gt 1 ]; then
+            # Shift past 'worker' to get remaining arguments
+            shift
+            exec celery -A config worker -l info "$@"
+        else
+            # Default worker (all queues, default concurrency)
+            exec celery -A config worker -l info --concurrency=${CELERY_CONCURRENCY:-2}
+        fi
         ;;
 
     beat)

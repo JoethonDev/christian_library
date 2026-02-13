@@ -121,6 +121,10 @@ def process_video_to_hls(self, video_meta_id):
         video_meta.processing_status = 'completed'
         video_meta.save()
         
+        # Update ContentItem processing status
+        video_meta.content_item.processing_status = 'completed'
+        video_meta.content_item.save(update_fields=['processing_status'])
+        
         # Parallel Trigger: Trigger SEO generation and R2 upload at the same time
         from apps.media_manager.tasks import generate_seo_metadata_task
         TaskMonitor.update_progress(self.request.id, 92, "Video processed. Starting AI enrichment and cloud delivery...", "Finalizing")
@@ -267,6 +271,10 @@ def process_audio_compression(self, audio_meta_id):
         
         audio_meta.processing_status = 'completed'
         audio_meta.save()
+        
+        # Update ContentItem processing status
+        audio_meta.content_item.processing_status = 'completed'
+        audio_meta.content_item.save(update_fields=['processing_status'])
         
         TaskMonitor.update_task_status(self.request.id, 'SUCCESS', {'message': 'Audio compression complete. AI and Cloud tasks started.', 'progress': 100})
         

@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.core.cache import cache
+from django.conf import settings
 import logging
 
 from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag, ContentViewEvent, DailyContentViewSummary
@@ -241,7 +242,7 @@ class PdfMetaInline(admin.StackedInline):
 @admin.register(ContentItem)
 class ContentItemAdmin(admin.ModelAdmin):
     form = ContentItemForm
-    list_display = ['title_display', 'content_type_display', 'tags_display', 'seo_status_display', 'status_display', 'is_active', 'created_at']
+    list_display = ['title_display', 'content_type_display', 'tags_display', 'media_status_display', 'seo_status_display', 'is_active', 'created_at']
     list_filter = ['content_type', 'is_active', 'created_at', 'tags']
     search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 'seo_keywords_ar', 'seo_keywords_en']
     readonly_fields = ['id', 'created_at', 'updated_at', 'content_url', 'seo_metadata_preview']
@@ -323,8 +324,8 @@ class ContentItemAdmin(admin.ModelAdmin):
     tags_display.short_description = _('Tags')
     tags_display.allow_tags = True
     
-    def status_display(self, obj):
-        """Display processing status with visual indicators"""
+    def media_status_display(self, obj):
+        """Display media processing status (HLS/OCR/R2) with visual indicators"""
         try:
             meta = obj.get_meta_object()
             if not meta:
@@ -344,17 +345,32 @@ class ContentItemAdmin(admin.ModelAdmin):
                 'failed': _('Failed'),
             }
             
-            color = status_colors.get(meta.processing_status, 'gray')
-            label = status_labels.get(meta.processing_status, meta.processing_status)
+            # Show both file processing and R2 upload status
+            file_color = status_colors.get(meta.processing_status, 'gray')
+            file_label = status_labels.get(meta.processing_status, meta.processing_status)
+            
+            # R2 status (if enabled)
+            r2_status = ''
+            if getattr(settings, 'R2_ENABLED', False) and hasattr(meta, 'r2_upload_status'):
+                r2_color = status_colors.get(meta.r2_upload_status, 'gray')
+                if meta.r2_upload_status == 'completed':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ R2 Ready</small>'
+                elif meta.r2_upload_status == 'uploading':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ Uploading...</small>'
+                elif meta.r2_upload_status == 'pending':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ R2 Pending</small>'
+                elif meta.r2_upload_status == 'failed':
+                    r2_status = f'<br><small style="color: {r2_color};">☁ R2 Failed</small>'
             
             return format_html(
-                '<span style="color: {}; font-weight: bold;">● {}</span>',
-                color,
-                label
+                '<span style="color: {}; font-weight: bold;">● File: {}</span>{}',
+                file_color,
+                file_label,
+                r2_status
             )
         except Exception:
             return format_html('<span style="color: gray;">-</span>')
-    status_display.short_description = _('Status')
+    media_status_display.short_description = _('Media Status')
     
     def content_url(self, obj):
         """Display content URL for frontend"""
@@ -385,20 +401,36 @@ class ContentItemAdmin(admin.ModelAdmin):
         )
     
     def seo_status_display(self, obj):
-        """Display SEO metadata status"""
-        if obj.has_seo_metadata():
+        """Display SEO generation status with processing state"""
+        status_colors = {
+            'pending': 'orange',
+            'processing': 'blue',
+            'completed': 'green',
+            'failed': 'red',
+        }
+        
+        status_labels = {
+            'pending': _('Pending'),
+            'processing': _('Processing'),
+            'completed': _('Ready'),
+            'failed': _('Failed'),
+        }
+        
+        color = status_colors.get(obj.seo_processing_status, 'gray')
+        label = status_labels.get(obj.seo_processing_status, obj.seo_processing_status)
+        
+        # Show keyword count if SEO is ready
+        extra_info = ''
+        if obj.seo_processing_status == 'completed' and obj.has_seo_metadata():
             keyword_count = len(obj.seo_keywords_ar) + len(obj.seo_keywords_en)
-            return format_html(
-                '<span style="color: green; font-weight: bold;">✓ SEO Ready</span><br>'
-                '<small>{} keywords</small>',
-                keyword_count
-            )
-        else:
-            return format_html(
-                '<span style="color: orange;">⚠ SEO Pending</span><br>'
-                '<small><a href="#" onclick="generateSEO({});">Generate</a></small>',
-                obj.pk
-            )
+            extra_info = f'<br><small>{keyword_count} keywords</small>'
+        
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">✓ AI: {}</span>{}',
+            color,
+            label,
+            extra_info
+        )
     seo_status_display.short_description = _('SEO Status')
     seo_status_display.allow_tags = True
     

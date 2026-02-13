@@ -87,12 +87,15 @@ services:
           memory: 2048M
 
   #============================================================================
-  # Celery Worker (Background Tasks)
+  # Celery Workers (Background Tasks - Per Queue)
+  # Separate workers for videos, audios, pdfs, seo, and default tasks
+  # Videos, audios, and pdfs process sequentially (concurrency=1)
+  # SEO can process in parallel (concurrency=4)
   #============================================================================
-  celery_worker:
+  celery_worker_videos:
     image: christian-library-app:latest
     restart: unless-stopped
-    command: ["worker"]
+    command: ["worker", "-Q", "videos", "-c", "1", "-n", "videos@%h"]
     env_file: .env
     depends_on:
       db:
@@ -106,12 +109,108 @@ services:
       - logs_data:/app/logs
     networks:
       - backend
-      - frontend   # <--- ADDED: Needs Frontend to reach R2
+      - frontend
     deploy:
       resources:
         limits:
-          cpus: '2.0'
-          memory: 4096M
+          cpus: '1.0'
+          memory: 2048M
+
+  celery_worker_audios:
+    image: christian-library-app:latest
+    restart: unless-stopped
+    command: ["worker", "-Q", "audios", "-c", "1", "-n", "audios@%h"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2048M
+
+  celery_worker_pdfs:
+    image: christian-library-app:latest
+    restart: unless-stopped
+    command: ["worker", "-Q", "pdfs", "-c", "1", "-n", "pdfs@%h"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2048M
+
+  celery_worker_seo:
+    image: christian-library-app:latest
+    restart: unless-stopped
+    command: ["worker", "-Q", "seo", "-c", "4", "-n", "seo@%h"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+
+  celery_worker_default:
+    image: christian-library-app:latest
+    restart: unless-stopped
+    command: ["worker", "-Q", "default", "-c", "2", "-n", "default@%h"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1024M
 
   #============================================================================
   # Celery Beat (Scheduler)

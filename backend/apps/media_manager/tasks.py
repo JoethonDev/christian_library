@@ -42,9 +42,12 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
             )
             return
         
-        # Update task status to indicate processing has started
-        item.processing_status = 'processing'
-        item.save(update_fields=['processing_status'])
+        # Update task status to indicate processing has started (only if not already completed)
+        # For PDFs, the file processing (optimization) completes first, then text extraction happens
+        # We don't want to overwrite 'completed' status from file processing
+        if item.processing_status != 'completed':
+            item.processing_status = 'processing'
+            item.save(update_fields=['processing_status'])
         
         TaskMonitor.update_progress(
             self.request.id, 
@@ -239,14 +242,18 @@ def generate_seo_metadata_task(self, contentitem_id):
             success_update = item.update_seo_from_gemini(seo_metadata)
             
             if success_update:
-                # Mark processing as completed
+                # Mark SEO processing as completed
                 item.seo_processing_status = 'completed'
-                # If it's a video or audio, we also mark the main processing status as completed
-                # (For PDF, it's marked completed after optimization but before OCR/SEO)
-                if item.content_type in ['video', 'audio']:
-                    item.processing_status = 'completed'
                 
-                item.save(update_fields=['seo_processing_status', 'processing_status'])
+                # Only update processing_status if not already completed
+                # (The file processing task should have already marked it as completed)
+                update_fields = ['seo_processing_status']
+                if item.processing_status != 'completed':
+                    if item.content_type in ['video', 'audio', 'pdf']:
+                        item.processing_status = 'completed'
+                        update_fields.append('processing_status')
+                
+                item.save(update_fields=update_fields)
                 
                 logger.info(f"Successfully generated and updated SEO metadata for ContentItem {contentitem_id}")
                 
