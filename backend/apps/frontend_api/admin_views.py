@@ -161,6 +161,60 @@ def content_delete_confirm(request, content_id):
 
 
 @login_required
+def delete_local_confirm(request, content_id):
+    """Handle local file deletion only, preserving R2 and DB record."""
+    try:
+        content = admin_service.get_content_detail(str(content_id))
+        
+        # Get meta object based on content type
+        meta = None
+        if content.content_type == 'video':
+            meta = getattr(content, 'videometa', None)
+        elif content.content_type == 'audio':
+            meta = getattr(content, 'audiometa', None)
+        elif content.content_type == 'pdf':
+            meta = getattr(content, 'pdfmeta', None)
+            
+        if request.method == 'POST':
+            processing_service = MediaProcessingService()
+            success, message = processing_service.delete_local_file_only(content)
+            
+            if success:
+                messages.success(request, message)
+                # Redirect to management list based on type
+                if content.content_type == 'video':
+                    return redirect('frontend_api:video_management')
+                elif content.content_type == 'audio':
+                    return redirect('frontend_api:audio_management')
+                elif content.content_type == 'pdf':
+                    return redirect('frontend_api:pdf_management')
+                return redirect('frontend_api:admin_content_list')
+            else:
+                messages.error(request, message)
+                return redirect('frontend_api:admin_content_detail', content_id=content_id)
+
+        # GET request - Show confirmation page
+        processed_content = admin_service.language_processor.process_content_item(
+            content, get_language()
+        )
+        
+        context = {
+            'content_item': processed_content,
+            'meta': meta,
+            'current_language': get_language(),
+        }
+        
+        return render(request, 'admin/delete_local_confirm.html', context)
+            
+    except ContentItem.DoesNotExist:
+        messages.error(request, _("Content not found"))
+        return redirect('frontend_api:admin_content_list')
+    except Exception as e:
+        messages.error(request, f"Error processing request: {str(e)}")
+        return redirect('frontend_api:admin_content_list')
+
+
+@login_required
 def upload_content(request):
     """Upload content page"""
     return render(request, 'admin/upload_content.html', {

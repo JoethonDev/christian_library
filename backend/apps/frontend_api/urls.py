@@ -40,6 +40,7 @@ urlpatterns = [
     path('dashboard/content/', admin_views.content_list, name='admin_content_list'),
     path('dashboard/content/<uuid:content_id>/', admin_views.content_detail, name='admin_content_detail'),
     path('dashboard/content/<uuid:content_id>/delete/', admin_views.content_delete_confirm, name='content_delete_confirm'),
+    path('dashboard/content/<uuid:content_id>/delete-local/', admin_views.delete_local_confirm, name='delete_local_confirm'),
     path('dashboard/content/delete/<uuid:content_id>/', admin_views.content_delete_confirm, name='admin_content_delete'),
     
     # Upload functionality (at /en/dashboard/upload/)
