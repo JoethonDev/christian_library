@@ -9,12 +9,17 @@ import logging
 from typing import Dict, Optional, Tuple
 from django.conf import settings
 from google import genai
+from core.services.gemini_rate_limit_service import get_gemini_rate_limit_service
 
 logger = logging.getLogger(__name__)
 
 
 class GeminiContentGenerator:
     """Service for generating content metadata using Gemini AI"""
+    
+    # Model constants
+    MODEL_SEO = "gemini-3-flash-preview"
+    MODEL_METADATA = "gemini-2.5-flash"
     
     def __init__(self):
         """Initialize Gemini client"""
@@ -26,18 +31,28 @@ class GeminiContentGenerator:
                 
             # Get model from settings with optimal default
             # gemini-2.5-flash: Best price-performance, large-scale processing, multilingual, fast response
-            self.model = getattr(settings, 'GEMINI_MODEL', 'gemini-3-flash-preview')
+            self.model = getattr(settings, 'GEMINI_MODEL', self.MODEL_SEO)
                 
             # Initialize client with API key
             self.client = genai.Client(api_key=api_key)
+            self.rate_limit_service = get_gemini_rate_limit_service()
             
         except Exception as e:
             logger.error(f"Failed to initialize Gemini client: {e}")
             self.client = None
+            self.rate_limit_service = None
     
-    def is_available(self) -> bool:
-        """Check if Gemini service is available"""
-        return self.client is not None
+    def is_available(self, model_name: str = None) -> bool:
+        """Check if Gemini service is available and has remaining quota"""
+        if self.client is None:
+            return False
+            
+        target_model = model_name or self.model
+        if self.rate_limit_service:
+            is_available, _, _ = self.rate_limit_service.check_availability(target_model)
+            return is_available
+            
+        return True
     
     def generate_complete_metadata(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
         """
@@ -53,8 +68,8 @@ class GeminiContentGenerator:
             tags, seo_keywords_ar, seo_keywords_en, seo_meta_description_ar, 
             seo_meta_description_en, seo_title_suggestions, structured_data
         """
-        if not self.is_available():
-            return False, {'error': 'Gemini service is not available'}
+        if not self.is_available(self.MODEL_SEO):
+            return False, {'error': 'Gemini service (SEO) is not available or rate limited'}
             
         try:
             # Upload file to Gemini
@@ -65,7 +80,7 @@ class GeminiContentGenerator:
             
             # Generate content with Gemini using consistency-optimized config
             response = self.client.models.generate_content(
-                model=self.model,
+                model=self.MODEL_SEO,
                 contents=[prompt, uploaded_file],
                 config={
                     "temperature": 0.1,  # Low temperature for deterministic outputs
@@ -135,6 +150,10 @@ class GeminiContentGenerator:
                 }
             )
             
+            # Record usage
+            if self.rate_limit_service:
+                self.rate_limit_service.record_usage(self.MODEL_SEO)
+            
             # Clean up uploaded file
             self.client.files.delete(name=uploaded_file.name)
             
@@ -196,8 +215,8 @@ class GeminiContentGenerator:
             seo_meta_description_ar, seo_meta_description_en,
             seo_title_suggestions, structured_data
         """
-        if not self.is_available():
-            return False, {"error": "Gemini AI service not available"}
+        if not self.is_available(self.MODEL_SEO):
+            return False, {"error": "Gemini AI service (SEO) not available or rate limited"}
             
         try:
             # Upload file to Gemini
@@ -208,7 +227,7 @@ class GeminiContentGenerator:
             
             # Generate content with Gemini using consistency-optimized config
             response = self.client.models.generate_content(
-                model=self.model,
+                model=self.MODEL_SEO,
                 contents=[prompt, uploaded_file],
                 config={
                     "temperature": 0.1,  # Low temperature for deterministic outputs
@@ -277,6 +296,10 @@ class GeminiContentGenerator:
                 }
             )
             
+            # Record usage
+            if self.rate_limit_service:
+                self.rate_limit_service.record_usage(self.model)
+            
             # Clean up uploaded file
             self.client.files.delete(name=uploaded_file.name)
             
@@ -306,8 +329,8 @@ class GeminiContentGenerator:
             Tuple of (success: bool, metadata: dict)
             metadata contains: title_ar, title_en, description_ar, description_en, tags
         """
-        if not self.is_available():
-            return False, {"error": "Gemini AI service not available"}
+        if not self.is_available(self.MODEL_METADATA):
+            return False, {"error": "Gemini AI service (Metadata) not available or rate limited"}
             
         try:
             # Upload file to Gemini
@@ -318,7 +341,7 @@ class GeminiContentGenerator:
             
             # Generate content with Gemini using consistency-optimized config
             response = self.client.models.generate_content(
-                model=self.model,
+                model=self.MODEL_METADATA,
                 contents=[prompt, uploaded_file],
                 config={
                     "temperature": 0.1,  # Low temperature for deterministic outputs
@@ -341,6 +364,10 @@ class GeminiContentGenerator:
                     }
                 }
             )
+            
+            # Record usage
+            if self.rate_limit_service:
+                self.rate_limit_service.record_usage(self.MODEL_METADATA)
             
             # Clean up uploaded file
             self.client.files.delete(name=uploaded_file.name)

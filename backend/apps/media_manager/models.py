@@ -1147,7 +1147,7 @@ class ContentItem(models.Model):
             self.seo_keywords_ar = ', '.join(seo_keywords_ar) if isinstance(seo_keywords_ar, list) else seo_keywords_ar
             
             seo_keywords_en = seo_metadata_dict.get('seo_keywords_en', [])
-            self.seo_keywords_en = ', '.join(keywords_en) if isinstance(keywords_en, list) else seo_keywords_en # Fix: keywords_en was undefined in legacy if I'm not careful, but I see it above. Wait, the old code had tags_en, seo_keywords_ar, seo_keywords_en.
+            self.seo_keywords_en = ', '.join(seo_keywords_en) if isinstance(seo_keywords_en, list) else seo_keywords_en # Fix: keywords_en was undefined in legacy 
             
             self.seo_meta_description_ar = seo_metadata_dict.get('seo_meta_description_ar', '')
             self.seo_meta_description_en = seo_metadata_dict.get('seo_meta_description_en', '')
