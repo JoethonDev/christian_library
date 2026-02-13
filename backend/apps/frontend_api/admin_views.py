@@ -113,7 +113,6 @@ def content_detail(request, content_id):
                 
                 # Handle tags - parse comma-separated tag names
                 if tags_input:
-                    from apps.media_manager.models import Tag
                     tag_names = [name.strip() for name in tags_input.split(',') if name.strip()]
                     tag_objects = []
                     
