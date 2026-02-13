@@ -47,7 +47,7 @@
         let html = '<div class="row g-3">';
         models.forEach(model => {
             const rateInfo = data.rate_limits[model.id] || {};
-            const remaining_min = rateInfo.remaining_requests_min || 0;
+            const remaining_min = rateInfo.remaining_requests_minute || 0;
             const limit_min = rateInfo.limit_per_minute || 0;
             const remaining_day = rateInfo.remaining_requests_day || 0;
             const limit_day = rateInfo.limit_per_day || 0;
@@ -97,7 +97,7 @@
         let html = '<div class="gemini-wide-list">';
         models.forEach(model => {
             const rateInfo = data.rate_limits[model.id] || {};
-            const remaining_min = rateInfo.remaining_requests_min || 0;
+            const remaining_min = rateInfo.remaining_requests_minute || 0;
             const limit_min = rateInfo.limit_per_minute || 0;
             const remaining_day = rateInfo.remaining_requests_day || 0;
             const limit_day = rateInfo.limit_per_day || 0;
