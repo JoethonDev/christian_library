@@ -563,35 +563,39 @@ class ContentItem(models.Model):
             return
         
         # Build search vector from all available text fields
-        # Weights: A=highest (titles), B=high (descriptions), C=medium (transcript/tags), D=low (notes/content)
+        # Weights: A=highest (content/transcript), B=medium (descriptions), C=lower (titles), D=lowest (notes)
+        # This prioritizes actual content over metadata for better search relevance.
         
         search_parts = []
         
-        # Arabic fields with 'arabic' config
-        if self.title_ar:
-            search_parts.append(SearchVector('title_ar', weight='A', config='arabic'))
+        # ---- HIGHEST PRIORITY: Actual content (Weight A) ----
+        # Book content (for PDFs - highest priority as it contains the actual book text)
+        if self.book_content:
+            search_parts.append(SearchVector('book_content', weight='A', config='arabic'))
         
+        # Transcript field (for audio/video or summaries - highest priority)
+        if self.transcript:
+            search_parts.append(SearchVector('transcript', weight='A', config='simple'))
+        
+        # ---- MEDIUM PRIORITY: Descriptions (Weight B) ----
+        # Descriptions with language-specific configs
         if self.description_ar:
             search_parts.append(SearchVector('description_ar', weight='B', config='arabic'))
-        
-        # English fields with 'english' config  
-        if self.title_en:
-            search_parts.append(SearchVector('title_en', weight='A', config='english'))
         
         if self.description_en:
             search_parts.append(SearchVector('description_en', weight='B', config='english'))
         
-        # Transcript field (medium weight, use simple config as it may contain mixed languages)
-        if self.transcript:
-            search_parts.append(SearchVector('transcript', weight='C', config='simple'))
+        # ---- LOWER PRIORITY: Titles (Weight C) ----
+        # Titles with language-specific configs
+        if self.title_ar:
+            search_parts.append(SearchVector('title_ar', weight='C', config='arabic'))
         
-        # Notes field (lower weight)
+        if self.title_en:
+            search_parts.append(SearchVector('title_en', weight='C', config='english'))
+        
+        # ---- LOWEST PRIORITY: Notes (Weight D) ----
         if self.notes:
             search_parts.append(SearchVector('notes', weight='D', config='simple'))
-        
-        # Book content (for PDFs, lower weight due to volume)
-        if self.book_content:
-            search_parts.append(SearchVector('book_content', weight='D', config='arabic'))
         
         # Note: Tag names are NOT included in search_vector to avoid complex M2M triggers.
         # Tags are searched separately via Q object filters in the search_optimized() method.
