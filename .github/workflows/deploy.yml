@@ -13,24 +13,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run Lint & Auto-fix
-        run: |
-          black --check . || black .
-          flake8 . || true
-
-      - name: Commit Lint Fixes if any
-        run: |
-          git config user.name "github-actions"
-          git config user.email "action@github.com"
-          git add .
-          git diff-index --quiet HEAD || git commit -m "Apply auto-lint fixes"
-
+        
       - name: Pull Latest & Run Docker Compose
         run: |
           cd ${{ secrets.VPS_PROJECT_PATH }}
