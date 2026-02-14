@@ -9,6 +9,7 @@ import re
 
 from .models import ContentItem
 from .services.content_service import ContentService
+from .services.search_settings_service import get_search_settings_service
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +176,9 @@ class PDFContentSearchAPIView(View):
                     book_content__icontains=search_query
                 ).select_related('pdfmeta').prefetch_related('tags')
             else:
-                # Use PostgreSQL FTS with Arabic config
+                # Use PostgreSQL FTS with Arabic config and dynamic threshold
                 search_query_obj = SearchQuery(search_query, config='arabic')
+                search_threshold = get_search_settings_service().get_current_threshold()
                 results_qs = ContentItem.objects.filter(
                     content_type='pdf',
                     is_active=True,
@@ -184,7 +186,7 @@ class PDFContentSearchAPIView(View):
                 ).annotate(
                     rank=SearchRank(models.F('search_vector'), search_query_obj)
                 ).filter(
-                    rank__gte=0.1
+                    rank__gte=search_threshold
                 ).select_related('pdfmeta').prefetch_related('tags').order_by('-rank')
             
             # Get total count

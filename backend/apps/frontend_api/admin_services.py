@@ -13,6 +13,7 @@ import shutil
 from pathlib import Path
 
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
+from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.frontend_api.services import ContentLanguageProcessor
 
 
@@ -268,14 +269,15 @@ class AdminService:
                 from django.db import connection
                 
                 if 'postgresql' in connection.settings_dict['ENGINE']:
-                    # Use PostgreSQL FTS with Arabic config
+                    # Use PostgreSQL FTS with Arabic config and dynamic threshold
                     search_query_obj = SearchQuery(search_query, config='arabic')
+                    search_threshold = get_search_settings_service().get_current_threshold()
                     content_qs = content_qs.filter(
                         search_vector__isnull=False
                     ).annotate(
                         rank=SearchRank(models.F('search_vector'), search_query_obj)
                     ).filter(
-                        rank__gte=0.1
+                        rank__gte=search_threshold
                     ).order_by('-rank')
                 else:
                     # Fallback to search in content, title, and description

@@ -11,6 +11,10 @@ def update_search_vectors(apps, schema_editor):
     - Notes
     This is a data migration that updates existing records using raw SQL.
     """
+    # Skip if not using PostgreSQL
+    if 'postgresql' not in schema_editor.connection.settings_dict['ENGINE'].lower():
+        return
+    
     # Use raw SQL to update search vectors efficiently
     # This avoids the complexity of using SearchVector in migrations
     sql = """

@@ -64,6 +64,11 @@ urlpatterns = [
     path('dashboard/analytics/', admin_views.analytics_dashboard, name='analytics_dashboard'),
     path('dashboard/analytics/api/', admin_views.api_analytics_views, name='api_analytics_views'),
     
+    # Search Sensitivity Settings API
+    path('dashboard/search-settings/', admin_views.get_search_sensitivity, name='get_search_sensitivity'),
+    path('dashboard/search-settings/update/', admin_views.update_search_sensitivity, name='update_search_sensitivity'),
+    path('dashboard/search-settings/test/', admin_views.test_search_sensitivity, name='test_search_sensitivity'),
+    
     # SEO Dashboard (at /en/dashboard/seo/)
     path('dashboard/seo/', seo_views.SEODashboardView.as_view(), name='seo_dashboard'),
     path('dashboard/seo/analytics-api/', seo_views.seo_analytics_api, name='seo_analytics_api'),

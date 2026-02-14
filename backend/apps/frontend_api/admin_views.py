@@ -20,6 +20,7 @@ from apps.media_manager.services.content_service import ContentService
 from apps.media_manager.services.upload_service import MediaUploadService
 from apps.media_manager.services.delete_service import MediaProcessingService
 from apps.media_manager.services.gemini_service import get_gemini_service
+from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.frontend_api.admin_services import AdminService
 from core.services.gemini_manager import get_gemini_manager
 
@@ -1372,6 +1373,159 @@ def api_analytics_views(request):
         
     except Exception as e:
         logger.error(f"Error in api_analytics_views: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def get_search_sensitivity(request):
+    """Get current search sensitivity settings"""
+    try:
+        search_service = get_search_settings_service()
+        settings = search_service.get_all_settings()
+        
+        # Get all available modes with their descriptions and thresholds
+        modes = []
+        for mode_key, mode_label in [
+            ('exact', 'Exact Match'),
+            ('strict', 'Strict'),
+            ('normal', 'Normal'),
+            ('relaxed', 'Relaxed'),
+            ('custom', 'Custom'),
+        ]:
+            modes.append({
+                'key': mode_key,
+                'label': mode_label,
+                'threshold': search_service.get_threshold_for_mode(mode_key),
+                'description': search_service.get_mode_description(mode_key),
+                'is_active': settings['mode'] == mode_key
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'current_settings': settings,
+            'available_modes': modes
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting search sensitivity: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def update_search_sensitivity(request):
+    """Update search sensitivity settings"""
+    try:
+        data = json.loads(request.body)
+        mode = data.get('mode')
+        custom_threshold = data.get('custom_threshold')
+        
+        if not mode:
+            return JsonResponse({
+                'success': False,
+                'error': 'Mode is required'
+            }, status=400)
+        
+        # Update settings with audit logging
+        search_service = get_search_settings_service()
+        success, message, new_settings = search_service.update_settings(
+            mode=mode,
+            custom_threshold=custom_threshold,
+            user=request.user
+        )
+        
+        if success:
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'settings': new_settings
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': message
+            }, status=400)
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating search sensitivity: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def test_search_sensitivity(request):
+    """Test search with a specific sensitivity setting using UnifiedSearchService"""
+    try:
+        data = json.loads(request.body)
+        search_query = data.get('query', '').strip()
+        test_mode = data.get('mode', 'normal')
+        custom_threshold = data.get('custom_threshold')
+        
+        if not search_query:
+            return JsonResponse({
+                'success': False,
+                'error': 'Search query is required'
+            }, status=400)
+        
+        # Get threshold for the test mode
+        search_service = get_search_settings_service()
+        if test_mode == 'custom' and custom_threshold is not None:
+            try:
+                threshold = float(custom_threshold)
+                if not 0.0 <= threshold <= 1.0:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Custom threshold must be between 0.0 and 1.0'
+                    }, status=400)
+            except (ValueError, TypeError):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid custom threshold value'
+                }, status=400)
+        else:
+            threshold = search_service.get_threshold_for_mode(test_mode)
+        
+        # Use UnifiedSearchService for consistent search behavior
+        from apps.media_manager.services.unified_search_service import get_unified_search_service
+        
+        unified_search = get_unified_search_service()
+        results_data = unified_search.get_search_preview(
+            query=search_query,
+            threshold=threshold,
+            content_type=None,  # Search all types
+            limit=10
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'query': search_query,
+            'mode': test_mode,
+            'threshold': threshold,
+            'total_results': len(results_data),
+            'results': results_data
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error testing search sensitivity: {str(e)}", exc_info=True)
         return JsonResponse({
             'success': False,
             'error': str(e)
