@@ -280,7 +280,7 @@ def search(request):
         'content_type_filter': content_type_filter,
         'tag_filter': tag_filter,
         'sort_by': sort_by,
-        'results': data['pagination']['page'] if data['pagination'] else [],
+        'results': data['results'] if data.get('results') else [],
         'page_obj': data['pagination']['page'] if data['pagination'] else None,
         'is_paginated': data['pagination']['num_pages'] > 1 if data['pagination'] else False,
         'total_count': data['total_count'],

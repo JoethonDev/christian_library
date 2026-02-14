@@ -47,7 +47,7 @@
                         style="border-color: var(--color-golden-ochre); border-radius: 12px; min-height: 44px; font-size: 1rem;">
                     <option value="">{% trans "All Categories" %}</option>
                     {% for tag in available_tags %}
-                        <option value="{{ tag.slug }}" {% if tag_filter == tag.slug %}selected{% endif %}>
+                        <option value="{{ tag.id }}" {% if tag_filter == tag.id %}selected{% endif %}>
                             {% get_current_language as LANGUAGE_CODE %}
                             {% if LANGUAGE_CODE == 'ar' %}
                                 {{ tag.name_ar|default:tag.name_en }}

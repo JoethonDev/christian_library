@@ -23,7 +23,8 @@
                 <div class="card-body p-4">
                     <form action="." method="get">
                         <div class="row g-3 align-items-end">
-                            <div class="col-lg-10">
+                            <div class="col-lg-6">
+                                <label class="form-label text-maroon body-font small fw-bold">{% trans "Keywords" %}</label>
                                 <div class="position-relative">
                                     <input type="text" name="q" value="{{ query }}" 
                                            class="form-control form-control-lg border-0 ps-5 pe-4" 
@@ -34,8 +35,26 @@
                                     <i class="bi bi-search position-absolute text-golden" style="left: 1.5rem; top: 50%; transform: translateY(-50%);"></i>
                                 </div>
                             </div>
+                            <div class="col-lg-4">
+                                <label class="form-label text-maroon body-font small fw-bold">{% trans "Category / Tag" %}</label>
+                                <select name="tag" class="form-select form-select-lg border-0" 
+                                        style="background: var(--color-golden-ochre-10); border-radius: 16px; border: 2px solid transparent; transition: all 0.3s ease;"
+                                        onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'" 
+                                        onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'">
+                                    <option value="">{% trans "All Categories" %}</option>
+                                    {% for tag in available_tags %}
+                                        <option value="{{ tag.id }}" {% if tag_filter == tag.id|stringformat:"s" %}selected{% endif %}>
+                                            {% if LANGUAGE_CODE == 'ar' %}
+                                                {{ tag.name_ar|default:tag.name_en }}
+                                            {% else %}
+                                                {{ tag.name_en|default:tag.name_ar }}
+                                            {% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                             <div class="col-lg-2">
-                                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill">
+                                <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill" style="height: 54px;">
                                     <i class="bi bi-search me-1"></i>{% trans "Search" %}
                                 </button>
                             </div>
@@ -49,7 +68,7 @@
 
 <!-- Search Results -->
 <div id="search-results">
-    {% if query %}
+    {% if query or tag_filter %}
         {% if results %}
             <!-- Results Header -->
             <div class="mb-4">
@@ -57,9 +76,26 @@
                     <h4 class="heading-font text-maroon mb-0">
                         {% trans "Search Results" %}
                     </h4>
-                    <span class="body-font text-muted">{{ results|length }} {% trans "results found" %}</span>
+                    <span class="body-font text-muted">{{ total_count }} {% trans "results found" %}</span>
                 </div>
-                <p class="body-font text-muted mb-0">{% trans "Results for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
+                <div class="d-flex flex-wrap gap-2 mt-1">
+                    {% if query %}
+                        <p class="body-font text-muted mb-0">{% trans "Results for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
+                    {% endif %}
+                    {% if tag_filter %}
+                        <p class="body-font text-muted mb-0">
+                            {% if query %} | {% endif %}
+                            {% trans "Category" %}: 
+                            <strong class="text-golden">
+                                {% for tag in available_tags %}
+                                    {% if tag.id|stringformat:"s" == tag_filter %}
+                                        {{ tag.name }}
+                                    {% endif %}
+                                {% endfor %}
+                            </strong>
+                        </p>
+                    {% endif %}
+                </div>
             </div>
             
             <div class="row g-4 mb-5">
@@ -67,6 +103,41 @@
                     {% include "components/media_card.html" with item=item %}
                 {% endfor %}
             </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav aria-label="{% trans 'Search pagination' %}" class="my-4 my-md-5">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link rounded-pill me-2 px-3" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% for page_num in page_obj.paginator.page_range %}
+                        {% if page_num == page_obj.number %}
+                            <li class="page-item active">
+                                <span class="page-link rounded-circle mx-1" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">{{ page_num }}</span>
+                            </li>
+                        {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link rounded-circle mx-1" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" href="?page={{ page_num }}{% if query %}&q={{ query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">{{ page_num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link rounded-pill ms-2 px-3" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}{% if sort_by %}&sort={{ sort_by }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
         {% else %}
             <div class="text-center py-5">
                 <div class="d-inline-flex align-items-center justify-content-center mb-4 sacred-shadow" 
@@ -74,8 +145,16 @@
                     <i class="bi bi-search text-white" style="font-size: 3rem;"></i>
                 </div>
                 <h4 class="heading-font text-maroon mt-3">{% trans "No results found" %}</h4>
-                <p class="body-font text-muted mb-3">{% trans "No results found for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
-                <p class="body-font text-muted small">{% trans "Try different keywords or check spelling" %}</p>
+                <p class="body-font text-muted mb-3">
+                    {% if query and tag_filter %}
+                        {% trans "No results found for" %} "<strong class="text-golden">{{ query }}</strong>" {% trans "in this category" %}
+                    {% elif query %}
+                        {% trans "No results found for" %} "<strong class="text-golden">{{ query }}</strong>"
+                    {% elif tag_filter %}
+                        {% trans "No results found in this category" %}
+                    {% endif %}
+                </p>
+                <p class="body-font text-muted small">{% trans "Try different keywords, clear your category filter, or check spelling" %}</p>
                 
                 <!-- Search Suggestions -->
                 <div class="mt-4">

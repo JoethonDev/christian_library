@@ -1,0 +1,130 @@
+<!-- templates/frontend_api/tag_content.html - Coptic Orthodox Theme -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ tag.name }} - {% trans "Christian Library" %}{% endblock %}
+
+{% block meta %}
+    {% include "includes/seo_listing_meta.html" with page_title=tag.name page_description=tag.description content_items=content %}
+{% endblock %}
+
+{% block content %}
+<!-- Tag Header -->
+<div class="card card-coptic mb-5 overflow-hidden">
+    <div class="card-body p-0">
+        <div class="row g-0">
+            <div class="col-md-8 p-4 p-md-5">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
+                         style="width: 64px; height: 64px; background: {{ tag.color|default:'var(--color-maroon)' }}; border-radius: 16px; border: 3px solid var(--color-golden-ochre);">
+                        <i class="bi bi-tag text-white" style="font-size: 2rem;"></i>
+                    </div>
+                    <div>
+                        <h2 class="heading-font text-maroon mb-1 fw-bold">{{ tag.name }}</h2>
+                        <span class="badge rounded-pill" style="background: var(--color-golden-ochre-10); color: var(--color-maroon); border: 1px solid var(--color-golden-ochre);">
+                            {{ total_count }} {% trans "items total" %}
+                        </span>
+                    </div>
+                </div>
+                
+                {% if tag.description %}
+                    <p class="body-font text-muted fs-5 mb-4">{{ tag.description }}</p>
+                {% endif %}
+                
+                <div class="d-flex flex-wrap gap-3">
+                    <div class="text-center p-3 rounded-3" style="background: var(--color-off-white); min-width: 100px; border: 1px solid var(--color-golden-ochre);">
+                        <h4 class="heading-font text-maroon fw-bold mb-0">{{ tag_stats.total_videos }}</h4>
+                        <small class="text-muted">{% trans "Videos" %}</small>
+                    </div>
+                    <div class="text-center p-3 rounded-3" style="background: var(--color-off-white); min-width: 100px; border: 1px solid var(--color-golden-ochre);">
+                        <h4 class="heading-font text-maroon fw-bold mb-0">{{ tag_stats.total_audios }}</h4>
+                        <small class="text-muted">{% trans "Audio" %}</small>
+                    </div>
+                    <div class="text-center p-3 rounded-3" style="background: var(--color-off-white); min-width: 100px; border: 1px solid var(--color-golden-ochre);">
+                        <h4 class="heading-font text-maroon fw-bold mb-0">{{ tag_stats.total_pdfs }}</h4>
+                        <small class="text-muted">{% trans "Books" %}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 d-none d-md-block" style="background: {{ tag.color|default:'var(--color-maroon)' }}; opacity: 0.1; position: relative; overflow: hidden;">
+                <i class="bi bi-tags position-absolute" style="font-size: 20rem; right: -50px; bottom: -50px; color: var(--color-golden-ochre); transform: rotate(-15deg);"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Filtering -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <h4 class="heading-font text-maroon mb-0">{% trans "Browsing Items" %}</h4>
+    
+    <div class="btn-group rounded-pill overflow-hidden shadow-sm">
+        <a href="?content_type=" class="btn {% if not content_type_filter %}btn-primary{% else %}btn-outline-primary{% endif %} px-4">
+            {% trans "All" %}
+        </a>
+        <a href="?content_type=video" class="btn {% if content_type_filter == 'video' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-play-circle me-1"></i> {% trans "Videos" %}
+        </a>
+        <a href="?content_type=audio" class="btn {% if content_type_filter == 'audio' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-music-note me-1"></i> {% trans "Audio" %}
+        </a>
+        <a href="?content_type=pdf" class="btn {% if content_type_filter == 'pdf' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="bi bi-journal-bookmark me-1"></i> {% trans "Books" %}
+        </a>
+    </div>
+</div>
+
+<!-- Results Grid -->
+{% if content %}
+    <div class="row g-4 mb-5">
+        {% for item in content %}
+            {% include "components/media_card.html" with item=item %}
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav aria-label="{% trans 'Tag content pagination' %}" class="my-5">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link rounded-pill me-2 px-3" href="?page={{ page_obj.previous_page_number }}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for page_num in page_obj.paginator.page_range %}
+                {% if page_num == page_obj.number %}
+                    <li class="page-item active">
+                        <span class="page-link rounded-circle mx-1" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">{{ page_num }}</span>
+                    </li>
+                {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link rounded-circle mx-1" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;" href="?page={{ page_num }}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">{{ page_num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link rounded-pill ms-2 px-3" href="?page={{ page_obj.next_page_number }}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+{% else %}
+    <div class="text-center py-5 card card-coptic">
+        <div class="card-body">
+            <i class="bi bi-search text-muted" style="font-size: 4rem;"></i>
+            <h4 class="mt-4 heading-font text-maroon">{% trans "No matching content found" %}</h4>
+            <p class="text-muted">{% trans "Try selecting a different content type or explore other tags." %}</p>
+            <a href="{% url 'frontend_api:home' %}" class="btn btn-primary rounded-pill px-4 mt-3">
+                {% trans "Return Home" %}
+            </a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

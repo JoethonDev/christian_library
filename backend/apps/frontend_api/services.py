@@ -55,6 +55,13 @@ class ContentLanguageProcessor:
             language = get_language()
         
         tag.name = tag.get_name(language)
+        
+        # Add language-aware description
+        if language == 'ar':
+            tag.description = tag.description_ar
+        else:
+            tag.description = tag.description_ar  # Fallback to Arabic if English is missing (or add description_en if it exists)
+            
         return tag
     
     @staticmethod
@@ -272,9 +279,10 @@ class ContentService:
             results_qs = results_qs.filter(tags__id=tag_filter)
         
         # Apply sorting
-        # If search query is provided, results are already sorted by rank in search_optimized
-        # Only override sorting if explicitly requested or if no search query
-        if not search_query:
+        # If tag_filter is present, prioritize newest to oldest as per requirement
+        if tag_filter:
+            results_qs = results_qs.order_by('-created_at')
+        elif not search_query:
             # No search query - sort by date or specified field
             if sort_by in ['title_ar', 'title_en']:
                 results_qs = results_qs.order_by(sort_by)
