@@ -131,7 +131,7 @@
         <span class="badge rounded-pill" id="current-mode-badge"></span>
     </div>
     <div class="card-body p-4">
-        <div class="row">
+        <div class="row g-4">
             <!-- Mode Selection -->
             <div class="col-lg-7">
                 <p class="text-muted small mb-3">
@@ -224,7 +224,7 @@
                 </div>
                 
                 <!-- Action Buttons -->
-                <div class="d-flex gap-2">
+                <div class="d-flex flex-column flex-sm-row gap-2">
                     <button type="button" class="btn btn-primary rounded-pill px-4" id="save-sensitivity-btn">
                         <i class="bi bi-check-circle me-2"></i>{% trans "Save Settings" %}
                     </button>
@@ -235,7 +235,7 @@
             </div>
             
             <!-- Live Preview/Test Panel -->
-            <div class="col-lg-5">
+            <div class="col-lg-5 mt-4 mt-lg-0">
                 <div class="bg-light rounded-3 p-3 h-100">
                     <h6 class="fw-bold mb-3">
                         <i class="bi bi-lightning me-1 text-warning"></i>
@@ -556,21 +556,26 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (data.results.length === 0) {
                 resultsDiv.innerHTML = 
-                    '<div class="text-center text-muted py-3"><small>{% trans "No results found" %}</small></div>';
+                    '<div class="text-center text-muted py-4"><small>{% trans "No results found" %}</small></div>';
                 statsDiv.innerHTML = '';
                 return;
             }
             
             let html = '<div class="list-group list-group-flush">';
-            data.results.forEach(result => {
+            data.results.forEach((result, index) => {
                 html += `
-                    <div class="list-group-item px-0 py-2 border-0 border-bottom">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1 me-2">
-                                <small class="fw-semibold text-dark d-block">${result.title}</small>
-                                <small class="text-muted">${result.type}</small>
+                    <div class="list-group-item px-2 py-3 border-0 ${index < data.results.length - 1 ? 'border-bottom' : ''}">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="fw-semibold text-dark text-truncate mb-1" style="font-size: 0.875rem;">${result.title}</div>
+                                <small class="text-muted text-uppercase" style="font-size: 0.75rem;">
+                                    <i class="bi bi-${result.type === 'video' ? 'play-circle' : result.type === 'audio' ? 'mic' : 'file-text'} me-1"></i>
+                                    ${result.type}
+                                </small>
                             </div>
-                            <span class="badge bg-primary-subtle text-primary small">${result.rank.toFixed(3)}</span>
+                            <span class="badge bg-primary-subtle text-primary px-2 py-1 flex-shrink-0" style="font-size: 0.7rem;">
+                                ${result.rank.toFixed(3)}
+                            </span>
                         </div>
                     </div>
                 `;
@@ -622,6 +627,40 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 .cursor-pointer {
     cursor: pointer;
+}
+.min-w-0 {
+    min-width: 0;
+}
+
+/* Mobile responsiveness for search sensitivity widget */
+@media (max-width: 991.98px) {
+    #search-sensitivity-widget .col-lg-7,
+    #search-sensitivity-widget .col-lg-5 {
+        margin-bottom: 1rem;
+    }
+    
+    #search-sensitivity-widget .bg-light {
+        margin-top: 0 !important;
+    }
+    
+    #test-results {
+        max-height: 250px !important;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .mode-option {
+        padding: 0.75rem !important;
+    }
+    
+    .mode-option .badge {
+        font-size: 0.7rem !important;
+        padding: 0.25rem 0.5rem !important;
+    }
+    
+    #test-results .list-group-item {
+        padding: 0.75rem 0.5rem !important;
+    }
 }
 </style>
 {% endblock %}

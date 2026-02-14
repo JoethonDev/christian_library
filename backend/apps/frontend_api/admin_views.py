@@ -1468,7 +1468,7 @@ def update_search_sensitivity(request):
 @login_required
 @require_POST
 def test_search_sensitivity(request):
-    """Test search with a specific sensitivity setting"""
+    """Test search with a specific sensitivity setting using UnifiedSearchService"""
     try:
         data = json.loads(request.body)
         search_query = data.get('query', '').strip()
@@ -1499,37 +1499,16 @@ def test_search_sensitivity(request):
         else:
             threshold = search_service.get_threshold_for_mode(test_mode)
         
-        # Perform the search with the test threshold
-        from django.contrib.postgres.search import SearchQuery, SearchRank
-        from django.db import connection, models as db_models
-        from apps.media_manager.models import ContentItem
+        # Use UnifiedSearchService for consistent search behavior
+        from apps.media_manager.services.unified_search_service import get_unified_search_service
         
-        if 'postgresql' not in connection.settings_dict['ENGINE']:
-            return JsonResponse({
-                'success': False,
-                'error': 'PostgreSQL full-text search is not available'
-            }, status=400)
-        
-        # Perform search across all content types
-        search_query_obj = SearchQuery(search_query, config='arabic')
-        results = ContentItem.objects.filter(
-            is_active=True,
-            search_vector__isnull=False
-        ).annotate(
-            rank=SearchRank(db_models.F('search_vector'), search_query_obj)
-        ).filter(
-            rank__gte=threshold
-        ).select_related('pdfmeta', 'videometa', 'audiometa').order_by('-rank')[:10]
-        
-        # Format results
-        results_data = []
-        for item in results:
-            results_data.append({
-                'id': str(item.id),
-                'title': item.title_ar or item.title_en,
-                'type': item.content_type,
-                'rank': float(item.rank) if hasattr(item, 'rank') else 0.0
-            })
+        unified_search = get_unified_search_service()
+        results_data = unified_search.get_search_preview(
+            query=search_query,
+            threshold=threshold,
+            content_type=None,  # Search all types
+            limit=10
+        )
         
         return JsonResponse({
             'success': True,

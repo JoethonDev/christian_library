@@ -61,7 +61,8 @@ import cv2
 import numpy as np
 
 # Module-level constants
-FTS_RANK_THRESHOLD = 0.1  # Minimum rank for FTS results (10% relevance - stricter for better precision)
+# FTS_RANK_THRESHOLD moved to UnifiedSearchService for dynamic threshold support
+# This ensures search sensitivity is controlled globally from admin settings
 
 # Pre-compiled regex for Arabic character detection (optimization)
 ARABIC_CHAR_PATTERN = re.compile(r'[\u0600-\u06FF\u0750-\u077F]')
@@ -306,87 +307,20 @@ class ContentItemQuerySet(models.QuerySet):
     
     def search_optimized(self, query, content_type=None, language=None):
         """
-        Optimized multilingual search with full-text search support for all content types.
-        Searches across: title, description, transcript, notes, book_content, and tag names.
-        Supports both Arabic and English with proper language-specific configurations.
+        Optimized multilingual search using UnifiedSearchService.
+        This ensures consistent search behavior across the entire application.
+        Uses dynamic threshold from admin settings.
         """
-        from django.db.models import Q, Case, When, Value, FloatField
-        from django.contrib.postgres.search import SearchQuery, SearchRank
+        from apps.media_manager.services.unified_search_service import get_unified_search_service
         
-        # Start with active content and proper relations
-        qs = self.active().select_related(
-            'videometa', 'audiometa', 'pdfmeta'
-        ).prefetch_related('tags')
-        
-        if content_type:
-            qs = qs.filter(content_type=content_type)
-        
-        if not query:
-            return qs.order_by('-created_at')
-        
-        # Detect language if not specified (use module-level helper for performance)
-        if language is None:
-            lang_code = detect_query_language(query)
-            # Map short code to PostgreSQL text search config name
-            language = 'arabic' if lang_code == 'ar' else 'english'
-        
-        # Try PostgreSQL FTS first (works for all content types now)
-        try:
-            # Create search queries for both languages to support mixed content
-            search_query_ar = SearchQuery(query, config='arabic')
-            search_query_en = SearchQuery(query, config='english')
-            
-            # Use primary language query for ranking
-            primary_query = search_query_ar if language == 'arabic' else search_query_en
-            
-            # Annotate with FTS rank
-            qs = qs.annotate(
-                rank=Case(
-                    # Items with search_vector get FTS ranking
-                    When(
-                        search_vector__isnull=False,
-                        then=SearchRank(models.F('search_vector'), primary_query)
-                    ),
-                    default=Value(0.0),
-                    output_field=FloatField()
-                )
-            )
-            
-            # Build comprehensive search conditions
-            # FTS match OR text field matches (for items without search_vector)
-            # Note: Tags are searched via Q object filters, not included in search_vector
-            # Simplified: rank >= threshold is sufficient (null search_vector results in rank=0.0 < threshold)
-            search_conditions = (
-                Q(rank__gte=FTS_RANK_THRESHOLD) |  # FTS match: rank >= 0.1 means search_vector exists and meets 10% minimum relevance
-                Q(title_ar__icontains=query) |
-                Q(title_en__icontains=query) |
-                Q(description_ar__icontains=query) |
-                Q(description_en__icontains=query) |
-                Q(transcript__icontains=query) |
-                Q(notes__icontains=query) |
-                Q(tags__name_ar__icontains=query) |  # Tag search via related field
-                Q(tags__name_en__icontains=query)    # Tag search via related field
-            )
-            
-            # Apply filters and order by relevance
-            qs = qs.filter(search_conditions).distinct().order_by('-rank', '-created_at')
-            
-        except Exception as e:
-            # Fallback to basic text search if PostgreSQL FTS is not available
-            logger.warning(f"FTS search failed, falling back to basic search: {e}")
-            search_conditions = (
-                Q(title_ar__icontains=query) |
-                Q(title_en__icontains=query) |
-                Q(description_ar__icontains=query) |
-                Q(description_en__icontains=query) |
-                Q(transcript__icontains=query) |
-                Q(notes__icontains=query) |
-                Q(tags__name_ar__icontains=query) |
-                Q(tags__name_en__icontains=query)
-            )
-            qs = qs.filter(search_conditions).distinct().order_by('-created_at')
-        
-        return qs
+        # Delegate to unified search service for consistency
+        search_service = get_unified_search_service()
+        return search_service.search_content(
+            query=query,
+            content_type=content_type,
+            language=language,
+            use_dynamic_threshold=True
+        )
     
     def related_content(self, content_item, limit=4):
         """Get related content based on shared tags - single optimized query"""
