@@ -2152,7 +2152,12 @@ class SiteConfiguration(models.Model):
         super().save(*args, **kwargs)
 
     def sync_structured_data(self):
-        """Synchronize the JSON-LD with field values for Organization/Website"""
+        """
+        Synchronize the JSON-LD with field values for ArchiveOrganization.
+        Uses ArchiveOrganization schema type for higher authority signal to Google.
+        Follows Google structured data best practices.
+        Reference: https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data
+        """
         if not isinstance(self.structured_data, dict) or not self.structured_data:
             self.structured_data = {"en": {}, "ar": {}}
             
@@ -2167,14 +2172,31 @@ class SiteConfiguration(models.Model):
             name = self.site_name_en if lang == 'en' else self.site_name_ar
             description = self.description_en if lang == 'en' else self.description_ar
             
+            # Use ArchiveOrganization for higher authority (blueprint requirement)
             self.structured_data[lang].update({
                 "@context": "https://schema.org",
-                "@type": "Organization",
+                "@type": "ArchiveOrganization",  # Changed from Organization
                 "@id": organization_id,
                 "name": name,
+                "alternateName": "Christian Library" if lang == 'en' else "المكتبة المسيحية",
                 "description": description,
                 "url": self.website_url,
-                "logo": self.logo_url
+                "logo": self.logo_url,
+                "address": {
+                    "@type": "PostalAddress",
+                    "addressLocality": "Fayoum" if lang == 'en' else "الفيوم",
+                    "addressCountry": "EG"
+                },
+                "knowsAbout": [
+                    "Coptic Orthodoxy", "Patristics", "Anba Abraam the Friend of the Poor", "Theology"
+                ] if lang == 'en' else [
+                    "الأرثوذكسية القبطية", "الآباء", "أنبا أبرآم صديق الفقراء", "اللاهوت"
+                ],
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": f"{self.website_url}/{lang}/search/?q={{search_term_string}}" if self.website_url else f"/{lang}/search/?q={{search_term_string}}",
+                    "query-input": "required name=search_term_string"
+                }
             })
 
     def get_structured_data_json(self, lang='en'):

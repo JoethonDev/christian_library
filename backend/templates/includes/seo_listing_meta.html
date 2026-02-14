@@ -3,8 +3,12 @@
 {% get_current_language as LANGUAGE_CODE %}
 
 {% comment %}
-    SEO Meta Tags Template for Listing Pages (Videos, Audio, PDFs)
-    Usage: {% include "includes/seo_listing_meta.html" with content_type="video" page_title="Video Library" page_description="..." %}
+SEO Meta Tags Template for Listing Pages (Videos, Audio, PDFs)
+================================================================
+Following Google SEO Best Practices
+Reference: https://developers.google.com/search/docs/fundamentals/seo-starter-guide
+
+Usage: {% include "includes/seo_listing_meta.html" with content_type="video" page_title="Video Library" page_description="..." %}
 {% endcomment %}
 
 <!-- Primary SEO Meta Tags -->
@@ -26,8 +30,15 @@
     {% endwith %}
 {% endif %}
 
-<!-- Canonical URL -->
+<!-- Canonical URL - Google best practice to avoid duplicate content -->
 <link rel="canonical" href="{{ request.build_absolute_uri }}">
+
+<!-- Hreflang Tags - Bilingual Support for listing pages -->
+{% with current_path=request.path %}
+<link rel="alternate" hreflang="ar" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}">
+<link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}">
+<link rel="alternate" hreflang="x-default" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}">
+{% endwith %}
 
 <!-- Open Graph Meta Tags -->
 <meta property="og:title" content="{{ page_title|default:'Christian Library' }}">

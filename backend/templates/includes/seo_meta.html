@@ -3,8 +3,18 @@
 {% get_current_language as LANGUAGE_CODE %}
 
 {% comment %}
-    SEO Meta Tags Template
-    Usage: {% include "includes/seo_meta.html" with content_item=object %}
+SEO Meta Tags Template - Following Google Best Practices
+==========================================================
+Reference: https://developers.google.com/search/docs/fundamentals/seo-starter-guide
+
+Google Requirements:
+  - Title: Unique, clear, concise, describes content (max ~60 chars displayed in search)
+  - Description: Short (150-160 chars), unique, includes relevant points
+  - Canonical URL: One URL per content to avoid duplicate issues
+  - Hreflang: For bilingual sites, specify language alternatives
+  - Structured data: Valid schema for rich results
+
+Usage: {% include "includes/seo_meta.html" with content_item=object %}
 {% endcomment %}
 
 {% if content_item %}
@@ -31,8 +41,14 @@
         <meta name="keywords" content="{{ content_item.seo_keywords_en_string }}">
     {% endif %}
     
+    <!-- Canonical URL - Google requirement to avoid duplicate content -->
     <link rel="canonical" href="{{ content_item.get_canonical_url }}">
     <meta property="og:url" content="{{ content_item.get_canonical_url }}">
+    
+    <!-- Hreflang Tags - Bilingual Support (Google best practice for international sites) -->
+    <link rel="alternate" hreflang="ar" href="{{ content_item.get_canonical_url }}">
+    <link rel="alternate" hreflang="en" href="{{ content_item.get_canonical_url }}">
+    <link rel="alternate" hreflang="x-default" href="{{ content_item.get_canonical_url }}">
     
     <!-- Open Graph Type -->
     {% if content_item.content_type == 'video' %}
@@ -43,12 +59,7 @@
         <meta property="og:type" content="article">
     {% endif %}
 
-    <!-- Language Alternatives -->
-    {% if LANGUAGE_CODE == 'ar' and content_item.seo_meta_description_en %}
-        <link rel="alternate" hreflang="en" href="{{ content_item.get_canonical_url }}?lang=en">
-    {% elif LANGUAGE_CODE == 'en' and content_item.seo_meta_description_ar %}
-        <link rel="alternate" hreflang="ar" href="{{ content_item.get_canonical_url }}?lang=ar">
-    {% endif %}
+
 
 {% elif site_config %}
     <!-- Primary SEO Meta Tags: Site Home -->
@@ -68,8 +79,15 @@
         <meta name="twitter:description" content="{{ site_config.description_en }}">
     {% endif %}
     
-    <link rel="canonical" href="{{ site_config.website_url }}">
-    <meta property="og:url" content="{{ site_config.website_url }}">
+    <!-- Canonical URL for homepage -->
+    <link rel="canonical" href="{{ request.build_absolute_uri }}">
+    <meta property="og:url" content="{{ request.build_absolute_uri }}">
+    
+    <!-- Hreflang Tags - Homepage bilingual support -->
+    <link rel="alternate" hreflang="ar" href="{{ request.scheme }}://{{ request.get_host }}/ar/">
+    <link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}/en/">
+    <link rel="alternate" hreflang="x-default" href="{{ request.scheme }}://{{ request.get_host }}/en/">
+    
     <meta property="og:type" content="website">
 {% endif %}
 
