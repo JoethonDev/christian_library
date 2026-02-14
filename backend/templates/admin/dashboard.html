@@ -121,6 +121,146 @@
     </div>
 </div>
 
+<!-- Search Sensitivity Settings -->
+<div class="card border-0 shadow-sm rounded-4 mb-5" id="search-sensitivity-widget">
+    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-dark">
+            <i class="bi bi-search me-2 text-primary"></i>
+            {% trans "Search Sensitivity" %}
+        </h5>
+        <span class="badge rounded-pill" id="current-mode-badge"></span>
+    </div>
+    <div class="card-body p-4">
+        <div class="row">
+            <!-- Mode Selection -->
+            <div class="col-lg-7">
+                <p class="text-muted small mb-3">
+                    {% trans "Adjust how strict the full-text search matching is across all searches on the site" %}
+                </p>
+                
+                <div class="search-modes mb-4">
+                    <!-- Exact Match -->
+                    <div class="form-check mode-option p-3 rounded-3 border mb-2 hover-shadow" data-mode="exact">
+                        <input class="form-check-input" type="radio" name="search_mode" id="mode_exact" value="exact">
+                        <label class="form-check-label w-100 cursor-pointer" for="mode_exact">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">{% trans "Exact Match" %}</strong>
+                                    <small class="text-muted">{% trans "Threshold: 0.5 - Very strict matching" %}</small>
+                                </div>
+                                <span class="badge bg-danger-subtle text-danger">{% trans "Strictest" %}</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <!-- Strict -->
+                    <div class="form-check mode-option p-3 rounded-3 border mb-2 hover-shadow" data-mode="strict">
+                        <input class="form-check-input" type="radio" name="search_mode" id="mode_strict" value="strict">
+                        <label class="form-check-label w-100 cursor-pointer" for="mode_strict">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">{% trans "Strict" %}</strong>
+                                    <small class="text-muted">{% trans "Threshold: 0.3 - Only highly relevant" %}</small>
+                                </div>
+                                <span class="badge bg-warning-subtle text-warning">{% trans "Strict" %}</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <!-- Normal -->
+                    <div class="form-check mode-option p-3 rounded-3 border mb-2 hover-shadow" data-mode="normal">
+                        <input class="form-check-input" type="radio" name="search_mode" id="mode_normal" value="normal" checked>
+                        <label class="form-check-label w-100 cursor-pointer" for="mode_normal">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">{% trans "Normal" %}</strong>
+                                    <small class="text-muted">{% trans "Threshold: 0.1 - Balanced results (Recommended)" %}</small>
+                                </div>
+                                <span class="badge bg-success-subtle text-success">{% trans "Recommended" %}</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <!-- Relaxed -->
+                    <div class="form-check mode-option p-3 rounded-3 border mb-2 hover-shadow" data-mode="relaxed">
+                        <input class="form-check-input" type="radio" name="search_mode" id="mode_relaxed" value="relaxed">
+                        <label class="form-check-label w-100 cursor-pointer" for="mode_relaxed">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="d-block">{% trans "Relaxed" %}</strong>
+                                    <small class="text-muted">{% trans "Threshold: 0.05 - More inclusive" %}</small>
+                                </div>
+                                <span class="badge bg-info-subtle text-info">{% trans "Inclusive" %}</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <!-- Custom -->
+                    <div class="form-check mode-option p-3 rounded-3 border mb-2 hover-shadow" data-mode="custom">
+                        <input class="form-check-input" type="radio" name="search_mode" id="mode_custom" value="custom">
+                        <label class="form-check-label w-100 cursor-pointer" for="mode_custom">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <strong class="d-block mb-2">{% trans "Custom" %}</strong>
+                                    <div class="input-group input-group-sm" style="max-width: 200px;">
+                                        <input type="number" class="form-control" id="custom_threshold" 
+                                               min="0" max="1" step="0.01" value="0.1"
+                                               placeholder="0.0 - 1.0">
+                                        <span class="input-group-text">
+                                            <i class="bi bi-sliders"></i>
+                                        </span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">{% trans "Enter value between 0.0 and 1.0" %}</small>
+                                </div>
+                                <span class="badge bg-secondary-subtle text-secondary">{% trans "Advanced" %}</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Description Panel -->
+                <div class="alert alert-info border-0 rounded-3 mb-3" id="mode-description">
+                    <small class="fw-medium" id="description-text"></small>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-primary rounded-pill px-4" id="save-sensitivity-btn">
+                        <i class="bi bi-check-circle me-2"></i>{% trans "Save Settings" %}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" id="test-search-btn">
+                        <i class="bi bi-search me-2"></i>{% trans "Test Search" %}
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Live Preview/Test Panel -->
+            <div class="col-lg-5">
+                <div class="bg-light rounded-3 p-3 h-100">
+                    <h6 class="fw-bold mb-3">
+                        <i class="bi bi-lightning me-1 text-warning"></i>
+                        {% trans "Live Test Search" %}
+                    </h6>
+                    
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="test-query-input" 
+                               placeholder="{% trans 'Enter test search query...' %}">
+                    </div>
+                    
+                    <div id="test-results" class="mb-3" style="max-height: 300px; overflow-y: auto;">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
+                            <small>{% trans "Enter a query and select a mode to preview results" %}</small>
+                        </div>
+                    </div>
+                    
+                    <div id="test-stats" class="small text-muted"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Recent Activity -->
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
     <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
@@ -214,5 +354,274 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search Sensitivity Widget
+    const searchWidget = {
+        currentSettings: null,
+        
+        init: function() {
+            this.loadCurrentSettings();
+            this.bindEvents();
+        },
+        
+        loadCurrentSettings: function() {
+            fetch('{% url "frontend_api:get_search_sensitivity" %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.currentSettings = data.current_settings;
+                        this.updateUI(data.current_settings, data.available_modes);
+                    }
+                })
+                .catch(error => console.error('Error loading settings:', error));
+        },
+        
+        updateUI: function(settings, modes) {
+            // Update current mode badge
+            const badge = document.getElementById('current-mode-badge');
+            const modeLabels = {
+                'exact': '{% trans "Exact Match" %}',
+                'strict': '{% trans "Strict" %}',
+                'normal': '{% trans "Normal" %}',
+                'relaxed': '{% trans "Relaxed" %}',
+                'custom': '{% trans "Custom" %}'
+            };
+            const badgeClasses = {
+                'exact': 'bg-danger-subtle text-danger',
+                'strict': 'bg-warning-subtle text-warning',
+                'normal': 'bg-success-subtle text-success',
+                'relaxed': 'bg-info-subtle text-info',
+                'custom': 'bg-secondary-subtle text-secondary'
+            };
+            badge.textContent = modeLabels[settings.mode] || settings.mode;
+            badge.className = 'badge rounded-pill ' + (badgeClasses[settings.mode] || 'bg-secondary');
+            
+            // Select current mode radio
+            const radio = document.getElementById('mode_' + settings.mode);
+            if (radio) radio.checked = true;
+            
+            // Update custom threshold input
+            if (settings.mode === 'custom') {
+                document.getElementById('custom_threshold').value = settings.custom_threshold;
+            }
+            
+            // Update description
+            this.updateDescription(settings.mode, settings.description);
+        },
+        
+        updateDescription: function(mode, description) {
+            document.getElementById('description-text').textContent = description || '';
+        },
+        
+        bindEvents: function() {
+            const self = this;
+            
+            // Mode selection
+            document.querySelectorAll('input[name="search_mode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const mode = this.value;
+                    self.updateDescriptionForMode(mode);
+                });
+            });
+            
+            // Custom threshold input
+            document.getElementById('custom_threshold').addEventListener('input', function() {
+                if (document.getElementById('mode_custom').checked) {
+                    self.updateDescriptionForMode('custom');
+                }
+            });
+            
+            // Save button
+            document.getElementById('save-sensitivity-btn').addEventListener('click', () => {
+                this.saveSensitivity();
+            });
+            
+            // Test button
+            document.getElementById('test-search-btn').addEventListener('click', () => {
+                this.performTestSearch();
+            });
+            
+            // Real-time test on input
+            let testTimeout;
+            document.getElementById('test-query-input').addEventListener('input', function() {
+                clearTimeout(testTimeout);
+                testTimeout = setTimeout(() => {
+                    if (this.value.trim()) {
+                        self.performTestSearch();
+                    }
+                }, 500);
+            });
+        },
+        
+        updateDescriptionForMode: function(mode) {
+            const descriptions = {
+                'exact': '{% trans "Returns only results where the search term appears exactly or with 1 character difference. Best for finding specific known content." %}',
+                'strict': '{% trans "Only shows highly relevant matches with strong semantic similarity. Reduces noise but may miss some valid results. Ideal for precise research." %}',
+                'normal': '{% trans "Balanced approach returning relevant results with good precision. Recommended for most searches." %}',
+                'relaxed': '{% trans "More inclusive results, catching partial matches and words with 1-2 character differences. Useful for exploratory searches." %}',
+                'custom': '{% trans "Custom threshold allows fine-tuned control. Lower values (closer to 0.0) return more results but may include less relevant matches." %}'
+            };
+            this.updateDescription(mode, descriptions[mode]);
+        },
+        
+        saveSensitivity: function() {
+            const mode = document.querySelector('input[name="search_mode"]:checked').value;
+            const customThreshold = mode === 'custom' ? parseFloat(document.getElementById('custom_threshold').value) : null;
+            
+            const saveBtn = document.getElementById('save-sensitivity-btn');
+            const originalHTML = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>{% trans "Saving..." %}';
+            saveBtn.disabled = true;
+            
+            fetch('{% url "frontend_api:update_search_sensitivity" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    mode: mode,
+                    custom_threshold: customThreshold
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showNotification('success', data.message);
+                    this.currentSettings = data.settings;
+                    this.updateUI(data.settings, null);
+                } else {
+                    this.showNotification('error', data.error);
+                }
+            })
+            .catch(error => {
+                this.showNotification('error', '{% trans "Error saving settings" %}');
+                console.error('Error:', error);
+            })
+            .finally(() => {
+                saveBtn.innerHTML = originalHTML;
+                saveBtn.disabled = false;
+            });
+        },
+        
+        performTestSearch: function() {
+            const query = document.getElementById('test-query-input').value.trim();
+            if (!query) {
+                document.getElementById('test-results').innerHTML = 
+                    '<div class="text-center text-muted py-4"><small>{% trans "Enter a search query to test" %}</small></div>';
+                return;
+            }
+            
+            const mode = document.querySelector('input[name="search_mode"]:checked').value;
+            const customThreshold = mode === 'custom' ? parseFloat(document.getElementById('custom_threshold').value) : null;
+            
+            document.getElementById('test-results').innerHTML = 
+                '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+            
+            fetch('{% url "frontend_api:test_search_sensitivity" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    query: query,
+                    mode: mode,
+                    custom_threshold: customThreshold
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.displayTestResults(data);
+                } else {
+                    document.getElementById('test-results').innerHTML = 
+                        '<div class="alert alert-danger small mb-0">' + data.error + '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('test-results').innerHTML = 
+                    '<div class="alert alert-danger small mb-0">{% trans "Error performing search" %}</div>';
+            });
+        },
+        
+        displayTestResults: function(data) {
+            const resultsDiv = document.getElementById('test-results');
+            const statsDiv = document.getElementById('test-stats');
+            
+            if (data.results.length === 0) {
+                resultsDiv.innerHTML = 
+                    '<div class="text-center text-muted py-3"><small>{% trans "No results found" %}</small></div>';
+                statsDiv.innerHTML = '';
+                return;
+            }
+            
+            let html = '<div class="list-group list-group-flush">';
+            data.results.forEach(result => {
+                html += `
+                    <div class="list-group-item px-0 py-2 border-0 border-bottom">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1 me-2">
+                                <small class="fw-semibold text-dark d-block">${result.title}</small>
+                                <small class="text-muted">${result.type}</small>
+                            </div>
+                            <span class="badge bg-primary-subtle text-primary small">${result.rank.toFixed(3)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            resultsDiv.innerHTML = html;
+            statsDiv.innerHTML = `
+                <i class="bi bi-info-circle me-1"></i>
+                Found ${data.total_results} results with threshold ${data.threshold}
+            `;
+        },
+        
+        showNotification: function(type, message) {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+    };
+    
+    // Initialize widget if it exists
+    if (document.getElementById('search-sensitivity-widget')) {
+        searchWidget.init();
+    }
+});
 </script>
+
+<style>
+.mode-option {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mode-option:hover {
+    border-color: var(--bs-primary) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+.mode-option .form-check-input:checked + .form-check-label {
+    color: var(--bs-primary);
+}
+.hover-shadow:hover {
+    box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+}
+.cursor-pointer {
+    cursor: pointer;
+}
+</style>
 {% endblock %}

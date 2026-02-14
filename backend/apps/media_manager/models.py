@@ -2179,6 +2179,27 @@ class SiteConfiguration(models.Model):
         help_text="Bilingual JSON-LD for Organization. Use {'en': {...}, 'ar': {...}} structure."
     )
     
+    # Search Sensitivity Settings
+    search_sensitivity_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('exact', 'Exact Match - Words must appear exactly'),
+            ('strict', 'Strict - Only highly relevant matches'),
+            ('normal', 'Normal - Balanced results (Recommended)'),
+            ('relaxed', 'Relaxed - More inclusive results'),
+            ('custom', 'Custom - Manual threshold'),
+        ],
+        default='normal',
+        verbose_name='Search Sensitivity Mode',
+        help_text='Controls how strict the full-text search matching is across the site'
+    )
+    
+    search_custom_threshold = models.FloatField(
+        default=0.1,
+        verbose_name='Custom Search Threshold',
+        help_text='Custom search threshold value (0.0-1.0). Lower values return more results. Only used when mode is "Custom".'
+    )
+    
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -2234,3 +2255,25 @@ class SiteConfiguration(models.Model):
     @property
     def structured_data_ar_json(self):
         return self.get_structured_data_json('ar')
+    
+    def get_search_threshold(self):
+        """Get the current search threshold value based on mode"""
+        threshold_map = {
+            'exact': 0.5,
+            'strict': 0.3,
+            'normal': 0.1,
+            'relaxed': 0.05,
+            'custom': self.search_custom_threshold
+        }
+        return threshold_map.get(self.search_sensitivity_mode, 0.1)
+    
+    def get_mode_description(self):
+        """Get human-readable description of current search mode"""
+        descriptions = {
+            'exact': 'Returns only results where the search term appears exactly or with 1 character difference. Best for finding specific known content.',
+            'strict': 'Only shows highly relevant matches with strong semantic similarity. Reduces noise but may miss some valid results. Ideal for precise research.',
+            'normal': 'Balanced approach returning relevant results with good precision. Recommended for most searches.',
+            'relaxed': 'More inclusive results, catching partial matches and words with 1-2 character differences. Useful for exploratory searches.',
+            'custom': f'Custom threshold set to {self.search_custom_threshold}. Lower values (closer to 0.0) return more results but may include less relevant matches.'
+        }
+        return descriptions.get(self.search_sensitivity_mode, descriptions['normal'])
