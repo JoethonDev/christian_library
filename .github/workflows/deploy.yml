@@ -1,6 +1,14 @@
+name: Deploy on Self-Hosted Runner
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
 jobs:
   deploy:
-    runs-on: self-hosted  # instead of ubuntu-latest
+    runs-on: self-hosted
 
     steps:
       - name: Checkout code
@@ -25,7 +33,7 @@ jobs:
 
       - name: Pull Latest & Run Docker Compose
         run: |
-          cd ${{ secrets.VPS_PROJECT_PATH}}
+          cd ${{ secrets.VPS_PROJECT_PATH }}
           git fetch origin
           git reset --hard origin/main
           docker compose build
