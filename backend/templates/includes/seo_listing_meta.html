@@ -3,21 +3,31 @@
 {% get_current_language as LANGUAGE_CODE %}
 
 {% comment %}
-SEO Meta Tags Template for Listing Pages (Videos, Audio, PDFs)
-================================================================
-Following Google SEO Best Practices
-Reference: https://developers.google.com/search/docs/fundamentals/seo-starter-guide
+SEO Meta Tags Template for Listing Pages - Phase 4 Enhanced
+=============================================================
+Following Google SEO Best Practices + Social Media Optimization
+Reference: 
+  - https://developers.google.com/search/docs/fundamentals/seo-starter-guide
+  - https://ogp.me/
+  - https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
+
+Phase 4 Enhancements:
+  - Complete Open Graph protocol tags
+  - Complete Twitter Card tags
+  - Pagination support (rel="prev" and rel="next")
+  - Smart keyword aggregation from listing items
+  - CollectionPage structured data with ItemList
 
 Usage: {% include "includes/seo_listing_meta.html" with content_type="video" page_title="Video Library" page_description="..." %}
 {% endcomment %}
 
-<!-- Primary SEO Meta Tags -->
-<meta name="description" content="{{ page_description|default:'Christian Orthodox content library with spiritual teachings, sermons, and religious materials.' }}">
+{# --- PRIMARY META TAGS --- #}
+<meta name="description" content="{{ page_description|default:'Browse the largest official collection of Coptic Orthodox teachings - videos, audio, and PDF books by Bishop Anba Abraam.' }}">
 
-<!-- Keywords from active content on this page -->
+{# Keywords aggregation from content items #}
 {% if content_items %}
     {% with all_keywords='' %}
-        {% for item in content_items %}
+        {% for item in content_items|slice:":20" %}
             {% if LANGUAGE_CODE == 'ar' and item.seo_keywords_ar_string %}
                 {% with all_keywords=all_keywords|add:item.seo_keywords_ar_string|add:', ' %}{% endwith %}
             {% elif LANGUAGE_CODE == 'en' and item.seo_keywords_en_string %}
@@ -30,42 +40,78 @@ Usage: {% include "includes/seo_listing_meta.html" with content_type="video" pag
     {% endwith %}
 {% endif %}
 
-<!-- Canonical URL - Google best practice to avoid duplicate content -->
-<link rel="canonical" href="{{ request.build_absolute_uri }}">
-
-<!-- Hreflang Tags - Bilingual Support for listing pages -->
+{# --- CANONICAL & HREFLANG --- #}
+<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
 {% with current_path=request.path %}
 <link rel="alternate" hreflang="ar" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}">
 <link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}">
 <link rel="alternate" hreflang="x-default" href="{{ request.scheme }}://{{ request.get_host }}{{ current_path }}">
 {% endwith %}
 
-<!-- Open Graph Meta Tags -->
-<meta property="og:title" content="{{ page_title|default:'Christian Library' }}">
-<meta property="og:description" content="{{ page_description|default:'Christian Orthodox content library' }}">
-<meta property="og:url" content="{{ request.build_absolute_uri }}">
+{# --- OPEN GRAPH TAGS --- #}
+<meta property="og:site_name" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+<meta property="og:title" content="{{ page_title|default:'Anba Abraam Library' }}">
+<meta property="og:description" content="{{ page_description|default:'Browse the largest official collection of Coptic Orthodox teachings' }}">
+<meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="{% trans 'Christian Library' %}">
 <meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_EG{% else %}en_US{% endif %}">
+<meta property="og:locale:alternate" content="{% if LANGUAGE_CODE == 'ar' %}en_US{% else %}ar_EG{% endif %}">
 
-<!-- Twitter Card Meta Tags -->
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="{{ page_title|default:'Christian Library' }}">
-<meta name="twitter:description" content="{{ page_description|default:'Christian Orthodox content library' }}">
-
-<!-- Content Type Specific Meta -->
-{% if content_type %}
-    <meta name="content-type" content="{{ content_type }}">
+{# Open Graph image (use site logo or first item thumbnail) #}
+{% if content_items and content_items.0.thumbnail %}
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ content_items.0.thumbnail.url }}">
+    <meta property="og:image:alt" content="{{ page_title|default:'Content listing' }} - {% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+{% elif site_config.logo_url %}
+    <meta property="og:image" content="{{ site_config.logo_url }}">
+    <meta property="og:image:alt" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
 {% endif %}
 
-<!-- Structured Data for Listing Page -->
+{# --- TWITTER CARD TAGS --- #}
+<meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@AnbaAbraamLib">
+<meta name="twitter:title" content="{{ page_title|default:'Anba Abraam Library' }}">
+<meta name="twitter:description" content="{{ page_description|default:'Browse the largest official collection of Coptic Orthodox teachings' }}">
+
+{# Twitter image #}
+{% if content_items and content_items.0.thumbnail %}
+    <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ content_items.0.thumbnail.url }}">
+    <meta name="twitter:image:alt" content="{{ page_title|default:'Content listing' }} - {% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+{% elif site_config.logo_url %}
+    <meta name="twitter:image" content="{{ site_config.logo_url }}">
+    <meta name="twitter:image:alt" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+{% endif %}
+
+{# --- ADDITIONAL SEO METADATA --- #}
+<meta name="author" content="{% trans 'Coptic Orthodox Church' %}">
+<meta name="publisher" content="{% trans 'Coptic Orthodox Church' %}">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="content-language" content="{{ LANGUAGE_CODE }}">
+
+{# Content type specific metadata #}
+{% if content_type %}
+    <meta name="medium" content="{{ content_type }}">
+{% endif %}
+
+{# --- PAGINATION TAGS (Google Best Practice) --- #}
+{% if is_paginated %}
+    {% if page_obj.has_previous %}
+        <link rel="prev" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?page={{ page_obj.previous_page_number }}">
+    {% endif %}
+    {% if page_obj.has_next %}
+        <link rel="next" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}?page={{ page_obj.next_page_number }}">
+    {% endif %}
+{% endif %}
+
+{# --- STRUCTURED DATA (CollectionPage with ItemList) --- #}
 <script type="application/ld+json">
 {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
-    "name": "{{ page_title|default:'Christian Library' }}",
-    "description": "{{ page_description|default:'Christian Orthodox content library' }}",
-    "url": "{{ request.build_absolute_uri }}",
+    "name": "{{ page_title|default:'Anba Abraam Library' }}",
+    "description": "{{ page_description|default:'Browse the largest official collection of Coptic Orthodox teachings' }}",
+    "url": "{{ request.scheme }}://{{ request.get_host }}{{ request.path }}",
+    "inLanguage": "{{ LANGUAGE_CODE }}",
+    "image": {% if content_items and content_items.0.thumbnail %}"{{ request.scheme }}://{{ request.get_host }}{{ content_items.0.thumbnail.url }}"{% elif site_config.logo_url %}"{{ site_config.logo_url }}"{% else %}""{% endif %},
     "mainEntity": {
         "@type": "ItemList",
         "name": "{{ page_title|default:'Content Items' }}",
@@ -76,18 +122,16 @@ Usage: {% include "includes/seo_listing_meta.html" with content_type="video" pag
                 "@type": "ListItem",
                 "position": {{ forloop.counter }},
                 "item": {
-                    "@type": "{{ item.get_schema_type }}",
+                    "@type": "{% if item.content_type == 'video' %}VideoObject{% elif item.content_type == 'audio' %}AudioObject{% else %}Book{% endif %}",
                 {% if LANGUAGE_CODE == 'ar' %}
                     "name": "{{ item.title_ar_display|escapejs }}",
+                    "description": "{{ item.optimized_meta_description_ar|escapejs }}",
                 {% else %}
                     "name": "{{ item.title_en_display|escapejs }}",
+                    "description": "{{ item.optimized_meta_description_en|escapejs }}",
                 {% endif %}
-                {% if LANGUAGE_CODE == 'ar' %}
-                    "description": "{{ item.description_ar_display|truncatechars:160|escapejs }}",
-                {% else %}
-                    "description": "{{ item.description_en_display|truncatechars:160|escapejs }}",
-                {% endif %}
-                    "url": "{{ item.get_canonical_url }}"{% if item.content_type == 'video' and item.videometa.duration_seconds %},
+                    "url": "{{ request.scheme }}://{{ request.get_host }}{{ item.get_absolute_url }}"{% if item.thumbnail %},
+                    "image": "{{ request.scheme }}://{{ request.get_host }}{{ item.thumbnail.url }}"{% endif %}{% if item.content_type == 'video' and item.videometa.duration_seconds %},
                     "duration": "PT{{ item.videometa.duration_seconds }}S"{% elif item.content_type == 'audio' and item.audiometa.duration_seconds %},
                     "duration": "PT{{ item.audiometa.duration_seconds }}S"{% endif %}
                 }
@@ -99,22 +143,6 @@ Usage: {% include "includes/seo_listing_meta.html" with content_type="video" pag
         "@type": "Organization",
         "name": "{% trans 'Coptic Orthodox Church' %}",
         "url": "{{ request.scheme }}://{{ request.get_host }}"
-    },
-    "inLanguage": "{{ LANGUAGE_CODE }}"
+    }
 }
 </script>
-
-<!-- Additional SEO -->
-<meta name="author" content="{% trans 'Coptic Orthodox Church' %}">
-<meta name="robots" content="index, follow, max-snippet:-1">
-<meta name="content-language" content="{{ LANGUAGE_CODE }}">
-
-<!-- Pagination Meta (if applicable) -->
-{% if is_paginated %}
-    {% if page_obj.has_previous %}
-        <link rel="prev" href="?page={{ page_obj.previous_page_number }}">
-    {% endif %}
-    {% if page_obj.has_next %}
-        <link rel="next" href="?page={{ page_obj.next_page_number }}">
-    {% endif %}
-{% endif %}

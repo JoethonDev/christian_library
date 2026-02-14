@@ -871,6 +871,59 @@ class ContentItem(models.Model):
             return self.seo_meta_description_ar or self.seo_meta_description_en or self.get_description('ar')[:160]
         else:
             return self.seo_meta_description_en or self.seo_meta_description_ar or self.get_description('en')[:160]
+    
+    def get_optimized_meta_description(self, language='en'):
+        """
+        Get optimized meta description with smart fallback chain
+        Phase 4 Enhancement - Ensures descriptions are always present and optimized
+        
+        Fallback chain:
+        1. AI-generated SEO description (best)
+        2. Regular content description
+        3. Auto-generated from title + media type
+        
+        Returns:
+            str: Meta description (150-160 chars, optimized)
+        """
+        # Try AI-generated SEO description first
+        seo_desc = self.get_seo_meta_description(language)
+        if seo_desc and len(seo_desc) >= 50:
+            return seo_desc[:160]
+        
+        # Fallback to regular description
+        desc = self.get_description(language)
+        if desc and len(desc) >= 50:
+            return desc[:160]
+        
+        # Last resort: Generate from title + media type
+        title = self.get_title(language)
+        
+        # Media type translations
+        media_type_map = {
+            'video': {'en': 'video', 'ar': 'فيديو'},
+            'audio': {'en': 'audio', 'ar': 'صوت'},
+            'pdf': {'en': 'PDF book', 'ar': 'كتاب PDF'}
+        }
+        
+        media_type = media_type_map.get(self.content_type, {}).get(language, self.content_type)
+        
+        # Action verb based on media type
+        action_map = {
+            'video': {'en': 'Watch', 'ar': 'شاهد'},
+            'audio': {'en': 'Listen to', 'ar': 'استمع إلى'},
+            'pdf': {'en': 'Download', 'ar': 'حمّل'}
+        }
+        
+        action = action_map.get(self.content_type, {}).get(language, '')
+        
+        if language == 'ar':
+            # Arabic format: "شاهد '{Title}' للأنبا أبرآم. أكبر مجموعة رسمية لتعاليم الكنيسة القبطية. فيديو مجاني."
+            generated = f"{action} '{title}' للأنبا أبرآم. أكبر مجموعة رسمية لتعاليم الكنيسة القبطية الأرثوذكسية. {media_type} مجاني."
+        else:
+            # English format: "Watch '{Title}' by Bishop Anba Abraam. The largest official collection of Coptic Orthodox teachings. Free video."
+            generated = f"{action} '{title}' by Bishop Anba Abraam. The largest official collection of Coptic Orthodox teachings. Free {media_type}."
+        
+        return generated[:160]
 
     def get_seo_keywords(self, language='en'):
         """Get SEO keywords as list from comma-separated string"""
@@ -934,6 +987,38 @@ class ContentItem(models.Model):
     def seo_meta_description_en_display(self):
         """Get English SEO meta description for templates"""
         return self.get_seo_meta_description('en')
+    
+    # Template-friendly properties for optimized meta descriptions (Phase 4)
+    @property
+    def optimized_meta_description_ar(self):
+        """Get optimized Arabic meta description with smart fallbacks"""
+        return self.get_optimized_meta_description('ar')
+    
+    @property
+    def optimized_meta_description_en(self):
+        """Get optimized English meta description with smart fallbacks"""
+        return self.get_optimized_meta_description('en')
+    
+    # Template-friendly properties for media type and actions (Phase 4)
+    @property
+    def media_type_display_ar(self):
+        """Get Arabic media type display name"""
+        media_types = {
+            'video': 'فيديو',
+            'audio': 'صوت',
+            'pdf': 'كتاب PDF'
+        }
+        return media_types.get(self.content_type, self.content_type)
+    
+    @property
+    def media_type_display_en(self):
+        """Get English media type display name"""
+        media_types = {
+            'video': 'Video',
+            'audio': 'Audio',
+            'pdf': 'PDF Book'
+        }
+        return media_types.get(self.content_type, self.content_type)
 
     @property
     def indexed_char_count(self):
@@ -2156,6 +2241,7 @@ class SiteConfiguration(models.Model):
         Synchronize the JSON-LD with field values for ArchiveOrganization.
         Uses ArchiveOrganization schema type for higher authority signal to Google.
         Follows Google structured data best practices.
+        Phase 4 Enhancement: Proper ImageObject with alt text for logo
         Reference: https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data
         """
         if not isinstance(self.structured_data, dict) or not self.structured_data:
@@ -2172,6 +2258,17 @@ class SiteConfiguration(models.Model):
             name = self.site_name_en if lang == 'en' else self.site_name_ar
             description = self.description_en if lang == 'en' else self.description_ar
             
+            # Build logo as ImageObject (Phase 4 - better than just URL string)
+            logo_obj = None
+            if self.logo_url:
+                logo_obj = {
+                    "@type": "ImageObject",
+                    "url": self.logo_url,
+                    "caption": "Anba Abraam Library Logo" if lang == 'en' else "شعار مكتبة الأنبا أبرآم",
+                    "width": 512,
+                    "height": 512
+                }
+            
             # Use ArchiveOrganization for higher authority (blueprint requirement)
             self.structured_data[lang].update({
                 "@context": "https://schema.org",
@@ -2181,7 +2278,7 @@ class SiteConfiguration(models.Model):
                 "alternateName": "Christian Library" if lang == 'en' else "المكتبة المسيحية",
                 "description": description,
                 "url": self.website_url,
-                "logo": self.logo_url,
+                "logo": logo_obj if logo_obj else self.logo_url,  # ImageObject or URL fallback
                 "address": {
                     "@type": "PostalAddress",
                     "addressLocality": "Fayoum" if lang == 'en' else "الفيوم",
@@ -2198,6 +2295,7 @@ class SiteConfiguration(models.Model):
                     "query-input": "required name=search_term_string"
                 }
             })
+
 
     def get_structured_data_json(self, lang='en'):
         """Get structured data as JSON string for a specific language"""
