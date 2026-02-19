@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Re-indexing Complete</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .status-success { background-color: #d4edda; color: #155724; }
+        .status-partial { background-color: #fff3cd; color: #856404; }
+        .status-failed { background-color: #f8d7da; color: #721c24; }
+        .stats {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        .stat-label {
+            font-weight: 600;
+            color: #666;
+        }
+        .stat-value {
+            font-weight: 700;
+            color: #333;
+        }
+        .error-summary {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 4px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 style="margin: 0; color: #333;">Google Re-indexing Complete</h1>
+            <div class="status-badge status-{{ status_text|lower|cut:' ' }}">{{ status_text }}</div>
+        </div>
+        
+        <p>Hello {{ user.get_full_name_or_username }},</p>
+        
+        <p>Your Google Search Console re-indexing operation has been completed.</p>
+        
+        <div class="stats">
+            <div class="stat-row">
+                <span class="stat-label">Content Type:</span>
+                <span class="stat-value">{{ task.content_type|title }}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Total URLs:</span>
+                <span class="stat-value">{{ task.total_urls }}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Successful:</span>
+                <span class="stat-value" style="color: #28a745;">{{ task.successful_urls }}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Failed:</span>
+                <span class="stat-value" style="color: #dc3545;">{{ task.failed_urls }}</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Success Rate:</span>
+                <span class="stat-value">{{ success_rate }}%</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Duration:</span>
+                <span class="stat-value">
+                    {% if task.started_at and task.completed_at %}
+                        {{ task.completed_at|timeuntil:task.started_at }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        
+        {% if error_summary %}
+        <div class="error-summary">
+            <strong>Error Summary:</strong>
+            <ul style="margin: 10px 0 0 0; padding-left: 20px;">
+                {% for error_type, count in error_summary.items %}
+                <li>{{ error_type }}: {{ count }} occurrence{{ count|pluralize }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if task.sitemap_included %}
+        <p><strong>Note:</strong> The sitemap was also pinged to notify Google of the updates.</p>
+        {% endif %}
+        
+        <div style="text-align: center;">
+            <a href="{{ site_url }}/dashboard/seo/reindex/history/" class="button">View Re-indexing History</a>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated notification from Christian Library Admin Panel.</p>
+            <p>Initiated at: {{ task.started_at|date:"Y-m-d H:i:s" }} UTC</p>
+        </div>
+    </div>
+</body>
+</html>

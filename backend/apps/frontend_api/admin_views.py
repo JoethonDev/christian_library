@@ -1775,3 +1775,18 @@ def reindex_history(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def seo_reindex_page(request):
+    """
+    Render the Google re-indexing control panel page.
+    """
+    # Check staff permission
+    if not request.user.is_staff:
+        messages.error(request, _('Permission denied. Staff access required.'))
+        return redirect('frontend_api:admin_dashboard')
+    
+    return render(request, 'admin/seo_reindex.html', {
+        'current_language': get_language(),
+    })
