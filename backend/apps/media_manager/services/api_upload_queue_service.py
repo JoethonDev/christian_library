@@ -10,7 +10,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 from django.core.files.storage import default_storage
-from django.db import transaction
+from django.db import transaction, models
 from apps.media_manager.models import APIUploadQueue, ContentItem
 
 logger = logging.getLogger(__name__)
@@ -419,7 +419,3 @@ class APIUploadQueueService:
                 status__in=['pending', 'queued', 'rate_limited']
             ).count(),
         }
-
-
-# Import for using Q in get_next_ready_item
-from django.db import models
