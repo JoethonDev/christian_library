@@ -430,3 +430,23 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 ]
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyB286GvUw1X1yl8cwjMbGIZkFv40BMttTk')
+
+# ============================================================================
+# GOOGLE INDEXING API SETTINGS
+# ============================================================================
+# Path to Google Cloud service account JSON key file
+# Required for Google Indexing API integration (Phase 3 SEO)
+# 
+# Setup Instructions:
+# 1. Create Google Cloud project: https://console.cloud.google.com
+# 2. Enable "Web Search Indexing API"
+# 3. Create service account with "Indexing API" permission
+# 4. Download JSON key file
+# 5. Set GOOGLE_SERVICE_ACCOUNT_FILE to absolute path of JSON file
+# 6. Add service account email to Google Search Console property owners
+#
+# Example:
+#   GOOGLE_SERVICE_ACCOUNT_FILE = '/path/to/service-account-key.json'
+#
+# If not set, Google Indexing API notifications will be skipped (non-breaking)
+GOOGLE_SERVICE_ACCOUNT_FILE = os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE', None)

@@ -26,3 +26,7 @@ PyMuPDF>=1.23.0
 
 # AI integration
 google-genai>=0.8.0
+
+# Google SEO Services (Phase 3)
+google-auth>=2.27.0
+google-api-python-client>=2.115.0

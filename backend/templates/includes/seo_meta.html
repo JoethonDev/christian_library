@@ -3,92 +3,220 @@
 {% get_current_language as LANGUAGE_CODE %}
 
 {% comment %}
-    SEO Meta Tags Template
-    Usage: {% include "includes/seo_meta.html" with content_item=object %}
+SEO Meta Tags Template - Phase 4 Enhanced (Google + Social Media Best Practices)
+=================================================================================
+Reference: 
+  - https://developers.google.com/search/docs/fundamentals/seo-starter-guide
+  - https://ogp.me/ (Open Graph Protocol)
+  - https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup
+
+Google Requirements:
+  ✓ Title: Unique, clear, concise (50-60 chars)
+  ✓ Description: Short (150-160 chars), unique, compelling
+  ✓ Canonical URL: One URL per content (avoid duplicates)
+  ✓ Hreflang: Language alternatives for bilingual sites
+  ✓ Structured data: Valid Schema.org JSON-LD
+
+Social Media (Open Graph + Twitter Cards):
+  ✓ og:title, og:description, og:image, og:url, og:type
+  ✓ twitter:card, twitter:title, twitter:description, twitter:image
+  ✓ Image dimensions and alt text for rich previews
+
+Phase 4 Enhancements:
+  - Optimized meta tag ordering for faster parser processing
+  - Complete Open Graph and Twitter Card support
+  - Smart fallbacks for all fields
+  - Image optimization with alt text
+  - Media type-specific metadata
+
+Usage: {% include "includes/seo_meta.html" with content_item=object %}
 {% endcomment %}
 
 {% if content_item %}
-    <!-- Primary SEO Meta Tags: Content Item -->
+{# ===================================================================== #}
+{# CONTENT ITEM SEO - Video/Audio/PDF Detail Pages                       #}
+{# ===================================================================== #}
+
+    {# --- PRIMARY META TAGS (Google Priority) --- #}
     {% if LANGUAGE_CODE == 'ar' %}
         <title>{{ content_item.seo_title_ar_display|default:content_item.title_ar }}</title>
-        <meta name="description" content="{{ content_item.seo_meta_description_ar_display }}">
-        <meta property="og:title" content="{{ content_item.seo_title_ar_display }}">
-        <meta property="og:description" content="{{ content_item.seo_meta_description_ar_display }}">
-        <meta name="twitter:title" content="{{ content_item.seo_title_ar_display }}">
-        <meta name="twitter:description" content="{{ content_item.seo_meta_description_ar_display }}">
+        <meta name="description" content="{{ content_item.optimized_meta_description_ar }}">
     {% else %}
         <title>{{ content_item.seo_title_en_display|default:content_item.title_en }}</title>
-        <meta name="description" content="{{ content_item.seo_meta_description_en_display }}">
-        <meta property="og:title" content="{{ content_item.seo_title_en_display }}">
-        <meta property="og:description" content="{{ content_item.seo_meta_description_en_display }}">
-        <meta name="twitter:title" content="{{ content_item.seo_title_en_display }}">
-        <meta name="twitter:description" content="{{ content_item.seo_meta_description_en_display }}">
+        <meta name="description" content="{{ content_item.optimized_meta_description_en }}">
     {% endif %}
     
+    {# Keywords (if available) #}
     {% if LANGUAGE_CODE == 'ar' and content_item.seo_keywords_ar_string %}
         <meta name="keywords" content="{{ content_item.seo_keywords_ar_string }}">
     {% elif LANGUAGE_CODE == 'en' and content_item.seo_keywords_en_string %}
         <meta name="keywords" content="{{ content_item.seo_keywords_en_string }}">
     {% endif %}
     
+    {# --- CANONICAL & HREFLANG (Google Internationalization) --- #}
     <link rel="canonical" href="{{ content_item.get_canonical_url }}">
-    <meta property="og:url" content="{{ content_item.get_canonical_url }}">
+    <link rel="alternate" hreflang="ar" href="{{ content_item.get_canonical_url }}">
+    <link rel="alternate" hreflang="en" href="{{ content_item.get_canonical_url }}">
+    <link rel="alternate" hreflang="x-default" href="{{ content_item.get_canonical_url }}">
     
-    <!-- Open Graph Type -->
+    {# --- OPEN GRAPH TAGS (Facebook, LinkedIn, WhatsApp) --- #}
+    <meta property="og:site_name" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+    {% if LANGUAGE_CODE == 'ar' %}
+        <meta property="og:title" content="{{ content_item.seo_title_ar_display|default:content_item.title_ar }}">
+        <meta property="og:description" content="{{ content_item.optimized_meta_description_ar }}">
+    {% else %}
+        <meta property="og:title" content="{{ content_item.seo_title_en_display|default:content_item.title_en }}">
+        <meta property="og:description" content="{{ content_item.optimized_meta_description_en }}">
+    {% endif %}
+    <meta property="og:url" content="{{ content_item.get_canonical_url }}">
+    <meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_EG{% else %}en_US{% endif %}">
+    <meta property="og:locale:alternate" content="{% if LANGUAGE_CODE == 'ar' %}en_US{% else %}ar_EG{% endif %}">
+    
+    {# Open Graph Type (media-specific) #}
     {% if content_item.content_type == 'video' %}
         <meta property="og:type" content="video.other">
+        <meta property="og:video:type" content="video/mp4">
     {% elif content_item.content_type == 'audio' %}
         <meta property="og:type" content="music.song">
+        <meta property="og:audio:type" content="audio/mpeg">
     {% else %}
         <meta property="og:type" content="article">
-    {% endif %}
-
-    <!-- Language Alternatives -->
-    {% if LANGUAGE_CODE == 'ar' and content_item.seo_meta_description_en %}
-        <link rel="alternate" hreflang="en" href="{{ content_item.get_canonical_url }}?lang=en">
-    {% elif LANGUAGE_CODE == 'en' and content_item.seo_meta_description_ar %}
-        <link rel="alternate" hreflang="ar" href="{{ content_item.get_canonical_url }}?lang=ar">
-    {% endif %}
-
-{% elif site_config %}
-    <!-- Primary SEO Meta Tags: Site Home -->
-    {% if LANGUAGE_CODE == 'ar' %}
-        <title>{{ site_config.site_name_ar }}</title>
-        <meta name="description" content="{{ site_config.description_ar }}">
-        <meta property="og:title" content="{{ site_config.site_name_ar }}">
-        <meta property="og:description" content="{{ site_config.description_ar }}">
-        <meta name="twitter:title" content="{{ site_config.site_name_ar }}">
-        <meta name="twitter:description" content="{{ site_config.description_ar }}">
-    {% else %}
-        <title>{{ site_config.site_name_en }}</title>
-        <meta name="description" content="{{ site_config.description_en }}">
-        <meta property="og:title" content="{{ site_config.site_name_en }}">
-        <meta property="og:description" content="{{ site_config.description_en }}">
-        <meta name="twitter:title" content="{{ site_config.site_name_en }}">
-        <meta name="twitter:description" content="{{ site_config.description_en }}">
+        <meta property="article:author" content="Bishop Anba Abraam">
+        <meta property="article:section" content="{% trans 'Religious Education' %}">
+        <meta property="article:tag" content="{% trans 'Coptic Orthodox' %}">
     {% endif %}
     
-    <link rel="canonical" href="{{ site_config.website_url }}">
-    <meta property="og:url" content="{{ site_config.website_url }}">
+    {# Open Graph Image (with fallback) #}
+    {% if content_item.thumbnail %}
+        <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ content_item.thumbnail.url }}">
+        <meta property="og:image:secure_url" content="https://{{ request.get_host }}{{ content_item.thumbnail.url }}">
+        <meta property="og:image:type" content="image/jpeg">
+        <meta property="og:image:width" content="1200">
+        <meta property="og:image:height" content="630">
+        <meta property="og:image:alt" content="{{ content_item.get_title|default:'Content thumbnail' }} - {% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+    {% elif site_config.logo_url %}
+        <meta property="og:image" content="{{ site_config.logo_url }}">
+        <meta property="og:image:alt" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم - شعار{% else %}Anba Abraam Library - Logo{% endif %}">
+    {% endif %}
+    
+    {# --- TWITTER CARD TAGS (Twitter/X Platform) --- #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@AnbaAbraamLib">
+    {% if LANGUAGE_CODE == 'ar' %}
+        <meta name="twitter:title" content="{{ content_item.seo_title_ar_display|default:content_item.title_ar }}">
+        <meta name="twitter:description" content="{{ content_item.optimized_meta_description_ar }}">
+    {% else %}
+        <meta name="twitter:title" content="{{ content_item.seo_title_en_display|default:content_item.title_en }}">
+        <meta name="twitter:description" content="{{ content_item.optimized_meta_description_en }}">
+    {% endif %}
+    
+    {# Twitter Image #}
+    {% if content_item.thumbnail %}
+        <meta name="twitter:image" content="{{ request.scheme }}://{{ request.get_host }}{{ content_item.thumbnail.url }}">
+        <meta name="twitter:image:alt" content="{{ content_item.get_title|default:'Content thumbnail' }} - {% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+    {% elif site_config.logo_url %}
+        <meta name="twitter:image" content="{{ site_config.logo_url }}">
+        <meta name="twitter:image:alt" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+    {% endif %}
+    
+    {# --- ADDITIONAL SEO METADATA --- #}
+    <meta name="author" content="Bishop Anba Abraam">
+    <meta name="publisher" content="{% trans 'Coptic Orthodox Church' %}">
+    <meta name="content-language" content="{{ LANGUAGE_CODE }}">
+    <meta name="subject" content="{% trans 'Religious Content' %}, {% trans 'Coptic Orthodox Church' %}">
+    
+    {# Media type-specific metadata #}
+    {% if content_item.content_type == 'video' %}
+        <meta name="video:duration" content="{{ content_item.videometa.duration|default:'0' }}">
+        <meta name="medium" content="video">
+    {% elif content_item.content_type == 'audio' %}
+        <meta name="medium" content="audio">
+    {% elif content_item.content_type == 'pdf' %}
+        <meta name="medium" content="document">
+        <meta name="DC.format" content="application/pdf">
+    {% endif %}
+
+
+{% elif site_config %}
+{# ===================================================================== #}
+{# SITE HOME PAGE SEO - Landing/Homepage                                 #}
+{# ===================================================================== #}
+
+    {# --- PRIMARY META TAGS --- #}
+    {% if LANGUAGE_CODE == 'ar' %}
+        <title>{{ site_config.site_name_ar|default:'مكتبة الأنبا أبرآم' }}</title>
+        <meta name="description" content="{{ site_config.description_ar|default:'أكبر مجموعة رسمية لتعاليم الأنبا أبرآم أسقف الفيوم - فيديوهات، صوتيات، كتب PDF' }}">
+    {% else %}
+        <title>{{ site_config.site_name_en|default:'Anba Abraam Library' }}</title>
+        <meta name="description" content="{{ site_config.description_en|default:'The largest official collection of Bishop Anba Abraam teachings - Videos, Audio, PDF Books' }}">
+    {% endif %}
+    
+    {# --- CANONICAL & HREFLANG --- #}
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    <link rel="alternate" hreflang="ar" href="{{ request.scheme }}://{{ request.get_host }}/ar/">
+    <link rel="alternate" hreflang="en" href="{{ request.scheme }}://{{ request.get_host }}/en/">
+    <link rel="alternate" hreflang="x-default" href="{{ request.scheme }}://{{ request.get_host }}/en/">
+    
+    {# --- OPEN GRAPH TAGS --- #}
+    <meta property="og:site_name" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+    {% if LANGUAGE_CODE == 'ar' %}
+        <meta property="og:title" content="{{ site_config.site_name_ar|default:'مكتبة الأنبا أبرآم' }}">
+        <meta property="og:description" content="{{ site_config.description_ar|default:'أكبر مجموعة رسمية لتعاليم الأنبا أبرآم' }}">
+    {% else %}
+        <meta property="og:title" content="{{ site_config.site_name_en|default:'Anba Abraam Library' }}">
+        <meta property="og:description" content="{{ site_config.description_en|default:'The largest official collection of Bishop Anba Abraam teachings' }}">
+    {% endif %}
     <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    <meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_EG{% else %}en_US{% endif %}">
+    <meta property="og:locale:alternate" content="{% if LANGUAGE_CODE == 'ar' %}en_US{% else %}ar_EG{% endif %}">
+    
+    {# Homepage Image #}
+    {% if site_config.logo_url %}
+        <meta property="og:image" content="{{ site_config.logo_url }}">
+        <meta property="og:image:alt" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم - الشعار الرسمي{% else %}Anba Abraam Library - Official Logo{% endif %}">
+    {% endif %}
+    
+    {# --- TWITTER CARD TAGS --- #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@AnbaAbraamLib">
+    {% if LANGUAGE_CODE == 'ar' %}
+        <meta name="twitter:title" content="{{ site_config.site_name_ar|default:'مكتبة الأنبا أبرآم' }}">
+        <meta name="twitter:description" content="{{ site_config.description_ar|default:'أكبر مجموعة رسمية لتعاليم الأنبا أبرآم' }}">
+    {% else %}
+        <meta name="twitter:title" content="{{ site_config.site_name_en|default:'Anba Abraam Library' }}">
+        <meta name="twitter:description" content="{{ site_config.description_en|default:'The largest official collection of Bishop Anba Abraam teachings' }}">
+    {% endif %}
+    
+    {% if site_config.logo_url %}
+        <meta name="twitter:image" content="{{ site_config.logo_url }}">
+        <meta name="twitter:image:alt" content="{% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرآم{% else %}Anba Abraam Library{% endif %}">
+    {% endif %}
+    
+    {# --- ADDITIONAL METADATA --- #}
+    <meta name="author" content="{% trans 'Coptic Orthodox Church' %}">
+    <meta name="publisher" content="{% trans 'Coptic Orthodox Church' %}">
+    <meta name="content-language" content="{{ LANGUAGE_CODE }}">
+    <meta name="subject" content="{% trans 'Religious Content' %}, {% trans 'Coptic Orthodox Church' %}">
+
 {% endif %}
 
-<!-- Shared Social & Branding Tags (Always visible) -->
-<meta property="og:site_name" content="{% if LANGUAGE_CODE == 'ar' %}{{ site_config.site_name_ar|default:'Christian Library' }}{% else %}{{ site_config.site_name_en|default:'Christian Library' }}{% endif %}">
-<meta property="og:locale" content="{% if LANGUAGE_CODE == 'ar' %}ar_EG{% else %}en_US{% endif %}">
-<meta name="twitter:card" content="summary_large_image">
+{# ===================================================================== #}
+{# SHARED TAGS (Always Present on All Pages)                             #}
+{# ===================================================================== #}
 
-{% if content_item.thumbnail %}
-    <meta property="og:image" content="{{ content_item.thumbnail.url }}">
-{% elif site_config.logo_url %}
-    <meta property="og:image" content="{{ site_config.logo_url }}">
-{% endif %}
+{# Robots & Indexing Instructions #}
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+<meta name="googlebot" content="index, follow">
+<meta name="bingbot" content="index, follow">
 
-<meta name="author" content="{% trans 'Coptic Orthodox Church' %}">
-<meta name="publisher" content="{% trans 'Coptic Orthodox Church' %}">
-<meta name="content-language" content="{{ LANGUAGE_CODE }}">
+{# Performance & Standards #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-<!-- Structured Data (JSON-LD Array) -->
+{# ===================================================================== #}
+{# STRUCTURED DATA (Schema.org JSON-LD)                                  #}
+{# ===================================================================== #}
 <script type="application/ld+json">
 [
     {% if site_config %}
@@ -101,9 +229,3 @@
     {% endif %}
 ]
 </script>
-
-<!-- Standards & Performance -->
-<meta name="subject" content="{% trans 'Religious Content' %}, {% trans 'Coptic Orthodox Church' %}">
-<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

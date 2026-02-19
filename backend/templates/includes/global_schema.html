@@ -1,0 +1,31 @@
+{% comment %}
+Global ArchiveOrganization Schema - CRITICAL FOR SEO
+=======================================================
+This schema appears on EVERY page to establish site authority with Google.
+
+Purpose:
+  - Signals to Google this is an official archive (higher authority than generic "Organization")
+  - Enables sitelinks search box in Google search results
+  - Provides structured knowledge about the organization
+
+Google Best Practices:
+  - Valid structured data enables rich results
+  - Must use appropriate @type (ArchiveOrganization for archives)
+  - Reference: https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data
+
+Blueprint Requirement:
+  - Section 1: Core Identity & Global Schema (JSON-LD)
+  - Must appear on every page for maximum authority signal
+{% endcomment %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+
+{% if site_config and site_config.structured_data %}
+<script type="application/ld+json">
+{% if LANGUAGE_CODE == 'ar' %}
+{{ site_config.structured_data_ar_json|safe }}
+{% else %}
+{{ site_config.structured_data_en_json|safe }}
+{% endif %}
+</script>
+{% endif %}

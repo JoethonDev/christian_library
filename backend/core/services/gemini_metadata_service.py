@@ -148,26 +148,69 @@ Return metadata in the following JSON format:
 }}"""
     
     def _validate_metadata(self, metadata: Dict) -> Dict:
-        """Validate and clean metadata"""
+        """
+        Validate and clean metadata with quality logging.
+        
+        Phase 2 Enhancement: Adds warning logs for quality control.
+        """
         cleaned = {}
         
         for lang in ['en', 'ar']:
             if lang in metadata:
                 lang_data = metadata[lang]
+                
+                # Validate title
+                title = str(lang_data.get('title', '')).strip()
+                title_len = len(title)
+                
+                if title_len > 100:
+                    logger.warning(
+                        f"[{lang.upper()}] Title too long ({title_len} chars, max 100): {title[:50]}..."
+                    )
+                    title = title[:100]
+                elif title_len < 10:
+                    logger.warning(f"[{lang.upper()}] Title suspiciously short ({title_len} chars): {title}")
+                else:
+                    logger.info(f"[{lang.upper()}] ✓ Title length OK ({title_len} chars)")
+                
+                # Validate description
+                description = str(lang_data.get('description', '')).strip()
+                desc_len = len(description)
+                
+                if desc_len > 200:
+                    logger.warning(
+                        f"[{lang.upper()}] Description too long ({desc_len} chars, max 200): {description[:50]}..."
+                    )
+                    description = description[:200]
+                elif desc_len < 50:
+                    logger.warning(f"[{lang.upper()}] Description too short ({desc_len} chars)")
+                else:
+                    logger.info(f"[{lang.upper()}] ✓ Description length OK ({desc_len} chars)")
+                
                 # Get tags and validate
                 tags = lang_data.get('tags', [])
                 if isinstance(tags, list):
                     # Clean and limit tags
                     tags = [str(tag)[:50].strip() for tag in tags[:6] if tag]
+                    tag_count = len(tags)
+                    
+                    if tag_count < 3:
+                        logger.warning(f"[{lang.upper()}] Too few tags ({tag_count}, target 3-6)")
+                    elif tag_count > 6:
+                        logger.warning(f"[{lang.upper()}] Too many tags ({tag_count}, truncated to 6)")
+                    else:
+                        logger.info(f"[{lang.upper()}] ✓ Tag count good ({tag_count} tags)")
                 else:
+                    logger.error(f"[{lang.upper()}] Tags not a list, defaulting to empty")
                     tags = []
                 
                 cleaned[lang] = {
-                    'title': str(lang_data.get('title', ''))[:100].strip(),
-                    'description': str(lang_data.get('description', ''))[:200].strip(),
+                    'title': title,
+                    'description': description,
                     'tags': tags
                 }
             else:
+                logger.error(f"[{lang.upper()}] Language data missing from metadata response")
                 cleaned[lang] = {'title': '', 'description': '', 'tags': []}
         
         return cleaned

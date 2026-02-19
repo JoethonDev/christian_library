@@ -10,3 +10,5 @@ class MediaManagerConfig(AppConfig):
         import apps.media_manager.signals
         # Phase 4: Import cache invalidation signals
         import apps.media_manager.signals.cache_invalidation
+        # Phase 3: Import SEO change detection signals
+        import apps.media_manager.signals_seo
