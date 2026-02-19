@@ -312,6 +312,19 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.media_manager.tasks.aggregate_daily_content_views',
         'schedule': crontab(hour=0, minute=0),  # Run daily at midnight
     },
+    # API Upload Queue Management Tasks
+    'process-scheduled-queue-items': {
+        'task': 'apps.media_manager.tasks.process_scheduled_queue_items',
+        'schedule': 3600.0,  # Run every hour
+    },
+    'process-delayed-3am-queue': {
+        'task': 'apps.media_manager.tasks.process_delayed_3am_queue',
+        'schedule': crontab(hour=3, minute=0),  # Run daily at 3:00 AM
+    },
+    'cleanup-expired-queue-items': {
+        'task': 'apps.media_manager.tasks.cleanup_expired_queue_items',
+        'schedule': crontab(hour=4, minute=0),  # Run daily at 4:00 AM
+    },
 }
 
 # File Upload Settings
