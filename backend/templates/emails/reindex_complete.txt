@@ -13,8 +13,7 @@ Total URLs: {{ task.total_urls }}
 Successful: {{ task.successful_urls }}
 Failed: {{ task.failed_urls }}
 Success Rate: {{ success_rate }}%
-
-{% if task.started_at and task.completed_at %}Duration: {{ task.completed_at|timeuntil:task.started_at }}{% endif %}
+{% if duration %}Duration: {{ duration }}{% endif %}
 
 {% if error_summary %}
 Error Summary

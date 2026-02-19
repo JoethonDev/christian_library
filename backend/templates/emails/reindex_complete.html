@@ -122,8 +122,8 @@
             <div class="stat-row">
                 <span class="stat-label">Duration:</span>
                 <span class="stat-value">
-                    {% if task.started_at and task.completed_at %}
-                        {{ task.completed_at|timeuntil:task.started_at }}
+                    {% if duration %}
+                        {{ duration }}
                     {% else %}
                         N/A
                     {% endif %}

@@ -120,11 +120,13 @@ class GoogleReindexingTask(models.Model):
         Estimate remaining time in seconds based on current progress.
         Returns None if cannot estimate.
         """
+        from django.utils import timezone
+        
         if not self.started_at or self.submitted_urls == 0 or self.status != 'in_progress':
             return None
         
-        elapsed_seconds = (datetime.now().replace(tzinfo=None) - 
-                          self.started_at.replace(tzinfo=None)).total_seconds()
+        now = timezone.now()
+        elapsed_seconds = (now - self.started_at).total_seconds()
         
         urls_remaining = self.total_urls - self.submitted_urls
         if urls_remaining <= 0:

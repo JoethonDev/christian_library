@@ -188,6 +188,7 @@ class GoogleReindexingService:
         
         for url_info in urls_batch:
             url = url_info['url']
+            success = False  # Initialize to False
             
             # Check for cancellation
             task.refresh_from_db()

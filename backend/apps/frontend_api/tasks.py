@@ -188,10 +188,25 @@ def send_reindex_completion_email(task):
     from django.core.mail import send_mail
     from django.template.loader import render_to_string
     from django.conf import settings
+    from django.contrib.sites.models import Site
     
     if not task.initiated_by or not task.initiated_by.email:
         logger.warning(f"Cannot send email for task {task.id}: no user email")
         return
+    
+    # Get site URL
+    try:
+        current_site = Site.objects.get_current()
+        site_url = f'https://{current_site.domain}'
+    except:
+        site_url = 'https://yoursite.com'  # Fallback
+    
+    # Calculate duration
+    duration = None
+    if task.started_at and task.completed_at:
+        duration_seconds = (task.completed_at - task.started_at).total_seconds()
+        duration_minutes = int(duration_seconds / 60)
+        duration = f"{duration_minutes} minutes" if duration_minutes > 0 else "less than a minute"
     
     # Determine status for subject
     if task.status == 'completed':
@@ -213,6 +228,8 @@ def send_reindex_completion_email(task):
         'status_text': status_text,
         'error_summary': task.get_error_summary(),
         'success_rate': task.get_success_rate(),
+        'site_url': site_url,
+        'duration': duration,
     }
     
     # Render email templates
