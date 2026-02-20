@@ -68,8 +68,8 @@ class DocumentProcessorService:
     
     def extract_text_from_doc(self, file_path: str) -> str:
         """
-        Extract text from legacy .doc files using textract or antiword.
-        Falls back to alternative methods if primary method fails.
+        Extract text from legacy .doc files using antiword (preferred), 
+        textract (if available), or pandoc.
         
         Args:
             file_path: Path to the .doc file
@@ -78,17 +78,7 @@ class DocumentProcessorService:
             Extracted text as string
         """
         try:
-            # Try textract first (most comprehensive)
-            try:
-                import textract
-                self.logger.info(f"Extracting text from DOC file using textract: {file_path}")
-                text = textract.process(file_path).decode('utf-8')
-                self.logger.info(f"Successfully extracted {len(text)} characters from DOC using textract")
-                return text
-            except (ImportError, Exception) as e:
-                self.logger.warning(f"Textract not available or failed: {str(e)}")
-            
-            # Try antiword as fallback
+            # Try antiword first (most reliable system tool for .doc)
             try:
                 import subprocess
                 self.logger.info(f"Trying antiword for DOC file: {file_path}")
@@ -126,7 +116,7 @@ class DocumentProcessorService:
             except (FileNotFoundError, Exception) as e:
                 self.logger.warning(f"Pandoc not available or failed: {str(e)}")
             
-            raise Exception("No suitable tool found for .doc file processing. Install textract, antiword, or pandoc.")
+            raise Exception("No suitable tool found for .doc file processing. Install antiword or pandoc.")
             
         except Exception as e:
             self.logger.error(f"Error extracting text from DOC: {str(e)}", exc_info=True)

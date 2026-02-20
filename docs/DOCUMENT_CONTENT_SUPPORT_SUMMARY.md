@@ -52,10 +52,10 @@ This feature adds comprehensive support for uploading Word documents (.doc/.docx
    - Handles Arabic RTL text
 
 2. **`extract_text_from_doc()`** - Extracts text from legacy .doc files
-   - Tries textract (primary)
-   - Falls back to antiword
+   - Uses antiword (primary)
    - Falls back to pandoc
    - Comprehensive error handling
+   - Note: textract was removed due to dependency conflicts with modern pdfminer.six
 
 3. **`extract_text_from_document()`** - Router method
    - Detects file type from extension/MIME type
@@ -90,7 +90,8 @@ This feature adds comprehensive support for uploading Word documents (.doc/.docx
 
 #### Dependencies Added:
 - python-docx>=1.1.0
-- textract>=1.6.5
+- antiword (system binary)
+- pandoc (system binary fallback)
 
 ---
 
