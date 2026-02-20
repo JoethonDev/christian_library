@@ -279,6 +279,12 @@
 
             <div class="admin-section-label">{% trans "Analytics & System" %}</div>
             
+            <a href="{% url 'frontend_api:api_queue_list' %}" 
+               class="nav-link-admin {% if 'api-queue' in request.path %}active{% endif %}">
+                <i class="bi bi-list-task nav-link-icon"></i>
+                {% trans "API Upload Queue" %}
+            </a>
+            
             <a href="{% url 'frontend_api:analytics_dashboard' %}" 
                class="nav-link-admin {% if 'analytics' in request.path %}active{% endif %}">
                 <i class="bi bi-bar-chart nav-link-icon"></i>

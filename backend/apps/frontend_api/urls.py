@@ -60,6 +60,12 @@ urlpatterns = [
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
     path('dashboard/bulk/', admin_views.bulk_operations, name='bulk_operations'),
     
+    # API Upload Queue Management (at /en/dashboard/api-queue/)
+    path('dashboard/api-queue/', admin_views.api_queue_list, name='api_queue_list'),
+    path('dashboard/api-queue/<uuid:queue_id>/', admin_views.api_queue_detail, name='api_queue_detail'),
+    path('dashboard/api-queue/<uuid:queue_id>/promote/', admin_views.api_queue_promote, name='api_queue_promote'),
+    path('dashboard/api-queue/<uuid:queue_id>/cancel/', admin_views.api_queue_cancel, name='api_queue_cancel'),
+    
     # Analytics dashboard
     path('dashboard/analytics/', admin_views.analytics_dashboard, name='analytics_dashboard'),
     path('dashboard/analytics/api/', admin_views.api_analytics_views, name='api_analytics_views'),

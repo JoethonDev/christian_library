@@ -2335,3 +2335,234 @@ class SiteConfiguration(models.Model):
             'custom': f'Custom threshold set to {self.search_custom_threshold}. Lower values (closer to 0.0) return more results but may include less relevant matches.'
         }
         return descriptions.get(self.search_sensitivity_mode, descriptions['normal'])
+
+
+class APIUploadQueue(models.Model):
+    """
+    Queue for managing API uploads with rate limiting and scheduling.
+    Prevents concurrent processing of same content type.
+    Handles Gemini rate limits with auto-scheduling to next day 3:00 AM.
+    """
+    STATUS_CHOICES = [
+        ('pending', _('Pending')),
+        ('queued', _('Queued')),
+        ('processing', _('Processing')),
+        ('completed', _('Completed')),
+        ('failed', _('Failed')),
+        ('rate_limited', _('Rate Limited')),
+        ('cancelled', _('Cancelled')),
+    ]
+    
+    QUEUE_STATUS_CHOICES = [
+        ('waiting', _('Waiting')),
+        ('delayed', _('Delayed')),
+        ('ready', _('Ready')),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    file_name = models.CharField(max_length=255, verbose_name=_('File Name'))
+    file_path = models.CharField(max_length=500, verbose_name=_('Temporary File Path'))
+    doc_file_path = models.CharField(
+        max_length=500, 
+        blank=True, 
+        null=True, 
+        verbose_name=_('Document File Path'),
+        help_text=_('Path to Word document for book content extraction')
+    )
+    content_type = models.CharField(
+        max_length=10,
+        choices=ContentItem.CONTENT_TYPES,
+        verbose_name=_('Content Type'),
+        db_index=True
+    )
+    file_size_mb = models.FloatField(verbose_name=_('File Size (MB)'))
+    metadata = models.JSONField(
+        blank=True, 
+        null=True, 
+        verbose_name=_('Metadata'),
+        help_text=_('Optional metadata for content item')
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name=_('Status'),
+        db_index=True
+    )
+    queue_status = models.CharField(
+        max_length=20,
+        choices=QUEUE_STATUS_CHOICES,
+        default='waiting',
+        verbose_name=_('Queue Status'),
+        db_index=True
+    )
+    scheduled_for = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('Scheduled For'),
+        help_text=_('When to process this item (for rate limit handling)'),
+        db_index=True
+    )
+    delay_count = models.IntegerField(
+        default=0,
+        verbose_name=_('Delay Count'),
+        help_text=_('Number of times processing was delayed (max 7)')
+    )
+    priority = models.IntegerField(
+        default=0,
+        verbose_name=_('Priority'),
+        help_text=_('Higher values = higher priority')
+    )
+    gemini_attempts = models.IntegerField(
+        default=0,
+        verbose_name=_('Gemini Attempts'),
+        help_text=_('Number of attempts to generate metadata with Gemini')
+    )
+    content_item = models.ForeignKey(
+        ContentItem,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        verbose_name=_('Content Item'),
+        help_text=_('Created content item after processing')
+    )
+    error_message = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Error Message')
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'), db_index=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name=_('Updated At'))
+    processing_started_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('Processing Started At')
+    )
+    completed_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('Completed At')
+    )
+    
+    class Meta:
+        verbose_name = _('API Upload Queue Item')
+        verbose_name_plural = _('API Upload Queue')
+        ordering = ['-priority', 'created_at']
+        indexes = [
+            models.Index(fields=['status', 'queue_status', 'scheduled_for']),
+            models.Index(fields=['content_type', 'status']),
+            models.Index(fields=['created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.file_name} - {self.status}"
+    
+    def can_process(self):
+        """
+        Check if this item can be processed now.
+        Returns True if ready and no concurrent processing of same type.
+        """
+        from django.utils import timezone
+        
+        # Must be in pending or queued status
+        if self.status not in ['pending', 'queued', 'rate_limited']:
+            return False
+        
+        # If scheduled, must be past scheduled time
+        if self.scheduled_for and self.scheduled_for > timezone.now():
+            return False
+        
+        # Check if delay limit exceeded
+        if self.delay_count >= 7:
+            return False
+        
+        return True
+    
+    def schedule_for_next_day(self):
+        """Schedule for next day at 3:00 AM and increment delay count."""
+        from django.utils import timezone
+        import datetime
+        
+        self.delay_count += 1
+        
+        # If delay count reaches 7, mark as cancelled
+        if self.delay_count >= 7:
+            self.status = 'cancelled'
+            self.queue_status = 'ready'
+            self.error_message = 'Cancelled after 7 days of rate limit delays'
+            self.save(update_fields=['delay_count', 'status', 'queue_status', 'error_message', 'updated_at'])
+            return
+        
+        # Calculate next day 3:00 AM
+        now = timezone.now()
+        tomorrow = now + datetime.timedelta(days=1)
+        scheduled_time = timezone.make_aware(
+            datetime.datetime.combine(
+                tomorrow.date(),
+                datetime.time(3, 0)
+            )
+        )
+        
+        self.scheduled_for = scheduled_time
+        self.status = 'rate_limited'
+        self.queue_status = 'delayed'
+        self.save(update_fields=['delay_count', 'scheduled_for', 'status', 'queue_status', 'updated_at'])
+    
+    def promote_to_ready(self):
+        """Admin action to process immediately (skip queue)."""
+        from django.utils import timezone
+        
+        self.priority = 1000  # High priority
+        self.scheduled_for = timezone.now()
+        self.queue_status = 'ready'
+        if self.status == 'rate_limited':
+            self.status = 'queued'
+        self.save(update_fields=['priority', 'scheduled_for', 'queue_status', 'status', 'updated_at'])
+    
+    def get_queue_position(self):
+        """Get position in queue for items of same content type."""
+        if self.status not in ['pending', 'queued', 'rate_limited']:
+            return 0
+        
+        # Count items ahead of this one (higher priority or earlier creation)
+        return APIUploadQueue.objects.filter(
+            content_type=self.content_type,
+            status__in=['pending', 'queued', 'rate_limited']
+        ).filter(
+            models.Q(priority__gt=self.priority) |
+            models.Q(priority=self.priority, created_at__lt=self.created_at)
+        ).count() + 1
+
+
+class APIUploadLog(models.Model):
+    """
+    Log of all API upload requests for monitoring and analytics.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    api_key_hash = models.CharField(
+        max_length=64,
+        verbose_name=_('API Key Hash'),
+        help_text=_('SHA256 hash of API key for tracking')
+    )
+    endpoint = models.CharField(max_length=200, verbose_name=_('Endpoint'))
+    method = models.CharField(max_length=10, verbose_name=_('HTTP Method'))
+    status_code = models.IntegerField(verbose_name=_('Status Code'), db_index=True)
+    files_count = models.IntegerField(default=0, verbose_name=_('Files Count'))
+    request_size_mb = models.FloatField(default=0.0, verbose_name=_('Request Size (MB)'))
+    response_time_ms = models.IntegerField(default=0, verbose_name=_('Response Time (ms)'))
+    error_message = models.TextField(blank=True, null=True, verbose_name=_('Error Message'))
+    ip_address = models.GenericIPAddressField(verbose_name=_('IP Address'))
+    user_agent = models.CharField(max_length=500, blank=True, verbose_name=_('User Agent'))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Created At'), db_index=True)
+    
+    class Meta:
+        verbose_name = _('API Upload Log')
+        verbose_name_plural = _('API Upload Logs')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['api_key_hash', 'created_at']),
+            models.Index(fields=['status_code', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.method} {self.endpoint} - {self.status_code}"

@@ -1790,3 +1790,184 @@ def seo_reindex_page(request):
     return render(request, 'admin/seo_reindex.html', {
         'current_language': get_language(),
     })
+
+
+# ============================================================================
+# API Upload Queue Management Views
+# ============================================================================
+
+@login_required
+def api_queue_list(request):
+    """
+    Display and manage API upload queue items.
+    Supports filtering by status, content type, and pagination.
+    """
+    from apps.media_manager.models import APIUploadQueue
+    from django.core.paginator import Paginator
+    
+    # Get filter parameters
+    status_filter = request.GET.get('status', '')
+    content_type_filter = request.GET.get('content_type', '')
+    page_number = request.GET.get('page', 1)
+    
+    # Build queryset with filters
+    queryset = APIUploadQueue.objects.select_related('content_item').order_by('-priority', '-created_at')
+    
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+    
+    if content_type_filter:
+        queryset = queryset.filter(content_type=content_type_filter)
+    
+    # Get statistics
+    stats = {
+        'total': APIUploadQueue.objects.count(),
+        'pending': APIUploadQueue.objects.filter(status='pending').count(),
+        'queued': APIUploadQueue.objects.filter(status='queued').count(),
+        'processing': APIUploadQueue.objects.filter(status='processing').count(),
+        'completed': APIUploadQueue.objects.filter(status='completed').count(),
+        'failed': APIUploadQueue.objects.filter(status='failed').count(),
+        'rate_limited': APIUploadQueue.objects.filter(status='rate_limited').count(),
+        'cancelled': APIUploadQueue.objects.filter(status='cancelled').count(),
+    }
+    
+    # Get items by content type
+    type_stats = {
+        'video': APIUploadQueue.objects.filter(content_type='video', status__in=['pending', 'queued', 'processing']).count(),
+        'audio': APIUploadQueue.objects.filter(content_type='audio', status__in=['pending', 'queued', 'processing']).count(),
+        'pdf': APIUploadQueue.objects.filter(content_type='pdf', status__in=['pending', 'queued', 'processing']).count(),
+    }
+    
+    # Paginate results
+    paginator = Paginator(queryset, 20)
+    page_obj = paginator.get_page(page_number)
+    
+    # Calculate queue positions for items
+    for item in page_obj:
+        item.calculated_position = item.get_queue_position()
+    
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'type_stats': type_stats,
+        'status_filter': status_filter,
+        'content_type_filter': content_type_filter,
+        'status_choices': [
+            ('', 'All'),
+            ('pending', 'Pending'),
+            ('queued', 'Queued'),
+            ('processing', 'Processing'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed'),
+            ('rate_limited', 'Rate Limited'),
+            ('cancelled', 'Cancelled'),
+        ],
+        'content_type_choices': [
+            ('', 'All Types'),
+            ('video', 'Video'),
+            ('audio', 'Audio'),
+            ('pdf', 'PDF'),
+        ],
+    }
+    
+    return render(request, 'admin/api_queue_list.html', context)
+
+
+@login_required
+def api_queue_detail(request, queue_id):
+    """Display detailed information about a queue item."""
+    from apps.media_manager.models import APIUploadQueue
+    
+    queue_item = get_object_or_404(
+        APIUploadQueue.objects.select_related('content_item'), 
+        id=queue_id
+    )
+    
+    context = {
+        'queue_item': queue_item,
+        'queue_position': queue_item.get_queue_position(),
+    }
+    
+    return render(request, 'admin/api_queue_detail.html', context)
+
+
+@login_required
+@require_POST
+def api_queue_promote(request, queue_id):
+    """Promote a queue item to process immediately."""
+    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+    from apps.media_manager.models import APIUploadQueue
+    
+    try:
+        queue_item = get_object_or_404(APIUploadQueue, id=queue_id)
+        
+        # Promote the item
+        APIUploadQueueService.promote_item(str(queue_id))
+        
+        messages.success(
+            request, 
+            f'Queue item "{queue_item.file_name}" has been promoted and will be processed immediately.'
+        )
+        
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Item promoted successfully'
+            })
+        
+        # Redirect for regular requests
+        return redirect('frontend_api:api_queue_list')
+        
+    except Exception as e:
+        logger.error(f"Error promoting queue item {queue_id}: {e}", exc_info=True)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+        
+        messages.error(request, f'Error promoting item: {str(e)}')
+        return redirect('frontend_api:api_queue_list')
+
+
+@login_required
+@require_POST
+def api_queue_cancel(request, queue_id):
+    """Cancel a queue item."""
+    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+    from apps.media_manager.models import APIUploadQueue
+    
+    try:
+        queue_item = get_object_or_404(APIUploadQueue, id=queue_id)
+        
+        # Cancel the item
+        APIUploadQueueService.cancel_item(str(queue_id))
+        
+        messages.success(
+            request, 
+            f'Queue item "{queue_item.file_name}" has been cancelled.'
+        )
+        
+        # Return JSON for AJAX requests
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Item cancelled successfully'
+            })
+        
+        # Redirect for regular requests
+        return redirect('frontend_api:api_queue_list')
+        
+    except Exception as e:
+        logger.error(f"Error cancelling queue item {queue_id}: {e}", exc_info=True)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+        
+        messages.error(request, f'Error cancelling item: {str(e)}')
+        return redirect('frontend_api:api_queue_list')

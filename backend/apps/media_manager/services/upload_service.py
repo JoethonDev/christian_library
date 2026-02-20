@@ -31,10 +31,10 @@ logger = logging.getLogger(__name__)
 class MediaUploadService:
     """Service for handling media file uploads and processing"""
     
-    # File size limits (in bytes)
-    MAX_VIDEO_SIZE = 1024 * 1024 * 1024  # 1GB
-    MAX_AUDIO_SIZE = 100 * 1024 * 1024   # 100MB
-    MAX_PDF_SIZE = 50 * 1024 * 1024      # 50MB
+    # File size limits (in bytes) - Updated to 2GB for all types per API documentation
+    MAX_VIDEO_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
+    MAX_AUDIO_SIZE = 2 * 1024 * 1024 * 1024  # 2GB
+    MAX_PDF_SIZE = 2 * 1024 * 1024 * 1024    # 2GB
     
     # Allowed file types
     ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/avi', 'video/mov', 'video/wmv']
@@ -66,14 +66,17 @@ class MediaUploadService:
         try:
             # Determine content type from file
             mime_type, _ = mimetypes.guess_type(file_obj.name)
-            if mime_type in self.ALLOWED_VIDEO_TYPES:
+            file_ext = os.path.splitext(file_obj.name)[1].lower()
+            
+            # More robust detection using both MIME and extension
+            if mime_type in self.ALLOWED_VIDEO_TYPES or file_ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
                 content_type = 'video'
-            elif mime_type in self.ALLOWED_AUDIO_TYPES:
+            elif mime_type in self.ALLOWED_AUDIO_TYPES or file_ext in ['.mp3', '.wav', '.m4a', '.aac', '.ogg']:
                 content_type = 'audio'
-            elif mime_type in self.ALLOWED_PDF_TYPES:
+            elif mime_type in self.ALLOWED_PDF_TYPES or file_ext == '.pdf':
                 content_type = 'pdf'
             else:
-                return {'success': False, 'error': 'Unsupported file type'}
+                return {'success': False, 'error': f'Unsupported file type: {mime_type} ({file_ext})'}
             
             # Validate file
             is_valid, error_msg = self.validate_file(file_obj, content_type)

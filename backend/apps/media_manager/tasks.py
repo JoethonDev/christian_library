@@ -538,3 +538,193 @@ def aggregate_daily_content_views():
     except Exception as exc:
         logger.error(f"Error in aggregate_daily_content_views: {str(exc)}", exc_info=True)
         raise
+
+
+# ============================================================================
+# API Upload Queue Processing Tasks
+# ============================================================================
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=300)
+def process_upload_queue_item(self, queue_item_id):
+    """
+    Process a queue item from the API upload queue.
+    Creates ContentItem and triggers media processing pipeline.
+    Handles Gemini rate limits by scheduling for next day at 3:00 AM.
+    
+    Args:
+        queue_item_id: UUID string of APIUploadQueue item
+    """
+    logger = logging.getLogger(__name__)
+    
+    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+    from apps.media_manager.models import APIUploadQueue
+    
+    try:
+        queue_item = APIUploadQueue.objects.get(id=queue_item_id)
+    except APIUploadQueue.DoesNotExist:
+        logger.error(f'Queue item {queue_item_id} not found')
+        return
+    
+    logger.info(f'Processing queue item {queue_item_id} ({queue_item.file_name})')
+    
+    try:
+        # Process the queue item
+        content_item = APIUploadQueueService.process_queue_item(queue_item_id)
+        
+        if content_item:
+            logger.info(f'Successfully created ContentItem {content_item.id} from queue item {queue_item_id}')
+        else:
+            logger.warning(f'Failed to create ContentItem from queue item {queue_item_id}')
+    
+    except Exception as e:
+        # Check if it's a Gemini rate limit error
+        if 'rate' in str(e).lower() and 'limit' in str(e).lower():
+            logger.warning(f'Gemini rate limit hit for queue item {queue_item_id}')
+            APIUploadQueueService.handle_rate_limit_exceeded(queue_item)
+        else:
+            logger.error(f'Error processing queue item {queue_item_id}: {e}', exc_info=True)
+            
+            # Update queue item with error
+            queue_item.status = 'failed'
+            queue_item.error_message = str(e)
+            queue_item.gemini_attempts += 1
+            queue_item.save(update_fields=['status', 'error_message', 'gemini_attempts', 'updated_at'])
+            
+            # Release lock
+            APIUploadQueueService.release_processing_lock(queue_item.content_type)
+            
+            # Retry if not exceeded max retries
+            if queue_item.gemini_attempts < 3:
+                raise self.retry(exc=e, countdown=300)  # Retry after 5 minutes
+
+
+@shared_task
+def process_scheduled_queue_items():
+    """
+    Periodic task to process items scheduled for current time.
+    Runs every hour via Celery Beat.
+    Respects content type concurrency limits.
+    """
+    logger = logging.getLogger(__name__)
+    from django.utils import timezone
+    from apps.media_manager.models import APIUploadQueue
+    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+    
+    now = timezone.now()
+    logger.info(f'Processing scheduled queue items at {now}')
+    
+    # Find items scheduled for now or past
+    scheduled_items = APIUploadQueue.objects.filter(
+        status__in=['queued', 'rate_limited'],
+        scheduled_for__lte=now,
+        delay_count__lt=7
+    ).order_by('-priority', 'scheduled_for')
+    
+    processed_types = set()
+    processed_count = 0
+    
+    for item in scheduled_items:
+        # Only process one item per content type
+        if item.content_type in processed_types:
+            continue
+        
+        # Check if can process this type
+        if APIUploadQueueService.can_process_type(item.content_type):
+            item.queue_status = 'ready'
+            item.status = 'queued'
+            item.save(update_fields=['queue_status', 'status', 'updated_at'])
+            
+            # Trigger processing
+            process_upload_queue_item.delay(str(item.id))
+            
+            processed_types.add(item.content_type)
+            processed_count += 1
+            logger.info(f'Triggered processing for scheduled item {item.id}')
+    
+    logger.info(f'Processed {processed_count} scheduled items')
+    return processed_count
+
+
+@shared_task
+def process_delayed_3am_queue():
+    """
+    Scheduled task to process items delayed for 3:00 AM.
+    Runs daily at 3:00 AM via Celery Beat.
+    Processes all items scheduled for current day.
+    """
+    logger = logging.getLogger(__name__)
+    from django.utils import timezone
+    from apps.media_manager.models import APIUploadQueue
+    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+    
+    now = timezone.now()
+    logger.info(f'Processing 3:00 AM delayed queue at {now}')
+    
+    # Find items scheduled for today
+    today = now.date()
+    scheduled_items = APIUploadQueue.objects.filter(
+        status='rate_limited',
+        queue_status='delayed',
+        scheduled_for__date=today,
+        delay_count__lt=7
+    ).order_by('-priority', 'created_at')
+    
+    processed_types = set()
+    processed_count = 0
+    
+    for item in scheduled_items:
+        # Only process one item per content type at a time
+        if item.content_type in processed_types:
+            continue
+        
+        # Check if can process this type
+        if APIUploadQueueService.can_process_type(item.content_type):
+            item.queue_status = 'ready'
+            item.status = 'queued'
+            item.save(update_fields=['queue_status', 'status', 'updated_at'])
+            
+            # Trigger processing
+            process_upload_queue_item.delay(str(item.id))
+            
+            processed_types.add(item.content_type)
+            processed_count += 1
+            logger.info(f'Triggered 3 AM processing for item {item.id}')
+    
+    logger.info(f'Processed {processed_count} delayed items at 3:00 AM')
+    return processed_count
+
+
+@shared_task
+def cleanup_expired_queue_items():
+    """
+    Daily task to cleanup queue items that have exceeded delay limit.
+    Cancels items with delay_count >= 7.
+    Cleans up temporary files.
+    """
+    logger = logging.getLogger(__name__)
+    from apps.media_manager.models import APIUploadQueue
+    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+    
+    logger.info('Cleaning up expired queue items')
+    
+    # Find items that exceeded delay limit
+    expired_items = APIUploadQueue.objects.filter(
+        delay_count__gte=7,
+        status__in=['rate_limited', 'queued', 'pending']
+    )
+    
+    cancelled_count = 0
+    for item in expired_items:
+        item.status = 'cancelled'
+        item.error_message = 'Cancelled after 7 days of rate limit delays'
+        item.save(update_fields=['status', 'error_message', 'updated_at'])
+        
+        # Clean up temp files
+        APIUploadQueueService._cleanup_temp_files(item)
+        cancelled_count += 1
+        
+        logger.info(f'Cancelled expired queue item {item.id}')
+    
+    logger.info(f'Cancelled {cancelled_count} expired queue items')
+    return cancelled_count
+
