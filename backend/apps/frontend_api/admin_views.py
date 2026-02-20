@@ -1794,16 +1794,16 @@ def document_download(request, content_id):
             messages.error(request, 'No document attached to this content')
             return redirect('frontend_api:content_detail', content_id=content_id)
         
-        # Get file path
+        # Get file path and create response - FileResponse handles closing
         file_path = content_item.supplementary_document.path
+        response = FileResponse(
+            open(file_path, 'rb'),
+            as_attachment=True,
+            filename=content_item.supplementary_document_name
+        )
         
-        # Open file and create response
-        file_handle = open(file_path, 'rb')
-        response = FileResponse(file_handle)
-        
-        # Set headers
+        # Set additional headers
         response['Content-Type'] = content_item.supplementary_document_type or 'application/octet-stream'
-        response['Content-Disposition'] = f'attachment; filename="{content_item.supplementary_document_name}"'
         response['Content-Length'] = content_item.supplementary_document_size
         
         return response

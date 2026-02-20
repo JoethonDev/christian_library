@@ -438,10 +438,26 @@ function deleteDocument(contentId) {
     });
 }
 
+// Simple toast notification function
 function showToast(message, type = 'info') {
-    // Simple toast notification (assuming you have a toast system)
-    // If not, this is a placeholder that can be replaced with your toast implementation
-    alert(message);
+    // If Bootstrap toast is available, use it; otherwise fall back to alert
+    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${type === 'danger' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} border-0" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        const toastElement = document.createElement('div');
+        toastElement.innerHTML = toastHtml;
+        document.body.appendChild(toastElement.firstElementChild);
+        const toast = new bootstrap.Toast(toastElement.firstElementChild);
+        toast.show();
+    } else {
+        alert(message);
+    }
 }
 </script>
 {% endblock %}

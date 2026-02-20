@@ -528,13 +528,15 @@ class DocumentDownloadAPIView(APIView):
             # Get file path
             file_path = content_item.supplementary_document.path
             
-            # Open file and create response
-            file_handle = open(file_path, 'rb')
-            response = FileResponse(file_handle)
+            # Open file and create response - FileResponse handles closing
+            response = FileResponse(
+                open(file_path, 'rb'),
+                as_attachment=True,
+                filename=content_item.supplementary_document_name
+            )
             
-            # Set headers
+            # Set additional headers
             response['Content-Type'] = content_item.supplementary_document_type or 'application/octet-stream'
-            response['Content-Disposition'] = f'attachment; filename="{content_item.supplementary_document_name}"'
             response['Content-Length'] = content_item.supplementary_document_size
             
             return response
