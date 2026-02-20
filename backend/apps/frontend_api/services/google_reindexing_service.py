@@ -131,15 +131,21 @@ class GoogleReindexingService:
         try:
             current_site = Site.objects.get_current()
             domain = current_site.domain
-            protocol = 'https'
+            # Protocol preference from settings, fallback to dynamic detection
+            protocol = getattr(settings, 'SITE_PROTOCOL', 'http' if settings.DEBUG or 'localhost' in domain else 'https')
         except Exception as e:
-            logger.error(f"Could not get site domain: {e}")
-            return []
+            logger.warning(f"Could not get site domain: {e}")
+            # Fallback to localhost if Site framework fails
+            domain = getattr(settings, 'SITE_DOMAIN', 'localhost')
+            protocol = getattr(settings, 'SITE_PROTOCOL', 'http' if settings.DEBUG else 'https')
+            logger.info(f"Using fallback domain: {domain} ({protocol})")
         
         urls = []
         
         # Get all content items
-        for item in queryset.select_related('user').iterator(chunk_size=500):
+        # Optimization: No need to select_related('user') as it's not used in URL generation
+        # and doesn't exist on the ContentItem model.
+        for item in queryset.iterator(chunk_size=500):
             # Add URL for each language variant (ar and en)
             for lang in ['ar', 'en']:
                 try:

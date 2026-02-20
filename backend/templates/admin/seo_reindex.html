@@ -213,10 +213,18 @@
                 </div>
 
                 <!-- Time Estimate -->
-                <div class="alert alert-info border-0 rounded-3 mb-3">
+                <div class="alert alert-info border-0 rounded-3 mb-3" id="time-remaining-container">
                     <div class="d-flex align-items-center">
                         <i class="bi bi-clock me-2"></i>
                         <span id="time-remaining">{% trans "Calculating..." %}</span>
+                    </div>
+                </div>
+
+                <!-- Completion Message -->
+                <div id="completion-message" class="alert d-none border-0 rounded-3 mb-3">
+                    <div class="d-flex align-items-center">
+                        <i id="completion-icon" class="bi me-2 fs-4"></i>
+                        <div id="completion-text" class="fw-bold"></div>
                     </div>
                 </div>
 
@@ -399,6 +407,22 @@ document.getElementById('reindex-form').addEventListener('submit', function(e) {
 });
 
 function showProgressModal() {
+    // Reset modal state
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-bar').classList.add('progress-bar-animated');
+    document.getElementById('progress-text').textContent = '0%';
+    document.getElementById('progress-percentage').textContent = '0%';
+    document.getElementById('stat-total').textContent = '0';
+    document.getElementById('stat-submitted').textContent = '0';
+    document.getElementById('stat-successful').textContent = '0';
+    document.getElementById('stat-failed').textContent = '0';
+    document.getElementById('time-remaining').textContent = '{% trans "Calculating..." %}';
+    document.getElementById('time-remaining-container').classList.remove('d-none');
+    document.getElementById('completion-message').classList.add('d-none');
+    document.getElementById('error-log-container').classList.add('d-none');
+    document.getElementById('cancel-btn').classList.remove('d-none');
+    document.getElementById('close-modal-btn').classList.add('d-none');
+    
     const modal = new bootstrap.Modal(document.getElementById('progressModal'));
     modal.show();
 }
@@ -411,7 +435,11 @@ function startStatusPolling() {
 function updateStatus() {
     if (!currentTaskId) return;
     
-    fetch(`/dashboard/seo/reindex/status/${currentTaskId}/`)
+    // Use dynamic URL template to avoid hardcoding and handle language prefixes
+    const statusUrlTemplate = '{% url "frontend_api:reindex_status" task_id="00000000-0000-0000-0000-000000000000" %}';
+    const statusUrl = statusUrlTemplate.replace('00000000-0000-0000-0000-000000000000', currentTaskId);
+    
+    fetch(statusUrl)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -452,27 +480,40 @@ function updateStatus() {
                 }
                 
                 // Check if completed
-                if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+                if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled' || (data.status === 'pending' && data.total === 0 && data.progress === 100)) {
                     clearInterval(statusPollInterval);
                     document.getElementById('progress-bar').classList.remove('progress-bar-animated');
                     document.getElementById('cancel-btn').classList.add('d-none');
                     document.getElementById('close-modal-btn').classList.remove('d-none');
+                    document.getElementById('time-remaining-container').classList.add('d-none');
                     document.getElementById('start-reindex-btn').disabled = false;
                     document.getElementById('start-reindex-btn').innerHTML = 
                         '<i class="bi bi-arrow-repeat me-2"></i>{% trans "Start Re-indexing" %}';
                     
+                    // Show completion message in modal
+                    const completionMsg = document.getElementById('completion-message');
+                    const completionIcon = document.getElementById('completion-icon');
+                    const completionText = document.getElementById('completion-text');
+                    
+                    completionMsg.classList.remove('d-none');
+                    
+                    if (data.status === 'completed') {
+                        completionMsg.className = 'alert alert-success border-0 rounded-3 mb-3';
+                        completionIcon.className = 'bi bi-check-circle-fill me-2 fs-4';
+                        completionText.textContent = '{% trans "Re-indexing completed successfully!" %}';
+                    } else if (data.status === 'cancelled') {
+                        completionMsg.className = 'alert alert-warning border-0 rounded-3 mb-3';
+                        completionIcon.className = 'bi bi-exclamation-triangle-fill me-2 fs-4';
+                        completionText.textContent = '{% trans "Re-indexing was cancelled." %}';
+                    } else {
+                        completionMsg.className = 'alert alert-danger border-0 rounded-3 mb-3';
+                        completionIcon.className = 'bi bi-x-circle-fill me-2 fs-4';
+                        completionText.textContent = '{% trans "Re-indexing failed." %}';
+                    }
+                    
                     // Reload history
                     loadLastReindexInfo();
                     loadReindexHistory();
-                    
-                    // Show completion message
-                    if (data.status === 'completed') {
-                        alert('{% trans "Re-indexing completed successfully!" %}');
-                    } else if (data.status === 'failed') {
-                        alert('{% trans "Re-indexing failed. Check the error log for details." %}');
-                    } else if (data.status === 'cancelled') {
-                        alert('{% trans "Re-indexing was cancelled." %}');
-                    }
                 }
             }
         })
@@ -484,13 +525,17 @@ function updateStatus() {
 function cancelReindex() {
     if (!currentTaskId) return;
     
+    // Add logic to avoid showing confirm dialog if we want to be more "modern",
+    // but the user didn't specifically ask to remove the cancel confirm.
     if (!confirm('{% trans "Are you sure you want to cancel this re-indexing operation?" %}')) {
         return;
     }
     
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const cancelUrlTemplate = '{% url "frontend_api:cancel_reindex" task_id="00000000-0000-0000-0000-000000000000" %}';
+    const cancelUrl = cancelUrlTemplate.replace('00000000-0000-0000-0000-000000000000', currentTaskId);
     
-    fetch(`/dashboard/seo/reindex/cancel/${currentTaskId}/`, {
+    fetch(cancelUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -500,7 +545,8 @@ function cancelReindex() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('{% trans "Re-indexing cancelled successfully" %}');
+            // No alert needed, updateStatus will handle completion
+            console.log('Task cancelled successfully');
         } else {
             alert('{% trans "Error:" %} ' + data.error);
         }

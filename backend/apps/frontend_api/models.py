@@ -112,7 +112,7 @@ class GoogleReindexingTask(models.Model):
     def get_progress_percentage(self):
         """Calculate progress percentage based on submitted URLs"""
         if self.total_urls == 0:
-            return 0
+            return 100 if self.status in ['completed', 'failed', 'cancelled'] else 0
         return round((self.submitted_urls / self.total_urls) * 100, 2)
     
     def get_estimated_time_remaining(self):
