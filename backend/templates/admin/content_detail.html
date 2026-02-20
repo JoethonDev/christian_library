@@ -211,6 +211,74 @@
             </div>
         </div>
 
+        <!-- Supplementary Document -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="bi bi-file-earmark-word me-2 text-primary"></i>
+                    {% trans "Supplementary Document" %}
+                </h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                {% if content_item.has_supplementary_document %}
+                    <!-- Document exists -->
+                    <div class="d-flex align-items-center mb-3 p-3 bg-light rounded-3">
+                        <div class="me-3 display-6 text-primary">
+                            <i class="bi bi-file-earmark-word-fill"></i>
+                        </div>
+                        <div class="overflow-hidden flex-grow-1">
+                            <div class="small text-muted text-uppercase mb-1">{% trans "Document" %}</div>
+                            <div class="fw-bold text-break text-truncate">{{ content_item.supplementary_document_name }}</div>
+                            <div class="small text-muted">{{ content_item.supplementary_document_size|filesizeformat }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'frontend_api:document_download' content_item.id %}" 
+                           class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="bi bi-download me-2"></i>{% trans "Download Document" %}
+                        </a>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" 
+                                onclick="deleteDocument('{{ content_item.id }}')">
+                            <i class="bi bi-trash me-2"></i>{% trans "Delete Document" %}
+                        </button>
+                    </div>
+                    
+                    {% if content_item.supplementary_document_text %}
+                    <div class="mt-3 p-3 bg-light rounded-3">
+                        <div class="small text-muted mb-1">{% trans "Extracted Text" %}</div>
+                        <div class="small fw-bold">{{ content_item.supplementary_document_text|length|intcomma }} {% trans "characters" %}</div>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <!-- No document -->
+                    <p class="small text-muted mb-3">
+                        {% trans "Upload a Word document (.doc/.docx) with additional content for this item. The text will be extracted and indexed for search." %}
+                    </p>
+                    
+                    <form id="documentUploadForm" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <input type="file" class="form-control" id="documentFile" name="document" 
+                                   accept=".doc,.docx" required>
+                            <div class="form-text">{% trans "Supported: .doc, .docx (Max 2GB)" %}</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill">
+                            <i class="bi bi-upload me-2"></i>{% trans "Upload Document" %}
+                        </button>
+                    </form>
+                    
+                    <div id="uploadProgress" class="mt-3 d-none">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <div class="small text-muted text-center mt-2">{% trans "Uploading..." %}</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Danger Zone -->
         <div class="card border-0 shadow-sm rounded-4">
              <div class="card-header bg-transparent border-0 py-3 px-4">
@@ -281,6 +349,99 @@ function toggleContentStatus(contentId, checkbox) {
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
+}
+
+// Document upload handling
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('documentUploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('documentFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showToast('{% trans "Please select a file" %}', 'warning');
+                return;
+            }
+            
+            // Validate file extension
+            const fileName = file.name.toLowerCase();
+            if (!fileName.endsWith('.doc') && !fileName.endsWith('.docx')) {
+                showToast('{% trans "Only .doc and .docx files are supported" %}', 'danger');
+                return;
+            }
+            
+            // Show progress
+            uploadForm.classList.add('d-none');
+            document.getElementById('uploadProgress').classList.remove('d-none');
+            
+            // Create FormData
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            
+            // Upload file
+            fetch('{% url "frontend_api:document_upload" content_item.id %}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message || '{% trans "Document uploaded successfully" %}', 'success');
+                    // Reload page to show the document
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(data.error || '{% trans "Upload failed" %}', 'danger');
+                    uploadForm.classList.remove('d-none');
+                    document.getElementById('uploadProgress').classList.add('d-none');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('{% trans "An error occurred during upload" %}', 'danger');
+                uploadForm.classList.remove('d-none');
+                document.getElementById('uploadProgress').classList.add('d-none');
+            });
+        });
+    }
+});
+
+// Document deletion
+function deleteDocument(contentId) {
+    if (!confirm('{% trans "Are you sure you want to delete this document? This cannot be undone." %}')) {
+        return;
+    }
+    
+    fetch('{% url "frontend_api:document_delete" content_item.id %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message || '{% trans "Document deleted successfully" %}', 'success');
+            // Reload page to hide the document
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || '{% trans "Deletion failed" %}', 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('{% trans "An error occurred during deletion" %}', 'danger');
+    });
+}
+
+function showToast(message, type = 'info') {
+    // Simple toast notification (assuming you have a toast system)
+    // If not, this is a placeholder that can be replaced with your toast implementation
+    alert(message);
 }
 </script>
 {% endblock %}

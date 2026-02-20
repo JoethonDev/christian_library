@@ -43,6 +43,11 @@ urlpatterns = [
     path('dashboard/content/<uuid:content_id>/delete-local/', admin_views.delete_local_confirm, name='delete_local_confirm'),
     path('dashboard/content/delete/<uuid:content_id>/', admin_views.content_delete_confirm, name='admin_content_delete'),
     
+    # Document management for content items
+    path('dashboard/content/<uuid:content_id>/document/upload/', admin_views.document_upload, name='document_upload'),
+    path('dashboard/content/<uuid:content_id>/document/download/', admin_views.document_download, name='document_download'),
+    path('dashboard/content/<uuid:content_id>/document/delete/', admin_views.document_delete, name='document_delete'),
+    
     # Upload functionality (at /en/dashboard/upload/)
     path('dashboard/upload/', admin_views.upload_content, name='upload_content'),
     path('dashboard/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
