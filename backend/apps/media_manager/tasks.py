@@ -785,8 +785,18 @@ def extract_document_text(self, contentitem_id, user_id=None):
         # Extract text from document
         item.extract_text_from_document()
         
-        # Save the extracted content
-        item.save(update_fields=['supplementary_document_text'])
+        # Save the extracted content to both supplementary_document_text AND book_content
+        # Append to book_content instead of replacing
+        if item.supplementary_document_text:
+            if item.book_content:
+                # Append to existing book_content with separator
+                item.book_content = item.book_content + "\n\n--- Supplementary Document Content ---\n\n" + item.supplementary_document_text
+            else:
+                # Set as book_content if no existing content
+                item.book_content = item.supplementary_document_text
+            item.save(update_fields=['supplementary_document_text', 'book_content'])
+        else:
+            item.save(update_fields=['supplementary_document_text'])
         
         TaskMonitor.update_progress(
             self.request.id,

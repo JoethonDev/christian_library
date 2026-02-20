@@ -155,7 +155,59 @@ class MediaUploadService:
                 )
             
             # If document text was extracted, set it as book_content
-            if success and book_content_from_doc and content_item:
+            # Also save the document file to storage and R2
+            if success and book_content_from_doc and content_item and document_file:
+                with transaction.atomic():
+                    # Save document to storage
+                    from django.core.files.storage import default_storage
+                    from django.utils import timezone
+                    import uuid
+                    
+                    # Generate unique filename
+                    file_ext = os.path.splitext(document_file.name)[1]
+                    unique_filename = f"{uuid.uuid4()}{file_ext}"
+                    year = timezone.now().year
+                    month = timezone.now().month
+                    file_path = f"documents/{year}/{month:02d}/{unique_filename}"
+                    
+                    # Save file
+                    saved_path = default_storage.save(file_path, document_file)
+                    
+                    # Update content item with document metadata and book_content
+                    content_item.supplementary_document = saved_path
+                    content_item.supplementary_document_name = document_file.name
+                    content_item.supplementary_document_size = document_file.size
+                    content_item.supplementary_document_type = mimetypes.guess_type(document_file.name)[0] or document_file.content_type
+                    content_item.supplementary_document_uploaded_at = timezone.now()
+                    content_item.book_content = book_content_from_doc
+                    content_item.save(update_fields=[
+                        'supplementary_document',
+                        'supplementary_document_name',
+                        'supplementary_document_size',
+                        'supplementary_document_type',
+                        'supplementary_document_uploaded_at',
+                        'book_content'
+                    ])
+                    
+                    # Update search vector immediately
+                    content_item.update_search_vector()
+                    content_item.save(update_fields=['search_vector'])
+                    
+                logger.info(f"Set book_content from document for content item {content_item.id}")
+                
+                # Upload document to R2 if enabled
+                if self.r2_service.use_r2:
+                    try:
+                        # Upload to R2 in background
+                        # We'll use a simple path structure for documents
+                        r2_path = f"documents/{content_item.id}{file_ext}"
+                        # For now, R2 upload will be handled by the main file upload process
+                        # The document is saved to default_storage which can be R2-backed
+                        logger.info(f"Document saved to storage (R2-backed if enabled): {saved_path}")
+                    except Exception as e:
+                        logger.error(f"Error with R2 document handling: {str(e)}")
+            elif success and book_content_from_doc and content_item:
+                # Just set book_content if document was provided but not saved
                 with transaction.atomic():
                     content_item.book_content = book_content_from_doc
                     content_item.save(update_fields=['book_content'])
@@ -616,7 +668,7 @@ class MediaUploadService:
                     'supplementary_document_uploaded_at'
                 ])
             
-            # Trigger async text extraction
+            # Trigger async text extraction which will add to book_content
             from apps.media_manager.tasks import extract_document_text
             extract_document_text.delay(str(content_item.id))
             
@@ -627,6 +679,7 @@ class MediaUploadService:
                 'message': 'Document uploaded successfully',
                 'document_name': document_file.name,
                 'document_size': document_file.size,
+                'document_path': saved_path,
                 'status': 'processing'
             }
             
@@ -640,6 +693,7 @@ class MediaUploadService:
         """
         Delete supplementary document from a ContentItem.
         Removes file from storage and clears metadata.
+        NOTE: Does NOT modify book_content - extracted text is preserved.
         
         Args:
             content_item_id: UUID of the ContentItem
@@ -663,32 +717,31 @@ class MediaUploadService:
                 except Exception as e:
                     logger.warning(f"Failed to delete document file: {str(e)}")
             
-            # Clear metadata
+            # Clear metadata but keep book_content and supplementary_document_text
             with transaction.atomic():
                 content_item.supplementary_document = None
                 content_item.supplementary_document_name = ''
                 content_item.supplementary_document_size = None
                 content_item.supplementary_document_type = ''
                 content_item.supplementary_document_uploaded_at = None
-                content_item.supplementary_document_text = ''
+                # NOTE: We keep supplementary_document_text and book_content intact
                 content_item.save(update_fields=[
                     'supplementary_document',
                     'supplementary_document_name',
                     'supplementary_document_size',
                     'supplementary_document_type',
-                    'supplementary_document_uploaded_at',
-                    'supplementary_document_text'
+                    'supplementary_document_uploaded_at'
                 ])
                 
-                # Update search vector to remove document text
+                # Update search vector (it will still include book_content)
                 content_item.update_search_vector()
                 content_item.save(update_fields=['search_vector'])
             
-            logger.info(f"Successfully deleted document from ContentItem {content_item_id}")
+            logger.info(f"Successfully deleted document from ContentItem {content_item_id} (preserved extracted text)")
             
             return {
                 'success': True,
-                'message': 'Document deleted successfully'
+                'message': 'Document deleted successfully (extracted text preserved)'
             }
             
         except ContentItem.DoesNotExist:
