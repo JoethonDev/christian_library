@@ -384,6 +384,9 @@ function toggleContentStatus(contentId, checkbox) {
 document.addEventListener('DOMContentLoaded', function() {
     const uploadForm = document.getElementById('documentUploadForm');
     if (uploadForm) {
+        const submitBtn = uploadForm.querySelector('button[type="submit"]');
+        let originalBtnText = '';
+        
         uploadForm.addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -402,9 +405,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            // Store original button text
+            originalBtnText = submitBtn.innerHTML;
+            
             // Show progress and disable form
-            const submitBtn = uploadForm.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.innerHTML;
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>{% trans "Uploading..." %}';
             

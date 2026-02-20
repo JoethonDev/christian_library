@@ -4,12 +4,15 @@ Handles file uploads, validation, and processing initiation
 """
 import os
 import mimetypes
+import uuid
 from typing import Dict, Tuple, Optional
 from pathlib import Path
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 import logging
 
 from ..models import ContentItem, VideoMeta, AudioMeta, PdfMeta
@@ -159,9 +162,6 @@ class MediaUploadService:
             if success and book_content_from_doc and content_item and document_file:
                 with transaction.atomic():
                     # Save document to storage
-                    from django.core.files.storage import default_storage
-                    from django.utils import timezone
-                    import uuid
                     
                     # Generate unique filename
                     file_ext = os.path.splitext(document_file.name)[1]
@@ -193,19 +193,10 @@ class MediaUploadService:
                     content_item.update_search_vector()
                     content_item.save(update_fields=['search_vector'])
                     
-                logger.info(f"Set book_content from document for content item {content_item.id}")
+                logger.info(f"Set book_content from document and saved to storage for content item {content_item.id}")
                 
-                # Upload document to R2 if enabled
-                if self.r2_service.use_r2:
-                    try:
-                        # Upload to R2 in background
-                        # We'll use a simple path structure for documents
-                        r2_path = f"documents/{content_item.id}{file_ext}"
-                        # For now, R2 upload will be handled by the main file upload process
-                        # The document is saved to default_storage which can be R2-backed
-                        logger.info(f"Document saved to storage (R2-backed if enabled): {saved_path}")
-                    except Exception as e:
-                        logger.error(f"Error with R2 document handling: {str(e)}")
+                # Note: R2 upload is handled automatically by default_storage if configured
+                # The saved_path will point to R2 location when R2 storage backend is active
             elif success and book_content_from_doc and content_item:
                 # Just set book_content if document was provided but not saved
                 with transaction.atomic():
@@ -638,11 +629,6 @@ class MediaUploadService:
             if not is_valid:
                 return {'success': False, 'error': error_msg}
             
-            # Save document file
-            from django.core.files.storage import default_storage
-            from django.utils import timezone
-            import uuid
-            
             # Generate unique filename
             file_ext = os.path.splitext(document_file.name)[1]
             unique_filename = f"{uuid.uuid4()}{file_ext}"
@@ -708,8 +694,6 @@ class MediaUploadService:
                 return {'success': False, 'error': 'No document attached'}
             
             # Delete file from storage
-            from django.core.files.storage import default_storage
-            
             if content_item.supplementary_document:
                 try:
                     default_storage.delete(content_item.supplementary_document.name)

@@ -786,15 +786,21 @@ def extract_document_text(self, contentitem_id, user_id=None):
         item.extract_text_from_document()
         
         # Save the extracted content to both supplementary_document_text AND book_content
-        # Append to book_content instead of replacing
+        # Append to book_content instead of replacing, but check for duplicates
         if item.supplementary_document_text:
-            if item.book_content:
+            # Check if this text is already in book_content to avoid duplication
+            if item.book_content and item.supplementary_document_text in item.book_content:
+                # Text already present, just save supplementary_document_text
+                item.save(update_fields=['supplementary_document_text'])
+                logger.info(f"Document text already present in book_content, skipping append")
+            elif item.book_content:
                 # Append to existing book_content with separator
                 item.book_content = item.book_content + "\n\n--- Supplementary Document Content ---\n\n" + item.supplementary_document_text
+                item.save(update_fields=['supplementary_document_text', 'book_content'])
             else:
                 # Set as book_content if no existing content
                 item.book_content = item.supplementary_document_text
-            item.save(update_fields=['supplementary_document_text', 'book_content'])
+                item.save(update_fields=['supplementary_document_text', 'book_content'])
         else:
             item.save(update_fields=['supplementary_document_text'])
         
