@@ -13,6 +13,12 @@ DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
 
 # Application definition
+SITE_ID = 1
+SITE_NAME = os.environ.get('SITE_NAME', 'Christian Library')
+SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'localhost:8000')
+# Default to http in dev and for localhost, use https in prod
+SITE_PROTOCOL = os.environ.get('SITE_PROTOCOL', 'http' if DEBUG or 'localhost' in SITE_DOMAIN else 'https')
+
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

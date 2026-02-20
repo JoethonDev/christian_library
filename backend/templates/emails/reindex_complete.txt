@@ -1,0 +1,35 @@
+Google Re-indexing Complete - {{ status_text }}
+======================================
+
+Hello {{ user.get_full_name_or_username }},
+
+Your Google Search Console re-indexing operation has been completed.
+
+Summary
+-------
+Status: {{ status_text }}
+Content Type: {{ task.content_type|title }}
+Total URLs: {{ task.total_urls }}
+Successful: {{ task.successful_urls }}
+Failed: {{ task.failed_urls }}
+Success Rate: {{ success_rate }}%
+{% if duration %}Duration: {{ duration }}{% endif %}
+
+{% if error_summary %}
+Error Summary
+-------------
+{% for error_type, count in error_summary.items %}
+- {{ error_type }}: {{ count }} occurrence{{ count|pluralize }}
+{% endfor %}
+{% endif %}
+
+{% if task.sitemap_included %}
+The sitemap was also pinged to notify Google of the updates.
+{% endif %}
+
+View full details in the admin dashboard:
+{{ site_url }}/dashboard/seo/reindex/history/
+
+---
+This is an automated notification from Christian Library Admin Panel.
+Initiated at: {{ task.started_at|date:"Y-m-d H:i:s" }} UTC

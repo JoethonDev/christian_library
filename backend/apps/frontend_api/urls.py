@@ -83,6 +83,14 @@ urlpatterns = [
     path('dashboard/seo/monitoring-api/', seo_views.seo_monitoring_api, name='seo_monitoring_api'),
     path('dashboard/seo/site-config-api/', seo_views.site_seo_api, name='site_seo_api'),
     
+    # Google Re-indexing Endpoints (at /en/dashboard/seo/reindex/)
+    path('dashboard/seo/reindex/', admin_views.initiate_google_reindexing, name='initiate_google_reindexing'),
+    path('dashboard/seo/reindex/page/', admin_views.seo_reindex_page, name='seo_reindex_page'),
+    path('dashboard/seo/reindex/status/<uuid:task_id>/', admin_views.reindex_status, name='reindex_status'),
+    path('dashboard/seo/reindex/cancel/<uuid:task_id>/', admin_views.cancel_reindex, name='cancel_reindex'),
+    path('dashboard/seo/reindex/history/', admin_views.reindex_history, name='reindex_history'),
+
+    
     # Legacy admin interfaces (redirects to dashboard for backward compatibility)
     path('admin/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_redirect'),
     path('admin-dashboard/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_dashboard_legacy'),

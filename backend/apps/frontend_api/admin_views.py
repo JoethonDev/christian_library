@@ -1533,6 +1533,266 @@ def test_search_sensitivity(request):
 
 
 # ============================================================================
+# Google Re-indexing API Endpoints
+# ============================================================================
+
+@login_required
+@require_POST
+def initiate_google_reindexing(request):
+    """
+    Initiate Google Search Console re-indexing operation.
+    
+    POST Body:
+        content_type: 'all', 'video', 'audio', or 'pdf' (optional, default: 'all')
+        include_sitemap: boolean (optional, default: true)
+    
+    Returns:
+        JSON with task_id, estimated_duration, and total_urls
+    """
+    # Check staff permission
+    if not request.user.is_staff:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permission denied. Staff access required.'
+        }, status=403)
+    
+    try:
+        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
+        from apps.frontend_api.tasks import reindex_website_google
+        
+        # Parse request body
+        data = json.loads(request.body) if request.body else {}
+        content_type = data.get('content_type', 'all')
+        include_sitemap = data.get('include_sitemap', True)
+        
+        # Validate content_type
+        valid_types = ['all', 'video', 'audio', 'pdf']
+        if content_type not in valid_types:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid content_type. Must be one of: {", ".join(valid_types)}'
+            }, status=400)
+        
+        # Initialize service
+        service = GoogleReindexingService()
+        
+        # Create task
+        try:
+            task_id = service.initiate_reindexing(
+                user=request.user,
+                content_type=content_type,
+                include_sitemap=include_sitemap
+            )
+        except ValueError as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+        
+        # Get URL count for estimation
+        urls = service.get_active_urls(content_type)
+        estimated_duration = service.estimate_duration(len(urls))
+        
+        # Start Celery task asynchronously
+        reindex_website_google.delay(task_id, content_type, include_sitemap)
+        
+        logger.info(
+            f"User {request.user.username} initiated re-indexing task {task_id} "
+            f"for {len(urls)} URLs (content_type={content_type})"
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'task_id': task_id,
+            'total_urls': len(urls),
+            'estimated_duration': estimated_duration,
+            'message': 'Re-indexing task initiated successfully'
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error initiating re-indexing: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def reindex_status(request, task_id):
+    """
+    Get real-time status of a re-indexing task.
+    
+    Returns:
+        JSON with task status, progress, and statistics
+    """
+    # Check staff permission
+    if not request.user.is_staff:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permission denied. Staff access required.'
+        }, status=403)
+    
+    try:
+        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
+        from apps.frontend_api.models import GoogleReindexingTask
+        
+        service = GoogleReindexingService()
+        status_data = service.get_task_status(str(task_id))
+        
+        if 'error' in status_data:
+            return JsonResponse({
+                'success': False,
+                'error': status_data['error']
+            }, status=404)
+        
+        # Add error details if available
+        try:
+            task = GoogleReindexingTask.objects.get(id=task_id)
+            if task.error_log and task.error_log != '[]':
+                errors = json.loads(task.error_log)
+                status_data['errors'] = errors[-10:]  # Last 10 errors
+        except:
+            pass
+        
+        return JsonResponse({
+            'success': True,
+            **status_data
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting task status: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def cancel_reindex(request, task_id):
+    """
+    Cancel a running re-indexing task.
+    
+    Returns:
+        JSON with cancellation status and partial results
+    """
+    # Check staff permission
+    if not request.user.is_staff:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permission denied. Staff access required.'
+        }, status=403)
+    
+    try:
+        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
+        
+        service = GoogleReindexingService()
+        cancelled = service.cancel_task(str(task_id))
+        
+        if not cancelled:
+            return JsonResponse({
+                'success': False,
+                'error': 'Task cannot be cancelled (already completed or not found)'
+            }, status=400)
+        
+        # Get final status
+        status_data = service.get_task_status(str(task_id))
+        
+        logger.info(f"User {request.user.username} cancelled re-indexing task {task_id}")
+        
+        return JsonResponse({
+            'success': True,
+            'cancelled': True,
+            'message': 'Re-indexing task cancelled successfully',
+            'partial_results': {
+                'submitted': status_data.get('submitted', 0),
+                'successful': status_data.get('successful', 0),
+                'failed': status_data.get('failed', 0),
+            }
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error cancelling task: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def reindex_history(request):
+    """
+    Get history of past re-indexing operations.
+    
+    Query Parameters:
+        limit: Maximum number of tasks to return (default: 10, max: 50)
+    
+    Returns:
+        JSON with list of past re-indexing tasks
+    """
+    # Check staff permission
+    if not request.user.is_staff:
+        return JsonResponse({
+            'success': False,
+            'error': 'Permission denied. Staff access required.'
+        }, status=403)
+    
+    try:
+        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
+        
+        # Get limit from query params
+        limit = min(int(request.GET.get('limit', 10)), 50)
+        
+        service = GoogleReindexingService()
+        tasks = service.get_reindexing_history(limit=limit)
+        
+        # Serialize tasks
+        tasks_data = []
+        for task in tasks:
+            tasks_data.append({
+                'task_id': str(task.id),
+                'status': task.status,
+                'content_type': task.content_type,
+                'total_urls': task.total_urls,
+                'successful_urls': task.successful_urls,
+                'failed_urls': task.failed_urls,
+                'success_rate': task.get_success_rate(),
+                'initiated_by': task.initiated_by.username if task.initiated_by else None,
+                'started_at': task.started_at.isoformat() if task.started_at else None,
+                'completed_at': task.completed_at.isoformat() if task.completed_at else None,
+                'created_at': task.created_at.isoformat(),
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'tasks': tasks_data,
+            'count': len(tasks_data)
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error getting re-indexing history: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def seo_reindex_page(request):
+    """
+    Render the Google re-indexing control panel page.
+    """
+    # Check staff permission
+    if not request.user.is_staff:
+        messages.error(request, _('Permission denied. Staff access required.'))
+        return redirect('frontend_api:admin_dashboard')
+    
+    return render(request, 'admin/seo_reindex.html', {
+        'current_language': get_language(),
+    })
+
+
+# ============================================================================
 # API Upload Queue Management Views
 # ============================================================================
 
