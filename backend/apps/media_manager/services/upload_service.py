@@ -116,8 +116,8 @@ class MediaUploadService:
                         # Clean up temp file
                         try:
                             os.unlink(tmp_path)
-                        except:
-                            pass
+                        except OSError as e:
+                            logger.warning(f"Failed to clean up temp file {tmp_path}: {e}")
                         
                         logger.info(f"Extracted {len(book_content_from_doc) if book_content_from_doc else 0} characters from document")
                     else:
