@@ -275,6 +275,9 @@ def handle_content_upload(request):
         if not file_obj:
             return JsonResponse({'success': False, 'error': 'No file provided'})
         
+        # Get document file if provided
+        document_file = request.FILES.get('document')
+        
         # Get metadata from request (all fields from template)
         title_ar = request.POST.get('title_ar', '')
         title_en = request.POST.get('title_en', '')
@@ -309,7 +312,8 @@ def handle_content_upload(request):
             seo_keywords_ar=seo_keywords_ar,
             transcript=transcript,
             notes=notes,
-            seo_structured_data=seo_structured_data
+            seo_structured_data=seo_structured_data,
+            document_file=document_file  # Pass document file
         )
         
         if result['success']:

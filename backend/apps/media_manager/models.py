@@ -516,11 +516,19 @@ class ContentItem(models.Model):
         Extract ONLY Arabic text from the associated PDF file (PdfMeta.original_file) and store in book_content.
         This should be called from a background task. Tries multiple methods for best results.
         
+        IMPORTANT: If book_content is already populated (e.g., from a supplementary document),
+        this method will skip extraction to avoid overwriting the document content.
+        
         Uses PdfProcessorService for text extraction, OCR, and normalization.
         """
         logger = logging.getLogger(__name__)
         
         try:
+            # Skip extraction if book_content is already populated (from document upload)
+            if self.book_content and self.book_content.strip():
+                logger.info(f"Skipping PDF extraction for {self.id} - book_content already populated from document ({len(self.book_content)} characters)")
+                return
+            
             pdfmeta = getattr(self, 'pdfmeta', None)
             if not pdfmeta or not pdfmeta.original_file:
                 logger.warning(f"PDF meta or file not found for ContentItem {self.id}")

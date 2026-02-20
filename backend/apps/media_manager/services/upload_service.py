@@ -60,7 +60,8 @@ class MediaUploadService:
         seo_keywords_ar: str = "",
         transcript: str = "",
         notes: str = "",
-        seo_structured_data: str = ""
+        seo_structured_data: str = "",
+        document_file = None  # New parameter for supplementary document
     ):
         """Create content item with complete metadata"""
         try:
@@ -82,6 +83,47 @@ class MediaUploadService:
             is_valid, error_msg = self.validate_file(file_obj, content_type)
             if not is_valid:
                 return {'success': False, 'error': error_msg}
+            
+            # If document file provided, extract text synchronously
+            book_content_from_doc = None
+            if document_file:
+                try:
+                    from apps.media_manager.services.document_processor_service import DocumentProcessorService
+                    doc_processor = DocumentProcessorService()
+                    
+                    # Validate document
+                    doc_mime_type, _ = mimetypes.guess_type(document_file.name)
+                    if not doc_mime_type:
+                        doc_mime_type = document_file.content_type
+                    
+                    is_valid_doc, error_msg = doc_processor.validate_document(
+                        document_file.size,
+                        doc_mime_type,
+                        document_file.name
+                    )
+                    
+                    if is_valid_doc:
+                        # Save document to temporary location for processing
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(document_file.name)[1]) as tmp_file:
+                            for chunk in document_file.chunks():
+                                tmp_file.write(chunk)
+                            tmp_path = tmp_file.name
+                        
+                        # Extract text
+                        book_content_from_doc = doc_processor.extract_text_from_document(tmp_path, doc_mime_type)
+                        
+                        # Clean up temp file
+                        try:
+                            os.unlink(tmp_path)
+                        except:
+                            pass
+                        
+                        logger.info(f"Extracted {len(book_content_from_doc) if book_content_from_doc else 0} characters from document")
+                    else:
+                        logger.warning(f"Document validation failed: {error_msg}")
+                except Exception as e:
+                    logger.error(f"Error processing document file: {str(e)}", exc_info=True)
             
             # Upload based on type
             if content_type == 'video':
@@ -111,6 +153,16 @@ class MediaUploadService:
                     seo_title_ar + ',' + seo_title_en if seo_title_en else seo_title_ar,
                     seo_structured_data
                 )
+            
+            # If document text was extracted, set it as book_content
+            if success and book_content_from_doc and content_item:
+                with transaction.atomic():
+                    content_item.book_content = book_content_from_doc
+                    content_item.save(update_fields=['book_content'])
+                    # Update search vector immediately
+                    content_item.update_search_vector()
+                    content_item.save(update_fields=['search_vector'])
+                logger.info(f"Set book_content from document for content item {content_item.id}")
             
             return {
                 'success': success,
