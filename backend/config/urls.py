@@ -31,6 +31,7 @@ urlpatterns = [
     # API endpoints (non-internationalized for consistency)
     path('api/auth/', include(('apps.users.urls', 'users'), namespace='auth_api')),
     path('api/media/', include('apps.media_manager.urls', namespace='media_api')),
+    path('api/v1/', include('apps.media_manager.api.urls', namespace='api_upload')),  # RESTful Upload API
 
     path('api/users/', include('apps.users.urls', namespace='users_api')),
     

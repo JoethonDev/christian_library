@@ -312,6 +312,19 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.media_manager.tasks.aggregate_daily_content_views',
         'schedule': crontab(hour=0, minute=0),  # Run daily at midnight
     },
+    # API Upload Queue Management Tasks
+    'process-scheduled-queue-items': {
+        'task': 'apps.media_manager.tasks.process_scheduled_queue_items',
+        'schedule': 3600.0,  # Run every hour
+    },
+    'process-delayed-3am-queue': {
+        'task': 'apps.media_manager.tasks.process_delayed_3am_queue',
+        'schedule': crontab(hour=3, minute=0),  # Run daily at 3:00 AM
+    },
+    'cleanup-expired-queue-items': {
+        'task': 'apps.media_manager.tasks.cleanup_expired_queue_items',
+        'schedule': crontab(hour=4, minute=0),  # Run daily at 4:00 AM
+    },
 }
 
 # File Upload Settings
@@ -450,3 +463,22 @@ GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyB286GvUw1X1yl8cwjMbGIZk
 #
 # If not set, Google Indexing API notifications will be skipped (non-breaking)
 GOOGLE_SERVICE_ACCOUNT_FILE = os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE', None)
+
+# ============================================================================
+# API UPLOAD SETTINGS
+# ============================================================================
+# Secret key for RESTful upload API authentication
+# Required for API upload endpoints (Feature 2)
+#
+# Setup Instructions:
+# 1. Generate a secure random key:
+#    python -c "import secrets; print(secrets.token_urlsafe(32))"
+# 2. Set API_SECRET_KEY in environment variable or .env file
+# 3. Share with authorized API clients
+# 4. Rotate periodically for security
+#
+# Example:
+#   API_SECRET_KEY = 'Kx7nP9mQ2vR8tY4wZ6bC1dF3gH5jL0sA'
+#
+# If not set, API authentication will be disabled
+API_SECRET_KEY = os.environ.get('API_SECRET_KEY', None)
