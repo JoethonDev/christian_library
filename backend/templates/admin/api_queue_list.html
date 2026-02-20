@@ -1,0 +1,334 @@
+<!-- templates/admin/api_queue_list.html - API Upload Queue Management -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+{% csrf_token %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "API Upload Queue" %}</h1>
+        <p class="text-muted mb-0">{% trans "Monitor and manage API upload requests" %}</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary rounded-pill px-4" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise me-2"></i>{% trans "Refresh" %}
+        </button>
+    </div>
+</div>
+
+<!-- Queue Statistics Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-hourglass-split text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0 small">{% trans "In Queue" %}</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.pending|add:stats.queued }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-arrow-repeat text-info fs-4"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0 small">{% trans "Processing" %}</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.processing }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-check-circle text-success fs-4"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0 small">{% trans "Completed" %}</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.completed }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                        <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0 small">{% trans "Rate Limited" %}</p>
+                        <h3 class="mb-0 fw-bold">{{ stats.rate_limited }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Content Type Statistics -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted"><i class="bi bi-camera-video me-2"></i>{% trans "Video" %}</span>
+                    <span class="badge bg-primary rounded-pill">{{ type_stats.video }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted"><i class="bi bi-music-note me-2"></i>{% trans "Audio" %}</span>
+                    <span class="badge bg-info rounded-pill">{{ type_stats.audio }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted"><i class="bi bi-file-pdf me-2"></i>{% trans "PDF" %}</span>
+                    <span class="badge bg-danger rounded-pill">{{ type_stats.pdf }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and Queue Items -->
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-body p-4">
+        <!-- Filter Section -->
+        <div class="row g-3 align-items-center mb-4">
+            <div class="col-lg-8">
+                <form method="get" class="d-flex gap-2 flex-column flex-md-row">
+                    <select name="status" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;" onchange="this.form.submit()">
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <select name="content_type" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;" onchange="this.form.submit()">
+                        {% for value, label in content_type_choices %}
+                            <option value="{{ value }}" {% if content_type_filter == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="col-lg-4 text-end">
+                <span class="text-muted small">
+                    {% trans "Total:" %} {{ page_obj.paginator.count }} {% trans "items" %}
+                </span>
+            </div>
+        </div>
+
+        <!-- Queue Items Table -->
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>{% trans "File Name" %}</th>
+                        <th>{% trans "Type" %}</th>
+                        <th>{% trans "Size" %}</th>
+                        <th>{% trans "Status" %}</th>
+                        <th>{% trans "Queue" %}</th>
+                        <th>{% trans "Position" %}</th>
+                        <th>{% trans "Created" %}</th>
+                        <th>{% trans "Scheduled" %}</th>
+                        <th>{% trans "Delays" %}</th>
+                        <th class="text-end">{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="d-flex flex-column">
+                                <span class="fw-medium">{{ item.file_name|truncatechars:40 }}</span>
+                                {% if item.content_item %}
+                                    <small class="text-muted">
+                                        <i class="bi bi-link-45deg"></i>
+                                        <a href="{% url 'frontend_api:admin_content_detail' item.content_item.id %}">
+                                            {{ item.content_item.title_ar|truncatechars:30 }}
+                                        </a>
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.content_type == 'video' %}
+                                <span class="badge bg-primary rounded-pill"><i class="bi bi-camera-video me-1"></i>Video</span>
+                            {% elif item.content_type == 'audio' %}
+                                <span class="badge bg-info rounded-pill"><i class="bi bi-music-note me-1"></i>Audio</span>
+                            {% elif item.content_type == 'pdf' %}
+                                <span class="badge bg-danger rounded-pill"><i class="bi bi-file-pdf me-1"></i>PDF</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-muted small">{{ item.file_size_mb|floatformat:2 }} MB</span>
+                        </td>
+                        <td>
+                            {% if item.status == 'pending' %}
+                                <span class="badge bg-secondary rounded-pill">Pending</span>
+                            {% elif item.status == 'queued' %}
+                                <span class="badge bg-info rounded-pill">Queued</span>
+                            {% elif item.status == 'processing' %}
+                                <span class="badge bg-primary rounded-pill">
+                                    <span class="spinner-border spinner-border-sm me-1"></span>Processing
+                                </span>
+                            {% elif item.status == 'completed' %}
+                                <span class="badge bg-success rounded-pill">Completed</span>
+                            {% elif item.status == 'failed' %}
+                                <span class="badge bg-danger rounded-pill">Failed</span>
+                            {% elif item.status == 'rate_limited' %}
+                                <span class="badge bg-warning text-dark rounded-pill">Rate Limited</span>
+                            {% elif item.status == 'cancelled' %}
+                                <span class="badge bg-dark rounded-pill">Cancelled</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.queue_status == 'waiting' %}
+                                <span class="badge bg-light text-dark rounded-pill">Waiting</span>
+                            {% elif item.queue_status == 'delayed' %}
+                                <span class="badge bg-warning text-dark rounded-pill">Delayed</span>
+                            {% elif item.queue_status == 'ready' %}
+                                <span class="badge bg-success rounded-pill">Ready</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.status in 'pending,queued,rate_limited' %}
+                                <span class="badge bg-light text-dark">#{{ item.calculated_position }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ item.created_at|date:"Y-m-d H:i" }}</small>
+                        </td>
+                        <td>
+                            {% if item.scheduled_for %}
+                                <small class="text-muted">{{ item.scheduled_for|date:"Y-m-d H:i" }}</small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.delay_count > 0 %}
+                                <span class="badge {% if item.delay_count >= 5 %}bg-danger{% elif item.delay_count >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %} rounded-pill">
+                                    {{ item.delay_count }}/7
+                                </span>
+                            {% else %}
+                                <span class="text-muted">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                {% if item.status in 'pending,queued,rate_limited' %}
+                                    <form method="post" action="{% url 'frontend_api:api_queue_promote' item.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-success btn-sm" title="{% trans 'Promote to process immediately' %}">
+                                            <i class="bi bi-arrow-up-circle"></i>
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'frontend_api:api_queue_cancel' item.id %}" style="display: inline;" 
+                                          onsubmit="return confirm('{% trans "Are you sure you want to cancel this queue item?" %}')">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="{% trans 'Cancel' %}">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                                <a href="{% url 'frontend_api:api_queue_detail' item.id %}" class="btn btn-outline-primary btn-sm" title="{% trans 'View details' %}">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            {% trans "No queue items found" %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.spinner-border-sm {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-width: 0.1rem;
+}
+</style>
+
+<script>
+// Auto-refresh every 30 seconds
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+
+{% endblock %}
