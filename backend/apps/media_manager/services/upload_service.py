@@ -496,6 +496,155 @@ class MediaUploadService:
             meta_instance.r2_upload_status = 'failed'
             meta_instance.save(update_fields=['r2_upload_status'])
     
+    
+    def attach_supplementary_document(
+        self,
+        content_item_id: str,
+        document_file: UploadedFile
+    ) -> Dict:
+        """
+        Attach a supplementary document to an existing ContentItem.
+        Validates document, uploads to storage, saves metadata, and triggers text extraction.
+        
+        Args:
+            content_item_id: UUID of the ContentItem
+            document_file: Uploaded document file (.doc/.docx)
+            
+        Returns:
+            Dict with success status and message
+        """
+        try:
+            # Get the content item
+            content_item = ContentItem.objects.get(id=content_item_id)
+            
+            # Validate document
+            from apps.media_manager.services.document_processor_service import DocumentProcessorService
+            processor = DocumentProcessorService()
+            
+            mime_type, _ = mimetypes.guess_type(document_file.name)
+            if not mime_type:
+                mime_type = document_file.content_type
+            
+            is_valid, error_msg = processor.validate_document(
+                document_file.size,
+                mime_type,
+                document_file.name
+            )
+            
+            if not is_valid:
+                return {'success': False, 'error': error_msg}
+            
+            # Save document file
+            from django.core.files.storage import default_storage
+            from django.utils import timezone
+            import uuid
+            
+            # Generate unique filename
+            file_ext = os.path.splitext(document_file.name)[1]
+            unique_filename = f"{uuid.uuid4()}{file_ext}"
+            year = timezone.now().year
+            month = timezone.now().month
+            file_path = f"documents/{year}/{month:02d}/{unique_filename}"
+            
+            # Save file
+            saved_path = default_storage.save(file_path, document_file)
+            
+            # Update content item with document metadata
+            with transaction.atomic():
+                content_item.supplementary_document = saved_path
+                content_item.supplementary_document_name = document_file.name
+                content_item.supplementary_document_size = document_file.size
+                content_item.supplementary_document_type = mime_type
+                content_item.supplementary_document_uploaded_at = timezone.now()
+                content_item.save(update_fields=[
+                    'supplementary_document',
+                    'supplementary_document_name',
+                    'supplementary_document_size',
+                    'supplementary_document_type',
+                    'supplementary_document_uploaded_at'
+                ])
+            
+            # Trigger async text extraction
+            from apps.media_manager.tasks import extract_document_text
+            extract_document_text.delay(str(content_item.id))
+            
+            logger.info(f"Successfully attached document {document_file.name} to ContentItem {content_item_id}")
+            
+            return {
+                'success': True,
+                'message': 'Document uploaded successfully',
+                'document_name': document_file.name,
+                'document_size': document_file.size,
+                'status': 'processing'
+            }
+            
+        except ContentItem.DoesNotExist:
+            return {'success': False, 'error': 'Content item not found'}
+        except Exception as e:
+            logger.error(f"Error attaching document to {content_item_id}: {str(e)}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+    
+    def delete_supplementary_document(self, content_item_id: str) -> Dict:
+        """
+        Delete supplementary document from a ContentItem.
+        Removes file from storage and clears metadata.
+        
+        Args:
+            content_item_id: UUID of the ContentItem
+            
+        Returns:
+            Dict with success status and message
+        """
+        try:
+            content_item = ContentItem.objects.get(id=content_item_id)
+            
+            if not content_item.has_supplementary_document:
+                return {'success': False, 'error': 'No document attached'}
+            
+            # Delete file from storage
+            from django.core.files.storage import default_storage
+            
+            if content_item.supplementary_document:
+                try:
+                    default_storage.delete(content_item.supplementary_document.name)
+                    logger.info(f"Deleted document file: {content_item.supplementary_document.name}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete document file: {str(e)}")
+            
+            # Clear metadata
+            with transaction.atomic():
+                content_item.supplementary_document = None
+                content_item.supplementary_document_name = ''
+                content_item.supplementary_document_size = None
+                content_item.supplementary_document_type = ''
+                content_item.supplementary_document_uploaded_at = None
+                content_item.supplementary_document_text = ''
+                content_item.save(update_fields=[
+                    'supplementary_document',
+                    'supplementary_document_name',
+                    'supplementary_document_size',
+                    'supplementary_document_type',
+                    'supplementary_document_uploaded_at',
+                    'supplementary_document_text'
+                ])
+                
+                # Update search vector to remove document text
+                content_item.update_search_vector()
+                content_item.save(update_fields=['search_vector'])
+            
+            logger.info(f"Successfully deleted document from ContentItem {content_item_id}")
+            
+            return {
+                'success': True,
+                'message': 'Document deleted successfully'
+            }
+            
+        except ContentItem.DoesNotExist:
+            return {'success': False, 'error': 'Content item not found'}
+        except Exception as e:
+            logger.error(f"Error deleting document from {content_item_id}: {str(e)}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+    
     @staticmethod
     def delete_media_files(content_item: ContentItem) -> bool:
         """

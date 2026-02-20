@@ -1,6 +1,7 @@
 """
 DRF Views for RESTful Upload API.
 """
+import os
 import logging
 import time
 from rest_framework import status
@@ -438,3 +439,177 @@ class QueueCancelAPIView(APIView):
         return Response({
             'message': 'Queue item cancelled'
         }, status=status.HTTP_204_NO_CONTENT)
+
+
+class DocumentUploadAPIView(APIView):
+    """
+    Upload supplementary document to existing ContentItem.
+    
+    POST /api/v1/content/<content_id>/document/
+    """
+    authentication_classes = [APISecretKeyAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, content_id):
+        """
+        Upload supplementary document.
+        
+        Request (multipart/form-data):
+            - document: required (.doc/.docx file)
+        
+        Response:
+            200: Success
+            400: Bad Request
+            404: Content not found
+        """
+        from apps.media_manager.services.upload_service import MediaUploadService
+        from apps.media_manager.models import ContentItem
+        
+        # Check content item exists
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        
+        # Get document file
+        document_file = request.FILES.get('document')
+        if not document_file:
+            return Response(
+                {'error': 'Document file is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate file extension
+        file_ext = os.path.splitext(document_file.name)[1].lower()
+        if file_ext not in ['.doc', '.docx']:
+            return Response(
+                {'error': 'Only .doc and .docx files are supported'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Attach document
+        upload_service = MediaUploadService()
+        result = upload_service.attach_supplementary_document(content_id, document_file)
+        
+        if result.get('success'):
+            return Response({
+                'message': result.get('message'),
+                'document_name': result.get('document_name'),
+                'document_size': result.get('document_size'),
+                'status': result.get('status')
+            })
+        else:
+            return Response(
+                {'error': result.get('error')},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class DocumentDownloadAPIView(APIView):
+    """
+    Download supplementary document.
+    
+    GET /api/v1/content/<content_id>/document/download/
+    """
+    authentication_classes = [APISecretKeyAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, content_id):
+        """Download supplementary document."""
+        from django.http import FileResponse
+        from apps.media_manager.models import ContentItem
+        
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        
+        if not content_item.has_supplementary_document:
+            return Response(
+                {'error': 'No document attached to this content'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            # Get file path
+            file_path = content_item.supplementary_document.path
+            
+            # Open file and create response
+            file_handle = open(file_path, 'rb')
+            response = FileResponse(file_handle)
+            
+            # Set headers
+            response['Content-Type'] = content_item.supplementary_document_type or 'application/octet-stream'
+            response['Content-Disposition'] = f'attachment; filename="{content_item.supplementary_document_name}"'
+            response['Content-Length'] = content_item.supplementary_document_size
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"Error downloading document: {str(e)}", exc_info=True)
+            return Response(
+                {'error': 'Error downloading document'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class DocumentDeleteAPIView(APIView):
+    """
+    Delete supplementary document.
+    
+    DELETE /api/v1/content/<content_id>/document/
+    """
+    authentication_classes = [APISecretKeyAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, content_id):
+        """Delete supplementary document."""
+        from apps.media_manager.services.upload_service import MediaUploadService
+        from apps.media_manager.models import ContentItem
+        
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        
+        if not content_item.has_supplementary_document:
+            return Response(
+                {'error': 'No document attached to this content'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Delete document
+        upload_service = MediaUploadService()
+        result = upload_service.delete_supplementary_document(content_id)
+        
+        if result.get('success'):
+            return Response({
+                'message': result.get('message')
+            }, status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(
+                {'error': result.get('error')},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class DocumentMetadataAPIView(APIView):
+    """
+    Get supplementary document metadata.
+    
+    GET /api/v1/content/<content_id>/document/
+    """
+    authentication_classes = [APISecretKeyAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, content_id):
+        """Get document metadata."""
+        from apps.media_manager.models import ContentItem
+        
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        
+        if not content_item.has_supplementary_document:
+            return Response(
+                {'has_document': False}
+            )
+        
+        return Response({
+            'has_document': True,
+            'document_name': content_item.supplementary_document_name,
+            'document_size': content_item.supplementary_document_size,
+            'document_type': content_item.supplementary_document_type,
+            'uploaded_at': content_item.supplementary_document_uploaded_at,
+            'download_url': f'/api/v1/content/{content_id}/document/download/',
+            'extracted_text_length': len(content_item.supplementary_document_text) if content_item.supplementary_document_text else 0
+        })

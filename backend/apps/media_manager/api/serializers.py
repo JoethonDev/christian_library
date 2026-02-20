@@ -22,7 +22,7 @@ class ContentItemUploadSerializer(serializers.Serializer):
     doc_file = serializers.FileField(
         required=False, 
         allow_null=True,
-        help_text='Word document for book content extraction (for PDFs only)'
+        help_text='Supplementary Word document (.doc/.docx) for any content type'
     )
     title_ar = serializers.CharField(max_length=200, required=False, allow_blank=True)
     title_en = serializers.CharField(max_length=200, required=False, allow_blank=True)
@@ -83,11 +83,21 @@ class ContentItemUploadSerializer(serializers.Serializer):
     
     def validate(self, data):
         """Cross-field validation."""
-        # If doc_file provided, must be for PDF content
-        if data.get('doc_file') and self.context.get('detected_content_type') != 'pdf':
-            raise serializers.ValidationError({
-                'doc_file': 'Document file can only be provided for PDF uploads'
-            })
+        # Validate doc_file if provided
+        if data.get('doc_file'):
+            doc_file = data['doc_file']
+            # Check file extension
+            file_ext = os.path.splitext(doc_file.name)[1].lower()
+            if file_ext not in ['.doc', '.docx']:
+                raise serializers.ValidationError({
+                    'doc_file': 'Only .doc and .docx files are supported for supplementary documents'
+                })
+            # Check file size (2GB limit)
+            max_size = 2 * 1024 * 1024 * 1024
+            if doc_file.size > max_size:
+                raise serializers.ValidationError({
+                    'doc_file': f'Document size exceeds 2GB limit'
+                })
         
         return data
 
