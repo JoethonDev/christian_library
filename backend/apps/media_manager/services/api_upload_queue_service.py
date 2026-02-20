@@ -252,55 +252,61 @@ class APIUploadQueueService:
             queue_item.save(update_fields=['status', 'processing_started_at', 'updated_at'])
             
             # Create ContentItem using upload service
-            from apps.media_manager.services.upload_service import UploadService
+            from apps.media_manager.services.upload_service import MediaUploadService
+            upload_service = MediaUploadService()
             
             with open(queue_item.file_path, 'rb') as f:
                 # Get metadata from queue item
                 metadata = queue_item.metadata or {}
                 
-                # Create appropriate service based on content type
-                if queue_item.content_type == 'video':
-                    from django.core.files.uploadedfile import InMemoryUploadedFile
-                    file_obj = InMemoryUploadedFile(
-                        f, None, queue_item.file_name, 
-                        'video/mp4', os.path.getsize(queue_item.file_path), None
-                    )
-                    content_item = UploadService.handle_video_upload(
-                        file_obj,
-                        metadata.get('title_ar', ''),
-                        metadata.get('title_en', ''),
-                        metadata.get('description_ar', ''),
-                        metadata.get('description_en', ''),
-                        metadata.get('tags', [])
-                    )
-                elif queue_item.content_type == 'audio':
-                    from django.core.files.uploadedfile import InMemoryUploadedFile
-                    file_obj = InMemoryUploadedFile(
-                        f, None, queue_item.file_name,
-                        'audio/mpeg', os.path.getsize(queue_item.file_path), None
-                    )
-                    content_item = UploadService.handle_audio_upload(
-                        file_obj,
-                        metadata.get('title_ar', ''),
-                        metadata.get('title_en', ''),
-                        metadata.get('description_ar', ''),
-                        metadata.get('description_en', ''),
-                        metadata.get('tags', [])
-                    )
-                else:  # pdf
-                    from django.core.files.uploadedfile import InMemoryUploadedFile
-                    file_obj = InMemoryUploadedFile(
-                        f, None, queue_item.file_name,
-                        'application/pdf', os.path.getsize(queue_item.file_path), None
-                    )
-                    content_item = UploadService.handle_pdf_upload(
-                        file_obj,
-                        metadata.get('title_ar', ''),
-                        metadata.get('title_en', ''),
-                        metadata.get('description_ar', ''),
-                        metadata.get('description_en', ''),
-                        metadata.get('tags', [])
-                    )
+                # Wrap the file in InMemoryUploadedFile to satisfy MediaUploadService
+                from django.core.files.uploadedfile import InMemoryUploadedFile
+                file_obj = InMemoryUploadedFile(
+                    f, 
+                    None, 
+                    queue_item.file_name,
+                    None, # Content type detection happens inside create_content_item
+                    os.path.getsize(queue_item.file_path),
+                    None
+                )
+                
+                # Create content item using unified upload service (pattern matches admin_views)
+                result = upload_service.create_content_item(
+                    file_obj=file_obj,
+                    title_ar=metadata.get('title_ar', ''),
+                    title_en=metadata.get('title_en', ''),
+                    description_ar=metadata.get('description_ar', ''),
+                    description_en=metadata.get('description_en', ''),
+                    tag_ids=metadata.get('tags', []),
+                    seo_keywords_ar=metadata.get('seo_keywords_ar', ''),
+                    seo_keywords_en=metadata.get('seo_keywords_en', ''),
+                    transcript=metadata.get('transcript', ''),
+                    notes=metadata.get('notes', '')
+                )
+                
+                if not result.get('success'):
+                    error_msg = result.get('error', 'Unknown error during upload service call')
+                    logger.error(f"Upload service failed for item {queue_item.id}: {error_msg}")
+                    raise Exception(error_msg)
+                
+                content_item = result.get('content_item')
+                
+            # If we have a doc_file for book content, extract and update content_item
+            if queue_item.doc_file_path and os.path.exists(queue_item.doc_file_path) and content_item:
+                try:
+                    logger.info(f"Extracting book content from doc file: {queue_item.doc_file_path}")
+                    import docx
+                    doc = docx.Document(queue_item.doc_file_path)
+                    book_content = '\n'.join([para.text for para in doc.paragraphs])
+                    
+                    if book_content:
+                        content_item.book_content = book_content
+                        content_item.save(update_fields=['book_content', 'updated_at'])
+                        logger.info(f"Successfully added {len(book_content)} characters of book content to {content_item.id}")
+                except ImportError:
+                    logger.warning("python-docx not installed, skipping book content extraction")
+                except Exception as e:
+                    logger.error(f"Error extracting book content: {e}")
             
             # Update queue item
             queue_item.content_item = content_item

@@ -62,9 +62,7 @@ class APISecretKeyAuthentication(authentication.BaseAuthentication):
         user, created = User.objects.get_or_create(
             username='api_system',
             defaults={
-                'email': 'api@system.local',
-                'is_staff': False,
-                'is_superuser': False,
+                'email': 'admin@anbaabraamlibrary.org',
             }
         )
         
