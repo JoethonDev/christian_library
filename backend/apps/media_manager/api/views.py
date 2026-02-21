@@ -9,7 +9,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from django.core.paginator import Paginator
 
 from apps.media_manager.api.authentication import APISecretKeyAuthentication
 from apps.media_manager.api.serializers import (
@@ -17,8 +16,6 @@ from apps.media_manager.api.serializers import (
     BulkContentItemUploadSerializer,
     QueueStatusSerializer,
     QueueItemSerializer,
-    UploadResponseSerializer,
-    BulkUploadResponseSerializer,
 )
 from apps.media_manager.models import APIUploadQueue
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
@@ -212,6 +209,18 @@ class BulkContentUploadAPIView(APIView):
         shared_metadata = validated_data.get('shared_metadata', {})
         individual_metadata = validated_data.get('individual_metadata', [])
         
+        # Ensure shared_metadata is a dictionary
+        if isinstance(shared_metadata, str):
+            try:
+                import json
+                shared_metadata = json.loads(shared_metadata)
+            except (ValueError, TypeError):
+                logger.warning("Failed to parse shared_metadata string")
+                shared_metadata = {}
+        
+        if not isinstance(shared_metadata, dict):
+            shared_metadata = {}
+
         queue_items = []
         total_size = 0
         queued_count = 0
@@ -233,7 +242,19 @@ class BulkContentUploadAPIView(APIView):
             # Get metadata for this file
             metadata = shared_metadata.copy() if shared_metadata else {}
             if individual_metadata and i < len(individual_metadata):
-                metadata.update(individual_metadata[i])
+                item = individual_metadata[i]
+                # Ensure metadata item is a dictionary (handle unparsed JSON strings)
+                if isinstance(item, str):
+                    try:
+                        import json
+                        item = json.loads(item)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Failed to parse individual metadata string for file {i}")
+                
+                if isinstance(item, dict):
+                    metadata.update(item)
+                else:
+                    logger.warning(f"Metadata for file {i} is not a dictionary: {type(item)}")
             
             # Get doc file if available
             doc_file = doc_files[i] if i < len(doc_files) else None

@@ -61,7 +61,7 @@ body {
   font-family: var(--font-sans);
   line-height: 1.6;
   color: var(--color-body-text);
-  background-image: url(https://copticorthodox.church/wp-content/uploads/2021/03/coptic-cross-patron-New.png);
+  background-image: url("../images/coptic-cross-patron-New.png");
   background-position: left top;
   background-size: cover;
   background-repeat: no-repeat;
@@ -541,7 +541,7 @@ h2, .h2 {
 
 /* Navbar Coptic Styling - Enhanced Responsive */
 .navbar-coptic {
-  background-image: url(https://copticorthodox.church/wp-content/uploads/2021/03/coptic-cross-patron-New.png);
+  background-image: url("../images/coptic-cross-patron-New.png");
   background-position: left top;
   background-size: cover;
   background-repeat: no-repeat;
