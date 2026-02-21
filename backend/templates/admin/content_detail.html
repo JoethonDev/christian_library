@@ -1,37 +1,38 @@
 <!-- templates/admin/content_detail.html -->
 {% extends "layouts/admin_base.html" %}
-{% load i18n %}
+{% load i18n humanize %}
 
 {% block admin_content %}
-<div class="row align-items-center mb-4">
-    <div class="col">
-        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Content Details" %}</h1>
-        <p class="text-muted mb-0">{% trans "Edit content metadata and settings" %}</p>
-    </div>
-    <div class="col-auto">
-        {% if content_item.is_active %}
-            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
-                <i class="bi bi-check-circle me-1"></i>{% trans "Active & Published" %}
+<div x-data="contentPage()">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="h3 fw-bold text-dark mb-1">{% trans "Content Details" %}</h1>
+            <p class="text-muted mb-0">{% trans "Edit content metadata and settings" %}</p>
+        </div>
+        <div class="col-auto">
+            <span class="badge border rounded-pill px-3 py-2"
+                  :class="isActive ? 'bg-success-subtle text-success border-success-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'">
+                <template x-if="isActive">
+                    <span><i class="bi bi-check-circle me-1"></i>{% trans "Active & Published" %}</span>
+                </template>
+                <template x-if="!isActive">
+                    <span><i class="bi bi-pause-circle me-1"></i>{% trans "Inactive / Draft" %}</span>
+                </template>
             </span>
-        {% else %}
-            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-2">
-                <i class="bi bi-pause-circle me-1"></i>{% trans "Inactive / Draft" %}
-            </span>
-        {% endif %}
+        </div>
     </div>
-</div>
 
-<div class="row g-4">
-    <!-- Meta Information Form -->
-    <div class="col-lg-8">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-transparent border-0 py-3 px-4">
-                <h5 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-pencil-square me-2 text-primary"></i>
-                    {% trans "Edit Information" %}
-                </h5>
-            </div>
-            <div class="card-body p-4 pt-0">
+    <div class="row g-4">
+        <!-- Meta Information Form -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+                <div class="card-header bg-transparent border-0 py-3 px-4">
+                    <h5 class="mb-0 fw-bold text-dark">
+                        <i class="bi bi-pencil-square me-2 text-primary"></i>
+                        {% trans "Edit Information" %}
+                    </h5>
+                </div>
+                <div class="card-body p-4 pt-0">
                 <form method="post">
                     {% csrf_token %}
                     
@@ -89,17 +90,16 @@
                             <div class="col-12 mt-3">
                                 <div class="form-check form-switch p-3 bg-light rounded-3 ms-0 d-flex align-items-center">
                                     <input class="form-check-input ms-0 me-3" type="checkbox" name="is_active" id="isActiveCheck" 
-                                           style="width: 2.5em; height: 1.25em;" {% if content_item.is_active %}checked{% endif %}
-                                           onchange="toggleContentStatus('{{ content_item.id }}', this)">
+                                           style="width: 2.5em; height: 1.25em;" x-model="isActive"
+                                           :disabled="isToggling"
+                                           @change="toggleStatus('{{ content_item.id }}')">
                                     <div>
                                         <label class="form-check-label fw-bold cursor-pointer" for="isActiveCheck">
                                             {% trans "Active & Published" %}
                                         </label>
-                                        <div class="small text-muted" id="status-label-detail">
-                                            {% if content_item.is_active %}{% trans "Visible to users" %}{% else %}{% trans "Hidden from users" %}{% endif %}
-                                        </div>
+                                        <div class="small text-muted" x-text="statusLabel"></div>
                                     </div>
-                                    <div class="spinner-border spinner-border-sm ms-auto d-none" id="toggle-spinner"></div>
+                                    <div class="spinner-border spinner-border-sm ms-auto" x-show="isToggling"></div>
                                 </div>
                             </div>
                         </div>
@@ -211,6 +211,78 @@
             </div>
         </div>
 
+        <!-- Supplementary Document -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4" id="supplementaryDocumentCard">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <i class="bi bi-file-earmark-word me-2 text-primary"></i>
+                    {% trans "Supplementary Document" %}
+                </h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                {% if content_item.has_supplementary_document %}
+                    <!-- Document exists -->
+                    <div class="d-flex align-items-center mb-3 p-3 bg-light rounded-3">
+                        <div class="me-3 display-6 text-primary">
+                            <i class="bi bi-file-earmark-word-fill"></i>
+                        </div>
+                        <div class="overflow-hidden flex-grow-1">
+                            <div class="small text-muted text-uppercase mb-1">{% trans "Document" %}</div>
+                            <div class="fw-bold text-break text-truncate">{{ content_item.supplementary_document_name }}</div>
+                            <div class="small text-muted">{{ content_item.supplementary_document_size|filesizeformat }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'frontend_api:document_download' content_item.id %}" 
+                           class="btn btn-outline-primary btn-sm rounded-pill">
+                            <i class="bi bi-download me-2"></i>{% trans "Download as Word" %}
+                        </a>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" 
+                                @click="openDeleteModal()">
+                            <i class="bi bi-trash me-2"></i>{% trans "Delete Document" %}
+                        </button>
+                    </div>
+                    
+                    {% if content_item.supplementary_document_text %}
+                    <div class="mt-3 p-3 bg-light rounded-3">
+                        <div class="small text-muted mb-1">{% trans "Extracted Text" %}</div>
+                        <div class="small fw-bold">{{ content_item.supplementary_document_text|length|intcomma }} {% trans "characters" %}</div>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <!-- No document -->
+                    <div x-show="!isUploading">
+                        <p class="small text-muted mb-3">
+                            {% trans "Upload a Word document (.doc/.docx) with additional content for this item. The text will be extracted and indexed for search, and will overwrite any existing book content." %}
+                        </p>
+                        
+                        <form @submit.prevent="uploadDocument('{{ content_item.id }}')" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <input type="file" class="form-control" id="documentFile" name="document" 
+                                       accept=".doc,.docx" required @change="onFileSelected">
+                                <div class="form-text">{% trans "Supported: .doc, .docx (Max 2GB)" %}</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 rounded-pill" :disabled="!selectedFile">
+                                <i class="bi bi-upload me-2"></i>{% trans "Upload Document" %}
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="mt-3" x-show="isUploading" x-cloak>
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" :style="'width: ' + uploadProgress + '%'"></div>
+                        </div>
+                        <div class="small text-muted text-center mt-2">
+                            <span x-text="uploadStatus"></span> 
+                            <span x-show="uploadProgress > 0" x-text="uploadProgress + '%'"></span>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Danger Zone -->
         <div class="card border-0 shadow-sm rounded-4">
              <div class="card-header bg-transparent border-0 py-3 px-4">
@@ -229,58 +301,217 @@
         </div>
     </div>
 </div>
+
+<!-- Delete Document Confirmation Modal -->
+<div class="modal fade" id="deleteDocumentModal" tabindex="-1" aria-labelledby="deleteDocumentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="deleteDocumentModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>{% trans "Delete Document" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <p class="mb-2">{% trans "Are you sure you want to delete this supplementary document?" %}</p>
+                <div class="alert alert-info small mb-0 mt-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    {% trans "Note: The extracted text content will be preserved in book_content for search purposes." %}
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">
+                    {% trans "Cancel" %}
+                </button>
+                <button type="button" class="btn btn-danger rounded-pill" @click="confirmDelete('{{ content_item.id }}')">
+                    <i class="bi bi-trash me-2"></i>{% trans "Delete Document" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function toggleContentStatus(contentId, checkbox) {
-    const spinner = document.getElementById('toggle-spinner');
-    const label = document.getElementById('status-label-detail');
-    
-    spinner.classList.remove('d-none');
-    checkbox.disabled = true;
+function contentPage() {
+    return {
+        isActive: {% if content_item.is_active %}true{% else %}false{% endif %},
+        isToggling: false,
+        statusLabel: '{% if content_item.is_active %}{% trans "Visible to users" %}{% else %}{% trans "Hidden from users" %}{% endif %}',
+        selectedFile: null,
+        isUploading: false,
+        uploadProgress: 0,
+        uploadStatus: '{% trans "Uploading..." %}',
+        deleteModal: null,
 
-    fetch('{% url "frontend_api:api_toggle_content_status" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({
-            content_id: contentId
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        spinner.classList.add('d-none');
-        checkbox.disabled = false;
-        
-        if (data.success) {
-            // Update label based on new state
-            label.textContent = checkbox.checked ? '{% trans "Visible to users" %}' : '{% trans "Hidden from users" %}';
-            
-            // Optionally update the badge at the top
-            const badge = document.querySelector('.badge.rounded-pill.px-3.py-2');
-            if (checkbox.checked) {
-                badge.className = 'badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2';
-                badge.innerHTML = '<i class="bi bi-check-circle me-1"></i>{% trans "Active & Published" %}';
-            } else {
-                badge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill px-3 py-2';
-                badge.innerHTML = '<i class="bi bi-pause-circle me-1"></i>{% trans "Inactive / Draft" %}';
+        init() {
+            const modalEl = document.getElementById('deleteDocumentModal');
+            if (modalEl) {
+                this.deleteModal = new bootstrap.Modal(modalEl);
             }
-        } else {
-            // Revert on failure
-            checkbox.checked = !checkbox.checked;
-            showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+        },
+
+        onFileSelected(e) {
+            this.selectedFile = e.target.files[0];
+        },
+
+        openDeleteModal() {
+            if (this.deleteModal) {
+                this.deleteModal.show();
+            } else {
+                const modalEl = document.getElementById('deleteDocumentModal');
+                if (modalEl) {
+                    this.deleteModal = new bootstrap.Modal(modalEl);
+                    this.deleteModal.show();
+                }
+            }
+        },
+
+        uploadDocument(contentId) {
+            if (!this.selectedFile) return;
+
+            const fileExt = this.selectedFile.name.split('.').pop().toLowerCase();
+            if (fileExt !== 'doc' && fileExt !== 'docx') {
+                showToast('{% trans "Only .doc and .docx files are supported" %}', 'danger');
+                return;
+            }
+
+            this.isUploading = true;
+            this.uploadProgress = 0;
+            this.uploadStatus = '{% trans "Uploading..." %}';
+
+            const formData = new FormData();
+            formData.append('document', this.selectedFile);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `{% url 'frontend_api:document_upload' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', contentId), true);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    this.uploadProgress = Math.round((e.loaded / e.total) * 100);
+                    if (this.uploadProgress === 100) {
+                        this.uploadStatus = '{% trans "Processing & Extracting Text..." %}';
+                    }
+                }
+            };
+
+            xhr.onload = () => {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (xhr.status >= 200 && xhr.status < 300 && response.success) {
+                        showToast(response.message || '{% trans "Upload successful" %}', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        this.isUploading = false;
+                        showToast(response.error || '{% trans "Upload failed" %}', 'danger');
+                    }
+                } catch (e) {
+                    this.isUploading = false;
+                    showToast('{% trans "Error processing server response" %}', 'danger');
+                }
+            };
+
+            xhr.onerror = () => {
+                this.isUploading = false;
+                showToast('{% trans "Network error during upload" %}', 'danger');
+            };
+
+            xhr.send(formData);
+        },
+
+        confirmDelete(contentId) {
+            if (this.deleteModal) {
+                this.deleteModal.hide();
+            }
+            showToast('{% trans "Deleting document..." %}', 'info');
+
+            fetch(`{% url 'frontend_api:document_delete' '00000000-0000-0000-0000-000000000000' %}`.replace('00000000-0000-0000-0000-000000000000', contentId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('{% trans "An error occurred during deletion" %}', 'danger');
+            });
+        },
+
+        toggleStatus(contentId) {
+            this.isToggling = true;
+            
+            fetch('{% url "frontend_api:api_toggle_content_status" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ content_id: contentId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.isToggling = false;
+                if (data.success) {
+                    this.isActive = data.is_active;
+                    this.statusLabel = this.isActive ? '{% trans "Visible to users" %}' : '{% trans "Hidden from users" %}';
+                    showToast('{% trans "Status updated successfully" %}', 'success');
+                } else {
+                    this.isActive = !this.isActive;
+                    showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+                }
+            })
+            .catch(error => {
+                this.isToggling = false;
+                this.isActive = !this.isActive;
+                console.error('Error:', error);
+                showToast('{% trans "An error occurred" %}', 'danger');
+            });
         }
-    })
-    .catch(error => {
-        spinner.classList.add('d-none');
-        checkbox.disabled = false;
-        checkbox.checked = !checkbox.checked;
-        console.error('Error:', error);
-        showToast('{% trans "An error occurred" %}', 'danger');
-    });
+    };
+}
+
+function showToast(message, type = 'info') {
+    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+        const toastHtml = `
+            <div class="toast align-items-center text-white bg-${type === 'danger' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        const toastContainer = document.getElementById('toast-container') || createToastContainer();
+        const toastElement = document.createElement('div');
+        toastElement.innerHTML = toastHtml;
+        const toastNode = toastElement.firstElementChild;
+        toastContainer.appendChild(toastNode);
+        const toast = new bootstrap.Toast(toastNode, { delay: 5000 });
+        toast.show();
+        toastNode.addEventListener('hidden.bs.toast', () => toastNode.remove());
+    } else {
+        alert(message);
+    }
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    container.style.zIndex = '1100';
+    document.body.appendChild(container);
+    return container;
 }
 </script>
 {% endblock %}

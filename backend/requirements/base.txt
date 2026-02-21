@@ -24,6 +24,12 @@ pdfminer.six>=20231228
 pytesseract>=0.3.10
 PyMuPDF>=1.23.0
 
+# Document processing dependencies
+python-docx>=1.1.0
+# textract removed due to dependency conflict with modern pdfminer.six
+# Legacy .doc support handled via antiword system dependency
+# textract>=1.6.5
+
 # AI integration
 google-genai>=0.8.0
 

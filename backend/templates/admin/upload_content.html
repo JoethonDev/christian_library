@@ -86,6 +86,38 @@
                         </div>
                     </div>
 
+                    <!-- Supplementary Document Upload (Optional) -->
+                    <div class="mb-5">
+                        <label class="form-label fw-bold text-uppercase small text-secondary mb-3">
+                            {% trans "Supplementary Document" %} <span class="badge bg-info-subtle text-info">{% trans "Optional" %}</span>
+                        </label>
+                        <p class="text-muted small mb-3">
+                            {% trans "Upload a Word document (.doc/.docx) with book content. This text will be used for search indexing instead of OCR." %}
+                        </p>
+                        
+                        <div class="upload-zone text-center p-4 rounded-3 border bg-light" 
+                             style="cursor: pointer; border-style: dashed !important;"
+                             onclick="document.getElementById('document-input').click()">
+                            <input type="file" id="document-input" name="document" class="d-none" accept=".doc,.docx" onchange="updateDocumentFileName(this)">
+                            
+                            <div class="mb-2">
+                                <i class="bi bi-file-earmark-word fs-2 text-primary"></i>
+                            </div>
+                            
+                            <p class="mb-2 fw-semibold">{% trans "Click to upload document" %}</p>
+                            <p class="text-muted small mb-0">{% trans "Supported: .doc, .docx (Max 2GB)" %}</p>
+                            
+                            <div id="document-name-display" class="d-none mt-3">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
+                                    <i class="bi bi-file-earmark-check me-2"></i><span id="selected-document-name"></span>
+                                </span>
+                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearDocument(event)">
+                                    <i class="bi bi-x-circle"></i> {% trans "Remove" %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Details Section -->
                     <div class="mb-5">
                         <div class="d-flex justify-content-between align-items-center mb-3">
@@ -413,6 +445,28 @@
         } else {
             displayContainer.classList.add('d-none');
         }
+    }
+
+    function updateDocumentFileName(input) {
+        const displayContainer = document.getElementById('document-name-display');
+        const nameSpan = document.getElementById('selected-document-name');
+        
+        if (input.files && input.files[0]) {
+            const fileName = input.files[0].name;
+            nameSpan.textContent = fileName;
+            displayContainer.classList.remove('d-none');
+        } else {
+            displayContainer.classList.add('d-none');
+        }
+    }
+
+    function clearDocument(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const documentInput = document.getElementById('document-input');
+        const displayContainer = document.getElementById('document-name-display');
+        documentInput.value = '';
+        displayContainer.classList.add('d-none');
     }
     
     document.getElementById('upload-form').addEventListener('submit', function(e) {

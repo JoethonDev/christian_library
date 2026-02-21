@@ -2370,10 +2370,10 @@ ADMIN_EMAIL=admin@library.org
 **Add to `backend/requirements/base.txt`:**
 ```
 # Document processing
-python-docx>=0.8.11
+python-docx>=1.1.0
 python-magic>=0.4.27
-textract>=1.6.5  # For .doc files
-antiword>=0.37  # Alternative for .doc
+antiword (system dependency) # For .doc files
+# textract removed due to dependency conflict with modern pdfminer.six
 
 # REST API
 djangorestframework>=3.14.0

@@ -291,22 +291,34 @@ class APIUploadQueueService:
                 
                 content_item = result.get('content_item')
                 
-            # If we have a doc_file for book content, extract and update content_item
+            # If we have a doc_file, attach it as supplementary document
             if queue_item.doc_file_path and os.path.exists(queue_item.doc_file_path) and content_item:
                 try:
-                    logger.info(f"Extracting book content from doc file: {queue_item.doc_file_path}")
-                    import docx
-                    doc = docx.Document(queue_item.doc_file_path)
-                    book_content = '\n'.join([para.text for para in doc.paragraphs])
+                    logger.info(f"Attaching supplementary document from: {queue_item.doc_file_path}")
                     
-                    if book_content:
-                        content_item.book_content = book_content
-                        content_item.save(update_fields=['book_content', 'updated_at'])
-                        logger.info(f"Successfully added {len(book_content)} characters of book content to {content_item.id}")
-                except ImportError:
-                    logger.warning("python-docx not installed, skipping book content extraction")
+                    # Use MediaUploadService to attach the document
+                    from django.core.files import File
+                    from apps.media_manager.services.upload_service import MediaUploadService
+                    
+                    upload_service = MediaUploadService()
+                    
+                    # Open the temp doc file and create Django File object
+                    with open(queue_item.doc_file_path, 'rb') as doc_file:
+                        django_file = File(doc_file, name=os.path.basename(queue_item.doc_file_path))
+                        
+                        # Attach document to content item
+                        result = upload_service.attach_supplementary_document(
+                            str(content_item.id),
+                            django_file
+                        )
+                        
+                        if result.get('success'):
+                            logger.info(f"Successfully attached supplementary document to {content_item.id}")
+                        else:
+                            logger.error(f"Failed to attach supplementary document: {result.get('error')}")
+                    
                 except Exception as e:
-                    logger.error(f"Error extracting book content: {e}")
+                    logger.error(f"Error attaching supplementary document: {e}", exc_info=True)
             
             # Update queue item
             queue_item.content_item = content_item

@@ -50,6 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     imagemagick \
     tesseract-ocr \
     tesseract-ocr-ara \
+    antiword \
     supervisor \
     curl \
     gettext \

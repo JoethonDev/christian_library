@@ -728,3 +728,156 @@ def cleanup_expired_queue_items():
     logger.info(f'Cancelled {cancelled_count} expired queue items')
     return cancelled_count
 
+
+@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+def extract_document_text(self, contentitem_id, user_id=None):
+    """
+    Extract text from supplementary document and update search index.
+    Retries up to 3 times with 60 second delays on failure.
+    Includes task monitoring for admin dashboard.
+    
+    Workflow:
+    1. Fetch ContentItem
+    2. Check if supplementary document exists
+    3. Extract text using appropriate method
+    4. Clean and normalize text
+    5. Save to supplementary_document_text
+    6. Update search_vector
+    7. Save ContentItem
+    
+    Args:
+        contentitem_id: UUID of the ContentItem
+        user_id: Optional user ID for task monitoring
+    """
+    logger = logging.getLogger(__name__)
+    ContentItem = get_contentitem_model()
+    
+    # Register task for monitoring
+    TaskMonitor.register_task(
+        task_id=self.request.id,
+        task_name='Document Text Extraction',
+        user_id=user_id,
+        metadata={'content_id': contentitem_id}
+    )
+    
+    try:
+        logger.info(f"Starting document text extraction for ContentItem {contentitem_id}")
+        
+        item = ContentItem.objects.get(id=contentitem_id)
+        
+        # Check if document exists
+        if not item.supplementary_document or not item.supplementary_document.name:
+            logger.warning(f"ContentItem {contentitem_id} has no supplementary document")
+            TaskMonitor.update_task_status(
+                self.request.id,
+                'SUCCESS',
+                {'message': 'No supplementary document to process'}
+            )
+            return
+        
+        TaskMonitor.update_progress(
+            self.request.id,
+            10,
+            'Extracting text from supplementary document...',
+            'Text extraction'
+        )
+        
+        # Extract text from document
+        item.extract_text_from_document()
+        
+        # Save the extracted content to both supplementary_document_text AND book_content
+        # Overwrite book_content with document content as requested
+        if item.supplementary_document_text:
+            item.book_content = item.supplementary_document_text
+            item.save(update_fields=['supplementary_document_text', 'book_content'])
+            logger.info(f"Overwrote book_content with document text for ContentItem {contentitem_id}")
+        else:
+            item.save(update_fields=['supplementary_document_text'])
+            logger.warning(f"No text extracted from document for ContentItem {contentitem_id}")
+        
+        TaskMonitor.update_progress(
+            self.request.id,
+            70,
+            'Updating search index with document text...',
+            'Search indexing'
+        )
+        
+        # Update search vector using UPDATE query to properly evaluate SearchVector expression
+        from django.contrib.postgres.search import SearchVector
+        
+        # Build search vector parts based on available content
+        search_parts = []
+        
+        if item.book_content:
+            search_parts.append(SearchVector('book_content', weight='A', config='arabic'))
+        
+        if item.transcript:
+            search_parts.append(SearchVector('transcript', weight='A', config='simple'))
+        
+        if item.supplementary_document_text:
+            search_parts.append(SearchVector('supplementary_document_text', weight='B', config='arabic'))
+        
+        if item.description_ar:
+            search_parts.append(SearchVector('description_ar', weight='B', config='arabic'))
+        
+        if item.description_en:
+            search_parts.append(SearchVector('description_en', weight='B', config='english'))
+        
+        if item.title_ar:
+            search_parts.append(SearchVector('title_ar', weight='C', config='arabic'))
+        
+        if item.title_en:
+            search_parts.append(SearchVector('title_en', weight='C', config='english'))
+        
+        if item.notes:
+            search_parts.append(SearchVector('notes', weight='D', config='simple'))
+        
+        # Combine and update
+        if search_parts:
+            combined_vector = search_parts[0]
+            for part in search_parts[1:]:
+                combined_vector += part
+            ContentItem.objects.filter(id=item.id).update(search_vector=combined_vector)
+        
+        extracted_length = len(item.supplementary_document_text) if item.supplementary_document_text else 0
+        logger.info(f"Successfully extracted and indexed document text for ContentItem {contentitem_id}: {extracted_length} characters")
+        
+        # Mark task as successful
+        TaskMonitor.update_task_status(
+            self.request.id,
+            'SUCCESS',
+            {
+                'message': 'Document text successfully indexed for search',
+                'extracted_chars': extracted_length,
+                'progress': 100
+            }
+        )
+        
+    except ContentItem.DoesNotExist:
+        error_msg = f"ContentItem {contentitem_id} not found"
+        logger.error(error_msg)
+        TaskMonitor.update_task_status(self.request.id, 'FAILURE', error=error_msg)
+        return
+        
+    except Exception as exc:
+        error_msg = f"Error processing document for ContentItem {contentitem_id}: {str(exc)}"
+        logger.error(error_msg, exc_info=True)
+        
+        TaskMonitor.update_task_status(
+            self.request.id,
+            'RETRY',
+            {'message': f'Retry {self.request.retries + 1}/3', 'error': str(exc)}
+        )
+        
+        # Retry the task with exponential backoff
+        try:
+            self.retry(countdown=60 * (2 ** self.request.retries))
+        except self.MaxRetriesExceededError:
+            logger.error(f"Max retries exceeded for ContentItem {contentitem_id}")
+            TaskMonitor.update_task_status(
+                self.request.id,
+                'FAILURE',
+                {'message': 'Failed after 3 retries', 'error': str(exc), 'progress': 100}
+            )
+
+

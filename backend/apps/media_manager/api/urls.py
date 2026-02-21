@@ -9,6 +9,10 @@ from apps.media_manager.api.views import (
     QueueListAPIView,
     QueuePromoteAPIView,
     QueueCancelAPIView,
+    DocumentUploadAPIView,
+    DocumentDownloadAPIView,
+    DocumentDeleteAPIView,
+    DocumentMetadataAPIView,
 )
 
 app_name = 'api_upload'
@@ -23,4 +27,10 @@ urlpatterns = [
     path('queue/status/<uuid:queue_id>/', QueueStatusAPIView.as_view(), name='queue_status'),
     path('queue/<uuid:queue_id>/promote/', QueuePromoteAPIView.as_view(), name='queue_promote'),
     path('queue/<uuid:queue_id>/cancel/', QueueCancelAPIView.as_view(), name='queue_cancel'),
+    
+    # Document management endpoints
+    path('content/<uuid:content_id>/document/', DocumentMetadataAPIView.as_view(), name='document_metadata'),
+    path('content/<uuid:content_id>/document/upload/', DocumentUploadAPIView.as_view(), name='document_upload'),
+    path('content/<uuid:content_id>/document/download/', DocumentDownloadAPIView.as_view(), name='document_download'),
+    path('content/<uuid:content_id>/document/delete/', DocumentDeleteAPIView.as_view(), name='document_delete'),
 ]

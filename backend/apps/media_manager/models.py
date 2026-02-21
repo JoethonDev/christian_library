@@ -516,11 +516,19 @@ class ContentItem(models.Model):
         Extract ONLY Arabic text from the associated PDF file (PdfMeta.original_file) and store in book_content.
         This should be called from a background task. Tries multiple methods for best results.
         
+        IMPORTANT: If book_content is already populated (e.g., from a supplementary document),
+        this method will skip extraction to avoid overwriting the document content.
+        
         Uses PdfProcessorService for text extraction, OCR, and normalization.
         """
         logger = logging.getLogger(__name__)
         
         try:
+            # Skip extraction if book_content is already populated (from document upload)
+            if self.book_content and self.book_content.strip():
+                logger.info(f"Skipping PDF extraction for {self.id} - book_content already populated from document ({len(self.book_content)} characters)")
+                return
+            
             pdfmeta = getattr(self, 'pdfmeta', None)
             if not pdfmeta or not pdfmeta.original_file:
                 logger.warning(f"PDF meta or file not found for ContentItem {self.id}")
@@ -550,6 +558,44 @@ class ContentItem(models.Model):
             logger.error(f"Error extracting text from PDF {self.id}: {str(e)}", exc_info=True)
             self.book_content = ''
 
+    def extract_text_from_document(self):
+        """
+        Extract text from the supplementary document and store in supplementary_document_text.
+        This should be called from a background task.
+        """
+        logger = logging.getLogger(__name__)
+        
+        try:
+            if not self.supplementary_document or not self.supplementary_document.name:
+                logger.warning(f"No supplementary document found for ContentItem {self.id}")
+                self.supplementary_document_text = ''
+                return
+            
+            document_path = self.supplementary_document.path
+            if not os.path.exists(document_path):
+                logger.error(f"Document file does not exist at path: {document_path}")
+                self.supplementary_document_text = ''
+                return
+            
+            # Use the document processor service
+            from apps.media_manager.services.document_processor_service import DocumentProcessorService
+            processor = DocumentProcessorService()
+            
+            mime_type = self.supplementary_document_type or ''
+            self.supplementary_document_text = processor.extract_text_from_document(
+                document_path, 
+                mime_type
+            )
+            
+            if self.supplementary_document_text:
+                logger.info(f"Successfully extracted {len(self.supplementary_document_text)} characters from document for ContentItem {self.id}")
+            else:
+                logger.warning(f"No text could be extracted from document for ContentItem {self.id}")
+            
+        except Exception as e:
+            logger.error(f"Error extracting text from document {self.id}: {str(e)}", exc_info=True)
+            self.supplementary_document_text = ''
+
     def update_search_vector(self):
         """
         Update the search_vector field for multilingual full-text search.
@@ -576,6 +622,10 @@ class ContentItem(models.Model):
         # Transcript field (for audio/video or summaries - highest priority)
         if self.transcript:
             search_parts.append(SearchVector('transcript', weight='A', config='simple'))
+        
+        # Supplementary document text (Weight B - medium-high priority)
+        if self.supplementary_document_text:
+            search_parts.append(SearchVector('supplementary_document_text', weight='B', config='arabic'))
         
         # ---- MEDIUM PRIORITY: Descriptions (Weight B) ----
         # Descriptions with language-specific configs
@@ -661,6 +711,45 @@ class ContentItem(models.Model):
     # --- Content Discovery & SEO Help Fields ---
     transcript = models.TextField(blank=True, null=True, verbose_name=_('Transcript'), help_text=_('Full text transcript of audio/video or summary for SEO'))
     notes = models.TextField(blank=True, null=True, verbose_name=_('Notes'), help_text=_('Additional study notes or context'))
+
+    # --- Supplementary Document Fields ---
+    supplementary_document = models.FileField(
+        blank=True,
+        null=True,
+        upload_to='documents/%Y/%m/',
+        verbose_name=_('Supplementary Document'),
+        help_text=_('Word document (.doc/.docx) with additional content')
+    )
+    supplementary_document_name = models.CharField(
+        blank=True,
+        max_length=255,
+        verbose_name=_('Document Name'),
+        help_text=_('Original filename of supplementary document')
+    )
+    supplementary_document_size = models.IntegerField(
+        blank=True,
+        null=True,
+        verbose_name=_('Document Size (bytes)'),
+        help_text=_('File size in bytes')
+    )
+    supplementary_document_type = models.CharField(
+        blank=True,
+        max_length=100,
+        verbose_name=_('Document Type'),
+        help_text=_('MIME type of document (e.g., application/vnd.openxmlformats-officedocument.wordprocessingml.document)')
+    )
+    supplementary_document_uploaded_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name=_('Document Uploaded At'),
+        help_text=_('Timestamp when document was uploaded')
+    )
+    supplementary_document_text = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_('Extracted Document Text'),
+        help_text=_('Text extracted from supplementary document')
+    )
 
     # --- SEO Metadata Fields (Generated by Gemini AI) ---
     seo_title_ar = models.CharField(
@@ -1029,6 +1118,20 @@ class ContentItem(models.Model):
     def has_indexed_content(self):
         """Check if content has been indexed"""
         return bool(self.book_content and self.book_content.strip())
+
+    @property
+    def has_supplementary_document(self):
+        """Check if content has a supplementary document attached"""
+        return bool(self.supplementary_document and self.supplementary_document.name)
+
+    def get_supplementary_document_url(self):
+        """Get the URL for downloading the supplementary document"""
+        if self.has_supplementary_document:
+            try:
+                return self.supplementary_document.url
+            except Exception:
+                return None
+        return None
 
     def get_structured_data_json(self, language=None):
         """

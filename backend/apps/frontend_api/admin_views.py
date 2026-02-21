@@ -275,6 +275,9 @@ def handle_content_upload(request):
         if not file_obj:
             return JsonResponse({'success': False, 'error': 'No file provided'})
         
+        # Get document file if provided
+        document_file = request.FILES.get('document')
+        
         # Get metadata from request (all fields from template)
         title_ar = request.POST.get('title_ar', '')
         title_en = request.POST.get('title_en', '')
@@ -309,7 +312,8 @@ def handle_content_upload(request):
             seo_keywords_ar=seo_keywords_ar,
             transcript=transcript,
             notes=notes,
-            seo_structured_data=seo_structured_data
+            seo_structured_data=seo_structured_data,
+            document_file=document_file  # Pass document file
         )
         
         if result['success']:
@@ -1971,3 +1975,153 @@ def api_queue_cancel(request, queue_id):
         
         messages.error(request, f'Error cancelling item: {str(e)}')
         return redirect('frontend_api:api_queue_list')
+
+
+@login_required
+def document_upload(request, content_id):
+    """
+    Upload supplementary document to existing ContentItem.
+    AJAX endpoint for document upload.
+    
+    POST /dashboard/content/<uuid>/document/upload/
+    """
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'error': 'Method not allowed'
+        }, status=405)
+    
+    try:
+        from apps.media_manager.models import ContentItem
+        from apps.media_manager.services.upload_service import MediaUploadService
+        
+        # Get content item
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        
+        # Get document file
+        document_file = request.FILES.get('document')
+        if not document_file:
+            return JsonResponse({
+                'success': False,
+                'error': 'No document file provided'
+            }, status=400)
+        
+        # Validate file extension
+        import os
+        file_ext = os.path.splitext(document_file.name)[1].lower()
+        if file_ext not in ['.doc', '.docx']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Only .doc and .docx files are supported'
+            }, status=400)
+        
+        # Attach document
+        upload_service = MediaUploadService()
+        result = upload_service.attach_supplementary_document(str(content_id), document_file)
+        
+        if result.get('success'):
+            return JsonResponse({
+                'success': True,
+                'message': result.get('message'),
+                'document_name': result.get('document_name'),
+                'document_size': result.get('document_size'),
+                'status': result.get('status')
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': result.get('error')
+            }, status=400)
+            
+    except Exception as e:
+        logger.error(f"Error uploading document to {content_id}: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def document_download(request, content_id):
+    """
+    Download supplementary document.
+    
+    GET /dashboard/content/<uuid>/document/download/
+    """
+    try:
+        from django.http import FileResponse
+        from apps.media_manager.models import ContentItem
+        
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        
+        if not content_item.has_supplementary_document:
+            messages.error(request, 'No document attached to this content')
+            return redirect('frontend_api:content_detail', content_id=content_id)
+        
+        # Get file path and create response - FileResponse handles closing
+        file_path = content_item.supplementary_document.path
+        response = FileResponse(
+            open(file_path, 'rb'),
+            as_attachment=True,
+            filename=content_item.supplementary_document_name
+        )
+        
+        # Set additional headers
+        response['Content-Type'] = content_item.supplementary_document_type or 'application/octet-stream'
+        response['Content-Length'] = content_item.supplementary_document_size
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error downloading document from {content_id}: {str(e)}", exc_info=True)
+        messages.error(request, 'Error downloading document')
+        return redirect('frontend_api:content_detail', content_id=content_id)
+
+
+@login_required
+def document_delete(request, content_id):
+    """
+    Delete supplementary document.
+    AJAX endpoint for document deletion.
+    
+    DELETE /dashboard/content/<uuid>/document/delete/
+    """
+    if request.method not in ['POST', 'DELETE']:
+        return JsonResponse({
+            'success': False,
+            'error': 'Method not allowed'
+        }, status=405)
+    
+    try:
+        from apps.media_manager.models import ContentItem
+        from apps.media_manager.services.upload_service import MediaUploadService
+        
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        
+        if not content_item.has_supplementary_document:
+            return JsonResponse({
+                'success': False,
+                'error': 'No document attached to this content'
+            }, status=404)
+        
+        # Delete document
+        upload_service = MediaUploadService()
+        result = upload_service.delete_supplementary_document(str(content_id))
+        
+        if result.get('success'):
+            return JsonResponse({
+                'success': True,
+                'message': result.get('message')
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': result.get('error')
+            }, status=400)
+            
+    except Exception as e:
+        logger.error(f"Error deleting document from {content_id}: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
