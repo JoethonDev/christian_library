@@ -8,7 +8,10 @@
         <h1 class="h3 fw-bold text-dark mb-1">{% trans "Dashboard" %}</h1>
         <p class="text-muted mb-0">{% trans "Overview of your library performance" %}</p>
     </div>
-    <div class="col-auto">
+    <div class="col-auto d-flex gap-2">
+        <a href="{% url 'frontend_api:r2_status_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
+            <i class="bi bi-cloud-check me-2"></i>{% trans "R2 Sync Status" %}
+        </a>
         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
             <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Content" %}
         </a>

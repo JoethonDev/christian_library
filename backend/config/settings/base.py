@@ -27,6 +27,7 @@ DJANGO_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+    'django.contrib.sitemaps',
     'django.contrib.humanize',
 ]
 
@@ -259,35 +260,75 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # Celery Task Routing Configuration
-# Separate queues per media type to ensure sequential processing within each type
+# Reorganized to prevent worker blocking and improve parallel processing
 CELERY_TASK_ROUTES = {
-    # Video processing tasks -> 'videos' queue
+    # ========================================================================
+    # GEMINI AI WORKER (queue: 'gemini')
+    # Handles all AI-powered SEO generation tasks with rate limiting
+    # ========================================================================
+    'apps.media_manager.tasks.generate_seo_metadata_task': {'queue': 'gemini'},
+    'apps.media_manager.tasks.bulk_generate_seo_metadata': {'queue': 'gemini'},
+    'apps.media_manager.tasks.process_delayed_3am_queue': {'queue': 'gemini'},
+    
+    # ========================================================================
+    # UPLOADS WORKER (queue: 'uploads')
+    # Dedicated to R2 cloud uploads for all media types
+    # ========================================================================
+    'core.tasks.media_processing.upload_video_to_r2': {'queue': 'uploads'},
+    'core.tasks.media_processing.upload_audio_to_r2': {'queue': 'uploads'},
+    'core.tasks.media_processing.upload_pdf_to_r2': {'queue': 'uploads'},
+    'apps.media_manager.tasks.process_upload_queue_item': {'queue': 'uploads'},
+    
+    # ========================================================================
+    # VIDEOS WORKER (queue: 'videos')
+    # Video-specific processing: HLS encoding, transcoding
+    # ========================================================================
     'core.tasks.media_processing.process_video_to_hls': {'queue': 'videos'},
-    'core.tasks.media_processing.upload_video_to_r2': {'queue': 'videos'},
     
-    # Audio processing tasks -> 'audios' queue
+    # ========================================================================
+    # AUDIOS WORKER (queue: 'audios')  
+    # Audio-specific processing: compression, format conversion
+    # ========================================================================
     'core.tasks.media_processing.process_audio_compression': {'queue': 'audios'},
-    'core.tasks.media_processing.upload_audio_to_r2': {'queue': 'audios'},
     
-    # PDF processing tasks -> 'pdfs' queue
+    # ========================================================================
+    # PDFS WORKER (queue: 'pdfs')
+    # PDF-specific processing: optimization, text extraction, indexing
+    # ========================================================================
     'core.tasks.media_processing.process_pdf_optimization': {'queue': 'pdfs'},
-    'core.tasks.media_processing.upload_pdf_to_r2': {'queue': 'pdfs'},
     'apps.media_manager.tasks.extract_and_index_contentitem': {'queue': 'pdfs'},
+    'apps.media_manager.tasks.extract_document_text': {'queue': 'pdfs'},
     
-    # SEO generation tasks -> 'seo' queue (can run in parallel)
-    'apps.media_manager.tasks.generate_seo_metadata_task': {'queue': 'seo'},
+    # ========================================================================
+    # DEFAULT WORKER (queue: 'default')
+    # Maintenance, cleanup, and general background tasks
+    # ========================================================================
+    'apps.media_manager.tasks.cleanup_expired_queue_items': {'queue': 'default'},
+    'apps.media_manager.tasks.process_scheduled_queue_items': {'queue': 'default'},
+    'core.tasks.media_processing.cleanup_failed_uploads': {'queue': 'default'},
+    'core.tasks.media_processing.delete_files_task': {'queue': 'default'},
+    'apps.frontend_api.tasks.reindex_website_google': {'queue': 'default'},
+    'apps.media_manager.tasks.aggregate_daily_content_views': {'queue': 'default'},
+    'apps.media_manager.tasks.finalize_media_processing': {'queue': 'default'},
     
     # Other tasks use default queue
 }
 
 # Define queue configurations
-# Each media type queue processes one item at a time (FIFO)
-# SEO queue can process multiple items in parallel
+# Separate queues prevent blocking between different task types
 CELERY_TASK_DEFAULT_QUEUE = 'default'
 CELERY_TASK_QUEUES = {
     'default': {
         'exchange': 'default',
         'routing_key': 'default',
+    },
+    'gemini': {
+        'exchange': 'gemini',
+        'routing_key': 'gemini',
+    },
+    'uploads': {
+        'exchange': 'uploads',
+        'routing_key': 'uploads',
     },
     'videos': {
         'exchange': 'videos',
@@ -300,10 +341,6 @@ CELERY_TASK_QUEUES = {
     'pdfs': {
         'exchange': 'pdfs',
         'routing_key': 'pdfs',
-    },
-    'seo': {
-        'exchange': 'seo',
-        'routing_key': 'seo',
     },
 }
 

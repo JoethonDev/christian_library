@@ -95,6 +95,10 @@ urlpatterns = [
     path('dashboard/seo/reindex/cancel/<uuid:task_id>/', admin_views.cancel_reindex, name='cancel_reindex'),
     path('dashboard/seo/reindex/history/', admin_views.reindex_history, name='reindex_history'),
 
+    # R2 Upload Status Dashboard (at /en/dashboard/r2/)
+    path('dashboard/r2/', admin_views.r2_status_dashboard, name='r2_status_dashboard'),
+    path('dashboard/r2/status/', admin_views.get_r2_sync_status, name='r2_sync_status'),
+
     
     # Legacy admin interfaces (redirects to dashboard for backward compatibility)
     path('admin/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_redirect'),
@@ -113,6 +117,8 @@ urlpatterns = [
 
     path('api/toggle-status/', admin_views.api_toggle_content_status, name='api_toggle_content_status'),
     path('api/admin/r2-storage-usage/', admin_views.get_r2_storage_usage, name='api_r2_storage_usage'),
+    path('api/admin/r2/retry/<str:content_type>/<uuid:meta_id>/', admin_views.retry_r2_upload, name='api_r2_retry'),
+    path('api/admin/r2/bulk-retry/', admin_views.bulk_retry_r2_uploads, name='api_r2_bulk_retry'),
     path('api/content/<uuid:content_id>/seo/', admin_views.api_content_seo, name='api_content_seo'),
     path('api/admin/auto-fill-metadata/', admin_views.api_auto_fill_metadata, name='api_auto_fill_metadata'),
     path('api/admin/gemini-rate-limits/', admin_views.api_gemini_rate_limits, name='api_gemini_rate_limits'),

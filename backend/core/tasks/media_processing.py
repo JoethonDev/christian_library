@@ -754,19 +754,29 @@ def upload_audio_to_r2(self, audio_meta_id):
             return {'status': 'failed', 'message': 'Max retries exceeded', 'progress': 100}
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
+@shared_task(bind=True, max_retries=5, default_retry_delay=60)
 def upload_pdf_to_r2(self, pdf_meta_id):
     """
-    Upload processed PDF files to Cloudflare R2
+    Upload processed PDF files to Cloudflare R2 with improved bulk processing support.
+    Enhanced with concurrency control, rate limiting, and resource management.
     Args:
         pdf_meta_id: UUID of PdfMeta instance
     """
+    from django.core.cache import cache
+    import time
+    import random
+    
+    # Implement concurrency control for bulk processing
+    concurrent_uploads_key = 'r2_pdf_uploads_active'
+    max_concurrent_uploads = getattr(settings, 'R2_MAX_CONCURRENT_PDF_UPLOADS', 3)
+    slot_acquired = False
+    
     try:
         from core.storage_backends import R2Service
         from apps.media_manager.models import PdfMeta
         
         pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
-        logger.info(f"Starting R2 upload for PDF: {pdf_meta_id}")
+        logger.info(f"Starting R2 upload for PDF: {pdf_meta_id} (attempt {self.request.retries + 1})")
         logger.info(f"PDF processing status: {pdf_meta.processing_status}, R2 status: {pdf_meta.r2_upload_status}")
         
         # Check if PDF processing is completed
@@ -774,38 +784,81 @@ def upload_pdf_to_r2(self, pdf_meta_id):
             logger.warning(f"PDF {pdf_meta_id} not ready for R2 upload (status: {pdf_meta.processing_status})")
             raise self.retry(countdown=60, max_retries=3)
         
-        # Initialize R2 service
+        # Skip if already completed or uploading
+        if pdf_meta.r2_upload_status == 'completed':
+            logger.info(f"PDF {pdf_meta_id} already uploaded to R2, skipping")
+            return {'status': 'already_completed', 'message': 'Already uploaded to R2'}
+        
+        # Concurrency control - wait if too many uploads are active
+        current_uploads = cache.get(concurrent_uploads_key, 0)
+        if current_uploads >= max_concurrent_uploads:
+            # Add random jitter to prevent thundering herd
+            jitter_delay = random.randint(30, 120)
+            logger.info(f"Too many concurrent R2 uploads ({current_uploads}/{max_concurrent_uploads}). Retrying in {jitter_delay}s")
+            raise self.retry(countdown=jitter_delay, max_retries=self.max_retries)
+        
+        # Acquire upload slot
+        cache.set(concurrent_uploads_key, current_uploads + 1, timeout=600)  # 10 minute timeout
+        slot_acquired = True
+        
         try:
-            r2_service = R2Service()
-            logger.info(f"R2 service initialized, use_r2: {r2_service.use_r2}")
-        except Exception as e:
-            logger.error(f"Failed to initialize R2 service: {e}")
-            raise
-        
-        # Upload PDF file
-        logger.info(f"About to call r2_service.upload_pdf_file for PDF {pdf_meta_id}")
-        success = r2_service.upload_pdf_file(pdf_meta)
-        logger.info(f"upload_pdf_file returned: {success} for PDF {pdf_meta_id}")
-        
-        if success:
-            pdf_meta.r2_upload_status = 'completed'
-            pdf_meta.r2_upload_progress = 100
-            logger.info(f"Successfully uploaded PDF {pdf_meta_id} to R2")
+            # Update status to uploading
+            pdf_meta.r2_upload_status = 'uploading'
+            pdf_meta.r2_upload_progress = 0
+            pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
             
-            # Issue 3: Automatic Activation After R2 Upload
-            content_item = pdf_meta.content_item
-            if not content_item.is_active:
-                content_item.is_active = True
-                content_item.save(update_fields=['is_active'])
-                logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
+            # Initialize R2 service with retry on failure
+            r2_service = None
+            for init_attempt in range(3):
+                try:
+                    r2_service = R2Service()
+                    logger.info(f"R2 service initialized (attempt {init_attempt + 1}), use_r2: {r2_service.use_r2}")
+                    break
+                except Exception as e:
+                    if init_attempt == 2:  # Last attempt
+                        raise e
+                    logger.warning(f"R2 service init failed (attempt {init_attempt + 1}): {e}. Retrying...")
+                    time.sleep(2 ** init_attempt)  # Exponential backoff
             
-            # Check for cleanup (both R2 and SEO must be done)
-            from apps.media_manager.tasks import finalize_media_processing
-            finalize_media_processing.delay(str(content_item.id))
-        else:
-            pdf_meta.r2_upload_status = 'failed'
-            pdf_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
-            logger.error(f"Failed to upload PDF {pdf_meta_id} to R2")
+            # Update progress
+            pdf_meta.r2_upload_progress = 10
+            pdf_meta.save(update_fields=['r2_upload_progress'])
+            
+            # Upload PDF file with better error handling
+            logger.info(f"Starting R2 upload for PDF {pdf_meta_id}")
+            success = r2_service.upload_pdf_file(pdf_meta)
+            
+            if success:
+                pdf_meta.r2_upload_status = 'completed'
+                pdf_meta.r2_upload_progress = 100
+                logger.info(f"✅ Successfully uploaded PDF {pdf_meta_id} to R2")
+                
+                # Issue 3: Automatic Activation After R2 Upload
+                content_item = pdf_meta.content_item
+                if not content_item.is_active:
+                    content_item.is_active = True
+                    content_item.save(update_fields=['is_active'])
+                    logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
+                
+                # Check for cleanup (both R2 and SEO must be done)
+                from apps.media_manager.tasks import finalize_media_processing
+                finalize_media_processing.delay(str(content_item.id))
+                
+                return {'status': 'success', 'message': f'PDF {pdf_meta_id} uploaded to R2 successfully'}
+            else:
+                pdf_meta.r2_upload_status = 'failed'
+                pdf_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
+                logger.error(f"❌ Failed to upload PDF {pdf_meta_id} to R2")
+                raise Exception("R2 upload_pdf_file returned False")
+        
+        finally:
+            # Always release the upload slot
+            if slot_acquired:
+                try:
+                    current = cache.get(concurrent_uploads_key, 0)
+                    cache.set(concurrent_uploads_key, max(0, current - 1), timeout=600)
+                except Exception as e:
+                    logger.warning(f"Failed to release upload slot: {e}")
         
         pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
         
@@ -819,18 +872,24 @@ def upload_pdf_to_r2(self, pdf_meta_id):
         # Update status to failed with 100% progress to unblock UI
         try:
             pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
-            pdf_meta.r2_upload_status = 'failed'
-            pdf_meta.r2_upload_progress = 100  # Always set to 100% on final failure
-            pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+            if pdf_meta.r2_upload_status != 'completed':  # Don't override completed status
+                pdf_meta.r2_upload_status = 'failed'
+                pdf_meta.r2_upload_progress = 100  # Always set to 100% on final failure
+                pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
         except:
             pass
             
-        # Retry with exponential backoff
+        # Enhanced retry logic with jittered backoff
         try:
-            countdown = 60 * (2 ** self.request.retries)
+            # Add jitter to prevent thundering herd during bulk processing
+            base_countdown = 60 * (2 ** self.request.retries)
+            jitter = random.randint(0, 30)  # 0-30 second jitter
+            countdown = base_countdown + jitter
+            
+            logger.info(f"Retrying PDF {pdf_meta_id} R2 upload in {countdown}s (attempt {self.request.retries + 1}/{self.max_retries})")
             self.retry(countdown=countdown)
         except self.MaxRetriesExceededError:
-            logger.error(f"Max retries exceeded for PDF {pdf_meta_id} R2 upload. Progress set to 100%.")
+            logger.error(f"❌ Max retries exceeded for PDF {pdf_meta_id} R2 upload. Marking as failed.")
             # Ensure progress is 100% on max retries exceeded
             try:
                 pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)

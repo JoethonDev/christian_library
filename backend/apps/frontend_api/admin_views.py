@@ -570,6 +570,18 @@ def api_toggle_content_status(request):
         # Toggle status using optimized service
         success, message = admin_service.toggle_content_status(content_id)
         
+        # Get the updated status to return to frontend
+        if success:
+            try:
+                content = ContentItem.objects.only('is_active').get(id=content_id)
+                return JsonResponse({
+                    'success': True,
+                    'message': message,
+                    'is_active': content.is_active
+                })
+            except ContentItem.DoesNotExist:
+                pass
+        
         return JsonResponse({
             'success': success,
             'message': message
@@ -806,6 +818,341 @@ def get_r2_storage_usage(request):
             'total_size_gb': 0.0,
             'object_count': 0
         })
+
+
+@login_required
+def r2_status_dashboard(request):
+    """
+    R2 Upload Status Dashboard - Shows detailed R2 upload status for all content items.
+    Provides retry functionality and bulk operations for failed uploads.
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta
+        from django.db.models import Q
+        
+        # Get filter parameters
+        status_filter = request.GET.get('status', 'all')  # all, pending, uploading, completed, failed
+        content_type = request.GET.get('type', 'all')  # all, video, audio, pdf
+        
+        # Build status data
+        status_data = {}
+        
+        # Video content R2 status
+        if content_type in ['all', 'video']:
+            video_queryset = VideoMeta.objects.select_related('content_item').only(
+                'id', 'r2_upload_status', 'r2_upload_progress', 
+                'content_item__title_ar', 'content_item__created_at',
+                'content_item__id'
+            )
+            if status_filter == 'all':
+                # Show only failed and pending items by default
+                video_queryset = video_queryset.filter(
+                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
+                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
+                )
+            else:
+                video_queryset = video_queryset.filter(r2_upload_status=status_filter)
+            
+            status_data['videos'] = [
+                {
+                    'id': vm.id,
+                    'content_id': vm.content_item.id,
+                    'title': vm.content_item.title_ar,
+                    'status': vm.r2_upload_status or 'pending',
+                    'progress': vm.r2_upload_progress or 0,
+                    'created_at': vm.content_item.created_at.isoformat(),
+                    'type': 'video'
+                }
+                for vm in video_queryset[:100]  # Limit to 100 items
+            ]
+        
+        # Audio content R2 status  
+        if content_type in ['all', 'audio']:
+            audio_queryset = AudioMeta.objects.select_related('content_item').only(
+                'id', 'r2_upload_status', 'r2_upload_progress',
+                'content_item__title_ar', 'content_item__created_at',
+                'content_item__id'
+            )
+            if status_filter == 'all':
+                # Show only failed and pending items by default
+                audio_queryset = audio_queryset.filter(
+                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
+                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
+                )
+            else:
+                audio_queryset = audio_queryset.filter(r2_upload_status=status_filter)
+            
+            status_data['audios'] = [
+                {
+                    'id': am.id,
+                    'content_id': am.content_item.id,
+                    'title': am.content_item.title_ar,
+                    'status': am.r2_upload_status or 'pending',
+                    'progress': am.r2_upload_progress or 0,
+                    'created_at': am.content_item.created_at.isoformat(),
+                    'type': 'audio'
+                }
+                for am in audio_queryset[:100]  # Limit to 100 items
+            ]
+        
+        # PDF content R2 status
+        if content_type in ['all', 'pdf']:
+            pdf_queryset = PdfMeta.objects.select_related('content_item').only(
+                'id', 'r2_upload_status', 'r2_upload_progress',
+                'content_item__title_ar', 'content_item__created_at',
+                'content_item__id'
+            )
+            if status_filter == 'all':
+                # Show only failed and pending items by default
+                pdf_queryset = pdf_queryset.filter(
+                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
+                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
+                )
+            else:
+                pdf_queryset = pdf_queryset.filter(r2_upload_status=status_filter)
+            
+            status_data['pdfs'] = [
+                {
+                    'id': pm.id,
+                    'content_id': pm.content_item.id,
+                    'title': pm.content_item.title_ar,
+                    'status': pm.r2_upload_status or 'pending',
+                    'progress': pm.r2_upload_progress or 0,
+                    'created_at': pm.content_item.created_at.isoformat(),
+                    'type': 'pdf'
+                }
+                for pm in pdf_queryset[:100]  # Limit to 100 items
+            ]
+        
+        # Get summary statistics
+        status_summary = get_r2_sync_status_data()
+        
+        context = {
+            'status_data': status_data,
+            'status_summary': status_summary,
+            'current_filter': {
+                'status': status_filter,
+                'type': content_type
+            }
+        }
+        
+        if request.headers.get('Accept') == 'application/json':
+            return JsonResponse(context)
+        
+        return render(request, 'admin/r2_status_dashboard.html', context)
+        
+    except Exception as e:
+        logger.error(f"R2 status dashboard error: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required 
+@require_POST
+def retry_r2_upload(request, content_type, meta_id):
+    """
+    Retry R2 upload for a specific content item.
+    Args:
+        content_type: 'video', 'audio', or 'pdf'
+        meta_id: ID of the meta object (VideoMeta, AudioMeta, or PdfMeta)
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
+        
+        # Validate content type
+        if content_type not in ['video', 'audio', 'pdf']:
+            return JsonResponse({'error': 'Invalid content type'}, status=400)
+        
+        # Get the meta object and trigger appropriate R2 upload task
+        task_id = None
+        
+        if content_type == 'video':
+            from apps.media_manager.models import VideoMeta
+            video_meta = get_object_or_404(VideoMeta, id=meta_id)
+            video_meta.r2_upload_status = 'pending'  # Reset status
+            video_meta.r2_upload_progress = 0
+            video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+            task_result = upload_video_to_r2.delay(str(meta_id))
+            task_id = task_result.id
+            
+        elif content_type == 'audio':
+            from apps.media_manager.models import AudioMeta
+            audio_meta = get_object_or_404(AudioMeta, id=meta_id)
+            audio_meta.r2_upload_status = 'pending'  # Reset status
+            audio_meta.r2_upload_progress = 0
+            audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+            task_result = upload_audio_to_r2.delay(str(meta_id))
+            task_id = task_result.id
+            
+        elif content_type == 'pdf':
+            from apps.media_manager.models import PdfMeta
+            pdf_meta = get_object_or_404(PdfMeta, id=meta_id)
+            pdf_meta.r2_upload_status = 'pending'  # Reset status
+            pdf_meta.r2_upload_progress = 0
+            pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+            task_result = upload_pdf_to_r2.delay(str(meta_id))
+            task_id = task_result.id
+        
+        logger.info(f"Triggered R2 upload retry for {content_type} {meta_id} (task: {task_id})")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'R2 upload retry triggered for {content_type}',
+            'task_id': task_id
+        })
+        
+    except Exception as e:
+        logger.error(f"R2 upload retry error: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST  
+def bulk_retry_r2_uploads(request):
+    """
+    Bulk retry R2 uploads for multiple content items.
+    Expects JSON payload with list of items to retry.
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        import json
+        from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
+        
+        # Parse request data
+        data = json.loads(request.body)
+        items = data.get('items', [])
+        
+        if not items:
+            return JsonResponse({'error': 'No items specified'}, status=400)
+        
+        results = {
+            'success_count': 0,
+            'error_count': 0,
+            'errors': [],
+            'task_ids': []
+        }
+        
+        for item in items:
+            content_type = item.get('type')
+            meta_id = item.get('id')
+            
+            try:
+                if content_type == 'video':
+                    from apps.media_manager.models import VideoMeta
+                    video_meta = VideoMeta.objects.get(id=meta_id)
+                    video_meta.r2_upload_status = 'pending'
+                    video_meta.r2_upload_progress = 0
+                    video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+                    task_result = upload_video_to_r2.delay(str(meta_id))
+                    results['task_ids'].append(task_result.id)
+                    
+                elif content_type == 'audio':
+                    from apps.media_manager.models import AudioMeta
+                    audio_meta = AudioMeta.objects.get(id=meta_id)
+                    audio_meta.r2_upload_status = 'pending'
+                    audio_meta.r2_upload_progress = 0
+                    audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+                    task_result = upload_audio_to_r2.delay(str(meta_id))
+                    results['task_ids'].append(task_result.id)
+                    
+                elif content_type == 'pdf':
+                    from apps.media_manager.models import PdfMeta
+                    pdf_meta = PdfMeta.objects.get(id=meta_id)
+                    pdf_meta.r2_upload_status = 'pending'
+                    pdf_meta.r2_upload_progress = 0
+                    pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+                    task_result = upload_pdf_to_r2.delay(str(meta_id))
+                    results['task_ids'].append(task_result.id)
+                    
+                else:
+                    results['errors'].append(f"Invalid content type for item {meta_id}: {content_type}")
+                    results['error_count'] += 1
+                    continue
+                
+                results['success_count'] += 1
+                
+            except Exception as e:
+                error_msg = f"Error retrying {content_type} {meta_id}: {str(e)}"
+                results['errors'].append(error_msg)
+                results['error_count'] += 1
+                logger.error(error_msg)
+        
+        logger.info(f"Bulk R2 retry: {results['success_count']} successful, {results['error_count']} errors")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Triggered {results["success_count"]} R2 upload retries',
+            'results': results
+        })
+        
+    except Exception as e:
+        logger.error(f"Bulk R2 retry error: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def get_r2_sync_status(request):
+    """
+    Get detailed R2 sync status statistics for monitoring dashboard.
+    """
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    try:
+        status_data = get_r2_sync_status_data()
+        return JsonResponse(status_data)
+        
+    except Exception as e:
+        logger.error(f"R2 sync status error: {e}", exc_info=True)
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+def get_r2_sync_status_data():
+    """Helper function to get R2 sync status data"""
+    from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta
+    from django.db.models import Count
+    
+    # Video R2 status counts
+    video_status = VideoMeta.objects.values('r2_upload_status').annotate(count=Count('id'))
+    video_counts = {status['r2_upload_status']: status['count'] for status in video_status}
+    
+    # Audio R2 status counts  
+    audio_status = AudioMeta.objects.values('r2_upload_status').annotate(count=Count('id'))
+    audio_counts = {status['r2_upload_status']: status['count'] for status in audio_status}
+    
+    # PDF R2 status counts
+    pdf_status = PdfMeta.objects.values('r2_upload_status').annotate(count=Count('id'))
+    pdf_counts = {status['r2_upload_status']: status['count'] for status in pdf_status}
+    
+    # Calculate totals
+    total_pending = (video_counts.get('pending', 0) + audio_counts.get('pending', 0) + pdf_counts.get('pending', 0))
+    total_uploading = (video_counts.get('uploading', 0) + audio_counts.get('uploading', 0) + pdf_counts.get('uploading', 0))
+    total_completed = (video_counts.get('completed', 0) + audio_counts.get('completed', 0) + pdf_counts.get('completed', 0))
+    total_failed = (video_counts.get('failed', 0) + audio_counts.get('failed', 0) + pdf_counts.get('failed', 0))
+    total_items = total_pending + total_uploading + total_completed + total_failed
+    
+    return {
+        'summary': {
+            'total_items': total_items,
+            'pending': total_pending,
+            'uploading': total_uploading, 
+            'completed': total_completed,
+            'failed': total_failed,
+            'completion_rate': round((total_completed / total_items * 100) if total_items > 0 else 0, 1)
+        },
+        'by_type': {
+            'video': video_counts,
+            'audio': audio_counts,
+            'pdf': pdf_counts
+        }
+    }
 
 
 @login_required

@@ -90,7 +90,7 @@
                             <div class="col-12 mt-3">
                                 <div class="form-check form-switch p-3 bg-light rounded-3 ms-0 d-flex align-items-center">
                                     <input class="form-check-input ms-0 me-3" type="checkbox" name="is_active" id="isActiveCheck" 
-                                           style="width: 2.5em; height: 1.25em;" x-model="isActive"
+                                           style="width: 2.5em; height: 1.25em;" :checked="isActive"
                                            :disabled="isToggling"
                                            @change="toggleStatus('{{ content_item.id }}')">
                                     <div>
@@ -450,6 +450,8 @@ function contentPage() {
         },
 
         toggleStatus(contentId) {
+            // Save previous state for rollback on error
+            const previousState = this.isActive;
             this.isToggling = true;
             
             fetch('{% url "frontend_api:api_toggle_content_status" %}', {
@@ -464,17 +466,20 @@ function contentPage() {
             .then(data => {
                 this.isToggling = false;
                 if (data.success) {
+                    // Update state from server response
                     this.isActive = data.is_active;
                     this.statusLabel = this.isActive ? '{% trans "Visible to users" %}' : '{% trans "Hidden from users" %}';
                     showToast('{% trans "Status updated successfully" %}', 'success');
                 } else {
-                    this.isActive = !this.isActive;
-                    showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
+                    // Revert to previous state on error
+                    this.isActive = previousState;
+                    showToast(data.error || data.message || '{% trans "Failed to update status" %}', 'danger');
                 }
             })
             .catch(error => {
                 this.isToggling = false;
-                this.isActive = !this.isActive;
+                // Revert to previous state on error
+                this.isActive = previousState;
                 console.error('Error:', error);
                 showToast('{% trans "An error occurred" %}', 'danger');
             });

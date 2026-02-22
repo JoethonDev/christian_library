@@ -3,19 +3,48 @@ from django.urls import reverse
 from django.core.cache import cache
 from django.utils import timezone
 from django.contrib.sites.models import Site
+from django.conf import settings
 from apps.media_manager.models import ContentItem
 
 
-class HomeSitemap(Sitemap):
-    """Home page sitemap with highest priority - Auto-updated"""
+class I18nMixin:
+    """Mixin to add i18n alternate language links to sitemap entries"""
+    
+    def _get_alternate_languages(self, obj_or_url):
+        """Generate alternate language links for hreflang support"""
+        alternates = []
+        for lang_code, lang_name in settings.LANGUAGES:
+            # Build alternate URL for each language
+            if isinstance(obj_or_url, str):
+                # For URL names (home, videos, etc.)
+                alternate_url = f'/{lang_code}{reverse(obj_or_url)}'
+            else:
+                # For ContentItem objects
+                alternate_url = f'/{lang_code}{obj_or_url.get_absolute_url()}'
+            
+            alternates.append({
+                'location': alternate_url,
+                'lang_code': lang_code,
+            })
+        return alternates
+
+
+class HomeSitemap(Sitemap, I18nMixin):
+    """Home page sitemap with highest priority - Auto-updated with i18n support"""
     priority = 1.0
     changefreq = 'daily'
+    i18n = True
     
     def items(self):
         return ['frontend_api:home']
     
     def location(self, item):
-        return reverse(item)
+        # Return default language URL
+        return f'/{settings.LANGUAGE_CODE}{reverse(item)}'
+    
+    def alternates(self, item):
+        """Provide alternate language versions"""
+        return self._get_alternate_languages(item)
     
     def lastmod(self, item):
         # Cache lastmod for home page based on latest content update
@@ -28,10 +57,11 @@ class HomeSitemap(Sitemap):
         return lastmod
 
 
-class ContentListSitemap(Sitemap):
-    """Content listing pages sitemap - Auto-updated based on content changes"""
+class ContentListSitemap(Sitemap, I18nMixin):
+    """Content listing pages sitemap - Auto-updated based on content changes with i18n"""
     priority = 0.8
     changefreq = 'daily'
+    i18n = True
     
     def items(self):
         return [
@@ -41,7 +71,12 @@ class ContentListSitemap(Sitemap):
         ]
     
     def location(self, item):
-        return reverse(item)
+        # Return default language URL
+        return f'/{settings.LANGUAGE_CODE}{reverse(item)}'
+    
+    def alternates(self, item):
+        """Provide alternate language versions"""
+        return self._get_alternate_languages(item)
     
     def lastmod(self, item):
         # Get content type from URL name
@@ -61,10 +96,11 @@ class ContentListSitemap(Sitemap):
         return lastmod
 
 
-class VideoSitemap(Sitemap):
-    """Video content sitemap with SEO optimization - Auto-updated"""
+class VideoSitemap(Sitemap, I18nMixin):
+    """Video content sitemap with SEO optimization and i18n - Auto-updated"""
     priority = 0.8  # High priority for video content
     changefreq = 'weekly'
+    i18n = True
     
     def items(self):
         return ContentItem.objects.filter(
@@ -73,7 +109,12 @@ class VideoSitemap(Sitemap):
         ).select_related('videometa').order_by('-updated_at')
     
     def location(self, obj):
-        return obj.get_absolute_url()
+        # Return default language URL
+        return f'/{settings.LANGUAGE_CODE}{obj.get_absolute_url()}'
+    
+    def alternates(self, obj):
+        """Provide alternate language versions"""
+        return self._get_alternate_languages(obj)
     
     def lastmod(self, obj):
         return obj.updated_at
@@ -85,10 +126,11 @@ class VideoSitemap(Sitemap):
         return 0.7
 
 
-class AudioSitemap(Sitemap):
-    """Audio content sitemap with SEO optimization"""
+class AudioSitemap(Sitemap, I18nMixin):
+    """Audio content sitemap with SEO optimization and i18n"""
     priority = 0.7
     changefreq = 'weekly'
+    i18n = True
     
     def items(self):
         return ContentItem.objects.filter(
@@ -97,7 +139,12 @@ class AudioSitemap(Sitemap):
         ).select_related('audiometa').order_by('-updated_at')
     
     def location(self, obj):
-        return obj.get_absolute_url()
+        # Return default language URL
+        return f'/{settings.LANGUAGE_CODE}{obj.get_absolute_url()}'
+    
+    def alternates(self, obj):
+        """Provide alternate language versions"""
+        return self._get_alternate_languages(obj)
     
     def lastmod(self, obj):
         return obj.updated_at
@@ -109,10 +156,11 @@ class AudioSitemap(Sitemap):
         return 0.6
 
 
-class PdfSitemap(Sitemap):
-    """PDF content sitemap with SEO optimization"""
+class PdfSitemap(Sitemap, I18nMixin):
+    """PDF content sitemap with SEO optimization and i18n"""
     priority = 0.6
     changefreq = 'weekly'
+    i18n = True
     
     def items(self):
         return ContentItem.objects.filter(
@@ -121,7 +169,12 @@ class PdfSitemap(Sitemap):
         ).select_related('pdfmeta').order_by('-updated_at')
     
     def location(self, obj):
-        return obj.get_absolute_url()
+        # Return default language URL
+        return f'/{settings.LANGUAGE_CODE}{obj.get_absolute_url()}'
+    
+    def alternates(self, obj):
+        """Provide alternate language versions"""
+        return self._get_alternate_languages(obj)
     
     def lastmod(self, obj):
         return obj.updated_at
@@ -145,24 +198,31 @@ class PdfSitemap(Sitemap):
         return min(priority, 0.9)  # Cap at 0.9
 
 
-class SEOOptimizedSitemap(Sitemap):
-    """Special sitemap for content with full SEO metadata"""
+class SEOOptimizedSitemap(Sitemap, I18nMixin):
+    """Special sitemap for content with full SEO metadata and i18n"""
     priority = 0.9
     changefreq = 'weekly'
+    i18n = True
     
     def items(self):
         """Return only content items with complete SEO metadata"""
+        from django.db.models import Q
         return ContentItem.objects.filter(
-            is_active=True,
-            seo_keywords_ar__len__gt=0,
-            seo_keywords_en__len__gt=0,
+            is_active=True
         ).exclude(
-            seo_meta_description_ar='',
-            seo_meta_description_en=''
+            Q(seo_keywords_ar='') | Q(seo_keywords_ar__isnull=True) |
+            Q(seo_keywords_en='') | Q(seo_keywords_en__isnull=True) |
+            Q(seo_meta_description_ar='') | Q(seo_meta_description_ar__isnull=True) |
+            Q(seo_meta_description_en='') | Q(seo_meta_description_en__isnull=True)
         ).order_by('-updated_at')
     
     def location(self, obj):
-        return obj.get_absolute_url()
+        # Return default language URL
+        return f'/{settings.LANGUAGE_CODE}{obj.get_absolute_url()}'
+    
+    def alternates(self, obj):
+        """Provide alternate language versions"""
+        return self._get_alternate_languages(obj)
     
     def lastmod(self, obj):
         return obj.updated_at
