@@ -70,9 +70,9 @@ sitemaps = {
 
 urlpatterns += [
     # Main sitemap (index of all sitemaps)
-    path('sitemap.xml', sitemap_index, {'sitemaps': sitemaps}, name='sitemap_index'),
+    path('sitemap.xml', sitemap_index, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.index'),
     # Individual sitemap sections
-    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='django_sitemap'),
+    path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
     
     # RSS/Atom Feeds
     path('feeds/latest.rss', LatestContentFeed(), name='feed_latest'),

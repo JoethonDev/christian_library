@@ -270,19 +270,58 @@ class APIUploadQueueService:
                     None
                 )
                 
-                # Create content item using unified upload service (pattern matches admin_views)
-                result = upload_service.create_content_item(
-                    file_obj=file_obj,
-                    title_ar=metadata.get('title_ar', ''),
-                    title_en=metadata.get('title_en', ''),
-                    description_ar=metadata.get('description_ar', ''),
-                    description_en=metadata.get('description_en', ''),
-                    tag_ids=metadata.get('tags', []),
-                    seo_keywords_ar=metadata.get('seo_keywords_ar', ''),
-                    seo_keywords_en=metadata.get('seo_keywords_en', ''),
-                    transcript=metadata.get('transcript', ''),
-                    notes=metadata.get('notes', '')
-                )
+                # Prepare document file if available
+                document_file = None
+                if queue_item.doc_file_path and os.path.exists(queue_item.doc_file_path):
+                    logger.info(f"Including document file in content creation: {queue_item.doc_file_path}")
+                    try:
+                        from django.core.files import File
+                        with open(queue_item.doc_file_path, 'rb') as doc_f:
+                            document_file = File(doc_f, name=os.path.basename(queue_item.doc_file_path))
+                            
+                            # Create content item with document file included (eliminates race conditions)
+                            result = upload_service.create_content_item(
+                                file_obj=file_obj,
+                                title_ar=metadata.get('title_ar', ''),
+                                title_en=metadata.get('title_en', ''),
+                                description_ar=metadata.get('description_ar', ''),
+                                description_en=metadata.get('description_en', ''),
+                                tag_ids=metadata.get('tags', []),
+                                seo_keywords_ar=metadata.get('seo_keywords_ar', ''),
+                                seo_keywords_en=metadata.get('seo_keywords_en', ''),
+                                transcript=metadata.get('transcript', ''),
+                                notes=metadata.get('notes', ''),
+                                document_file=document_file  # Pass document file directly
+                            )
+                    except Exception as e:
+                        logger.error(f"Error reading document file {queue_item.doc_file_path}: {e}")
+                        # Fall back to creating without document
+                        result = upload_service.create_content_item(
+                            file_obj=file_obj,
+                            title_ar=metadata.get('title_ar', ''),
+                            title_en=metadata.get('title_en', ''),
+                            description_ar=metadata.get('description_ar', ''),
+                            description_en=metadata.get('description_en', ''),
+                            tag_ids=metadata.get('tags', []),
+                            seo_keywords_ar=metadata.get('seo_keywords_ar', ''),
+                            seo_keywords_en=metadata.get('seo_keywords_en', ''),
+                            transcript=metadata.get('transcript', ''),
+                            notes=metadata.get('notes', '')
+                        )
+                else:
+                    # No document file - create content item normally
+                    result = upload_service.create_content_item(
+                        file_obj=file_obj,
+                        title_ar=metadata.get('title_ar', ''),
+                        title_en=metadata.get('title_en', ''),
+                        description_ar=metadata.get('description_ar', ''),
+                        description_en=metadata.get('description_en', ''),
+                        tag_ids=metadata.get('tags', []),
+                        seo_keywords_ar=metadata.get('seo_keywords_ar', ''),
+                        seo_keywords_en=metadata.get('seo_keywords_en', ''),
+                        transcript=metadata.get('transcript', ''),
+                        notes=metadata.get('notes', '')
+                    )
                 
                 if not result.get('success'):
                     error_msg = result.get('error', 'Unknown error during upload service call')
@@ -290,35 +329,7 @@ class APIUploadQueueService:
                     raise Exception(error_msg)
                 
                 content_item = result.get('content_item')
-                
-            # If we have a doc_file, attach it as supplementary document
-            if queue_item.doc_file_path and os.path.exists(queue_item.doc_file_path) and content_item:
-                try:
-                    logger.info(f"Attaching supplementary document from: {queue_item.doc_file_path}")
-                    
-                    # Use MediaUploadService to attach the document
-                    from django.core.files import File
-                    from apps.media_manager.services.upload_service import MediaUploadService
-                    
-                    upload_service = MediaUploadService()
-                    
-                    # Open the temp doc file and create Django File object
-                    with open(queue_item.doc_file_path, 'rb') as doc_file:
-                        django_file = File(doc_file, name=os.path.basename(queue_item.doc_file_path))
-                        
-                        # Attach document to content item
-                        result = upload_service.attach_supplementary_document(
-                            str(content_item.id),
-                            django_file
-                        )
-                        
-                        if result.get('success'):
-                            logger.info(f"Successfully attached supplementary document to {content_item.id}")
-                        else:
-                            logger.error(f"Failed to attach supplementary document: {result.get('error')}")
-                    
-                except Exception as e:
-                    logger.error(f"Error attaching supplementary document: {e}", exc_info=True)
+                logger.info(f"Successfully created content item {content_item.id} with {'document' if document_file else 'no document'}")
             
             # Update queue item
             queue_item.content_item = content_item

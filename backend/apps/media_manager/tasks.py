@@ -19,12 +19,13 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
     logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
     
-    # Register task for monitoring
+    # Register task for monitoring with checklist tracking
     TaskMonitor.register_task(
         task_id=self.request.id,
         task_name='PDF Text Extraction',
         user_id=user_id,
-        metadata={'content_id': contentitem_id, 'content_type': 'pdf'}
+        metadata={'content_id': contentitem_id, 'content_type': 'pdf'},
+        checklist_steps=['text_extraction', 'search_indexing', 'finalization']
     )
     
     try:
@@ -53,9 +54,8 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         
         TaskMonitor.update_progress(
             self.request.id, 
-            10,
-            'Transcribing sacred text content for search capabilities...', 
-            'Text extraction'
+            message='Transcribing sacred text content for search capabilities...', 
+            step='text_extraction'
         )
         
         # Extract text from PDF (includes OCR fallback)
@@ -64,11 +64,18 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         # Save the extracted content first
         item.save(update_fields=["book_content"])
         
+        # Mark text extraction as completed
+        TaskMonitor.update_checklist_step(
+            self.request.id,
+            'text_extraction',
+            completed=True,
+            message='Text extraction completed successfully'
+        )
+        
         TaskMonitor.update_progress(
             self.request.id, 
-            70,
-            'Updating internal library search engines...', 
-            'Search indexing'
+            message='Updating internal library search engines...', 
+            step='search_indexing'
         )
         
         # Update search vector using UPDATE query to properly evaluate SearchVector expression
@@ -86,23 +93,24 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
             # Clear search vector if no content
             ContentItem.objects.filter(id=item.id).update(search_vector=None)
         
+        # Mark search indexing as completed
+        TaskMonitor.update_checklist_step(
+            self.request.id,
+            'search_indexing', 
+            completed=True,
+            message='Search indexing completed successfully'
+        )
+        
         extracted_length = len(item.book_content) if item.book_content else 0
         logger.info(f"Successfully completed extraction and indexing for ContentItem {contentitem_id}: {extracted_length} characters")
         
-        # Mark task as successful
-        TaskMonitor.update_task_status(
-            self.request.id, 
-            'SUCCESS', 
-            {
-                'message': 'Sacred text successfully indexed for search',
-                'extracted_chars': extracted_length,
-                'progress': 100
-            }
-        )
-        
         # Parallel Trigger: Trigger SEO generation and R2 upload at the same time
         if item.content_type in ['video', 'audio', 'pdf']:
-            TaskMonitor.update_progress(self.request.id, 95, "Extraction complete. Starting AI enrichment and cloud delivery...", "Finalizing")
+            TaskMonitor.update_progress(
+                self.request.id, 
+                message="Starting AI enrichment and cloud delivery...", 
+                step="finalization"
+            )
             
             # 1. Trigger SEO generation
             generate_seo_metadata_task.delay(str(item.id))
@@ -118,6 +126,24 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
                     elif item.content_type == 'pdf':
                         upload_pdf_to_r2.delay(str(meta.id))
                     logger.info(f"Triggered parallel R2 upload for {item.content_type}: {meta.id}")
+        
+        # Mark finalization as completed
+        TaskMonitor.update_checklist_step(
+            self.request.id,
+            'finalization',
+            completed=True,
+            message='Parallel tasks triggered successfully'
+        )
+        
+        # Mark task as successful
+        TaskMonitor.update_task_status(
+            self.request.id, 
+            'SUCCESS', 
+            {
+                'message': 'Sacred text successfully indexed for search',
+                'extracted_chars': extracted_length
+            }
+        )
         
     except ContentItem.DoesNotExist:
         error_msg = f"ContentItem {contentitem_id} not found"
@@ -149,12 +175,17 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
                 pass
 
 
-@shared_task(bind=True, max_retries=2, default_retry_delay=60)
+@shared_task(bind=True, max_retries=7, default_retry_delay=120)
 def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
     """
-    Generate SEO metadata for content using Gemini AI.
-    Retries up to 2 times with 2-minute delays on failure.
-    Now decoupled from R2 upload and activation.
+    Generate SEO metadata for content using Gemini AI with enhanced rate limit handling.
+    
+    Features:
+    - Isolated to dedicated 'seo' worker queue
+    - Enhanced Gemini rate limit detection and handling
+    - 3:00 AM delay mechanism for credit exhaustion
+    - Up to 7 retry attempts for rate limits
+    - Standard 2 retries for other errors
     
     Args:
         contentitem_id: ID of the ContentItem to generate SEO for
@@ -163,15 +194,28 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
     logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
     
-    # Register task for monitoring
+    # Register task for monitoring with checklist tracking
     TaskMonitor.register_task(
         task_id=self.request.id,
         task_name='AI SEO Metadata Generation',
-        metadata={'content_id': contentitem_id, 'attempt': self.request.retries + 1, 'force': force_regenerate}
+        metadata={
+            'content_id': contentitem_id, 
+            'attempt': self.request.retries + 1, 
+            'force': force_regenerate,
+            'max_retries': self.max_retries,
+            'queue': 'gemini'
+        },
+        checklist_steps=['validation', 'ai_generation', 'content_update']
     )
     
     try:
-        logger.info(f"Starting SEO metadata generation for ContentItem {contentitem_id} (force={force_regenerate})")
+        logger.info(f"🔄 Starting SEO metadata generation for ContentItem {contentitem_id} (attempt {self.request.retries + 1}/{self.max_retries + 1}, force={force_regenerate})")
+        
+        TaskMonitor.update_progress(
+            self.request.id, 
+            message='Validating content item...', 
+            step='validation'
+        )
         
         item = ContentItem.objects.get(id=contentitem_id)
         
@@ -180,12 +224,26 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
             logger.info(f"ContentItem {contentitem_id} already has SEO metadata. Skipping generation (use force_regenerate=True to override).")
             item.seo_processing_status = 'completed'
             item.save(update_fields=['seo_processing_status'])
+            
+            # Mark all checklist steps as completed for skip scenario
+            TaskMonitor.update_checklist_step(self.request.id, 'validation', True, "Content already has SEO metadata")
+            TaskMonitor.update_checklist_step(self.request.id, 'ai_generation', True, "Skipped - already exists") 
+            TaskMonitor.update_checklist_step(self.request.id, 'content_update', True, "No update needed")
+            
             TaskMonitor.update_task_status(
                 self.request.id, 
                 'SUCCESS', 
-                {'message': 'SEO metadata already exists - skipped', 'progress': 100}
+                {'message': 'SEO metadata already exists - skipped'}
             )
             return
+        
+        # Mark validation as completed
+        TaskMonitor.update_checklist_step(
+            self.request.id,
+            'validation', 
+            True,
+            "Content validation successful"
+        )
         
         # Update SEO status to processing
         item.seo_processing_status = 'processing'
@@ -193,9 +251,8 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         
         TaskMonitor.update_progress(
             self.request.id, 
-            10,
-            'Preparing content for AI analysis...', 
-            'Initialization'
+            message='Preparing content for AI analysis...', 
+            step='ai_generation'
         )
         
         # Get the media file path
@@ -306,42 +363,114 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         return
         
     except Exception as exc:
-        logger.error(f"Error generating SEO metadata for ContentItem {contentitem_id}: {str(exc)}", exc_info=True)
+        logger.error(f"💥 Error generating SEO metadata for ContentItem {contentitem_id}: {str(exc)}", exc_info=True)
         
-        # Check if max retries exceeded (this is attempt self.request.retries + 1 of max_retries + 1)
+        # Enhanced rate limit detection for Gemini API
+        is_rate_limit_error = self._is_gemini_rate_limit_error(exc)
         is_last_attempt = self.request.retries >= self.max_retries
         
-        # Update task monitor with retry status
-        TaskMonitor.update_task_status(
-            self.request.id, 
-            'RETRY' if not is_last_attempt else 'FAILURE',
-            {
-                'message': f'Attempt {self.request.retries + 1}/{self.max_retries + 1} failed: {str(exc)}',
-                'progress': 100 if is_last_attempt else 50
-            }
-        )
+        if is_rate_limit_error:
+            logger.warning(f"🚦 Gemini rate limit detected for ContentItem {contentitem_id} (attempt {self.request.retries + 1})")
+            
+            # For rate limits, use the 3:00 AM delay mechanism
+            if not is_last_attempt:
+                next_3am_delay = self._calculate_next_3am_delay()
+                logger.info(f"⏰ Scheduling retry for 3:00 AM (in {next_3am_delay/3600:.1f} hours)")
+                
+                TaskMonitor.update_task_status(
+                    self.request.id, 
+                    'RETRY',
+                    {
+                        'message': f'Rate limited - retry scheduled for 3:00 AM (attempt {self.request.retries + 1}/{self.max_retries + 1})',
+                        'rate_limited': True,
+                        'retry_at': '3:00 AM',
+                        'delay_hours': round(next_3am_delay/3600, 1)
+                    }
+                )
+                
+                # Retry at 3:00 AM
+                self.retry(countdown=next_3am_delay)
+            else:
+                logger.error(f"❌ Max retries ({self.max_retries}) exceeded for rate-limited ContentItem {contentitem_id}")
+        else:
+            # For non-rate-limit errors, use standard retry logic (max 2 attempts) 
+            standard_max_retries = 2
+            if self.request.retries < standard_max_retries:
+                countdown = 120 * (2 ** self.request.retries)  # Exponential backoff
+                logger.info(f"🔄 Standard retry for ContentItem {contentitem_id} in {countdown}s (attempt {self.request.retries + 1})")
+                
+                TaskMonitor.update_task_status(
+                    self.request.id, 
+                    'RETRY',
+                    {
+                        'message': f'Standard error retry in {countdown}s (attempt {self.request.retries + 1}/{standard_max_retries + 1})',
+                        'countdown': countdown,
+                        'error_type': 'standard'
+                    }
+                )
+                
+                self.retry(countdown=countdown)
+            else:
+                logger.error(f"❌ Standard max retries ({standard_max_retries}) exceeded for ContentItem {contentitem_id}")
+                is_last_attempt = True
         
-        # Retry with exponential backoff
-        try:
-            self.retry(countdown=120 * (2 ** self.request.retries))
-        except self.MaxRetriesExceededError:
-            logger.error(f"Max retries (2) exceeded for SEO generation of ContentItem {contentitem_id}. Marking as failed with progress 100%.")
+        # Handle final failure
+        if is_last_attempt:
             try:
                 item = ContentItem.objects.get(id=contentitem_id)
                 item.seo_processing_status = 'failed'
                 item.save(update_fields=['seo_processing_status'])
-                # Ensure task is marked as failed with 100% progress to unblock UI
+                
+                error_context = "after rate limit retries" if is_rate_limit_error else "after standard retries"
                 TaskMonitor.update_task_status(
                     self.request.id, 
                     'FAILURE', 
                     {
-                        'message': f'AI service failed after 2 retries. Manual review required.',
-                        'progress': 100,
-                        'error': str(exc)
+                        'message': f'AI service failed {error_context}. Manual review required.',
+                        'error': str(exc),
+                        'rate_limited': is_rate_limit_error,
+                        'final_attempt': True
                     }
                 )
             except:
                 pass
+    
+    def _is_gemini_rate_limit_error(self, exception):
+        """Detect if the exception is a Gemini API rate limit error"""
+        error_str = str(exception).lower()
+        rate_limit_indicators = [
+            'rate limit',
+            'quota exceeded', 
+            'too many requests',
+            'resource exhausted',
+            '429',
+            'credits exhausted',
+            'quota_exceeded',
+            'rate_limit_exceeded'
+        ]
+        return any(indicator in error_str for indicator in rate_limit_indicators)
+
+    def _calculate_next_3am_delay(self):
+        """Calculate seconds until next 3:00 AM"""
+        from django.utils import timezone
+        from datetime import time, timedelta
+        
+        now = timezone.now()
+        
+        # Create 3:00 AM today
+        today_3am = now.replace(hour=3, minute=0, second=0, microsecond=0)
+        
+        # If it's already past 3:00 AM today, schedule for tomorrow
+        if now >= today_3am:
+            tomorrow_3am = today_3am + timedelta(days=1)
+            target_time = tomorrow_3am
+        else:
+            target_time = today_3am
+        
+        delay_seconds = (target_time - now).total_seconds()
+        
+        # Minimum delay of 1 hour to avoid immediate retries
+        return max(delay_seconds, 3600)
 
 
 @shared_task

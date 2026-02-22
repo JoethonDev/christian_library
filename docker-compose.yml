@@ -88,9 +88,11 @@ services:
 
   #============================================================================
   # Celery Workers (Background Tasks - Per Queue)
-  # Separate workers for videos, audios, pdfs, seo, and default tasks
-  # Videos, audios, and pdfs process sequentially (concurrency=1)
-  # SEO can process in parallel (concurrency=4)
+  # Reorganized to prevent worker blocking:
+  # - Videos, audios, pdfs: sequential processing (concurrency=1) 
+  # - Gemini AI: parallel SEO generation (concurrency=4)
+  # - Uploads: parallel R2 uploads (concurrency=3)
+  # - Default: general background tasks (concurrency=2)
   #============================================================================
   celery_worker_videos:
     image: christian-library-app:latest
@@ -164,10 +166,34 @@ services:
           cpus: '1.0'
           memory: 2048M
 
-  celery_worker_seo:
+  celery_worker_gemini:
     image: christian-library-app:latest
     restart: unless-stopped
-    command: ["worker", "-Q", "seo", "-c", "4", "-n", "seo@%h"]
+    command: ["worker", "-Q", "gemini", "-c", "4", "-n", "gemini@%h"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1024M
+
+  celery_worker_uploads:
+    image: christian-library-app:latest
+    restart: unless-stopped
+    command: ["worker", "-Q", "uploads", "-c", "3", "-n", "uploads@%h"]
     env_file: .env
     depends_on:
       db:

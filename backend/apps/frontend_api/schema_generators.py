@@ -197,10 +197,6 @@ def generate_schema_for_content(content_item, request=None, language='en'):
 
 def schema_to_json_ld(schema):
     """
-    Convert a schema dictionary into a valid HTML <script> tag for injection.
-    """
-    return f'<script type="application/ld+json">\n{json.dumps(schema, ensure_ascii=False, indent=2)}\n</script>'
-    """
     Convert schema dict to JSON-LD script tag
     
     Args:
@@ -211,3 +207,4 @@ def schema_to_json_ld(schema):
     """
     json_str = json.dumps(schema, ensure_ascii=False, indent=2)
     return f'<script type="application/ld+json">\n{json_str}\n</script>'
+
