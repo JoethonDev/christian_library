@@ -32,7 +32,7 @@ class APIUploadQueueService:
     MAX_FILE_SIZE_MB = 2048  # 2GB max file size
     
     @classmethod
-    def add_to_queue(cls, file, content_type, doc_file=None, metadata=None):
+    def add_to_queue(cls, file, content_type, doc_file=None, metadata=None, thumbnail_file=None):
         """
         Add a file to the upload queue.
         
@@ -41,6 +41,7 @@ class APIUploadQueueService:
             content_type: Type of content (video/audio/pdf)
             doc_file: Optional document file for book content
             metadata: Optional metadata dict
+            thumbnail_file: Optional thumbnail image file
         
         Returns:
             APIUploadQueue: Created queue item
@@ -75,11 +76,20 @@ class APIUploadQueueService:
                 for chunk in doc_file.chunks():
                     destination.write(chunk)
         
+        # Save thumbnail if provided
+        thumbnail_path = None
+        if thumbnail_file:
+            thumbnail_path = os.path.join(temp_dir, f'{timezone.now().timestamp()}_thumb_{thumbnail_file.name}')
+            with open(thumbnail_path, 'wb+') as destination:
+                for chunk in thumbnail_file.chunks():
+                    destination.write(chunk)
+        
         # Create queue item
         queue_item = APIUploadQueue.objects.create(
             file_name=file.name,
             file_path=file_path,
             doc_file_path=doc_file_path,
+            thumbnail_path=thumbnail_path,
             content_type=content_type,
             file_size_mb=file_size_mb,
             metadata=metadata or {},
@@ -276,23 +286,44 @@ class APIUploadQueueService:
                     logger.info(f"Including document file in content creation: {queue_item.doc_file_path}")
                     try:
                         from django.core.files import File
-                        with open(queue_item.doc_file_path, 'rb') as doc_f:
-                            document_file = File(doc_f, name=os.path.basename(queue_item.doc_file_path))
-                            
-                            # Create content item with document file included (eliminates race conditions)
-                            result = upload_service.create_content_item(
-                                file_obj=file_obj,
-                                title_ar=metadata.get('title_ar', ''),
-                                title_en=metadata.get('title_en', ''),
-                                description_ar=metadata.get('description_ar', ''),
-                                description_en=metadata.get('description_en', ''),
-                                tag_ids=metadata.get('tags', []),
-                                seo_keywords_ar=metadata.get('seo_keywords_ar', ''),
-                                seo_keywords_en=metadata.get('seo_keywords_en', ''),
-                                transcript=metadata.get('transcript', ''),
-                                notes=metadata.get('notes', ''),
-                                document_file=document_file  # Pass document file directly
-                            )
+                        doc_f = open(queue_item.doc_file_path, 'rb')
+                        document_file = File(doc_f, name=os.path.basename(queue_item.doc_file_path))
+                    except Exception as e:
+                        logger.error(f"Failed to load document file {queue_item.doc_file_path}: {e}")
+
+                # Prepare thumbnail file if available
+                thumbnail_file = None
+                if queue_item.thumbnail_path and os.path.exists(queue_item.thumbnail_path):
+                    logger.info(f"Including thumbnail file in content creation: {queue_item.thumbnail_path}")
+                    try:
+                        from django.core.files import File
+                        thumb_f = open(queue_item.thumbnail_path, 'rb')
+                        thumbnail_file = File(thumb_f, name=os.path.basename(queue_item.thumbnail_path))
+                    except Exception as e:
+                        logger.error(f"Failed to load thumbnail file {queue_item.thumbnail_path}: {e}")
+                    
+                    try:
+                        # Create content item with document and thumbnail included (eliminates race conditions)
+                        result = upload_service.create_content_item(
+                            file_obj=file_obj,
+                            title_ar=metadata.get('title_ar', ''),
+                            title_en=metadata.get('title_en', ''),
+                            description_ar=metadata.get('description_ar', ''),
+                            description_en=metadata.get('description_en', ''),
+                            tag_ids=metadata.get('tags', []),
+                            seo_keywords_ar=metadata.get('seo_keywords_ar', ''),
+                            seo_keywords_en=metadata.get('seo_keywords_en', ''),
+                            seo_description_ar=metadata.get('seo_meta_description_ar', ''),
+                            seo_description_en=metadata.get('seo_meta_description_en', ''),
+                            seo_title_ar=metadata.get('seo_title_ar', ''),
+                            seo_title_en=metadata.get('seo_title_en', ''),
+                            transcript=metadata.get('transcript', ''),
+                            notes=metadata.get('notes', ''),
+                            seo_structured_data=metadata.get('seo_structured_data', ''),
+                            document_file=document_file,
+                            thumbnail_file=thumbnail_file
+                        )
+                             
                     except Exception as e:
                         logger.error(f"Error reading document file {queue_item.doc_file_path}: {e}")
                         # Fall back to creating without document

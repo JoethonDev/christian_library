@@ -699,6 +699,22 @@ class ContentItem(models.Model):
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # --- Thumbnail Fields ---
+    thumbnail = models.ImageField(
+        blank=True,
+        null=True,
+        upload_to='thumbnails/%Y/%m/',
+        verbose_name=_('Thumbnail'),
+        help_text=_('Item thumbnail (auto-generated if empty for PDFs/Videos)')
+    )
+    r2_thumbnail_url = models.URLField(
+        max_length=1000,
+        blank=True,
+        verbose_name=_('R2 Thumbnail URL'),
+        help_text=_('Cloudflare R2 URL for the thumbnail image')
+    )
+    
     title_ar = models.CharField(max_length=200, blank=True, verbose_name=_('Arabic Title'), db_index=True)
     title_en = models.CharField(max_length=200, blank=True, verbose_name=_('English Title'), db_index=True)
     description_ar = models.TextField(verbose_name=_('Arabic Description'))
@@ -1217,6 +1233,17 @@ class ContentItem(models.Model):
             # Fallback for any other site-related errors
             return self.get_absolute_url()
 
+    def get_thumbnail_url(self):
+        """Get the best available thumbnail URL (R2 if available, otherwise local)"""
+        if self.r2_thumbnail_url:
+            return self.r2_thumbnail_url
+        if self.thumbnail:
+            try:
+                return self.thumbnail.url
+            except Exception:
+                return None
+        return None
+
     def get_schema_type(self):
         """Get appropriate schema.org type based on content type"""
         schema_mapping = {
@@ -1264,6 +1291,11 @@ class ContentItem(models.Model):
                     self.structured_data[lang]["url"] = url
             except Exception:
                 pass
+            
+            # Add Thumbnail if available
+            thumbnail_url = self.get_thumbnail_url()
+            if thumbnail_url:
+                self.structured_data[lang]["thumbnailUrl"] = thumbnail_url
             
         return self.structured_data
 
@@ -2502,6 +2534,13 @@ class APIUploadQueue(models.Model):
         null=True, 
         verbose_name=_('Document File Path'),
         help_text=_('Path to Word document for book content extraction')
+    )
+    thumbnail_path = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name=_('Thumbnail Path'),
+        help_text=_('Path to uploaded thumbnail image')
     )
     content_type = models.CharField(
         max_length=10,

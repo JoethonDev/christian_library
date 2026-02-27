@@ -129,6 +129,27 @@
                         </div>
                         
                         <div class="row g-4">
+                            <!-- Thumbnail Upload (New) -->
+                            <div class="col-12">
+                                <div class="p-3 bg-white border rounded-3 shadow-sm">
+                                    <label class="form-label small text-muted d-block mb-3">
+                                        <i class="bi bi-image me-1"></i> {% trans "Custom Thumbnail" %} 
+                                        <span class="badge bg-secondary-subtle text-secondary ms-2">{% trans "Optional" %}</span>
+                                    </label>
+                                    <div class="row align-items-center">
+                                        <div class="col-auto">
+                                            <div id="thumbnail-preview-container" class="bg-light rounded-3 d-flex align-items-center justify-content-center overflow-hidden" style="width: 120px; height: 68px; border: 1px dashed #dee2e6;">
+                                                <i class="bi bi-camera text-muted fs-3"></i>
+                                            </div>
+                                        </div>
+                                        <div class="col">
+                                            <input type="file" name="thumbnail_file" id="thumbnail-input" class="form-control form-control-sm" accept="image/*" onchange="previewThumbnail(this)">
+                                            <small class="text-muted mt-1 d-block">{% trans "Recommended: 1280x720px (16:9). Auto-generated for Video/PDF if left empty." %}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Arabic -->
                             <div class="col-md-6">
                                 <div class="p-3 bg-white border rounded-3 h-100 shadow-sm">
@@ -457,6 +478,21 @@
             displayContainer.classList.remove('d-none');
         } else {
             displayContainer.classList.add('d-none');
+        }
+    }
+
+    function previewThumbnail(input) {
+        const previewContainer = document.getElementById('thumbnail-preview-container');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewContainer.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                previewContainer.style.border = 'none';
+            }
+            reader.readAsDataURL(input.files[0]);
+        } else {
+            previewContainer.innerHTML = '<i class="bi bi-camera text-muted fs-3"></i>';
+            previewContainer.style.border = '1px dashed #dee2e6';
         }
     }
 

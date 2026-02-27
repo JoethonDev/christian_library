@@ -353,3 +353,42 @@ class R2Service:
         except Exception as e:
             logger.error(f"Failed to upload PDF {pdf_meta.id} to R2: {str(e)}")
             return False
+
+    def upload_thumbnail(self, content_item):
+        """
+        Upload content item thumbnail to R2
+        
+        Args:
+            content_item: ContentItem instance
+            
+        Returns:
+            bool: Success status
+        """
+        if not self.use_r2 or not content_item.thumbnail:
+            return False
+            
+        try:
+            # Use path if it's a FileField/ImageField
+            local_path = None
+            if hasattr(content_item.thumbnail, 'path'):
+                local_path = content_item.thumbnail.path
+            else:
+                local_path = os.path.join(settings.MEDIA_ROOT, str(content_item.thumbnail))
+
+            if local_path and os.path.exists(local_path):
+                # Use local relative path as R2 key
+                r2_key = content_item.thumbnail.name
+                
+                # Simple upload for small thumbnail
+                success, result = self._r2_service.upload_file(local_path, r2_key)
+                
+                if success:
+                    content_item.r2_thumbnail_url = result
+                    content_item.save(update_fields=['r2_thumbnail_url'])
+                    logger.info(f"Successfully uploaded thumbnail for {content_item.id} to R2")
+                    return True
+                
+            return False
+        except Exception as e:
+            logger.error(f"Failed to upload thumbnail for content {content_item.id} to R2: {str(e)}")
+            return False

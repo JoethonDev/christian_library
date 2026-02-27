@@ -129,11 +129,9 @@
                                 <div class="card-body p-3">
                                     <div class="d-flex gap-3">
                                         <div class="flex-shrink-0">
-                                            {% if item.videometa.thumbnail %}
-                                                <img src="{{ item.videometa.thumbnail.url }}" alt="{% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}" 
-                                                     class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
-                                            {% elif item.thumbnail %}
-                                                <img src="{{ item.thumbnail.url }}" alt="{% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}" 
+                                            {% with thumb_url=item.get_thumbnail_url %}
+                                            {% if thumb_url %}
+                                                <img src="{{ thumb_url }}" alt="{% if LANGUAGE_CODE == 'ar' %}{{ item.title_ar_display }}{% else %}{{ item.title_en_display }}{% endif %}" 
                                                      class="rounded" style="width: 80px; height: 60px; object-fit: cover;">
                                             {% else %}
                                                 <div class="d-flex align-items-center justify-content-center rounded" 
@@ -141,6 +139,7 @@
                                                     <i class="bi bi-play-circle text-maroon" style="font-size: 1.5rem;"></i>
                                                 </div>
                                             {% endif %}
+                                            {% endwith %}
                                         </div>
                                         <div class="flex-grow-1 min-w-0">
                                             <h6 class="heading-font text-maroon fw-bold mb-2 text-truncate" style="font-size: 0.95rem; line-height: 1.3;">

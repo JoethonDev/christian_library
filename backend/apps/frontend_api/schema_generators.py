@@ -71,11 +71,11 @@ def generate_video_schema(content_item, request=None, language='en'):
         duration_iso = getattr(video_meta, 'get_duration_iso', lambda: None)()
         if duration_iso:
             schema["duration"] = duration_iso
-        
-        # Safe access to optional thumbnail property
-        thumbnail_url = getattr(video_meta, 'thumbnail_url', None)
-        if thumbnail_url:
-            schema["thumbnailUrl"] = _get_absolute_url(thumbnail_url, request)
+    
+    # Add Thumbnail if available
+    thumbnail_url = content_item.get_thumbnail_url()
+    if thumbnail_url:
+        schema["thumbnailUrl"] = _get_absolute_url(thumbnail_url, request)
     
     # Populate keywords using localized SEO metadata
     keywords_str = content_item.get_seo_keywords(language)
@@ -111,6 +111,11 @@ def generate_audio_schema(content_item, request=None, language='en'):
         if duration_iso:
             schema["duration"] = duration_iso
             
+    # Add Thumbnail if available
+    thumbnail_url = content_item.get_thumbnail_url()
+    if thumbnail_url:
+        schema["thumbnailUrl"] = _get_absolute_url(thumbnail_url, request)
+            
     keywords_str = content_item.get_seo_keywords(language)
     if keywords_str:
         keywords = [k.strip() for k in keywords_str if k.strip()]
@@ -139,6 +144,11 @@ def generate_book_schema(content_item, request=None, language='en'):
     if pdf_meta and content_item.content_type == 'pdf':
         if pdf_meta.page_count:
             schema["numberOfPages"] = pdf_meta.page_count
+    
+    # Add Thumbnail if available
+    thumbnail_url = content_item.get_thumbnail_url()
+    if thumbnail_url:
+        schema["thumbnailUrl"] = _get_absolute_url(thumbnail_url, request)
     
     # Include a sanitized snippet of extracted text for search indexing
     if content_item.book_content:
@@ -170,6 +180,11 @@ def generate_creative_work_schema(content_item, request=None, language='en'):
         "datePublished": content_item.created_at.isoformat(),
         "dateModified": content_item.updated_at.isoformat(),
     }
+    
+    # Add Thumbnail if available
+    thumbnail_url = content_item.get_thumbnail_url()
+    if thumbnail_url:
+        schema["thumbnailUrl"] = _get_absolute_url(thumbnail_url, request)
     
     keywords_str = content_item.get_seo_keywords(language)
     if keywords_str:

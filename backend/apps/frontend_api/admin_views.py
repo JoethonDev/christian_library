@@ -97,6 +97,7 @@ def content_detail(request, content_id):
                 seo_title_ar = request.POST.get('seo_title_ar', '')
                 seo_title_en = request.POST.get('seo_title_en', '')
                 tags_input = request.POST.get('tags', '')
+                thumbnail_file = request.FILES.get('thumbnail')
                 
                 # Update basic fields
                 content.title_ar = title_ar
@@ -107,10 +108,17 @@ def content_detail(request, content_id):
                 content.transcript = transcript
                 content.seo_title_ar = seo_title_ar
                 content.seo_title_en = seo_title_en
-                content.save(update_fields=[
+                
+                update_fields = [
                     'title_ar', 'title_en', 'description_ar', 'description_en',
                     'notes', 'transcript', 'seo_title_ar', 'seo_title_en', 'updated_at'
-                ])
+                ]
+                
+                if thumbnail_file:
+                    content.thumbnail = thumbnail_file
+                    update_fields.append('thumbnail')
+                
+                content.save(update_fields=update_fields)
                 
                 # Handle tags - parse comma-separated tag names
                 if tags_input:
@@ -278,6 +286,9 @@ def handle_content_upload(request):
         # Get document file if provided
         document_file = request.FILES.get('document')
         
+        # Get thumbnail file if provided
+        thumbnail_file = request.FILES.get('thumbnail_file')
+        
         # Get metadata from request (all fields from template)
         title_ar = request.POST.get('title_ar', '')
         title_en = request.POST.get('title_en', '')
@@ -313,7 +324,8 @@ def handle_content_upload(request):
             transcript=transcript,
             notes=notes,
             seo_structured_data=seo_structured_data,
-            document_file=document_file  # Pass document file
+            document_file=document_file,  # Pass document file
+            thumbnail_file=thumbnail_file  # Pass thumbnail file
         )
         
         if result['success']:
