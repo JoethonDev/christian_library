@@ -6,6 +6,7 @@ All administrative operations now use minimal database queries.
 import json
 import os
 import tempfile
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, Http404
 from django.contrib import messages
@@ -115,10 +116,44 @@ def content_detail(request, content_id):
                 ]
                 
                 if thumbnail_file:
+                    # Clean up old files before saving new one
+                    try:
+                        # 1. Delete physical local file if it exists
+                        if content.thumbnail and hasattr(content.thumbnail, 'path'):
+                            if os.path.exists(content.thumbnail.path):
+                                os.remove(content.thumbnail.path)
+                                logger.info(f"Deleted old local thumbnail: {content.thumbnail.path}")
+                        
+                        # 2. Delete from R2 if it exists
+                        if content.r2_thumbnail_url:
+                            from core.storage_backends import R2Service
+                            r2 = R2Service()
+                            if r2.use_r2:
+                                # Key is the name of the file in the ImageField
+                                r2_key = content.thumbnail.name if content.thumbnail else None
+                                if r2_key:
+                                    r2._r2_service.delete_file(r2_key)
+                                    logger.info(f"Deleted old thumbnail from R2: {r2_key}")
+                    except Exception as e:
+                        logger.warning(f"Error while cleaning up old thumbnail: {e}")
+
+                    # 3. Update with new thumbnail
                     content.thumbnail = thumbnail_file
-                    update_fields.append('thumbnail')
+                    content.r2_thumbnail_url = '' # Reset R2 URL until new upload completes
+                    update_fields.extend(['thumbnail', 'r2_thumbnail_url'])
                 
                 content.save(update_fields=update_fields)
+                
+                # 4. Handle R2 upload for the new thumbnail if enabled
+                if thumbnail_file and getattr(settings, 'R2_ENABLED', False):
+                    try:
+                        from core.storage_backends import R2Service
+                        r2 = R2Service()
+                        if r2.use_r2:
+                            r2.upload_thumbnail(content)
+                            logger.info(f"Uploaded new thumbnail to R2 for content {content_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to upload new thumbnail to R2: {e}")
                 
                 # Handle tags - parse comma-separated tag names
                 if tags_input:
