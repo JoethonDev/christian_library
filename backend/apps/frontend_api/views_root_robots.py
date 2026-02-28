@@ -5,6 +5,7 @@ from django.contrib.sites.models import Site
 def robots_txt(request):
     """
     Generate robots.txt dynamically
+    - Higher rate limit for crawlers: Request-rate: 1/1s
     - Disallows admin areas and API endpoints
     - Allows all public media and landing pages
     - Includes sitemap reference
@@ -24,6 +25,10 @@ def robots_txt(request):
         "# robots.txt for Christian Library\n"
         "# Auto-generated and managed by Django\n\n"
         "User-agent: *\n\n"
+        
+        "# Crawler rate limiting (Request-rate directive for compatible bots)\n"
+        "Crawl-delay: 1\n"
+        "Request-rate: 1/1s\n\n"
         
         "# Disallow admin areas\n"
         "Disallow: /admin/\n"

@@ -5,13 +5,19 @@ from django.conf import settings
 
 
 def smart_root_redirect(request):
-    # Try to get language from cookie, then Accept-Language header, then settings.LANGUAGE_CODE
+    """
+    Optimized root redirect:
+    1. If Accept-Language or existing session/cookie favors 'en', redirect to /en/
+    2. Default to /ar/ as requested by library administration
+    """
+    # Prefer explicit language selection from cookie/headers
     lang = request.COOKIES.get(settings.LANGUAGE_COOKIE_NAME)
     if not lang:
         lang = translation.get_language_from_request(request, check_path=False)
-    if not lang:
-        lang = settings.LANGUAGE_CODE
-    # Normalize to short code (e.g., 'en', 'ar')
-    lang = lang.split('-')[0]
-    # Build redirect URL
-    return HttpResponseRedirect(f'/{lang}/')
+    
+    # If explicitly English, go to English
+    if lang and lang.startswith('en'):
+        return HttpResponseRedirect('/en/')
+        
+    # Default to Arabic for everything else
+    return HttpResponseRedirect('/ar/')

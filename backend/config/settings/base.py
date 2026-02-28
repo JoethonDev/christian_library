@@ -96,7 +96,7 @@ DATABASES = {
             'connect_timeout': 10,
             'options': '-c default_transaction_isolation=read_committed'
         },
-        'CONN_MAX_AGE': 600,  # 10 minutes connection pooling
+        'CONN_MAX_AGE': 0,  # Disable Django connection pooling to prevent "too many clients" error
         'ATOMIC_REQUESTS': True,  # Wrap each request in a transaction
     }
 }
