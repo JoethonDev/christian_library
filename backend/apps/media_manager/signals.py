@@ -110,3 +110,17 @@ def delete_pdf_files(sender, instance, **kwargs):
     if instance.optimized_file:
         if default_storage.exists(instance.optimized_file.name):
             default_storage.delete(instance.optimized_file.name)
+
+
+@receiver(post_delete, sender=ContentItem)
+def delete_content_item_files(sender, instance, **kwargs):
+    """Clean up thumbnail and supplementary documents when ContentItem is deleted"""
+    # Delete thumbnail
+    if instance.thumbnail:
+        if default_storage.exists(instance.thumbnail.name):
+            default_storage.delete(instance.thumbnail.name)
+            
+    # Delete supplementary document
+    if instance.supplementary_document:
+        if default_storage.exists(instance.supplementary_document.name):
+            default_storage.delete(instance.supplementary_document.name)

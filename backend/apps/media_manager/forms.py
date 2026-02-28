@@ -13,10 +13,11 @@ class ContentItemForm(forms.ModelForm):
         fields = [
             'title_ar', 'title_en', 
             'description_ar', 'description_en', 
+            'thumbnail', 'r2_thumbnail_url',
             'seo_title_ar', 'seo_title_en',
             'seo_meta_description_ar', 'seo_meta_description_en',
             'seo_keywords_ar', 'seo_keywords_en',
-            'content_type', 'tags', 'structured_data', 'is_active', 'structured_data'
+            'content_type', 'tags', 'structured_data', 'is_active'
         ]
         widgets = {
             'description_ar': forms.Textarea(attrs={'rows': 3}),

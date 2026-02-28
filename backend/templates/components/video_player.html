@@ -6,9 +6,16 @@
         <div class="d-flex align-items-start gap-3">
             <!-- Enhanced Coptic Video Icon -->
             <div class="video-icon flex-shrink-0">
-                <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); border-radius: 16px; width: 56px; height: 56px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
-                    <i class="bi bi-play-circle-fill text-white" style="font-size: 1.75rem;"></i>
-                </div>
+                {% with thumb_url=video.get_thumbnail_url %}
+                {% if thumb_url %}
+                    <img src="{{ thumb_url }}" alt="{{ video.title_ar }}" 
+                         style="border-radius: 16px; width: 56px; height: 56px; object-fit: cover; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
+                {% else %}
+                    <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); border-radius: 16px; width: 56px; height: 56px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
+                        <i class="bi bi-play-circle-fill text-white" style="font-size: 1.75rem;"></i>
+                    </div>
+                {% endif %}
+                {% endwith %}
             </div>
             <!-- Title and Metadata -->
             <div class="flex-grow-1 min-w-0">
@@ -87,7 +94,7 @@
                    playsinline 
                    webkit-playsinline
                    style="width: 100%; height: auto; object-fit: contain; background: #000; display: block;"
-                   poster="{% if video.videometa.thumbnail %}{{ video.videometa.thumbnail.url }}{% endif %}">
+                   poster="{{ video.get_thumbnail_url|default:'' }}">
                 
                 <!-- HLS and multiple source formats -->
                 {% with best_url=video.videometa.get_best_streaming_url %}

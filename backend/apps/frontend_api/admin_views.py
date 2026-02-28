@@ -6,6 +6,7 @@ All administrative operations now use minimal database queries.
 import json
 import os
 import tempfile
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, Http404
 from django.contrib import messages
@@ -97,6 +98,7 @@ def content_detail(request, content_id):
                 seo_title_ar = request.POST.get('seo_title_ar', '')
                 seo_title_en = request.POST.get('seo_title_en', '')
                 tags_input = request.POST.get('tags', '')
+                thumbnail_file = request.FILES.get('thumbnail')
                 
                 # Update basic fields
                 content.title_ar = title_ar
@@ -107,10 +109,51 @@ def content_detail(request, content_id):
                 content.transcript = transcript
                 content.seo_title_ar = seo_title_ar
                 content.seo_title_en = seo_title_en
-                content.save(update_fields=[
+                
+                update_fields = [
                     'title_ar', 'title_en', 'description_ar', 'description_en',
                     'notes', 'transcript', 'seo_title_ar', 'seo_title_en', 'updated_at'
-                ])
+                ]
+                
+                if thumbnail_file:
+                    # Clean up old files before saving new one
+                    try:
+                        # 1. Delete physical local file if it exists
+                        if content.thumbnail and hasattr(content.thumbnail, 'path'):
+                            if os.path.exists(content.thumbnail.path):
+                                os.remove(content.thumbnail.path)
+                                logger.info(f"Deleted old local thumbnail: {content.thumbnail.path}")
+                        
+                        # 2. Delete from R2 if it exists
+                        if content.r2_thumbnail_url:
+                            from core.storage_backends import R2Service
+                            r2 = R2Service()
+                            if r2.use_r2:
+                                # Key is the name of the file in the ImageField
+                                r2_key = content.thumbnail.name if content.thumbnail else None
+                                if r2_key:
+                                    r2._r2_service.delete_file(r2_key)
+                                    logger.info(f"Deleted old thumbnail from R2: {r2_key}")
+                    except Exception as e:
+                        logger.warning(f"Error while cleaning up old thumbnail: {e}")
+
+                    # 3. Update with new thumbnail
+                    content.thumbnail = thumbnail_file
+                    content.r2_thumbnail_url = '' # Reset R2 URL until new upload completes
+                    update_fields.extend(['thumbnail', 'r2_thumbnail_url'])
+                
+                content.save(update_fields=update_fields)
+                
+                # 4. Handle R2 upload for the new thumbnail if enabled
+                if thumbnail_file and getattr(settings, 'R2_ENABLED', False):
+                    try:
+                        from core.storage_backends import R2Service
+                        r2 = R2Service()
+                        if r2.use_r2:
+                            r2.upload_thumbnail(content)
+                            logger.info(f"Uploaded new thumbnail to R2 for content {content_id}")
+                    except Exception as e:
+                        logger.error(f"Failed to upload new thumbnail to R2: {e}")
                 
                 # Handle tags - parse comma-separated tag names
                 if tags_input:
@@ -278,6 +321,9 @@ def handle_content_upload(request):
         # Get document file if provided
         document_file = request.FILES.get('document')
         
+        # Get thumbnail file if provided
+        thumbnail_file = request.FILES.get('thumbnail_file')
+        
         # Get metadata from request (all fields from template)
         title_ar = request.POST.get('title_ar', '')
         title_en = request.POST.get('title_en', '')
@@ -313,7 +359,8 @@ def handle_content_upload(request):
             transcript=transcript,
             notes=notes,
             seo_structured_data=seo_structured_data,
-            document_file=document_file  # Pass document file
+            document_file=document_file,  # Pass document file
+            thumbnail_file=thumbnail_file  # Pass thumbnail file
         )
         
         if result['success']:

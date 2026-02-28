@@ -41,6 +41,47 @@ class PdfProcessorService:
         """
         self.content_item_id = content_item_id
         self.logger = logging.getLogger(f"{__name__}.{content_item_id}")
+
+    def generate_thumbnail(self, pdf_path: str, output_path: str) -> bool:
+        """
+        Generate a thumbnail image from the first page of a PDF.
+        
+        Args:
+            pdf_path: Absolute path to the PDF file
+            output_path: Absolute path where the thumbnail image should be saved
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if not os.path.exists(pdf_path):
+                self.logger.error(f"PDF file does not exist: {pdf_path}")
+                return False
+                
+            with fitz.open(pdf_path) as doc:
+                if len(doc) == 0:
+                    self.logger.error(f"PDF file is empty: {pdf_path}")
+                    return False
+                    
+                # Load the first page
+                page = doc.load_page(0)
+                
+                # Render page to a pixmap (image)
+                # Use a reasonable DPI for thumbnail (e.g., matrix 2x2 for ~150 DPI)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                
+                # Ensure output directory exists
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                
+                # Save the image
+                pix.save(output_path)
+                
+                self.logger.info(f"Generated thumbnail for PDF {self.content_item_id} at {output_path}")
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"Failed to generate thumbnail for PDF {self.content_item_id}: {str(e)}")
+            return False
     
     def extract_text_from_pdf(self, pdf_path: str, page_count: int = 0) -> str:
         """

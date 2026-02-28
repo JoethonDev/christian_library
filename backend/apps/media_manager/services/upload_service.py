@@ -64,7 +64,8 @@ class MediaUploadService:
         transcript: str = "",
         notes: str = "",
         seo_structured_data: str = "",
-        document_file = None  # New parameter for supplementary document
+        document_file = None,  # New parameter for supplementary document
+        thumbnail_file = None   # New parameter for thumbnail
     ):
         """Create content item with complete metadata"""
         try:
@@ -86,6 +87,12 @@ class MediaUploadService:
             is_valid, error_msg = self.validate_file(file_obj, content_type)
             if not is_valid:
                 return {'success': False, 'error': error_msg}
+            
+            # Validate thumbnail if provided
+            if thumbnail_file:
+                thumb_mime, _ = mimetypes.guess_type(thumbnail_file.name)
+                if not thumb_mime or not thumb_mime.startswith('image/'):
+                    return {'success': False, 'error': _('Thumbnail must be an image file')}
             
             # If document file provided, extract text synchronously
             book_content_from_doc = None
@@ -136,7 +143,8 @@ class MediaUploadService:
                     seo_description_ar, seo_description_en,
                     seo_title_ar, seo_title_en, transcript, notes,
                     seo_title_ar + ',' + seo_title_en if seo_title_en else seo_title_ar,
-                    seo_structured_data
+                    seo_structured_data,
+                    thumbnail=thumbnail_file
                 )
             elif content_type == 'audio':
                 success, message, content_item = self.upload_audio(
@@ -145,7 +153,8 @@ class MediaUploadService:
                     seo_description_ar, seo_description_en,
                     seo_title_ar, seo_title_en, transcript, notes,
                     seo_title_ar + ',' + seo_title_en if seo_title_en else seo_title_ar,
-                    seo_structured_data
+                    seo_structured_data,
+                    thumbnail=thumbnail_file
                 )
             elif content_type == 'pdf':
                 success, message, content_item = self.upload_pdf(
@@ -154,7 +163,8 @@ class MediaUploadService:
                     seo_description_ar, seo_description_en,
                     seo_title_ar, seo_title_en, transcript, notes,
                     seo_title_ar + ',' + seo_title_en if seo_title_en else seo_title_ar,
-                    seo_structured_data
+                    seo_structured_data,
+                    thumbnail=thumbnail_file
                 )
             
             # If document text was extracted, set it as book_content
@@ -280,7 +290,8 @@ class MediaUploadService:
         transcript: str = "",
         notes: str = "",
         seo_title_suggestions: str = "",
-        structured_data: str = ""
+        structured_data: str = "",
+        thumbnail: Optional[UploadedFile] = None
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process video file
@@ -312,7 +323,8 @@ class MediaUploadService:
                     transcript=transcript,
                     notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
-                    structured_data=structured_data
+                    structured_data=structured_data,
+                    thumbnail=thumbnail
                 )
                 
                 # Save file and get or create video meta
@@ -367,7 +379,8 @@ class MediaUploadService:
         transcript: str = "",
         notes: str = "",
         seo_title_suggestions: str = "",
-        structured_data: str = ""
+        structured_data: str = "",
+        thumbnail: Optional[UploadedFile] = None
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process audio file
@@ -398,7 +411,8 @@ class MediaUploadService:
                     transcript=transcript,
                     notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
-                    structured_data=structured_data
+                    structured_data=structured_data,
+                    thumbnail=thumbnail
                 )
                 print(f"Created content item with ID: {content_item.id}")
                 # Save file and get or create audio meta
@@ -454,7 +468,8 @@ class MediaUploadService:
         transcript: str = "",
         notes: str = "",
         seo_title_suggestions: str = "",
-        structured_data: str = ""
+        structured_data: str = "",
+        thumbnail: Optional[UploadedFile] = None
     ) -> Tuple[bool, str, Optional[ContentItem]]:
         """
         Upload and process PDF file
@@ -486,7 +501,8 @@ class MediaUploadService:
                     transcript=transcript,
                     notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
-                    structured_data=structured_data
+                    structured_data=structured_data,
+                    thumbnail=thumbnail
                 )
                 
                 # Save file and get or create PDF meta

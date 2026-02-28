@@ -4,6 +4,7 @@ from django.apps import apps
 import os
 from pathlib import Path
 import logging
+import tempfile
 from apps.core.task_monitor import TaskMonitor
 
 from core.utils.media_processing import (
@@ -113,10 +114,36 @@ def process_video_to_hls(self, video_meta_id):
             TaskMonitor.update_progress(self.request.id, 50, f"480p Encoding failed: {e}", "Error")
             raise
         
-        # Extract video metadata if not already set
         if not video_meta.duration_seconds:
             TaskMonitor.update_progress(self.request.id, 90, "Cataloging video technical details (duration)...", "Metadata Extraction")
             video_meta.duration_seconds = processor.get_duration(input_path)
+        
+        # --- NEW: Generate thumbnail if missing ---
+        if not video_meta.content_item.thumbnail:
+            try:
+                TaskMonitor.update_progress(self.request.id, None, "Capturing video thumbnail...", "Thumbnail Generation")
+                thumb_filename = f"thumb_{content_uuid}.jpg"
+                temp_thumb_path = os.path.join(tempfile.gettempdir(), thumb_filename)
+                
+                processor.generate_thumbnail(input_path, temp_thumb_path)
+                
+                if os.path.exists(temp_thumb_path):
+                    from django.core.files import File
+                    with open(temp_thumb_path, 'rb') as f:
+                        video_meta.content_item.thumbnail.save(thumb_filename, File(f), save=True)
+                    
+                    # Cleanup temp thumb
+                    os.remove(temp_thumb_path)
+                    logger.info(f"Auto-generated thumbnail for video: {content_uuid}")
+            except Exception as e:
+                logger.error(f"Auto-thumbnail generation failed for video {content_uuid}: {e}")
+        
+        # --- NEW: Upload thumbnail to R2 if available but not uploaded ---
+        if video_meta.content_item.thumbnail and not video_meta.content_item.r2_thumbnail_url:
+            if getattr(settings, 'R2_ENABLED', False):
+                from core.storage_backends import R2Service
+                r2 = R2Service()
+                r2.upload_thumbnail(video_meta.content_item)
         
         video_meta.processing_status = 'completed'
         video_meta.save()
@@ -394,6 +421,41 @@ def process_pdf_optimization(self, pdf_meta_id):
         pdf_meta.file_size = pdf_info['file_size']
         pdf_meta.page_count = pdf_info['page_count']
         
+        # Generate thumbnail if not already present
+        content_item = pdf_meta.content_item
+        if not content_item.thumbnail:
+            try:
+                TaskMonitor.update_progress(self.request.id, 25, "Generating PDF thumbnail...", "Thumbnail")
+                thumb_filename = f"thumb_{pdf_meta_id}.jpg"
+                temp_thumb_path = os.path.join(tempfile.gettempdir(), thumb_filename)
+                
+                # Use PDFProcessor to generate thumbnail
+                processor.generate_thumbnail(input_path, temp_thumb_path)
+                
+                if os.path.exists(temp_thumb_path) and os.path.getsize(temp_thumb_path) > 0:
+                    from django.core.files import File
+                    with open(temp_thumb_path, 'rb') as f:
+                        content_item.thumbnail.save(thumb_filename, File(f), save=True)
+                    
+                    # Upload to R2 if storage is configured
+                    if getattr(settings, 'R2_ENABLED', False):
+                        try:
+                            from core.storage_backends import R2Service as DjangoR2Service
+                            r2_service = DjangoR2Service()
+                            r2_service.upload_thumbnail(content_item)
+                        except Exception as r2_err:
+                            logger.error(f"Failed to upload PDF thumbnail to R2: {r2_err}")
+                    
+                    logger.info(f"Generated and saved thumbnail for PDF: {content_item.title_ar}")
+                
+                # Clean up temp file
+                if os.path.exists(temp_thumb_path):
+                    os.remove(temp_thumb_path)
+                    
+            except Exception as thumb_err:
+                logger.error(f"Failed to generate PDF thumbnail: {thumb_err}")
+                TaskMonitor.update_progress(self.request.id, 25, f"Thumbnail generation failed: {thumb_err}", "Warning")
+
         # Generate optimized filename
         original_name = pdf_meta.original_file.name
         optimized_filename = generate_unique_filename(original_name, 'pdf')

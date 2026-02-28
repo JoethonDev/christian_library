@@ -245,10 +245,10 @@ class PdfMetaInline(admin.StackedInline):
 @admin.register(ContentItem)
 class ContentItemAdmin(admin.ModelAdmin):
     form = ContentItemForm
-    list_display = ['title_display', 'content_type_display', 'tags_display', 'media_status_display', 'seo_status_display', 'is_active', 'created_at']
+    list_display = ['thumbnail_preview', 'title_display', 'content_type_display', 'tags_display', 'media_status_display', 'seo_status_display', 'is_active', 'created_at']
     list_filter = ['content_type', 'is_active', 'processing_status', 'seo_processing_status', 'created_at', 'tags']
     search_fields = ['title_ar', 'title_en', 'description_ar', 'description_en', 'seo_keywords_ar', 'seo_keywords_en']
-    readonly_fields = ['id', 'created_at', 'updated_at', 'content_url', 'seo_metadata_preview']
+    readonly_fields = ['id', 'created_at', 'updated_at', 'content_url', 'seo_metadata_preview', 'thumbnail_preview']
     
     # Status display configuration (shared across status display methods)
     STATUS_COLORS = {
@@ -274,7 +274,13 @@ class ContentItemAdmin(admin.ModelAdmin):
     
     fieldsets = (
         (_('Basic Information'), {
-            'fields': ('title_ar', 'title_en', 'description_ar', 'description_en', 'notes', 'transcript')
+            'fields': (
+                ('title_ar', 'title_en'),
+                ('description_ar', 'description_en'),
+                ('thumbnail', 'thumbnail_preview'), 
+                'r2_thumbnail_url',
+                'notes', 'transcript'
+            )
         }),
         (_('Classification'), {
             'fields': ('content_type', 'tags')
@@ -317,6 +323,18 @@ class ContentItemAdmin(admin.ModelAdmin):
                 return [PdfMetaInline]
         return []
     
+    def thumbnail_preview(self, obj):
+        """Display small thumbnail preview in list and form"""
+        if obj.r2_thumbnail_url:
+            return format_html('<img src="{}" style="max-height: 50px; border-radius: 4px;" />', obj.r2_thumbnail_url)
+        elif obj.thumbnail:
+            try:
+                return format_html('<img src="{}" style="max-height: 50px; border-radius: 4px;" />', obj.thumbnail.url)
+            except Exception:
+                return _('Error loading')
+        return _('No thumbnail')
+    thumbnail_preview.short_description = _('Thumbnail')
+
     def title_display(self, obj):
         """Display title with fallback"""
         return obj.get_title()

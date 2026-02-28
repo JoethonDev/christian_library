@@ -170,7 +170,32 @@ class VideoProcessor(MediaProcessor):
             
         except subprocess.CalledProcessError as e:
             raise Exception(f"Video compression failed: {e}")
-    
+
+    def generate_thumbnail(self, input_path, output_path, timestamp='00:00:01'):
+        """Generate a thumbnail image from a video at a specific timestamp"""
+        if not self.dependencies_available:
+            raise DependencyError("FFmpeg is required for video processing.")
+            
+        try:
+            self.ensure_directory(os.path.dirname(output_path))
+            
+            cmd = [
+                'ffmpeg', '-ss', timestamp,
+                '-i', str(input_path),
+                '-vframes', '1',
+                '-q:v', '2',
+                '-y', str(output_path)
+            ]
+            
+            subprocess.run(cmd, check=True, capture_output=True)
+            return output_path
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Video thumbnail generation failed: {e.stderr.decode() if e.stderr else str(e)}")
+            # Fallback to 00:00:00 if 00:00:01 fails (e.g. very short video)
+            if timestamp != '00:00:00':
+                return self.generate_thumbnail(input_path, output_path, timestamp='00:00:00')
+            raise Exception(f"Video thumbnail generation failed: {e.stderr.decode() if e.stderr else str(e)}")
+
     def generate_hls(self, input_path, output_dir, resolution='720', hybrid=True):
         """Generate HLS playlist and segments. If hybrid=True, skip video encoding (copy video), encode audio only."""
         try:
@@ -352,10 +377,11 @@ class AudioProcessor(MediaProcessor):
             }
 
 
-class PDFProcessor:
+class PDFProcessor(MediaProcessor):
     """Handle PDF processing operations"""
     
     def __init__(self):
+        super().__init__()
         self.media_root = Path(settings.MEDIA_ROOT)
         self._validate_dependencies()
     
@@ -415,6 +441,29 @@ class PDFProcessor:
                 f"Ghostscript command '{gs_command}' not found. "
                 "Please install Ghostscript and ensure it's in your PATH."
             )
+
+    def generate_thumbnail(self, input_path, output_path):
+        """Generate a thumbnail image from the first page of a PDF using Ghostscript"""
+        if not self.optimization_available:
+             raise DependencyError("Ghostscript is required for PDF thumbnail generation.")
+             
+        try:
+            self.ensure_directory(os.path.dirname(output_path))
+            gs_command = get_platform_command('gs')
+            
+            # -dFirstPage=1 -dLastPage=1 to only render first page
+            # -sDEVICE=jpeg for JPEG output
+            # -r72 for 72 DPI
+            cmd = [
+                gs_command, '-sDEVICE=jpeg', '-dFirstPage=1', '-dLastPage=1',
+                '-dJPEGQ=85', '-r72', '-dNOPAUSE', '-dQUIET', '-dBATCH',
+                f'-sOutputFile={output_path}', str(input_path)
+            ]
+            
+            subprocess.run(cmd, check=True, capture_output=True)
+            return output_path
+        except subprocess.CalledProcessError as e:
+            raise Exception(f"PDF thumbnail generation failed: {e.stderr.decode() if e.stderr else str(e)}")
     
     def get_pdf_info(self, file_path):
         """Get PDF information"""

@@ -218,7 +218,8 @@ class ContentService:
         transcript: str = "",
         notes: str = "",
         seo_title_suggestions: str = "",
-        structured_data: Any = None
+        structured_data: Any = None,
+        thumbnail: Any = None
     ) -> ContentItem:
         """
         Create a new content item
@@ -236,6 +237,7 @@ class ContentService:
             seo_meta_description_en: English meta description for SEO
             seo_title_suggestions: JSON string of title suggestions
             structured_data: JSON string or dict of structured data
+            thumbnail: Optional thumbnail image file
             
         Returns:
             ContentItem instance
@@ -272,7 +274,8 @@ class ContentService:
                     transcript=transcript,
                     notes=notes,
                     seo_title_suggestions=seo_title_suggestions,
-                    structured_data=structured_data
+                    structured_data=structured_data,
+                    thumbnail=thumbnail
                 )
                 
                 # Add tags if provided
