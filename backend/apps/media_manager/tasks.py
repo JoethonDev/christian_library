@@ -175,17 +175,17 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
                 pass
 
 
-@shared_task(bind=True, max_retries=7, default_retry_delay=120)
+@shared_task(bind=True, max_retries=10, default_retry_delay=600)
 def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
     """
-    Generate SEO metadata for content using Gemini AI with enhanced rate limit handling.
+    Generate SEO metadata for content using Gemini AI with enhanced retry logic.
     
     Features:
     - Isolated to dedicated 'seo' worker queue
     - Enhanced Gemini rate limit detection and handling
-    - 3:00 AM delay mechanism for credit exhaustion
-    - Up to 7 retry attempts for rate limits
-    - Standard 2 retries for other errors
+    - Server Errors (5xx): Retry after 10 minutes, max 3 times for these specifically.
+    - All Errors: If 3 total attempts fail, schedule for next day at 3:00 AM.
+    - Up to 10 total retries allowed by Celery to accommodate multi-day delays.
     
     Args:
         contentitem_id: ID of the ContentItem to generate SEO for
@@ -299,7 +299,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         TaskMonitor.update_progress(
             self.request.id, 
             50,
-            f'Generating SEO metadata with AI (attempt {self.request.retries + 1}/{self.max_retries + 1})...', 
+            f'Generating SEO metadata with AI (attempt {self.request.retries + 1}/3)...', 
             'AI Processing'
         )
         
@@ -365,112 +365,133 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
     except Exception as exc:
         logger.error(f"💥 Error generating SEO metadata for ContentItem {contentitem_id}: {str(exc)}", exc_info=True)
         
-        # Enhanced rate limit detection for Gemini API
-        is_rate_limit_error = self._is_gemini_rate_limit_error(exc)
-        is_last_attempt = self.request.retries >= self.max_retries
+        # Enhanced error detection
+        is_rate_limit_error = _is_gemini_rate_limit_error(exc)
+        is_server_error = _is_gemini_server_error(exc)
         
+        # Plan logic: 
+        # 1. Any error after 3 failed attempts (retries 0, 1, 2) -> schedule for next day 3 AM
+        # 2. Server errors (5xx) -> retry after 10 mins (600s)
+        # 3. Other errors -> retry with current default or rate limit logic
+        
+        if self.request.retries >= 2:  # 0, 1, 2 attempts failed, now on 3rd retry or finishing it
+            # This was the 3rd attempt (retries = 2)
+            next_3am_delay = _calculate_next_3am_delay()
+            logger.warning(f"❌ 3 attempts failed for ContentItem {contentitem_id}. Scheduling next attempt for 3:00 AM.")
+            
+            TaskMonitor.update_task_status(
+                self.request.id, 
+                'RETRY',
+                {
+                    'message': f'3 attempts failed - rescheduling for 3:00 AM (Error: {str(exc)[:100]})',
+                    'retry_at': '3:00 AM',
+                    'delay_hours': round(next_3am_delay/3600, 1)
+                }
+            )
+            
+            # Retry at 3:00 AM tomorrow
+            raise self.retry(exc=exc, countdown=next_3am_delay)
+            
+        if is_server_error:
+            logger.warning(f"🔌 Gemini server error detected (5xx) for ContentItem {contentitem_id} (attempt {self.request.retries + 1})")
+            countdown = 600  # 10 minutes
+            
+            TaskMonitor.update_task_status(
+                self.request.id, 
+                'RETRY',
+                {
+                    'message': f'Server error (5xx) - retrying in 10 minutes (attempt {self.request.retries + 1}/3)',
+                    'countdown': countdown,
+                    'error_type': 'server'
+                }
+            )
+            
+            raise self.retry(exc=exc, countdown=countdown)
+            
         if is_rate_limit_error:
             logger.warning(f"🚦 Gemini rate limit detected for ContentItem {contentitem_id} (attempt {self.request.retries + 1})")
+            # For rate limits, we'll use a shorter retry or just wait for the next 3AM if we prefer,
+            # but the requirement says for ANY error 3 attempts fail then 3 AM.
+            # So if it's attempt 1 or 2, we can retry sooner.
+            countdown = 300 # 5 minutes for rate limit before 3rd attempt
             
-            # For rate limits, use the 3:00 AM delay mechanism
-            if not is_last_attempt:
-                next_3am_delay = self._calculate_next_3am_delay()
-                logger.info(f"⏰ Scheduling retry for 3:00 AM (in {next_3am_delay/3600:.1f} hours)")
-                
-                TaskMonitor.update_task_status(
-                    self.request.id, 
-                    'RETRY',
-                    {
-                        'message': f'Rate limited - retry scheduled for 3:00 AM (attempt {self.request.retries + 1}/{self.max_retries + 1})',
-                        'rate_limited': True,
-                        'retry_at': '3:00 AM',
-                        'delay_hours': round(next_3am_delay/3600, 1)
-                    }
-                )
-                
-                # Retry at 3:00 AM
-                self.retry(countdown=next_3am_delay)
-            else:
-                logger.error(f"❌ Max retries ({self.max_retries}) exceeded for rate-limited ContentItem {contentitem_id}")
-        else:
-            # For non-rate-limit errors, use standard retry logic (max 2 attempts) 
-            standard_max_retries = 2
-            if self.request.retries < standard_max_retries:
-                countdown = 120 * (2 ** self.request.retries)  # Exponential backoff
-                logger.info(f"🔄 Standard retry for ContentItem {contentitem_id} in {countdown}s (attempt {self.request.retries + 1})")
-                
-                TaskMonitor.update_task_status(
-                    self.request.id, 
-                    'RETRY',
-                    {
-                        'message': f'Standard error retry in {countdown}s (attempt {self.request.retries + 1}/{standard_max_retries + 1})',
-                        'countdown': countdown,
-                        'error_type': 'standard'
-                    }
-                )
-                
-                self.retry(countdown=countdown)
-            else:
-                logger.error(f"❌ Standard max retries ({standard_max_retries}) exceeded for ContentItem {contentitem_id}")
-                is_last_attempt = True
+            TaskMonitor.update_task_status(
+                self.request.id, 
+                'RETRY',
+                {
+                    'message': f'Rate limited - retrying in 5 minutes (attempt {self.request.retries + 1}/3)',
+                    'rate_limited': True,
+                    'countdown': countdown
+                }
+            )
+            
+            raise self.retry(exc=exc, countdown=countdown)
         
-        # Handle final failure
-        if is_last_attempt:
-            try:
-                item = ContentItem.objects.get(id=contentitem_id)
-                item.seo_processing_status = 'failed'
-                item.save(update_fields=['seo_processing_status'])
-                
-                error_context = "after rate limit retries" if is_rate_limit_error else "after standard retries"
-                TaskMonitor.update_task_status(
-                    self.request.id, 
-                    'FAILURE', 
-                    {
-                        'message': f'AI service failed {error_context}. Manual review required.',
-                        'error': str(exc),
-                        'rate_limited': is_rate_limit_error,
-                        'final_attempt': True
-                    }
-                )
-            except:
-                pass
-    
-    def _is_gemini_rate_limit_error(self, exception):
-        """Detect if the exception is a Gemini API rate limit error"""
-        error_str = str(exception).lower()
-        rate_limit_indicators = [
-            'rate limit',
-            'quota exceeded', 
-            'too many requests',
-            'resource exhausted',
-            '429',
-            'credits exhausted',
-            'quota_exceeded',
-            'rate_limit_exceeded'
-        ]
-        return any(indicator in error_str for indicator in rate_limit_indicators)
+        # Standard fallback for other errors
+        countdown = 120 * (2 ** self.request.retries)
+        logger.info(f"🔄 Standard retry for ContentItem {contentitem_id} in {countdown}s (attempt {self.request.retries + 1})")
+        
+        TaskMonitor.update_task_status(
+            self.request.id, 
+            'RETRY',
+            {
+                'message': f'Error retry in {countdown}s (attempt {self.request.retries + 1}/3)',
+                'countdown': countdown,
+                'error_type': 'standard'
+            }
+        )
+        
+        raise self.retry(exc=exc, countdown=countdown)
 
-    def _calculate_next_3am_delay(self):
-        """Calculate seconds until next 3:00 AM"""
-        from django.utils import timezone
-        from datetime import time, timedelta
-        
-        now = timezone.now()
-        
-        # Create 3:00 AM today
-        today_3am = now.replace(hour=3, minute=0, second=0, microsecond=0)
-        
-        # If it's already past 3:00 AM today, schedule for tomorrow
-        if now >= today_3am:
-            tomorrow_3am = today_3am + timedelta(days=1)
-            target_time = tomorrow_3am
-        else:
-            target_time = today_3am
-        
-        delay_seconds = (target_time - now).total_seconds()
-        
-        # Minimum delay of 1 hour to avoid immediate retries
-        return max(delay_seconds, 3600)
+def _is_gemini_rate_limit_error(exception):
+    """Detect if the exception is a Gemini API rate limit error"""
+    error_str = str(exception).lower()
+    rate_limit_indicators = [
+        'rate limit',
+        'quota exceeded', 
+        'too many requests',
+        'resource exhausted',
+        '429',
+        'credits exhausted',
+        'quota_exceeded',
+        'rate_limit_exceeded'
+    ]
+    return any(indicator in error_str for indicator in rate_limit_indicators)
+
+def _is_gemini_server_error(exception):
+    """Detect if the exception is a Gemini API server error (5xx)"""
+    error_str = str(exception).lower()
+    server_error_indicators = [
+        '500', '502', '503', '504',
+        'internal server error',
+        'service unavailable',
+        'gateway timeout',
+        'bad gateway',
+        'upstream error'
+    ]
+    return any(indicator in error_str for indicator in server_error_indicators)
+
+def _calculate_next_3am_delay():
+    """Calculate seconds until next 3:00 AM"""
+    from django.utils import timezone
+    from datetime import time, timedelta
+    
+    now = timezone.now()
+    
+    # Create 3:00 AM today
+    today_3am = now.replace(hour=3, minute=0, second=0, microsecond=0)
+    
+    # If it's already past 3:00 AM today, schedule for tomorrow
+    if now >= today_3am:
+        tomorrow_3am = today_3am + timedelta(days=1)
+        target_time = tomorrow_3am
+    else:
+        target_time = today_3am
+    
+    delay_seconds = (target_time - now).total_seconds()
+    
+    # Minimum delay of 1 hour to avoid immediate retries
+    return max(delay_seconds, 3600)
 
 
 @shared_task
