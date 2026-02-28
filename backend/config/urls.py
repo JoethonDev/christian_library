@@ -46,7 +46,7 @@ urlpatterns = [
 ]
 
 # Sitemap and SEO
-from django.contrib.sitemaps.views import sitemap, index as sitemap_index
+from apps.frontend_api.sitemap_wrappers import sitemap, sitemap_index
 from apps.frontend_api.sitemaps import (
     HomeSitemap, ContentListSitemap, VideoSitemap, AudioSitemap, 
     PdfSitemap, SEOOptimizedSitemap, PdfListSitemap, PdfDetailSitemap

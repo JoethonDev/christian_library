@@ -209,20 +209,6 @@ class UnifiedDBQueryMetricsMiddleware(MiddlewareMixin):
                 f"Duplicate queries detected: {len(analysis['duplicate_queries'])} "
                 f"duplicates for {request.method} {request.path}"
             )
-    
-    def _add_debug_headers(self, response, analysis, query_count):
-        """Add debug headers in development mode"""
-        response['X-DB-Queries-Count'] = str(query_count)
-        response['X-DB-Queries-Time'] = f"{analysis['total_time']:.3f}s"
-        
-        if analysis['n_plus_one_detected']:
-            response['X-DB-N-Plus-One'] = 'detected'
-        
-        if analysis['duplicate_queries']:
-            response['X-DB-Duplicates'] = str(len(analysis['duplicate_queries']))
-        
-        if analysis['total_time'] > SLOW_QUERY_THRESHOLD:
-            response['X-DB-Slow-Operation'] = 'true'
 
 
 # Legacy alias for backward compatibility
