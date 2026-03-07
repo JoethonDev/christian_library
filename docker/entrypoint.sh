@@ -21,7 +21,10 @@ case "$1" in
         wait_for_service "${DB_HOST:-db}" "${DB_PORT:-5432}" "PostgreSQL"
         wait_for_service "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "Redis"
         
-        echo "📦 Collecting static files..."
+        echo "� Replacing any remaining Bootstrap Icon font tags with SVG..."
+        python /app/replace_bi_icons.py
+
+        echo "�📦 Collecting static files..."
         python manage.py collectstatic --noinput --clear
 
         echo "🗃️  Checking migrations..."

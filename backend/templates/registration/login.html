@@ -11,7 +11,7 @@
                 <div class="text-center mb-4">
                     <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" 
                          style="width: 80px; height: 80px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
-                        <i class="bi bi-person-check text-white" style="font-size: 2.2rem;"></i>
+                        <svg class="bi text-white" style="font-size: 2.2rem;" aria-hidden="true" focusable="false"><use href="#bi-person-check"/></svg>
                     </div>
                     <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Welcome Back" %}</h3>
                     <p class="body-font text-muted small mb-0">{% trans "Sign in to access your spiritual library" %}</p>
@@ -22,7 +22,7 @@
                     
                     {% if form.errors %}
                         <div class="alert alert-danger d-flex align-items-center mb-4" style="border-left: 4px solid var(--color-maroon);">
-                            <i class="bi bi-exclamation-triangle text-maroon me-2"></i>
+                            <svg class="bi text-maroon me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                             <small class="body-font mb-0">{% trans "Your username and password didn't match. Please try again." %}</small>
                         </div>
                     {% endif %}
@@ -34,7 +34,7 @@
                                    style="background: var(--color-golden-ochre-10); border-radius: 12px; border: 2px solid transparent; transition: all 0.3s ease;"
                                    onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'"
                                    onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'" required autofocus>
-                            <i class="bi bi-person position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                            <svg class="bi position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);" aria-hidden="true" focusable="false"><use href="#bi-person"/></svg>
                         </div>
                     </div>
 
@@ -45,18 +45,18 @@
                                    style="background: var(--color-golden-ochre-10); border-radius: 12px; border: 2px solid transparent; transition: all 0.3s ease;"
                                    onfocus="this.style.borderColor='var(--color-golden-ochre)'; this.style.boxShadow='0 0 0 0.2rem rgba(221, 153, 51, 0.25)'"
                                    onblur="this.style.borderColor='transparent'; this.style.boxShadow='none'" required>
-                            <i class="bi bi-lock position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);"></i>
+                            <svg class="bi position-absolute text-golden" style="left: 1.2rem; top: 50%; transform: translateY(-50%);" aria-hidden="true" focusable="false"><use href="#bi-lock"/></svg>
                         </div>
                     </div>
 
                     <div class="text-end mb-4">
                         <a href="{% url 'users:password_reset' %}" class="body-font small text-golden text-decoration-none fw-bold">
-                            <i class="bi bi-question-circle me-1"></i>{% trans "Forgot password?" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-question-circle"/></svg>{% trans "Forgot password?" %}
                         </a>
                     </div>
 
                     <button type="submit" class="btn btn-primary btn-lg w-100 rounded-pill py-3">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>{% trans "Sign In" %}
+                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-box-arrow-in-right"/></svg>{% trans "Sign In" %}
                     </button>
                 </form>
             </div>
@@ -65,7 +65,7 @@
             <div class="card-footer text-center py-4" style="background: var(--color-maroon-10); border-top: 1px solid var(--color-golden-ochre);">
                 <p class="body-font text-muted small mb-2">{% trans "Don't have an account?" %}</p>
                 <a href="{% url 'users:register' %}" class="btn btn-outline-primary rounded-pill px-4">
-                    <i class="bi bi-person-plus me-2"></i>{% trans "Create Account" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-person-plus"/></svg>{% trans "Create Account" %}
                 </a>
             </div>
         </div>

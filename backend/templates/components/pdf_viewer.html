@@ -13,7 +13,7 @@
             <!-- Coptic Cross Icon with Enhanced Styling -->
             <div class="d-flex align-items-center flex-shrink-0">
                 <div class="p-2" style="background: linear-gradient(135deg, #B8860B, #DAA520); border-radius: 16px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(184, 134, 11, 0.3);">
-                    <i class="bi bi-journal-bookmark-fill text-white" style="font-size: 1.1rem;"></i>
+                    <svg class="bi text-white" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark-fill"/></svg>
                 </div>
             </div>
             <!-- Title and Tags with Mobile Optimization -->
@@ -35,7 +35,7 @@
                     <a href="{{ pdf.pdfmeta.get_direct_download_url }}?download=true" 
                        class="btn btn-primary rounded-pill px-3 py-2" target="_blank" 
                        style="background: linear-gradient(135deg, #B8860B, #DAA520); border: none; box-shadow: 0 4px 12px rgba(184, 134, 11, 0.3); font-size: 0.875rem; white-space: nowrap;">
-                        <i class="bi bi-download me-1"></i><span class="d-none d-sm-inline">{% trans "Download" %}</span>
+                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg><span class="d-none d-sm-inline">{% trans "Download" %}</span>
                     </a>
                 </div>
             {% endif %}
@@ -51,7 +51,7 @@
                     <button id="pdf-prev-btn" class="btn btn-outline-primary" disabled 
                             style="min-width: 44px; height: 44px; border-color: rgba(184, 134, 11, 0.3); color: #8B0000; border-radius: 12px;" 
                             aria-label="{% trans 'Previous page' %}">
-                        <i class="bi bi-chevron-left" style="font-size: 1.1rem;"></i>
+                        <svg class="bi" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                     </button>
                     <div class="d-flex align-items-center px-2 py-1 rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-weight: 600; min-width: 80px; text-align: center;">
                         <span class="small">
@@ -61,7 +61,7 @@
                     <button id="pdf-next-btn" class="btn btn-outline-primary" disabled 
                             style="min-width: 44px; height: 44px; border-color: rgba(184, 134, 11, 0.3); color: #8B0000; border-radius: 12px;" 
                             aria-label="{% trans 'Next page' %}">
-                        <i class="bi bi-chevron-right" style="font-size: 1.1rem;"></i>
+                        <svg class="bi" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                     </button>
                 </div>
                 <!-- Zoom Controls with Better Mobile UX -->
@@ -69,7 +69,7 @@
                     <button id="pdf-zoom-out-btn" class="btn btn-outline-secondary" 
                             style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
                             aria-label="{% trans 'Zoom out' %}">
-                        <i class="bi bi-zoom-out"></i>
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-zoom-out"/></svg>
                     </button>
                     <div class="px-2 py-1 rounded-pill small fw-medium" style="background: rgba(75, 0, 130, 0.1); color: #4B0082; min-width: 50px; text-align: center;">
                         <span id="pdf-zoom-level">100%</span>
@@ -77,12 +77,12 @@
                     <button id="pdf-zoom-in-btn" class="btn btn-outline-secondary" 
                             style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
                             aria-label="{% trans 'Zoom in' %}">
-                        <i class="bi bi-zoom-in"></i>
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-zoom-in"/></svg>
                     </button>
                     <button id="pdf-fit-width-btn" class="btn btn-outline-secondary d-none d-md-inline-flex" 
                             style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
                             aria-label="{% trans 'Fit to width' %}">
-                        <i class="bi bi-arrows-angle-expand"></i>
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrows-angle-expand"/></svg>
                     </button>
                 </div>
             </div>
@@ -101,7 +101,7 @@
                 <!-- Error Overlay -->
                 <div id="pdf-error-overlay" class="position-absolute w-100 h-100 align-items-center justify-content-center" style="top: 0; left: 0; background: rgba(255,255,255,0.9); z-index: 10; display:none;">
                     <div class="text-center">
-                        <i class="bi bi-exclamation-triangle text-danger mb-2" style="font-size: 2rem;"></i>
+                        <svg class="bi text-danger mb-2" style="font-size: 2rem;" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                         <h5 class="text-danger mb-2" id="pdf-error-title">{% trans "Error loading PDF" %}</h5>
                         <p class="text-muted small mb-2" id="pdf-error-message">{% trans "The PDF file could not be loaded" %}</p>
                         <a id="pdf-error-direct-link" href="#" target="_blank" class="btn btn-outline-primary btn-sm">{% trans "Open PDF directly" %}</a>
@@ -114,7 +114,7 @@
         {% else %}
         <div class="text-center w-100">
             <div class="mb-3">
-                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                <svg class="bi text-warning" style="font-size: 2rem;" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
             </div>
             <h5 class="text-muted mb-2">{% trans "PDF file not available" %}</h5>
             <p class="text-muted small mb-0">{% trans "This document has not been uploaded yet" %}</p>
@@ -125,8 +125,15 @@
 
 <!-- Load PDF.js from local static files as ES module -->
 <script type="module">
-    console.log('[PDF viewer] Script loaded');
-    
+    // Dynamically load pdf_viewer.min.css (164 KB) only when reader is opened
+    if (!document.querySelector('link[href*="pdf_viewer.min.css"]')) {
+        const _css = document.createElement('link');
+        _css.rel = 'stylesheet';
+        _css.href = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf_viewer.min.css';
+        _css.crossOrigin = 'anonymous';
+        document.head.appendChild(_css);
+    }
+
     // Import PDF.js as ES module
     import * as pdfjsLib from '{% static "js/pdf.min.js" %}';
     

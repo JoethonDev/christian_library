@@ -17,7 +17,7 @@
     </div>
     <div class="col-auto">
         <a href="{% url 'frontend_api:api_queue_list' %}" class="btn btn-outline-secondary rounded-pill">
-            <i class="bi bi-arrow-left me-2"></i>{% trans "Back to Queue" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-left"/></svg>{% trans "Back to Queue" %}
         </a>
     </div>
 </div>
@@ -39,11 +39,11 @@
                         <label class="text-muted small mb-1">{% trans "Content Type" %}</label>
                         <p>
                             {% if queue_item.content_type == 'video' %}
-                                <span class="badge bg-primary rounded-pill"><i class="bi bi-camera-video me-1"></i>{% trans "Video" %}</span>
+                                <span class="badge bg-primary rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>{% trans "Video" %}</span>
                             {% elif queue_item.content_type == 'audio' %}
-                                <span class="badge bg-info rounded-pill"><i class="bi bi-music-note me-1"></i>{% trans "Audio" %}</span>
+                                <span class="badge bg-info rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>{% trans "Audio" %}</span>
                             {% elif queue_item.content_type == 'pdf' %}
-                                <span class="badge bg-danger rounded-pill"><i class="bi bi-file-pdf me-1"></i>PDF</span>
+                                <span class="badge bg-danger rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>PDF</span>
                             {% endif %}
                         </p>
                     </div>
@@ -68,7 +68,7 @@
                     <div class="col-12">
                         <label class="text-muted small mb-1">{% trans "Document File" %}</label>
                         <p class="text-muted small">
-                            <i class="bi bi-file-earmark-word me-1"></i>
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-word"/></svg>
                             {{ queue_item.doc_file_path|basename }}
                         </p>
                     </div>
@@ -121,7 +121,7 @@
         <div class="card border-0 shadow-sm rounded-4 mt-4 border-danger">
             <div class="card-body p-4">
                 <h5 class="card-title fw-bold mb-3 text-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>{% trans "Error Message" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>{% trans "Error Message" %}
                 </h5>
                 <pre class="bg-light p-3 rounded"><code>{{ queue_item.error_message }}</code></pre>
             </div>
@@ -224,7 +224,7 @@
                     <label class="text-muted small mb-1">{% trans "Content Item" %}</label>
                     <p>
                         <a href="{% url 'frontend_api:admin_content_detail' queue_item.content_item.id %}" class="btn btn-sm btn-outline-primary w-100">
-                            <i class="bi bi-link-45deg me-1"></i>{% trans "View Content" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-link-45deg"/></svg>{% trans "View Content" %}
                         </a>
                     </p>
                 </div>
@@ -241,7 +241,7 @@
                 <form method="post" action="{% url 'frontend_api:api_queue_promote' queue_item.id %}" class="mb-2">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-success w-100">
-                        <i class="bi bi-arrow-up-circle me-2"></i>{% trans "Promote" %}
+                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-up-circle"/></svg>{% trans "Promote" %}
                     </button>
                 </form>
                 
@@ -249,7 +249,7 @@
                       onsubmit="return confirm('{% trans "Are you sure you want to cancel this queue item?" %}')">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-outline-danger w-100">
-                        <i class="bi bi-x-circle me-2"></i>{% trans "Cancel" %}
+                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>{% trans "Cancel" %}
                     </button>
                 </form>
             </div>

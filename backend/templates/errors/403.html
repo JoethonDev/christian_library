@@ -10,7 +10,7 @@
     <div class="mb-5">
         <div class="d-inline-flex align-items-center justify-content-center mb-4 sacred-shadow" 
              style="width: 150px; height: 150px; background: var(--color-golden-ochre); border-radius: 50%; border: 4px solid var(--color-maroon);">
-            <i class="bi bi-shield-exclamation text-white" style="font-size: 4rem;"></i>
+            <svg class="bi text-white" style="font-size: 4rem;" aria-hidden="true" focusable="false"><use href="#bi-shield-exclamation"/></svg>
         </div>
         
         <!-- Error Code -->
@@ -36,7 +36,7 @@
                 </div>
             {% else %}
                 <p class="body-font text-golden">
-                    <i class="bi bi-info-circle me-2"></i>{% trans "Please log in to access this content." %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>{% trans "Please log in to access this content." %}
                 </p>
             {% endif %}
         </div>
@@ -45,15 +45,15 @@
     <!-- Action Buttons -->
     <div class="d-flex justify-content-center gap-3 flex-wrap">
         <a href="{% url 'frontend_api:home' %}" class="btn btn-primary rounded-pill px-4 py-2">
-            <i class="bi bi-house-door me-2"></i>{% trans "Go Home" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-house-door"/></svg>{% trans "Go Home" %}
         </a>
         {% if not user.is_authenticated %}
             <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-secondary rounded-pill px-4 py-2">
-                <i class="bi bi-box-arrow-in-right me-2"></i>{% trans "Login" %}
+                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-box-arrow-in-right"/></svg>{% trans "Login" %}
             </a>
         {% endif %}
         <a href="{% url 'frontend_api:search' %}" class="btn btn-outline-primary rounded-pill px-4 py-2">
-            <i class="bi bi-search me-2"></i>{% trans "Search Library" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>{% trans "Search Library" %}
         </a>
     </div>
     
@@ -64,15 +64,15 @@
                 <div class="card card-coptic">
                     <div class="card-body p-4">
                         <h5 class="heading-font text-maroon mb-3">
-                            <i class="bi bi-question-circle text-golden me-2"></i>{% trans "Need Access?" %}
+                            <svg class="bi text-golden me-2" aria-hidden="true" focusable="false"><use href="#bi-question-circle"/></svg>{% trans "Need Access?" %}
                         </h5>
                         <p class="body-font text-muted mb-3">
                             {% trans "If you believe you should have access to this content, please:" %}
                         </p>
                         <ul class="list-unstyled body-font text-muted text-start">
-                            <li class="mb-2"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Contact the library administrator" %}</li>
-                            <li class="mb-2"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Verify your login credentials" %}</li>
-                            <li class="mb-2"><i class="bi bi-arrow-right text-golden me-2"></i>{% trans "Check if you have the required permissions" %}</li>
+                            <li class="mb-2"><svg class="bi text-golden me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>{% trans "Contact the library administrator" %}</li>
+                            <li class="mb-2"><svg class="bi text-golden me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>{% trans "Verify your login credentials" %}</li>
+                            <li class="mb-2"><svg class="bi text-golden me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>{% trans "Check if you have the required permissions" %}</li>
                         </ul>
                     </div>
                 </div>

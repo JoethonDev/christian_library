@@ -29,7 +29,7 @@
                                 <img src="{{ video.videometa.thumbnail.url }}" alt="Thumbnail" class="w-100 h-100 object-fit-cover">
                             {% else %}
                                 <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-danger-subtle">
-                                    <i class="bi bi-play-circle text-danger"></i>
+                                    <svg class="bi text-danger" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                                 </div>
                             {% endif %}
                         </div>
@@ -40,12 +40,12 @@
                             {% endif %}
                             {% if not video.videometa.has_seo %}
                                 <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "No SEO" %}
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>{% trans "No SEO" %}
                                 </span>
                             {% endif %}
                             {% if not video.videometa.has_metadata %}
                                 <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
-                                    <i class="bi bi-info-circle me-1"></i>{% trans "Incomplete" %}
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>{% trans "Incomplete" %}
                                 </span>
                             {% endif %}
                         </div>
@@ -70,7 +70,7 @@
                 <td>
                     {% if video.videometa.duration_seconds %}
                         <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">
-                            <i class="bi bi-clock me-1"></i>{{ video.videometa.duration_seconds }}s
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>{{ video.videometa.duration_seconds }}s
                         </span>
                     {% else %}
                         <span class="text-muted small">-</span>
@@ -114,31 +114,31 @@
                                 title="{% trans 'Auto-Fill SEO' %}"
                                 @click="confirmAutoFill('{{ video.id }}', '{{ video.title_ar|escapejs }}')"
                                 :disabled="autoFilling">
-                            <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use :href="autoFilling ? '#bi-hourglass-split' : '#bi-magic'"></use></svg>
                             <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
                         </button>
                         {% endif %}
                         <a href="{% url 'frontend_api:admin_content_detail' video.id %}" 
                            class="btn btn-sm btn-light" 
                            title="{% trans 'Edit' %}">
-                            <i class="bi bi-pencil"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg>
                         </a>
                         <a href="{% url 'frontend_api:video_detail' video.id %}" 
                            class="btn btn-sm btn-light" 
                            title="{% trans 'Preview' %}" target="_blank">
-                            <i class="bi bi-eye"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% if video.videometa.r2_original_video_url %}
                         <a href="{% url 'frontend_api:delete_local_confirm' video.id %}" 
                            class="btn btn-sm btn-light text-warning" 
                            title="{% trans 'Delete Local Only' %}">
-                            <i class="bi bi-hdd"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
                         </a>
                         {% endif %}
                         <a href="{% url 'frontend_api:content_delete_confirm' video.id %}" 
                            class="btn btn-sm btn-light text-danger" 
                            title="{% trans 'Delete' %}">
-                            <i class="bi bi-trash"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>
                         </a>
                     </div>
                 </td>
@@ -147,7 +147,7 @@
             <tr>
                 <td colspan="7" class="text-center py-5 text-muted">
                     <div class="mb-3">
-                        <i class="bi bi-camera-video display-4 text-secondary opacity-50"></i>
+                        <svg class="bi display-4 text-secondary opacity-50" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>
                     </div>
                     <h6 class="fw-bold">{% trans "No videos found" %}</h6>
                     <a href="{% url 'frontend_api:upload_content' %}?type=video" class="btn btn-danger text-white rounded-pill px-4 mt-2">
@@ -169,7 +169,7 @@
                                 hx-get="{% url 'frontend_api:video_management' %}?page={{ pagination.previous_page_number }}&status={{ filters.status }}&processing_status={{ filters.processing_status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
                                 hx-target="#video-table-container"
                                 hx-push-url="true">
-                            <i class="bi bi-chevron-left"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                         </button>
                     </li>
                 {% endif %}
@@ -184,7 +184,7 @@
                                 hx-get="{% url 'frontend_api:video_management' %}?page={{ pagination.next_page_number }}&status={{ filters.status }}&processing_status={{ filters.processing_status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
                                 hx-target="#video-table-container"
                                 hx-push-url="true">
-                            <i class="bi bi-chevron-right"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                         </button>
                     </li>
                 {% endif %}

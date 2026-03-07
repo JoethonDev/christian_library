@@ -4,6 +4,7 @@
 
 {% block meta %}
     {% include "includes/seo_meta.html" %}
+    <link rel="preload" as="image" href="{% static 'images/hero_section.jpg' %}" fetchpriority="high">
 {% endblock %}
 
 {% block content %}
@@ -28,6 +29,8 @@
                      class="card-img img-fluid rounded" 
                      alt="{% trans "Bishop Abram Library" %}"
                      style="object-fit: cover; width: 100%;"
+                     fetchpriority="high"
+                     loading="eager"
                      onerror="this.src='https://via.placeholder.com/800x600/800000/FFFFFF?text=Bishop+Abram+Library';">
             </div>
         </div>
@@ -135,7 +138,7 @@
         {% for i in "123456" %}
         <div class="gallery-item">
             <div class="card card-coptic h-100">
-                <img src="{% static 'images/gallery_' %}{{ forloop.counter }}.jpg"
+                <img src="{% static 'images/gallery_' %}{{ forloop.counter }}.webp"
                      class="card-img-top"
                      alt="{% blocktrans with num=forloop.counter %}Gallery Image {{ num }}{% endblocktrans %}"
                      style="aspect-ratio: 4/3; object-fit: cover;">
@@ -165,7 +168,7 @@
                     <div class="mb-3">
                         <div class="d-inline-flex align-items-center justify-content-center" 
                              style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
-                            <i class="bi bi-play-circle text-white fs-2"></i>
+                            <svg class="bi text-white fs-2" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                         </div>
                     </div>
                     <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_videos|floatformat:0 }}</h3>
@@ -180,7 +183,7 @@
                     <div class="mb-3">
                         <div class="d-inline-flex align-items-center justify-content-center" 
                              style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
-                            <i class="bi bi-music-note text-white fs-2"></i>
+                            <svg class="bi text-white fs-2" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>
                         </div>
                     </div>
                     <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_audios|floatformat:0 }}</h3>
@@ -195,7 +198,7 @@
                     <div class="mb-3">
                         <div class="d-inline-flex align-items-center justify-content-center" 
                              style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 50%; border: 3px solid var(--color-golden-ochre);">
-                            <i class="bi bi-journal-bookmark text-white fs-2"></i>
+                            <svg class="bi text-white fs-2" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark"/></svg>
                         </div>
                     </div>
                     <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_pdfs|floatformat:0 }}</h3>
@@ -210,7 +213,7 @@
                     <div class="mb-3">
                         <div class="d-inline-flex align-items-center justify-content-center" 
                              style="width: 60px; height: 60px; background: var(--color-golden-ochre); border-radius: 50%; border: 3px solid var(--color-maroon);">
-                            <i class="bi bi-tags text-white fs-2"></i>
+                            <svg class="bi text-white fs-2" aria-hidden="true" focusable="false"><use href="#bi-tags"/></svg>
                         </div>
                     </div>
                     <h3 class="heading-font text-maroon fw-bold mb-2">{{ stats.total_tags|floatformat:0 }}</h3>
@@ -235,7 +238,7 @@
                 <div class="card card-coptic hover-maroon-glow h-100">
                     <div class="card-body text-center py-5">
                         <div class="mb-3">
-                            <i class="bi bi-play-circle text-maroon" style="font-size: 3rem;"></i>
+                            <svg class="bi text-maroon" style="font-size: 3rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                         </div>
                         <h5 class="heading-font text-maroon">{% trans "Video Library" %}</h5>
                         <p class="body-font text-muted small">
@@ -251,7 +254,7 @@
                 <div class="card card-coptic hover-golden-glow h-100">
                     <div class="card-body text-center py-5">
                         <div class="mb-3">
-                            <i class="bi bi-music-note text-golden" style="font-size: 3rem;"></i>
+                            <svg class="bi text-golden" style="font-size: 3rem;" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>
                         </div>
                         <h5 class="heading-font text-maroon">{% trans "Audio Library" %}</h5>
                         <p class="body-font text-muted small">
@@ -267,7 +270,7 @@
                 <div class="card card-coptic hover-maroon-glow h-100">
                     <div class="card-body text-center py-5">
                         <div class="mb-3">
-                            <i class="bi bi-journal-bookmark text-maroon" style="font-size: 3rem;"></i>
+                            <svg class="bi text-maroon" style="font-size: 3rem;" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark"/></svg>
                         </div>
                         <h5 class="heading-font text-maroon">{% trans "Digital Books" %}</h5>
                         <p class="body-font text-muted small">
@@ -298,7 +301,7 @@
                     </div>
                     <div class="col-md-4">
                         <button class="btn btn-primary btn-lg w-100" type="submit">
-                            <i class="bi bi-search me-2"></i>{% trans "Search" %}
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>{% trans "Search" %}
                         </button>
                     </div>
                 </div>
@@ -313,14 +316,14 @@
     <div class="d-flex align-items-center mb-4">
         <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
              style="width: 50px; height: 50px; background: var(--color-maroon); border-radius: 12px; border: 2px solid var(--color-golden-ochre);">
-            <i class="bi bi-play-circle text-white fs-4"></i>
+            <svg class="bi text-white fs-4" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
         </div>
         <div>
             <h3 class="heading-font text-maroon mb-1">{% trans "Latest Videos" %}</h3>
             <p class="body-font text-muted mb-0 small">{% trans "Recently added spiritual content" %}</p>
         </div>
         <a href="{% url 'frontend_api:videos' %}" class="btn btn-secondary ms-auto rounded-pill px-4">
-            {% trans "View All" %} <i class="bi bi-arrow-right ms-1"></i>
+            {% trans "View All" %} <svg class="bi ms-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
         </a>
     </div>
     <div class="row g-4">
@@ -336,14 +339,14 @@
     <div class="d-flex align-items-center mb-4">
         <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
              style="width: 50px; height: 50px; background: var(--color-golden-ochre); border-radius: 12px; border: 2px solid var(--color-maroon);">
-            <i class="bi bi-music-note text-white fs-4"></i>
+            <svg class="bi text-white fs-4" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>
         </div>
         <div>
             <h3 class="heading-font text-maroon mb-1">{% trans "Latest Audio" %}</h3>
             <p class="body-font text-muted mb-0 small">{% trans "Inspiring sermons and teachings" %}</p>
         </div>
         <a href="{% url 'frontend_api:audios' %}" class="btn btn-secondary ms-auto rounded-pill px-4">
-            {% trans "View All" %} <i class="bi bi-arrow-right ms-1"></i>
+            {% trans "View All" %} <svg class="bi ms-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
         </a>
     </div>
     <div class="row g-4">
@@ -359,14 +362,14 @@
     <div class="d-flex align-items-center mb-4">
         <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
              style="width: 50px; height: 50px; background: var(--color-maroon); border-radius: 12px; border: 2px solid var(--color-golden-ochre);">
-            <i class="bi bi-journal-bookmark text-white fs-4"></i>
+            <svg class="bi text-white fs-4" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark"/></svg>
         </div>
         <div>
             <h3 class="heading-font text-maroon mb-1">{% trans "Recent Books" %}</h3>
             <p class="body-font text-muted mb-0 small">{% trans "Sacred texts and study materials" %}</p>
         </div>
         <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-secondary ms-auto rounded-pill px-4">
-            {% trans "View All" %} <i class="bi bi-arrow-right ms-1"></i>
+            {% trans "View All" %} <svg class="bi ms-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
         </a>
     </div>
     <div class="row g-4">
@@ -383,7 +386,7 @@
     <div class="d-flex align-items-center mb-4">
         <div class="d-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
              style="width: 50px; height: 50px; background: var(--color-golden-ochre); border-radius: 12px; border: 2px solid var(--color-maroon);">
-            <i class="bi bi-tags text-white fs-4"></i>
+            <svg class="bi text-white fs-4" aria-hidden="true" focusable="false"><use href="#bi-tags"/></svg>
         </div>
         <div>
             <h3 class="heading-font text-maroon mb-1">{% trans "Popular Categories" %}</h3>
@@ -398,7 +401,7 @@
                     <div class="mb-3">
                         <div class="d-inline-flex align-items-center justify-content-center" 
                              style="width: 60px; height: 60px; background: var(--color-maroon); border-radius: 16px; border: 2px solid var(--color-golden-ochre);">
-                            <i class="bi bi-tag text-white fs-3"></i>
+                            <svg class="bi text-white fs-3" aria-hidden="true" focusable="false"><use href="#bi-tag"/></svg>
                         </div>
                     </div>
                     <h5 class="heading-font text-maroon mb-2">
@@ -427,14 +430,14 @@
     <div class="mb-4">
         <div class="d-inline-flex align-items-center justify-content-center" 
              style="width: 80px; height: 80px; background: var(--color-off-white); border: 3px solid var(--color-golden-ochre); border-radius: 50%;">
-            <i class="bi bi-collection text-muted" style="font-size: 2.5rem;"></i>
+            <svg class="bi text-muted" style="font-size: 2.5rem;" aria-hidden="true" focusable="false"><use href="#bi-collection"/></svg>
         </div>
     </div>
     <h3 class="heading-font text-maroon mb-3">{% trans "No Content Available" %}</h3>
     <p class="body-font text-muted mb-4">{% trans "Content will appear here once it's uploaded." %}</p>
     {% if user.is_staff %}
         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary rounded-pill px-4">
-            <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Content" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-cloud-upload"/></svg>{% trans "Upload Content" %}
         </a>
     {% endif %}
 </section>

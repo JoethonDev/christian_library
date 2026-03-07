@@ -29,11 +29,11 @@
                         <div class="me-3 rounded overflow-hidden d-flex align-items-center justify-content-center" 
                              style="width: 45px; height: 45px; {% if item.content_type == 'video' %}background-color: #fff4f4;{% elif item.content_type == 'audio' %}background-color: #fff9e6;{% else %}background-color: #f0f7ff;{% endif %}">
                             {% if item.content_type == 'video' %}
-                                <i class="bi bi-play-circle text-danger" style="font-size: 1.2rem;"></i>
+                                <svg class="bi text-danger" style="font-size: 1.2rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                             {% elif item.content_type == 'audio' %}
-                                <i class="bi bi-music-note text-warning" style="font-size: 1.2rem;"></i>
+                                <svg class="bi text-warning" style="font-size: 1.2rem;" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>
                             {% else %}
-                                <i class="bi bi-file-text text-primary" style="font-size: 1.2rem;"></i>
+                                <svg class="bi text-primary" style="font-size: 1.2rem;" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
                             {% endif %}
                         </div>
                         <div>
@@ -49,15 +49,15 @@
                 <td>
                     {% if item.content_type == 'video' %}
                         <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">
-                            <i class="bi bi-camera-video me-1"></i>{{ item.get_content_type_display }}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>{{ item.get_content_type_display }}
                         </span>
                     {% elif item.content_type == 'audio' %}
                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
-                            <i class="bi bi-mic me-1"></i>{{ item.get_content_type_display }}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>{{ item.get_content_type_display }}
                         </span>
                     {% else %}
                         <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
-                            <i class="bi bi-file-earmark-pdf me-1"></i>{{ item.get_content_type_display }}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-pdf"/></svg>{{ item.get_content_type_display }}
                         </span>
                     {% endif %}
                 </td>
@@ -82,11 +82,11 @@
                         <div class="d-flex align-items-center gap-1">
                             {% if item.seo_keywords_ar and item.seo_keywords_en %}
                                 <span class="badge bg-success-subtle text-success rounded-pill" title="{% trans 'Complete' %}">
-                                    <i class="bi bi-check-lg"></i>
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-check-lg"/></svg>
                                 </span>
                             {% else %}
                                 <span class="badge bg-warning-subtle text-warning rounded-pill" title="{% trans 'Partial' %}">
-                                    <i class="bi bi-exclamation"></i>
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-exclamation"/></svg>
                                 </span>
                             {% endif %}
                             
@@ -99,7 +99,7 @@
                         </div>
                     {% else %}
                         <span class="badge bg-danger-subtle text-danger rounded-pill" title="{% trans 'Missing' %}">
-                            <i class="bi bi-x-lg"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-lg"/></svg>
                         </span>
                     {% endif %}
                 </td>
@@ -118,14 +118,14 @@
                         {% if item.processing_status and item.processing_status != 'completed' %}
                             <div class="small">
                             {% if item.processing_status == 'pending' %}
-                                <span class="text-secondary"><i class="bi bi-clock me-1"></i>{% trans "Pending" %}</span>
+                                <span class="text-secondary"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>{% trans "Pending" %}</span>
                             {% elif item.processing_status == 'processing' %}
                                 <span class="text-primary">
-                                    <i class="bi bi-arrow-clockwise spin me-1"></i>{% trans "Processing" %}
+                                    <svg class="bi spin me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Processing" %}
                                     {% if item.live_task %}{{ item.live_task.progress|default:0 }}%{% endif %}
                                 </span>
                             {% elif item.processing_status == 'failed' %}
-                                <span class="text-danger"><i class="bi bi-exclamation-circle me-1"></i>{% trans "Failed" %}</span>
+                                <span class="text-danger"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-circle"/></svg>{% trans "Failed" %}</span>
                             {% endif %}
                             </div>
                         {% endif %}
@@ -139,26 +139,26 @@
                         <a href="{% url 'frontend_api:admin_content_detail' item.id %}" 
                            class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Edit' %}">
-                            <i class="bi bi-pencil"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg>
                         </a>
                         
                         {% if item.content_type == 'video' %}
                         <a href="{% url 'frontend_api:video_detail' item.id %}" 
                            class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Preview' %}" target="_blank">
-                            <i class="bi bi-eye"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% elif item.content_type == 'audio' %}
                         <a href="{% url 'frontend_api:audio_detail' item.id %}" 
                            class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Preview' %}" target="_blank">
-                            <i class="bi bi-eye"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% else %}
                         <a href="{% url 'frontend_api:pdf_detail' item.id %}" 
                            class="btn btn-sm btn-light text-secondary" 
                            title="{% trans 'Preview' %}" target="_blank">
-                            <i class="bi bi-eye"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% endif %}
                         
@@ -166,14 +166,14 @@
                         <button class="btn btn-sm btn-light text-warning" 
                                 title="{% trans 'Generate SEO' %}"
                                 onclick="generateSEOForItem('{{ item.id }}')">
-                            <i class="bi bi-magic"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>
                         </button>
                         {% endif %}
                         
                         <button class="btn btn-sm btn-light text-danger" 
                                 title="{% trans 'Delete' %}" 
                                 onclick="confirmDelete('{{ item.id }}', '{{ item.title_ar|escapejs }}')">
-                            <i class="bi bi-trash"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>
                         </button>
                     </div>
                 </td>
@@ -183,7 +183,7 @@
             <tr>
                 <td colspan="7" class="text-center py-5 text-muted">
                     <div class="mb-3">
-                        <i class="bi bi-inbox display-4 text-secondary opacity-50"></i>
+                        <svg class="bi display-4 text-secondary opacity-50" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
                     </div>
                     <h6 class="fw-bold">{% trans "No content found" %}</h6>
                     <p class="small mb-3">{% trans "Try adjusting your search or filters" %}</p>
@@ -209,13 +209,13 @@
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
                    href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
-                    <i class="bi bi-chevron-double-left"></i>
+                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-double-left"/></svg>
                 </a>
             </li>
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
                    href="?page={{ content_data.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
-                    <i class="bi bi-chevron-left"></i>
+                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                 </a>
             </li>
             {% endif %}
@@ -230,13 +230,13 @@
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
                    href="?page={{ content_data.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
-                    <i class="bi bi-chevron-right"></i>
+                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                 </a>
             </li>
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
                    href="?page={{ content_data.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
-                    <i class="bi bi-chevron-double-right"></i>
+                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-double-right"/></svg>
                 </a>
             </li>
             {% endif %}
@@ -280,7 +280,7 @@ function generateSEOForItem(contentId) {
             // Updated modern alert
             const alertHtml = `
                 <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
-                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle-fill"/></svg>
                     {% trans "SEO metadata generation started successfully!" %}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>`;

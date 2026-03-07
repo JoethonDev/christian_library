@@ -5,10 +5,10 @@
     <div class="card border-0 shadow-sm rounded-4 {{ extra_card_class|default:'h-100' }}">
         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold text-dark">
-                <i class="bi bi-cloud-arrow-up text-primary me-2"></i>{% trans "Cloud Storage (R2)" %}
+                <svg class="bi text-primary me-2" aria-hidden="true" focusable="false"><use href="#bi-cloud-arrow-up"/></svg>{% trans "Cloud Storage (R2)" %}
             </h5>
             <button id="refresh-r2-{{ section_id|default:'default' }}" class="btn btn-sm btn-light border-0" title="{% trans 'Refresh Storage Info' %}">
-                <i class="bi bi-arrow-clockwise"></i>
+                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>
             </button>
         </div>
         <div class="card-body">
@@ -60,11 +60,11 @@
                 <div class="col-12 mt-2">
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted text-truncate me-2">
-                            <i class="bi bi-clock me-1"></i>
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>
                             ${new Date(data.last_updated).toLocaleString()}
                         </small>
                         <a href="{% url 'frontend_api:r2_status_dashboard' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
-                            <i class="bi bi-speedometer2 me-1"></i> {% trans "Status" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-speedometer2"/></svg> {% trans "Status" %}
                         </a>
                     </div>
                 </div>
@@ -90,7 +90,7 @@
                 } else {
                     container.innerHTML = `
                         <div class="text-center py-4 border rounded-3 bg-light">
-                            <i class="bi bi-exclamation-triangle text-warning fs-1"></i>
+                            <svg class="bi text-warning fs-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                             <p class="text-muted mt-2 mb-0">${data.error || '{% trans "R2 is not configured" %}'}</p>
                         </div>`;
                 }
@@ -99,7 +99,7 @@
                 console.error('Error fetching R2 storage:', error);
                 container.innerHTML = `
                     <div class="text-center py-4 text-danger">
-                        <i class="bi bi-exclamation-circle fs-1"></i>
+                        <svg class="bi fs-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-circle"/></svg>
                         <p class="mb-0 mt-2">{% trans "Failed to load R2 data" %}</p>
                     </div>`;
             });

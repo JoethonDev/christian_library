@@ -24,7 +24,7 @@
     </div>
     <div class="col-auto">
         <button onclick="window.location.href='{% url 'frontend_api:seo_dashboard' %}'" class="btn btn-white border shadow-sm rounded-pill">
-            <i class="bi bi-arrow-left me-1"></i>{% trans "Back to SEO Dashboard" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-left"/></svg>{% trans "Back to SEO Dashboard" %}
         </button>
     </div>
 </div>
@@ -32,7 +32,7 @@
 <!-- Last Re-indexing Info Card -->
 <div class="card border-0 shadow-sm rounded-4 mb-4" id="last-reindex-card">
     <div class="card-body p-4">
-        <h5 class="fw-bold mb-3"><i class="bi bi-clock-history me-2"></i>{% trans "Last Re-indexing Operation" %}</h5>
+        <h5 class="fw-bold mb-3"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-clock-history"/></svg>{% trans "Last Re-indexing Operation" %}</h5>
         <div id="last-reindex-info" class="text-muted">
             <div class="d-flex align-items-center justify-content-center py-3">
                 <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
@@ -47,7 +47,7 @@
 <!-- Re-indexing Control Panel -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-header bg-dark text-white rounded-top-4 py-3 px-4">
-        <h5 class="mb-0 fw-bold"><i class="bi bi-globe2 me-2"></i>{% trans "Initiate Re-indexing" %}</h5>
+        <h5 class="mb-0 fw-bold"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-globe2"/></svg>{% trans "Initiate Re-indexing" %}</h5>
     </div>
     <div class="card-body p-4">
         <form id="reindex-form">
@@ -60,25 +60,25 @@
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="content_type" id="content-all" value="all" checked>
                         <label class="form-check-label" for="content-all">
-                            <i class="bi bi-collection me-1"></i>{% trans "All Content" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-collection"/></svg>{% trans "All Content" %}
                         </label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="content_type" id="content-video" value="video">
                         <label class="form-check-label" for="content-video">
-                            <i class="bi bi-play-circle me-1"></i>{% trans "Videos Only" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>{% trans "Videos Only" %}
                         </label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="content_type" id="content-audio" value="audio">
                         <label class="form-check-label" for="content-audio">
-                            <i class="bi bi-music-note me-1"></i>{% trans "Audios Only" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>{% trans "Audios Only" %}
                         </label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="content_type" id="content-pdf" value="pdf">
                         <label class="form-check-label" for="content-pdf">
-                            <i class="bi bi-file-pdf me-1"></i>{% trans "PDFs Only" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>{% trans "PDFs Only" %}
                         </label>
                     </div>
                 </div>
@@ -98,7 +98,7 @@
             <!-- Estimated URLs Count -->
             <div class="alert alert-info border-0 rounded-3 mb-4">
                 <div class="d-flex align-items-center">
-                    <i class="bi bi-info-circle fs-4 me-3"></i>
+                    <svg class="bi fs-4 me-3" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
                     <div>
                         <strong>{% trans "Estimated URLs:" %}</strong> <span id="estimated-urls">---</span><br>
                         <small class="text-muted">{% trans "Rate limited to 200 requests/minute to comply with Google API limits" %}</small>
@@ -109,7 +109,7 @@
             <!-- Warning Message -->
             <div class="alert alert-warning border-0 rounded-3 mb-4">
                 <div class="d-flex align-items-start">
-                    <i class="bi bi-exclamation-triangle fs-4 me-3"></i>
+                    <svg class="bi fs-4 me-3" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                     <div>
                         <strong>{% trans "Important:" %}</strong>
                         <ul class="mb-0 mt-2">
@@ -125,7 +125,7 @@
             <!-- Submit Button -->
             <div class="d-grid">
                 <button type="submit" id="start-reindex-btn" class="btn btn-primary btn-lg rounded-pill shadow">
-                    <i class="bi bi-arrow-repeat me-2"></i>{% trans "Start Re-indexing" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Start Re-indexing" %}
                 </button>
             </div>
         </form>
@@ -135,9 +135,9 @@
 <!-- Re-indexing History -->
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-header bg-light rounded-top-4 py-3 px-4 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold"><i class="bi bi-list-ul me-2"></i>{% trans "Re-indexing History" %}</h5>
+        <h5 class="mb-0 fw-bold"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-list-ul"/></svg>{% trans "Re-indexing History" %}</h5>
         <button onclick="loadReindexHistory()" class="btn btn-sm btn-outline-secondary rounded-pill">
-            <i class="bi bi-arrow-clockwise me-1"></i>{% trans "Refresh" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
         </button>
     </div>
     <div class="card-body p-0">
@@ -158,7 +158,7 @@
         <div class="modal-content border-0 shadow-lg rounded-4">
             <div class="modal-header border-0 bg-primary text-white rounded-top-4">
                 <h5 class="modal-title fw-bold">
-                    <i class="bi bi-arrow-repeat me-2"></i>{% trans "Re-indexing in Progress" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Re-indexing in Progress" %}
                 </h5>
             </div>
             <div class="modal-body p-4">
@@ -215,7 +215,7 @@
                 <!-- Time Estimate -->
                 <div class="alert alert-info border-0 rounded-3 mb-3" id="time-remaining-container">
                     <div class="d-flex align-items-center">
-                        <i class="bi bi-clock me-2"></i>
+                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>
                         <span id="time-remaining">{% trans "Calculating..." %}</span>
                     </div>
                 </div>
@@ -237,7 +237,7 @@
             </div>
             <div class="modal-footer border-0">
                 <button type="button" id="cancel-btn" class="btn btn-danger rounded-pill px-4" onclick="cancelReindex()">
-                    <i class="bi bi-x-circle me-1"></i>{% trans "Cancel Task" %}
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>{% trans "Cancel Task" %}
                 </button>
                 <button type="button" class="btn btn-secondary rounded-pill px-4 d-none" id="close-modal-btn" data-bs-dismiss="modal">
                     {% trans "Close" %}
@@ -394,7 +394,7 @@ document.getElementById('reindex-form').addEventListener('submit', function(e) {
             alert('{% trans "Error:" %} ' + data.error);
             document.getElementById('start-reindex-btn').disabled = false;
             document.getElementById('start-reindex-btn').innerHTML = 
-                '<i class="bi bi-arrow-repeat me-2"></i>{% trans "Start Re-indexing" %}';
+                '<svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Start Re-indexing" %}';
         }
     })
     .catch(error => {
@@ -402,7 +402,7 @@ document.getElementById('reindex-form').addEventListener('submit', function(e) {
         alert('{% trans "An error occurred while starting re-indexing" %}');
         document.getElementById('start-reindex-btn').disabled = false;
         document.getElementById('start-reindex-btn').innerHTML = 
-            '<i class="bi bi-arrow-repeat me-2"></i>{% trans "Start Re-indexing" %}';
+            '<svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Start Re-indexing" %}';
     });
 });
 
@@ -488,7 +488,7 @@ function updateStatus() {
                     document.getElementById('time-remaining-container').classList.add('d-none');
                     document.getElementById('start-reindex-btn').disabled = false;
                     document.getElementById('start-reindex-btn').innerHTML = 
-                        '<i class="bi bi-arrow-repeat me-2"></i>{% trans "Start Re-indexing" %}';
+                        '<svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Start Re-indexing" %}';
                     
                     // Show completion message in modal
                     const completionMsg = document.getElementById('completion-message');

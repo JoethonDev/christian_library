@@ -17,16 +17,16 @@
     </div>
     <div class="col-auto d-flex gap-2">
         <a href="{% url 'frontend_api:seo_reindex_page' %}" class="btn btn-success border shadow-sm rounded-pill">
-            <i class="bi bi-arrow-repeat me-1"></i>{% trans "Google Re-indexing" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Google Re-indexing" %}
         </a>
         <button id="refresh-analysis" class="btn btn-white border shadow-sm rounded-pill">
-            <i class="bi bi-arrow-clockwise me-1"></i>{% trans "Refresh" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
         </button>
         <button id="edit-site-seo" class="btn btn-dark shadow-sm rounded-pill" onclick="toggleSiteSEOEditor()">
-            <i class="bi bi-gear me-1"></i>{% trans "Site SEO Settings" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-gear"/></svg>{% trans "Site SEO Settings" %}
         </button>
         <button id="bulk-generate-seo" class="btn btn-primary shadow-sm rounded-pill">
-            <i class="bi bi-magic me-1"></i>{% trans "Auto-Generate SEO" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Auto-Generate SEO" %}
         </button>
     </div>
 </div>
@@ -34,7 +34,7 @@
 <!-- Site SEO Editor (Collapsible) -->
 <div id="site-seo-editor" class="card border-0 shadow-sm rounded-4 mb-4 d-none">
     <div class="card-header bg-dark text-white rounded-top-4 py-3 px-4 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-globe me-2"></i>Global Website & Organization SEO</h6>
+        <h6 class="mb-0 fw-bold"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-globe"/></svg>Global Website & Organization SEO</h6>
         <button class="btn-close btn-close-white" onclick="toggleSiteSEOEditor()"></button>
     </div>
     <div class="card-body p-4">
@@ -73,7 +73,7 @@
             </div>
             <div class="col-12 text-end pt-2">
                 <button class="btn btn-primary rounded-pill px-4" onclick="saveSiteSEO()">
-                    <i class="bi bi-save me-1"></i>Save Site Configuration
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-save"/></svg>Save Site Configuration
                 </button>
             </div>
         </div>
@@ -86,7 +86,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4 text-center">
                 <div class="d-inline-flex align-items-center justify-content-center p-3 bg-success bg-opacity-10 text-success rounded-circle mb-3">
-                    <i class="bi bi-bullseye fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-bullseye"/></svg>
                 </div>
                 <h3 class="fw-bold mb-1">{{ seo_coverage_percent }}%</h3>
                 <div class="text-secondary small fw-bold text-uppercase">{% trans "SEO Coverage" %}</div>
@@ -101,7 +101,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4 text-center">
                 <div class="d-inline-flex align-items-center justify-content-center p-3 bg-primary bg-opacity-10 text-primary rounded-circle mb-3">
-                    <i class="bi bi-collection fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-collection"/></svg>
                 </div>
                 <h3 class="fw-bold mb-1">{{ total_content }}</h3>
                 <div class="text-secondary small fw-bold text-uppercase">{% trans "Total Items" %}</div>
@@ -116,7 +116,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4 text-center">
                 <div class="d-inline-flex align-items-center justify-content-center p-3 bg-warning bg-opacity-10 text-warning rounded-circle mb-3">
-                    <i class="bi bi-star fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-star"/></svg>
                 </div>
                 <h3 class="fw-bold mb-1" id="avg-seo-score">-</h3>
                 <div class="text-secondary small fw-bold text-uppercase">{% trans "Avg Quality Score" %}</div>
@@ -131,7 +131,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body p-4 text-center">
                 <div class="d-inline-flex align-items-center justify-content-center p-3 bg-info bg-opacity-10 text-info rounded-circle mb-3">
-                    <i class="bi bi-code-square fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-code-square"/></svg>
                 </div>
                 <h3 class="fw-bold mb-1" id="structured-data-count">-</h3>
                 <div class="text-secondary small fw-bold text-uppercase">{% trans "Rich Results" %}</div>
@@ -149,7 +149,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-transparent border-0 py-3 px-4">
                 <h6 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-pie-chart me-2 text-primary"></i>{% trans "Optimization by Type" %}
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-pie-chart"/></svg>{% trans "Optimization by Type" %}
                 </h6>
             </div>
             <div class="card-body p-4 d-flex align-items-center justify-content-center">
@@ -165,7 +165,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-transparent border-0 py-3 px-4">
                 <h6 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-tags me-2 text-primary"></i>{% trans "Top Performing Keywords" %}
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-tags"/></svg>{% trans "Top Performing Keywords" %}
                 </h6>
             </div>
             <div class="card-body p-4">
@@ -192,7 +192,7 @@
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-header bg-transparent border-0 py-3 px-4">
         <h6 class="mb-0 fw-bold text-dark">
-            <i class="bi bi-list-check me-2 text-primary"></i>{% trans "Content Analysis" %}
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-list-check"/></svg>{% trans "Content Analysis" %}
         </h6>
     </div>
     <div class="card-body p-0">
@@ -451,10 +451,10 @@ function loadContentAnalysis() {
                 // Show "Fix" button for items with missing SEO (high/medium priority), "View Details" for completed
                 const actionButton = item.priority === 'high' || item.priority === 'medium' 
                     ? `<button class="btn btn-sm btn-warning rounded-pill px-3" onclick="fixSEO('${item.id}')">
-                           <i class="bi bi-magic me-1"></i>{% trans "Fix SEO" %}
+                           <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Fix SEO" %}
                        </button>`
                     : `<button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showSEODetails('${item.id}')">
-                           <i class="bi bi-eye me-1"></i>{% trans "View Details" %}
+                           <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>{% trans "View Details" %}
                        </button>`;
                 
                 const row = `
@@ -468,7 +468,7 @@ function loadContentAnalysis() {
                         <td><span class="fw-bold ${scoreColor}">${item.seo_score}%</span></td>
                         <td><span class="badge ${priorityBadge} border rounded-pill">${priorityText}</span></td>
                         <td>
-                            ${item.issues.slice(0, 2).map(i => `<div class="small text-muted d-flex align-items-center"><i class="bi bi-dot"></i> ${i}</div>`).join('')}
+                            ${item.issues.slice(0, 2).map(i => `<div class="small text-muted d-flex align-items-center"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-dot"/></svg> ${i}</div>`).join('')}
                             ${item.issues.length > 2 ? `<div class="small text-muted fst-italic">+${item.issues.length - 2} more</div>` : ''}
                         </td>
                         <td class="pe-4 text-end">
@@ -544,7 +544,7 @@ function showSEODetails(contentId) {
                     <div class="col-12 text-end">
                         <button class="btn btn-sm btn-white border rounded-pill me-2" onclick="document.getElementById('seo-details-${contentId}').classList.remove('show')">${i18n.cancel}</button>
                         <button class="btn btn-sm btn-primary rounded-pill px-4" onclick="saveSEOData('${contentId}')">
-                            <i class="bi bi-save me-1"></i>${i18n.saveChanges}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-save"/></svg>${i18n.saveChanges}
                         </button>
                     </div>
                 </div>

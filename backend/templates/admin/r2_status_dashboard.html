@@ -11,7 +11,7 @@
     </div>
     <div class="col-auto">
         <button id="refresh-btn" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
-            <i class="bi bi-arrow-clockwise me-2"></i>{% trans "Refresh" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
         </button>
     </div>
 </div>
@@ -22,7 +22,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body text-center p-3">
                 <div class="bg-info bg-opacity-10 text-info rounded-3 p-2 mb-2 d-inline-block">
-                    <i class="bi bi-files fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-files"/></svg>
                 </div>
                 <h4 class="fw-bold mb-1" id="total-items">{{ status_summary.summary.total_items }}</h4>
                 <p class="small text-muted mb-0 text-uppercase fw-medium ls-1">{% trans "Total" %}</p>
@@ -34,7 +34,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body text-center p-3">
                 <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2 mb-2 d-inline-block">
-                    <i class="bi bi-hourglass-split fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-hourglass-split"/></svg>
                 </div>
                 <h4 class="fw-bold mb-1" id="pending-count">{{ status_summary.summary.pending }}</h4>
                 <p class="small text-muted mb-0 text-uppercase fw-medium ls-1">{% trans "Pending" %}</p>
@@ -46,7 +46,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body text-center p-3">
                 <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2 mb-2 d-inline-block">
-                    <i class="bi bi-cloud-arrow-up fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-cloud-arrow-up"/></svg>
                 </div>
                 <h4 class="fw-bold mb-1" id="uploading-count">{{ status_summary.summary.uploading }}</h4>
                 <p class="small text-muted mb-0 text-uppercase fw-medium ls-1">{% trans "Uploading" %}</p>
@@ -58,7 +58,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body text-center p-3">
                 <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 mb-2 d-inline-block">
-                    <i class="bi bi-cloud-check fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-cloud-check"/></svg>
                 </div>
                 <h4 class="fw-bold mb-1" id="completed-count">{{ status_summary.summary.completed }}</h4>
                 <p class="small text-muted mb-0 text-uppercase fw-medium ls-1">{% trans "Synced" %}</p>
@@ -70,7 +70,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body text-center p-3">
                 <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 mb-2 d-inline-block">
-                    <i class="bi bi-cloud-slash fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-cloud-slash"/></svg>
                 </div>
                 <h4 class="fw-bold mb-1" id="failed-count">{{ status_summary.summary.failed }}</h4>
                 <p class="small text-muted mb-0 text-uppercase fw-medium ls-1">{% trans "Failed" %}</p>
@@ -82,7 +82,7 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-body text-center p-3">
                 <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2 mb-2 d-inline-block">
-                    <i class="bi bi-percent fs-4"></i>
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-percent"/></svg>
                 </div>
                 <h4 class="fw-bold mb-1" id="success-rate">{{ status_summary.summary.completion_rate }}%</h4>
                 <p class="small text-muted mb-0 text-uppercase fw-medium ls-1">{% trans "Success Rate" %}</p>
@@ -116,10 +116,10 @@
             </div>
             <div class="col-12 col-md-4 text-md-end">
                 <button id="apply-filters" class="btn btn-primary rounded-pill px-4">
-                    <i class="bi bi-filter me-2"></i>{% trans "Apply" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-filter"/></svg>{% trans "Apply" %}
                 </button>
                 <button id="bulk-retry-selected" class="btn btn-warning rounded-pill px-4 ms-2" disabled>
-                    <i class="bi bi-arrow-repeat me-2"></i>{% trans "Retry Selected" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Retry Selected" %}
                 </button>
             </div>
         </div>
@@ -212,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td class="text-end pe-4">
                     ${item.status === 'failed' || item.status === 'pending' ? 
                         `<button class="btn btn-sm btn-light retry-btn rounded-pill px-3" data-id="${item.id}" data-type="${item.type}">
-                            <i class="bi bi-arrow-repeat me-1"></i> {% trans "Retry" %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg> {% trans "Retry" %}
                         </button>` : 
                         '<span class="text-muted small">{% trans "Finalized" %}</span>'
                     }
@@ -226,9 +226,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function getTypeIcon(type) {
-        if (type === 'video') return '<i class="bi bi-camera-video text-danger fs-5"></i>';
-        if (type === 'audio') return '<i class="bi bi-mic text-warning fs-5"></i>';
-        return '<i class="bi bi-file-text text-info fs-5"></i>';
+        if (type === 'video') return '<svg class="bi text-danger fs-5" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>';
+        if (type === 'audio') return '<svg class="bi text-warning fs-5" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>';
+        return '<svg class="bi text-info fs-5" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>';
     }
     
     function getStatusBadge(status) {

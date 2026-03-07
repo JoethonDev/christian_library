@@ -16,11 +16,13 @@
     {% include "includes/seo_meta.html" with content_item=pdf %}
 {% endblock %}
 
+{% block extra_css %}{% endblock %}
+
 {% block content %}
 <!-- Back Navigation -->
 <div class="mb-3 mb-md-4">
     <a href="{% url 'frontend_api:pdfs' %}" class="btn back-button rounded-pill px-3 px-md-4 py-2 smooth-transition">
-        <i class="bi bi-arrow-left me-1 me-md-2" style="font-size: 1rem;"></i>
+        <svg class="bi me-1 me-md-2" style="font-size: 1rem;" aria-hidden="true" focusable="false"><use href="#bi-arrow-left"/></svg>
         <span class="d-none d-sm-inline">{% trans "Back to Digital Library" %}</span>
         <span class="d-inline d-sm-none">{% trans "Back" %}</span>
     </a>
@@ -46,28 +48,28 @@
         <div class="d-flex flex-wrap gap-3 mb-4">
             {% if pdf.pdfmeta.page_count %}
             <div class="d-flex align-items-center metadata-text">
-                <i class="bi bi-file-earmark-text text-golden me-2" style="font-size: 1.1rem;"></i>
+                <svg class="bi text-golden me-2" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-text"/></svg>
                 <span class="body-font fw-medium">{{ pdf.pdfmeta.page_count }} {% trans "pages" %}</span>
             </div>
             {% endif %}
             
             {% if pdf.pdfmeta.get_safe_file_size %}
             <div class="d-flex align-items-center metadata-text">
-                <i class="bi bi-hdd text-golden me-2" style="font-size: 1.1rem;"></i>
+                <svg class="bi text-golden me-2" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
                 <span class="body-font fw-medium">{{ pdf.pdfmeta.get_safe_file_size|filesizeformat }}</span>
             </div>
             {% endif %}
             
             {% if pdf.created_at %}
             <div class="d-flex align-items-center metadata-text">
-                <i class="bi bi-calendar3 text-golden me-2" style="font-size: 1.1rem;"></i>
+                <svg class="bi text-golden me-2" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-calendar3"/></svg>
                 <span class="body-font fw-medium">{{ pdf.created_at|date:"M d, Y" }}</span>
             </div>
             {% endif %}
             
             {% if pdf.tags.exists %}
             <div class="d-flex align-items-center metadata-text flex-wrap">
-                <i class="bi bi-tags text-golden me-2" style="font-size: 1.1rem;"></i>
+                <svg class="bi text-golden me-2" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-tags"/></svg>
                 <span class="body-font fw-medium">
                     {% for tag in pdf.tags.all %}
                         {% if LANGUAGE_CODE == 'ar' %}
@@ -88,7 +90,7 @@
             <a href="{{ pdf.pdfmeta.get_direct_download_url }}" 
                class="btn btn-primary rounded-pill px-4 py-2 touch-target smooth-transition" 
                download>
-                <i class="bi bi-download me-2" style="font-size: 1.1rem;"></i>{% trans "Download" %}
+                <svg class="bi me-2" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>{% trans "Download" %}
             </a>
         </div>
         {% else %}
@@ -105,18 +107,33 @@
         <div class="card card-coptic player-container">
             <div class="card-header-coptic d-none d-md-block">
                 <h4 class="heading-font text-white mb-0 section-title">
-                    <i class="bi bi-file-pdf me-2" style="font-size: 1.25rem;"></i>{% trans "Document Viewer" %}
+                    <svg class="bi me-2" style="font-size: 1.25rem;" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>{% trans "Document Viewer" %}
                 </h4>
             </div>
             <div class="card-body p-0">
                 <div class="pdf-viewer-wrapper">
-                    <div hx-get="{% url 'frontend_api:pdf_player' pdf.id %}" hx-trigger="load" class="h-100">
-                        <div class="d-flex align-items-center justify-content-center loading-overlay" style="min-height: 500px; background: rgba(248, 249, 250, 0.98);">
-                            <div class="text-center px-3">
-                                <div class="spinner-border text-maroon mb-3" style="width: 3rem; height: 3rem;"></div>
-                                <h5 class="heading-font text-maroon mb-2" style="font-size: 1.15rem;">{% trans "Loading PDF viewer..." %}</h5>
-                                <p class="body-font text-muted mb-0" style="font-size: 0.95rem;">{% trans "Please wait while we prepare your document" %}</p>
+                    <!-- Click-to-load: PDF.js (425 KB) + worker (1 MB) load only on demand -->
+                    <div id="pdf-reader-trigger"
+                         class="d-flex align-items-center justify-content-center"
+                         style="min-height: 520px; background: linear-gradient(135deg, rgba(248,249,250,0.97) 0%, rgba(245,222,179,0.18) 100%);">
+                        <div class="text-center px-4">
+                            <div class="mb-4" aria-hidden="true">
+                                <svg class="bi" style="font-size: 5rem; color: rgba(139,0,0,0.75);" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-pdf"/></svg>
                             </div>
+                            <h3 class="heading-font fw-bold mb-3" style="color: #8B0000; font-size: 1.35rem;">{% trans "Document Ready" %}</h3>
+                            <p class="text-muted mb-4" style="font-size: 0.9rem; max-width: 280px; margin: 0 auto;">{% trans "Click to open the interactive PDF reader" %}</p>
+                            <button type="button"
+                                    hx-get="{% url 'frontend_api:pdf_player' pdf.id %}"
+                                    hx-trigger="click"
+                                    hx-target="#pdf-reader-trigger"
+                                    hx-swap="outerHTML"
+                                    class="btn btn-primary rounded-pill px-5 py-3 fw-bold"
+                                    style="background: linear-gradient(135deg, #8B0000, #B22222); border: none; box-shadow: 0 4px 16px rgba(139,0,0,0.25); font-size: 1rem;">
+                                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-book"/></svg>{% trans "Open Reader" %}
+                                <span class="htmx-indicator ms-2">
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                </span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -134,7 +151,7 @@
                 {% if pdf.summary %}
                 <div class="mb-4 mb-md-5">
                     <h4 class="heading-font text-maroon mb-3 fw-bold section-title">
-                        <i class="bi bi-card-text text-golden me-2" style="font-size: 1.25rem;"></i>{% trans "Summary" %}
+                        <svg class="bi text-golden me-2" style="font-size: 1.25rem;" aria-hidden="true" focusable="false"><use href="#bi-card-text"/></svg>{% trans "Summary" %}
                     </h4>
                     <div class="p-4 rounded-3" style="background: rgba(221, 153, 51, 0.08); border-left: 4px solid var(--color-golden-ochre);">
                         <p class="body-font mb-0 lh-lg" style="font-size: 1.05rem; color: #555;">{{ pdf.summary|linebreaks }}</p>
@@ -145,7 +162,7 @@
                 {% if pdf.table_of_contents %}
                 <div>
                     <h4 class="heading-font text-maroon mb-3 fw-bold section-title">
-                        <i class="bi bi-list-ul text-golden me-2" style="font-size: 1.25rem;"></i>{% trans "Table of Contents" %}
+                        <svg class="bi text-golden me-2" style="font-size: 1.25rem;" aria-hidden="true" focusable="false"><use href="#bi-list-ul"/></svg>{% trans "Table of Contents" %}
                     </h4>
                     <div class="p-4 rounded-3" style="background: rgba(128, 0, 0, 0.06); border-left: 4px solid var(--color-maroon);">
                         <div class="body-font mb-0 lh-lg" style="font-size: 1.05rem; color: #555;">{{ pdf.table_of_contents|linebreaks }}</div>
@@ -164,7 +181,7 @@
     <a href="{{ pdf.pdfmeta.get_direct_download_url }}" 
        class="btn btn-primary w-100 rounded-pill py-3 touch-target smooth-transition" 
        download>
-        <i class="bi bi-download me-2" style="font-size: 1.2rem;"></i>
+        <svg class="bi me-2" style="font-size: 1.2rem;" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>
         <span class="fw-bold">{% trans "Download PDF" %}</span>
     </a>
 </div>
@@ -173,7 +190,7 @@
 
 {% block extra_js %}
 <!-- Analytics Tracking -->
-<script src="{% static 'js/analytics-tracking.js' %}"></script>
+<script src="{% static 'js/analytics-tracking.js' %}" defer></script>
 <div data-analytics-track 
      data-content-type="pdf" 
      data-content-id="{{ pdf.id }}" 

@@ -11,10 +11,10 @@
     </div>
     <div class="col-auto d-flex gap-2">
         <button id="bulk-generate-ai" class="btn btn-outline-primary rounded-pill px-4" style="display:none;">
-            <i class="bi bi-magic me-2"></i>{% trans "Generate with AI" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Generate with AI" %}
         </button>
         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary text-white rounded-pill px-4 shadow-sm">
-            <i class="bi bi-plus-lg me-2"></i>{% trans "Upload" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-plus-lg"/></svg>{% trans "Upload" %}
         </a>
     </div>
 </div>
@@ -31,7 +31,7 @@
                     
                     <div class="position-relative flex-grow-1">
                         <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted">
-                            <i class="bi bi-search"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
                         </span>
                         <input type="search" name="q" class="form-control rounded-pill ps-5 bg-light border-0" 
                                placeholder="{% trans 'Search content by title, description, or ID...' %}" 
@@ -51,11 +51,11 @@
             <div class="col-lg-4 text-end">
                 <div class="btn-group">
                     <button class="btn btn-light rounded-pill px-3" onclick="window.print()" title="{% trans 'Print' %}">
-                        <i class="bi bi-printer"></i>
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-printer"/></svg>
                     </button>
                     <!-- Future Export Feature -->
                     <!-- <button class="btn btn-light rounded-pill px-3 ms-2" title="{% trans 'Export' %}">
-                        <i class="bi bi-download"></i>
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>
                     </button> -->
                 </div>
             </div>
@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const selected = document.querySelectorAll('input[name="content_select"]:checked').length;
         if (selected > 0) {
             bulkBtn.style.display = 'block';
-            bulkBtn.innerHTML = `<i class="bi bi-magic me-2"></i>{% trans "Generate AI for" %} ${selected} {% trans "items" %}`;
+            bulkBtn.innerHTML = `<svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Generate AI for" %} ${selected} {% trans "items" %}`;
         } else {
             bulkBtn.style.display = 'none';
         }

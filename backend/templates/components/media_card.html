@@ -10,11 +10,11 @@
             {% else %}
                 <div class="d-flex align-items-center justify-content-center h-100" style="background: var(--color-off-white);">
                     {% if item.content_type == 'video' %}
-                        <i class="bi bi-play-circle text-maroon" style="font-size: 2.5rem;"></i>
+                        <svg class="bi text-maroon" style="font-size: 2.5rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                     {% elif item.content_type == 'audio' %}
-                        <i class="bi bi-music-note-beamed text-golden" style="font-size: 2.5rem;"></i>
+                        <svg class="bi text-golden" style="font-size: 2.5rem;" aria-hidden="true" focusable="false"><use href="#bi-music-note-beamed"/></svg>
                     {% else %}
-                        <i class="bi bi-journal-bookmark text-maroon" style="font-size: 2.5rem;"></i>
+                        <svg class="bi text-maroon" style="font-size: 2.5rem;" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark"/></svg>
                     {% endif %}
                 </div>
             {% endif %}
@@ -27,9 +27,9 @@
                     {% elif item.content_type == 'audio' %}background: var(--color-golden-ochre);
                     {% else %}background: var(--color-maroon);{% endif %}
                     color: white; font-size: 0.75rem; border: 1px solid var(--color-golden-ochre);">
-                    {% if item.content_type == 'video' %}<i class="bi bi-play me-1" style="font-size: 0.75rem;"></i>
-                    {% elif item.content_type == 'audio' %}<i class="bi bi-music-note me-1" style="font-size: 0.75rem;"></i>
-                    {% else %}<i class="bi bi-file-text me-1" style="font-size: 0.75rem;"></i>{% endif %}
+                    {% if item.content_type == 'video' %}<svg class="bi me-1" style="font-size: 0.75rem;" aria-hidden="true" focusable="false"><use href="#bi-play"/></svg>
+                    {% elif item.content_type == 'audio' %}<svg class="bi me-1" style="font-size: 0.75rem;" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>
+                    {% else %}<svg class="bi me-1" style="font-size: 0.75rem;" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>{% endif %}
                     {{ item.get_content_type_display }}
                 </span>
             </div>
@@ -38,7 +38,7 @@
             <div class="position-absolute top-50 start-50 translate-middle play-overlay" style="opacity: 0; transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
                 <div class="d-flex align-items-center justify-content-center sacred-shadow" 
                      style="width: 48px; height: 48px; background: rgba(255, 255, 255, 0.95); border-radius: 50%; border: 2px solid var(--color-golden-ochre);">
-                    <i class="bi bi-play-fill text-maroon" style="font-size: 1.25rem; margin-left: 2px;"></i>
+                    <svg class="bi text-maroon" style="font-size: 1.25rem; margin-left: 2px;" aria-hidden="true" focusable="false"><use href="#bi-play-fill"/></svg>
                 </div>
             </div>
         </div>
@@ -76,11 +76,11 @@
             
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <small class="body-font text-muted" style="font-size: 0.8rem;">
-                    <i class="bi bi-clock me-1 text-golden" style="font-size: 0.8rem;"></i>{{ item.created_at|timesince }} {% trans "ago" %}
+                    <svg class="bi me-1 text-golden" style="font-size: 0.8rem;" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>{{ item.created_at|timesince }} {% trans "ago" %}
                 </small>
                 <a href="{% if item.content_type == 'video' %}{% url 'frontend_api:video_detail' item.id %}{% elif item.content_type == 'audio' %}{% url 'frontend_api:audio_detail' item.id %}{% else %}{% url 'frontend_api:pdf_detail' item.id %}{% endif %}" 
                    class="btn btn-primary rounded-pill px-3 px-md-4 btn-sm stretched-link body-font fw-medium" style="min-height: 36px; font-size: 0.875rem;">
-                    {% trans "View" %} <i class="bi bi-arrow-right ms-1" style="font-size: 0.875rem;"></i>
+                    {% trans "View" %} <svg class="bi ms-1" style="font-size: 0.875rem;" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
                 </a>
             </div>
         </div>

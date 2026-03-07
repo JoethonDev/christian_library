@@ -25,7 +25,7 @@
                 <td class="py-3">
                     <div class="d-flex align-items-center">
                         <div class="rounded p-2 me-3 bg-warning-subtle text-warning">
-                            <i class="bi bi-mic fs-4"></i>
+                            <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
                         </div>
                         <div>
                             <div class="fw-bold text-dark">{{ audio.title_ar }}</div>
@@ -34,12 +34,12 @@
                             {% endif %}
                             {% if not audio.audiometa.has_seo %}
                                 <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "No SEO" %}
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>{% trans "No SEO" %}
                                 </span>
                             {% endif %}
                             {% if not audio.audiometa.has_metadata %}
                                 <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
-                                    <i class="bi bi-info-circle me-1"></i>{% trans "Incomplete" %}
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>{% trans "Incomplete" %}
                                 </span>
                             {% endif %}
                         </div>
@@ -64,7 +64,7 @@
                 <td>
                     {% if audio.audiometa.duration %}
                         <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">
-                            <i class="bi bi-clock me-1"></i>{{ audio.audiometa.duration }}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>{{ audio.audiometa.duration }}
                         </span>
                     {% else %}
                         <span class="text-muted small">-</span>
@@ -108,31 +108,31 @@
                                 title="{% trans 'Auto-Fill SEO' %}"
                                 @click="confirmAutoFill('{{ audio.id }}', '{{ audio.title_ar|escapejs }}')"
                                 :disabled="autoFilling">
-                            <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use :href="autoFilling ? '#bi-hourglass-split' : '#bi-magic'"></use></svg>
                             <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
                         </button>
                         {% endif %}
                         <a href="{% url 'frontend_api:admin_content_detail' audio.id %}" 
                            class="btn btn-sm btn-light" 
                            title="{% trans 'Edit' %}">
-                            <i class="bi bi-pencil"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg>
                         </a>
                         <a href="{% url 'frontend_api:audio_detail' audio.id %}" 
                            class="btn btn-sm btn-light" 
                            title="{% trans 'Preview' %}" target="_blank">
-                            <i class="bi bi-eye"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% if audio.audiometa.r2_original_audio_url %}
                         <a href="{% url 'frontend_api:delete_local_confirm' audio.id %}" 
                            class="btn btn-sm btn-light text-warning" 
                            title="{% trans 'Delete Local Only' %}">
-                            <i class="bi bi-hdd"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
                         </a>
                         {% endif %}
                         <a href="{% url 'frontend_api:content_delete_confirm' audio.id %}" 
                            class="btn btn-sm btn-light text-danger" 
                            title="{% trans 'Delete' %}">
-                            <i class="bi bi-trash"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>
                         </a>
                     </div>
                 </td>
@@ -141,7 +141,7 @@
             <tr>
                 <td colspan="7" class="text-center py-5 text-muted">
                     <div class="mb-3">
-                        <i class="bi bi-mic display-4 text-secondary opacity-50"></i>
+                        <svg class="bi display-4 text-secondary opacity-50" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
                     </div>
                     <h6 class="fw-bold">{% trans "No audio found" %}</h6>
                     <a href="{% url 'frontend_api:upload_content' %}?type=audio" class="btn btn-warning text-white rounded-pill px-4 mt-2">
@@ -163,7 +163,7 @@
                                 hx-get="{% url 'frontend_api:audio_management' %}?page={{ pagination.previous_page_number }}&status={{ filters.status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
                                 hx-target="#audio-table-container"
                                 hx-push-url="true">
-                            <i class="bi bi-chevron-left"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                         </button>
                     </li>
                 {% endif %}
@@ -178,7 +178,7 @@
                                 hx-get="{% url 'frontend_api:audio_management' %}?page={{ pagination.next_page_number }}&status={{ filters.status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
                                 hx-target="#audio-table-container"
                                 hx-push-url="true">
-                            <i class="bi bi-chevron-right"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                         </button>
                     </li>
                 {% endif %}

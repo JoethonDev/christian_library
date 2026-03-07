@@ -13,11 +13,11 @@
 <div class="d-flex align-items-center mb-3 mb-md-5">
     <div class="d-none d-md-inline-flex align-items-center justify-content-center me-3 sacred-shadow" 
          style="width: 48px; height: 48px; background: var(--color-maroon); border-radius: 12px; border: 2px solid var(--color-golden-ochre);">
-        <i class="bi bi-play-circle text-white" style="font-size: 1.5rem;"></i>
+        <svg class="bi text-white" style="font-size: 1.5rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
     </div>
     <div class="flex-grow-1">
         <h2 class="heading-font text-maroon mb-1 fw-bold" style="font-size: clamp(1.5rem, 4vw, 1.875rem);">
-            <i class="bi bi-play-circle me-2 text-golden d-inline d-md-none" style="font-size: 1.25rem;"></i>
+            <svg class="bi me-2 text-golden d-inline d-md-none" style="font-size: 1.25rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
             {% trans "Video Library" %}
         </h2>
         <p class="body-font text-muted mb-0" style="font-size: clamp(0.875rem, 2vw, 1rem);">{% trans "Spiritual teachings and sermons from Bishop Abram" %}</p>
@@ -38,7 +38,7 @@
                            placeholder="{% trans 'Search videos, topics, speakers...' %}"
                            name="search" value="{{ search_query }}"
                            style="border-color: var(--color-golden-ochre); border-radius: 12px; min-height: 44px; font-size: 1rem;">
-                    <i class="bi bi-search position-absolute text-golden" style="left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 1rem;"></i>
+                    <svg class="bi position-absolute text-golden" style="left: 0.75rem; top: 50%; transform: translateY(-50%); font-size: 1rem;" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
                 </div>
             </div>
             <div class="col-12 col-md-6 col-lg-4">
@@ -60,7 +60,7 @@
             </div>
             <div class="col-12 col-lg-2">
                 <button type="submit" class="btn btn-primary w-100" style="min-height: 44px; font-size: 1rem;">
-                    <i class="bi bi-funnel me-2" style="font-size: 1rem;"></i>{% trans "Filter" %}
+                    <svg class="bi me-2" style="font-size: 1rem;" aria-hidden="true" focusable="false"><use href="#bi-funnel"/></svg>{% trans "Filter" %}
                 </button>
                 <div class="text-center p-2 rounded-3 mt-2" style="background: var(--color-golden-ochre-10);">
                     <small class="fw-bold text-golden" style="font-size: 0.9rem;">{{ total_count }}</small><br>
@@ -85,12 +85,12 @@
                 {% if page_obj.has_previous %}
                     <li class="page-item">
                         <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
-                            <i class="bi bi-chevron-double-left"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-double-left"/></svg>
                         </a>
                     </li>
                     <li class="page-item">
                         <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
-                            <i class="bi bi-chevron-left"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                         </a>
                     </li>
                 {% endif %}
@@ -114,12 +114,12 @@
                 {% if page_obj.has_next %}
                     <li class="page-item">
                         <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
-                            <i class="bi bi-chevron-right"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                         </a>
                     </li>
                     <li class="page-item">
                         <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}" style="min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;">
-                            <i class="bi bi-chevron-double-right"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-double-right"/></svg>
                         </a>
                     </li>
                 {% endif %}
@@ -132,7 +132,7 @@
 <!-- Back to Top Button -->
 <div class="text-center mb-3">
     <button class="btn btn-secondary rounded-pill px-3 px-md-4 py-2" onclick="scrollToTop()" style="min-height: 44px; font-size: 1rem;">
-        <i class="bi bi-arrow-up me-2" style="font-size: 1rem;"></i>{% trans "Back to Top" %}
+        <svg class="bi me-2" style="font-size: 1rem;" aria-hidden="true" focusable="false"><use href="#bi-arrow-up"/></svg>{% trans "Back to Top" %}
     </button>
 </div>
 
