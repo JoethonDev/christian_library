@@ -361,7 +361,7 @@
                 {% for message in messages %}
                 <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show border-0 shadow-sm" role="alert">
                     {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="{% trans 'Close' %}"></button>
                 </div>
                 {% endfor %}
             </div>
@@ -384,7 +384,7 @@
             <div class="toast-header border-0">
                 <i class="bi bi-info-circle-fill me-2 text-primary" id="toastIcon"></i>
                 <strong class="me-auto" id="toastTitle">{% trans "Notification" %}</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="{% trans 'Close' %}"></button>
             </div>
             <div class="toast-body" id="toastMessage">
                 <!-- Message goes here -->

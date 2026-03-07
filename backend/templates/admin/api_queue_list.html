@@ -180,9 +180,9 @@
                         </td>
                         <td>
                             {% if item.content_type == 'video' %}
-                                <span class="badge bg-primary rounded-pill"><i class="bi bi-camera-video me-1"></i>Video</span>
+                                <span class="badge bg-primary rounded-pill"><i class="bi bi-camera-video me-1"></i>{% trans "Video" %}</span>
                             {% elif item.content_type == 'audio' %}
-                                <span class="badge bg-info rounded-pill"><i class="bi bi-music-note me-1"></i>Audio</span>
+                                <span class="badge bg-info rounded-pill"><i class="bi bi-music-note me-1"></i>{% trans "Audio" %}</span>
                             {% elif item.content_type == 'pdf' %}
                                 <span class="badge bg-danger rounded-pill"><i class="bi bi-file-pdf me-1"></i>PDF</span>
                             {% endif %}
@@ -192,30 +192,30 @@
                         </td>
                         <td>
                             {% if item.status == 'pending' %}
-                                <span class="badge bg-secondary rounded-pill">Pending</span>
+                                <span class="badge bg-secondary rounded-pill">{% trans "Pending" %}</span>
                             {% elif item.status == 'queued' %}
-                                <span class="badge bg-info rounded-pill">Queued</span>
+                                <span class="badge bg-info rounded-pill">{% trans "Queued" %}</span>
                             {% elif item.status == 'processing' %}
                                 <span class="badge bg-primary rounded-pill">
                                     <span class="spinner-border spinner-border-sm me-1"></span>Processing
                                 </span>
                             {% elif item.status == 'completed' %}
-                                <span class="badge bg-success rounded-pill">Completed</span>
+                                <span class="badge bg-success rounded-pill">{% trans "Completed" %}</span>
                             {% elif item.status == 'failed' %}
-                                <span class="badge bg-danger rounded-pill">Failed</span>
+                                <span class="badge bg-danger rounded-pill">{% trans "Failed" %}</span>
                             {% elif item.status == 'rate_limited' %}
-                                <span class="badge bg-warning text-dark rounded-pill">Rate Limited</span>
+                                <span class="badge bg-warning text-dark rounded-pill">{% trans "Rate Limited" %}</span>
                             {% elif item.status == 'cancelled' %}
-                                <span class="badge bg-dark rounded-pill">Cancelled</span>
+                                <span class="badge bg-dark rounded-pill">{% trans "Cancelled" %}</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if item.queue_status == 'waiting' %}
-                                <span class="badge bg-light text-dark rounded-pill">Waiting</span>
+                                <span class="badge bg-light text-dark rounded-pill">{% trans "Waiting" %}</span>
                             {% elif item.queue_status == 'delayed' %}
-                                <span class="badge bg-warning text-dark rounded-pill">Delayed</span>
+                                <span class="badge bg-warning text-dark rounded-pill">{% trans "Delayed" %}</span>
                             {% elif item.queue_status == 'ready' %}
-                                <span class="badge bg-success rounded-pill">Ready</span>
+                                <span class="badge bg-success rounded-pill">{% trans "Ready" %}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -281,7 +281,7 @@
 
         <!-- Pagination -->
         {% if page_obj.has_other_pages %}
-        <nav aria-label="Page navigation" class="mt-4">
+        <nav aria-label="{% trans 'Page navigation' %}" class="mt-4">
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">

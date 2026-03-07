@@ -92,10 +92,10 @@
                             
                             <span class="badge {% if item.seo_keywords_ar %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1" 
                                   style="width: 20px; height: 20px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center;"
-                                  title="Arabic">AR</span>
+                                  title="{% trans 'Arabic' %}">AR</span>
                             <span class="badge {% if item.seo_keywords_en %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1" 
                                   style="width: 20px; height: 20px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center;"
-                                  title="English">EN</span>
+                                  title="{% trans 'English' %}">EN</span>
                         </div>
                     {% else %}
                         <span class="badge bg-danger-subtle text-danger rounded-pill" title="{% trans 'Missing' %}">

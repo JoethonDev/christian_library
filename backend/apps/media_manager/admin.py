@@ -427,7 +427,10 @@ class ContentItemAdmin(admin.ModelAdmin):
         # Show success message
         messages.success(
             request,
-            _(f'Content item "{obj.get_title()}" has been {action} successfully.')
+            _('Content item "%(title)s" has been %(action)s successfully.') % {
+                'title': obj.get_title(),
+                'action': _(action)
+            }
         )
     
     def seo_status_display(self, obj):

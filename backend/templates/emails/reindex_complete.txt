@@ -1,35 +1,35 @@
-Google Re-indexing Complete - {{ status_text }}
+{% load i18n %}{% trans "Google Re-indexing Complete" %} - {{ status_text }}
 ======================================
 
-Hello {{ user.get_full_name_or_username }},
+{% blocktrans with name=user.get_full_name_or_username %}Hello {{ name }},{% endblocktrans %}
 
-Your Google Search Console re-indexing operation has been completed.
+{% trans "Your Google Search Console re-indexing operation has been completed." %}
 
-Summary
+{% trans "Summary" %}
 -------
-Status: {{ status_text }}
-Content Type: {{ task.content_type|title }}
-Total URLs: {{ task.total_urls }}
-Successful: {{ task.successful_urls }}
-Failed: {{ task.failed_urls }}
-Success Rate: {{ success_rate }}%
-{% if duration %}Duration: {{ duration }}{% endif %}
+{% trans "Status" %}: {{ status_text }}
+{% trans "Content Type" %}: {{ task.content_type|title }}
+{% trans "Total URLs" %}: {{ task.total_urls }}
+{% trans "Successful" %}: {{ task.successful_urls }}
+{% trans "Failed" %}: {{ task.failed_urls }}
+{% trans "Success Rate" %}: {{ success_rate }}%
+{% if duration %}{% blocktrans %}Duration: {{ duration }}{% endblocktrans %}{% endif %}
 
 {% if error_summary %}
-Error Summary
+{% trans "Error Summary" %}
 -------------
 {% for error_type, count in error_summary.items %}
-- {{ error_type }}: {{ count }} occurrence{{ count|pluralize }}
+- {{ error_type }}: {{ count }} {% blocktrans count counter=count %}occurrence{% plural %}occurrences{% endblocktrans %}
 {% endfor %}
 {% endif %}
 
 {% if task.sitemap_included %}
-The sitemap was also pinged to notify Google of the updates.
+{% trans "The sitemap was also pinged to notify Google of the updates." %}
 {% endif %}
 
-View full details in the admin dashboard:
+{% trans "View full details in the admin dashboard:" %}
 {{ site_url }}/dashboard/seo/reindex/history/
 
 ---
-This is an automated notification from Christian Library Admin Panel.
-Initiated at: {{ task.started_at|date:"Y-m-d H:i:s" }} UTC
+{% trans "This is an automated notification from Christian Library Admin Panel." %}
+{% trans "Initiated at:" %} {{ task.started_at|date:"Y-m-d H:i:s" }} UTC

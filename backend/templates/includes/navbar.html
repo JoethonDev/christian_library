@@ -21,19 +21,10 @@
             <!-- Center: Brand Title with 3D Golden Effect -->
             <div class="col-md-6 text-center col-6">
                 <div class="golden-3d-text">
-                    {% get_current_language as LANGUAGE_CODE %}
-                    {% if LANGUAGE_CODE == 'ar' %}
-                        المكتبة
-                    {% else %}
-                        Library
-                    {% endif %}
+                    {% trans "The Library" %}
                 </div>
                 <div class="text-muted golden-subtitle">
-                    {% if LANGUAGE_CODE == 'ar' %}
-                        الحبر الجليل الانبا ابرام مطران الفيوم و رئيس اديرتها
-                    {% else %}
-                        His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of its Monasteries
-                    {% endif %}
+                    {% trans "His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of its Monasteries" %}
                 </div>
             </div>
             
@@ -62,7 +53,7 @@
                                 <li>
                                     <form action="{% url 'set_language' %}" method="post" class="m-0">
                                         {% csrf_token %}
-                                        <input name="next" type="hidden" value="{{ request.get_full_path|slice:'3:' }}" />
+                                        <input name="next" type="hidden" value="/{{ lang_code }}{{ request.path|slice:'3:' }}" />
                                         <input name="language" type="hidden" value="{{ lang_code }}" />
                                         <button type="submit" class="dropdown-item fw-medium py-2 px-3 border-0 bg-transparent w-100 text-start hover-text-secondary" 
                                                 style="color: var(--color-maroon);">
@@ -143,7 +134,7 @@
                                 <li>
                                     <form action="{% url 'set_language' %}" method="post" class="m-0">
                                         {% csrf_token %}
-                                        <input name="next" type="hidden" value="{{ request.get_full_path|slice:'3:' }}" />
+                                        <input name="next" type="hidden" value="/{{ lang_code }}{{ request.path|slice:'3:' }}" />
                                         <input name="language" type="hidden" value="{{ lang_code }}" />
                                         <button type="submit" class="dropdown-item">
                                             {% if lang_code == 'ar' %}العربية{% else %}English{% endif %}

@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
             resultsDiv.innerHTML = html;
             statsDiv.innerHTML = `
                 <i class="bi bi-info-circle me-1"></i>
-                Found ${data.total_results} results with threshold ${data.threshold}
+                {% trans "Found" %} ${data.total_results} {% trans "results with threshold" %} ${data.threshold}
             `;
         },
         

@@ -332,11 +332,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.showToast) window.showToast(`{% trans "Retry triggered for" %} ${type}`, 'success');
                 setTimeout(() => window.location.reload(), 1500);
             } else {
-                if (window.showToast) window.showToast(`Error: ${data.error}`, 'danger');
+                if (window.showToast) window.showToast(`{% trans "Error" %}: ${data.error}`, 'danger');
             }
         })
         .catch(error => {
-            if (window.showToast) window.showToast(`Network error: ${error.message}`, 'danger');
+            if (window.showToast) window.showToast(`{% trans "Network error" %}: ${error.message}`, 'danger');
         })
         .finally(() => {
             button.innerHTML = originalText;
@@ -364,11 +364,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (window.showToast) window.showToast(`${data.results.success_count} {% trans "uploads retried successfully" %}`, 'success');
                 setTimeout(() => window.location.reload(), 2000);
             } else {
-                if (window.showToast) window.showToast(`Error: ${data.error}`, 'danger');
+                if (window.showToast) window.showToast(`{% trans "Error" %}: ${data.error}`, 'danger');
             }
         })
         .catch(error => {
-             if (window.showToast) window.showToast(`Network error: ${error.message}`, 'danger');
+             if (window.showToast) window.showToast(`{% trans "Network error" %}: ${error.message}`, 'danger');
         })
         .finally(() => {
             bulkBtn.innerHTML = originalText;

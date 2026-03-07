@@ -237,7 +237,7 @@ def content_delete_confirm(request, content_id):
         messages.error(request, _("Content not found"))
         return redirect('frontend_api:admin_content_list')
     except Exception as e:
-        messages.error(request, f"Error processing delete request: {str(e)}")
+        messages.error(request, _("Error processing delete request: %(error)s") % {"error": str(e)})
         return redirect('frontend_api:admin_content_detail', content_id=content_id)
 
 
@@ -291,7 +291,7 @@ def delete_local_confirm(request, content_id):
         messages.error(request, _("Content not found"))
         return redirect('frontend_api:admin_content_list')
     except Exception as e:
-        messages.error(request, f"Error processing request: {str(e)}")
+        messages.error(request, _("Error processing request: %(error)s") % {"error": str(e)})
         return redirect('frontend_api:admin_content_list')
 
 
@@ -308,7 +308,7 @@ def upload_content(request):
 def handle_content_upload(request):
     """Handle content upload using existing service"""
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'POST method required'})
+        return JsonResponse({'success': False, 'error': _('POST method required')})
     
     try:
         upload_service = MediaUploadService()
@@ -316,7 +316,7 @@ def handle_content_upload(request):
         # Process upload using existing service
         file_obj = request.FILES.get('file')
         if not file_obj:
-            return JsonResponse({'success': False, 'error': 'No file provided'})
+            return JsonResponse({'success': False, 'error': _('No file provided')})
         
         # Get document file if provided
         document_file = request.FILES.get('document')
@@ -367,12 +367,12 @@ def handle_content_upload(request):
             return JsonResponse({
                 'success': True,
                 'content_id': str(result['content_item'].id),
-                'message': 'Content uploaded successfully'
+                'message': _('Content uploaded successfully')
             })
         else:
             return JsonResponse({
                 'success': False,
-                'error': result.get('error', 'Upload failed')
+                'error': result.get('error', _('Upload failed'))
             })
             
     except Exception as e:
@@ -384,12 +384,12 @@ def handle_content_upload(request):
 def generate_content_metadata(request):
     """Generate content metadata using Gemini AI"""
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'POST method required'})
+        return JsonResponse({'success': False, 'error': _('POST method required')})
     
     try:
         content_id = request.POST.get('content_id')
         if not content_id:
-            return JsonResponse({'success': False, 'error': 'Content ID required'})
+            return JsonResponse({'success': False, 'error': _('Content ID required')})
         
         # Get content item
         content = admin_service.get_content_detail(content_id)
@@ -404,13 +404,13 @@ def generate_content_metadata(request):
             
             return JsonResponse({
                 'success': True,
-                'message': 'Metadata generated successfully',
+                'message': _('Metadata generated successfully'),
                 'metadata': result['metadata']
             })
         else:
             return JsonResponse({
                 'success': False,
-                'error': result.get('error', 'Metadata generation failed')
+                'error': result.get('error', _('Metadata generation failed'))
             })
             
     except Exception as e:
@@ -612,7 +612,7 @@ def api_toggle_content_status(request):
         
         # Handle single operation
         if not content_id:
-            return JsonResponse({'success': False, 'error': 'Content ID required'})
+            return JsonResponse({'success': False, 'error': _('Content ID required')})
         
         # Toggle status using optimized service
         success, message = admin_service.toggle_content_status(content_id)
@@ -635,7 +635,7 @@ def api_toggle_content_status(request):
         })
         
     except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Invalid JSON'})
+        return JsonResponse({'success': False, 'error': _('Invalid JSON')})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
@@ -651,7 +651,7 @@ def api_bulk_generate_seo(request):
         content_ids = data.get('content_ids', [])
         
         if not content_ids:
-            return JsonResponse({'success': False, 'error': 'No content IDs provided'})
+            return JsonResponse({'success': False, 'error': _('No content IDs provided')})
         
         # Process each content item
         results = []
@@ -675,7 +675,10 @@ def api_bulk_generate_seo(request):
         
         return JsonResponse({
             'success': True,
-            'message': f'SEO metadata generated for {success_count}/{len(content_ids)} items',
+            'message': _('SEO metadata generated for %(success)s/%(total)s items') % {
+                'success': success_count,
+                'total': len(content_ids)
+            },
             'results': results
         })
         
@@ -694,18 +697,18 @@ def api_bulk_toggle_status(request):
         target_status = data.get('status', True)  # True for active, False for inactive
         
         if not content_ids:
-            return JsonResponse({'success': False, 'error': 'No content IDs provided'})
+            return JsonResponse({'success': False, 'error': _('No content IDs provided')})
         
         # Bulk update using single query
         updated_count = ContentItem.objects.filter(
             id__in=content_ids
         ).update(is_active=target_status)
         
-        status_text = "active" if target_status else "inactive"
+        status_text = _("active") if target_status else _("inactive")
         
         return JsonResponse({
             'success': True,
-            'message': f'{updated_count} items set to {status_text}',
+            'message': _('%(count)s items set to %(status)s') % {'count': updated_count, 'status': status_text},
             'updated_count': updated_count
         })
         
@@ -723,7 +726,7 @@ def api_bulk_delete(request):
         content_ids = data.get('content_ids', [])
         
         if not content_ids:
-            return JsonResponse({'success': False, 'error': 'No content IDs provided'})
+            return JsonResponse({'success': False, 'error': _('No content IDs provided')})
         
         # Use processing service for proper deletion
         processing_service = MediaProcessingService()
@@ -743,7 +746,7 @@ def api_bulk_delete(request):
                 results.append({
                     'id': content_id,
                     'success': False,
-                    'message': 'Content not found'
+                    'message': _('Content not found')
                 })
             except Exception as e:
                 results.append({
@@ -756,7 +759,10 @@ def api_bulk_delete(request):
         
         return JsonResponse({
             'success': True,
-            'message': f'{success_count}/{len(content_ids)} items deleted successfully',
+            'message': _('%(success)s/%(total)s items deleted successfully') % {
+                'success': success_count,
+                'total': len(content_ids)
+            },
             'results': results
         })
         
@@ -768,12 +774,12 @@ def api_bulk_delete(request):
 def generate_metadata_from_file(request):
     """Generate metadata from uploaded file (before content creation)"""
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'POST method required'})
+        return JsonResponse({'success': False, 'error': _('POST method required')})
     
     try:
         file_obj = request.FILES.get('file')
         if not file_obj:
-            return JsonResponse({'success': False, 'error': 'File required'})
+            return JsonResponse({'success': False, 'error': _('File required')})
         
         # Get content type from file or request
         content_type = request.POST.get('content_type', '')
@@ -787,12 +793,12 @@ def generate_metadata_from_file(request):
             elif file_extension in ['pdf']:
                 content_type = 'pdf'
             else:
-                return JsonResponse({'success': False, 'error': 'Unsupported file type'})
+                return JsonResponse({'success': False, 'error': _('Unsupported file type')})
         
         # Use Gemini service to generate metadata from file
         gemini_service = get_gemini_service()
         if not gemini_service.is_available():
-            return JsonResponse({'success': False, 'error': 'AI service not available'})
+            return JsonResponse({'success': False, 'error': _('AI service not available')})
         
         # Save file temporarily for processing
         import tempfile
@@ -813,7 +819,7 @@ def generate_metadata_from_file(request):
                     'metadata': metadata
                 })
             else:
-                error_msg = metadata.get('error', 'Failed to generate metadata') if isinstance(metadata, dict) else 'Failed to generate metadata'
+                error_msg = metadata.get('error', _('Failed to generate metadata')) if isinstance(metadata, dict) else _('Failed to generate metadata')
                 return JsonResponse({'success': False, 'error': error_msg})
                 
         finally:
@@ -841,7 +847,7 @@ def get_r2_storage_usage(request):
         if not request.user.is_staff:
             return JsonResponse({
                 'success': False,
-                'error': 'Permission denied. Staff access required.'
+                'error': _('Permission denied. Staff access required.')
             }, status=403)
         
         # Get R2 storage service
@@ -874,7 +880,7 @@ def r2_status_dashboard(request):
     Provides retry functionality and bulk operations for failed uploads.
     """
     if not request.user.is_staff:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'error': _('Permission denied')}, status=403)
     
     try:
         from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta
@@ -1006,14 +1012,14 @@ def retry_r2_upload(request, content_type, meta_id):
         meta_id: ID of the meta object (VideoMeta, AudioMeta, or PdfMeta)
     """
     if not request.user.is_staff:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'error': _('Permission denied')}, status=403)
     
     try:
         from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
         
         # Validate content type
         if content_type not in ['video', 'audio', 'pdf']:
-            return JsonResponse({'error': 'Invalid content type'}, status=400)
+            return JsonResponse({'error': _('Invalid content type')}, status=400)
         
         # Get the meta object and trigger appropriate R2 upload task
         task_id = None
@@ -1049,7 +1055,7 @@ def retry_r2_upload(request, content_type, meta_id):
         
         return JsonResponse({
             'success': True,
-            'message': f'R2 upload retry triggered for {content_type}',
+            'message': _('R2 upload retry triggered for %(type)s') % {'type': content_type},
             'task_id': task_id
         })
         
@@ -1066,7 +1072,7 @@ def bulk_retry_r2_uploads(request):
     Expects JSON payload with list of items to retry.
     """
     if not request.user.is_staff:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'error': _('Permission denied')}, status=403)
     
     try:
         import json
@@ -1077,7 +1083,7 @@ def bulk_retry_r2_uploads(request):
         items = data.get('items', [])
         
         if not items:
-            return JsonResponse({'error': 'No items specified'}, status=400)
+            return JsonResponse({'error': _('No items specified')}, status=400)
         
         results = {
             'success_count': 0,
@@ -1119,7 +1125,12 @@ def bulk_retry_r2_uploads(request):
                     results['task_ids'].append(task_result.id)
                     
                 else:
-                    results['errors'].append(f"Invalid content type for item {meta_id}: {content_type}")
+                    results['errors'].append(
+                        _('Invalid content type for item %(id)s: %(type)s') % {
+                            'id': meta_id,
+                            'type': content_type
+                        }
+                    )
                     results['error_count'] += 1
                     continue
                 
@@ -1135,7 +1146,7 @@ def bulk_retry_r2_uploads(request):
         
         return JsonResponse({
             'success': True,
-            'message': f'Triggered {results["success_count"]} R2 upload retries',
+            'message': _('Triggered %(count)s R2 upload retries') % {'count': results["success_count"]},
             'results': results
         })
         
@@ -1150,7 +1161,7 @@ def get_r2_sync_status(request):
     Get detailed R2 sync status statistics for monitoring dashboard.
     """
     if not request.user.is_staff:
-        return JsonResponse({'error': 'Permission denied'}, status=403)
+        return JsonResponse({'error': _('Permission denied')}, status=403)
     
     try:
         status_data = get_r2_sync_status_data()
@@ -1240,19 +1251,19 @@ def api_auto_fill_metadata(request):
             
             return JsonResponse({
                 'success': True,
-                'message': f'SEO generation started for {success_count} item(s)',
+                'message': _('SEO generation started for %(count)s item(s)') % {'count': success_count},
                 'task_ids': task_ids
             })
         
         # Handle single operation
         if not content_id:
-            return JsonResponse({'success': False, 'error': 'No content ID provided'})
+            return JsonResponse({'success': False, 'error': _('No content ID provided')})
         
         # Get the content item
         try:
             content = ContentItem.objects.get(id=content_id)
         except ContentItem.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Content not found'})
+            return JsonResponse({'success': False, 'error': _('Content not found')})
         
         # Import the task
         from apps.media_manager.tasks import generate_seo_metadata_task
@@ -1264,7 +1275,7 @@ def api_auto_fill_metadata(request):
         
         return JsonResponse({
             'success': True,
-            'message': 'Auto-fill started. SEO metadata will be generated in the background.',
+            'message': _('Auto-fill started. SEO metadata will be generated in the background.'),
             'task_id': task.id
         })
         
@@ -1305,20 +1316,20 @@ def _determine_content_type(file_obj, content_type_param):
     elif file_extension in ['pdf']:
         return 'pdf', None
     else:
-        return None, 'Unsupported file type'
+        return None, _('Unsupported file type')
 
 
 def generate_metadata_only(request):
     """Generate metadata only from uploaded file (new separated endpoint)"""
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'POST method required'})
+        return JsonResponse({'success': False, 'error': _('POST method required')})
     
     try:
         from core.services.gemini_metadata_service import get_gemini_metadata_service
         
         file_obj = request.FILES.get('file')
         if not file_obj:
-            return JsonResponse({'success': False, 'error': 'File required'})
+            return JsonResponse({'success': False, 'error': _('File required')})
         
         # Determine content type
         content_type, error = _determine_content_type(file_obj, request.POST.get('content_type', ''))
@@ -1328,7 +1339,7 @@ def generate_metadata_only(request):
         # Use Gemini metadata service
         metadata_service = get_gemini_metadata_service()
         if not metadata_service.is_available():
-            return JsonResponse({'success': False, 'error': 'AI service not available'})
+            return JsonResponse({'success': False, 'error': _('AI service not available')})
         
         # Save file temporarily for processing
         temp_file_path = _save_uploaded_file_temporarily(file_obj)
@@ -1343,7 +1354,7 @@ def generate_metadata_only(request):
                     'metadata': metadata
                 })
             else:
-                error_msg = metadata.get('error', 'Failed to generate metadata') if isinstance(metadata, dict) else 'Failed to generate metadata'
+                error_msg = metadata.get('error', _('Failed to generate metadata')) if isinstance(metadata, dict) else _('Failed to generate metadata')
                 return JsonResponse({'success': False, 'error': error_msg})
                 
         finally:
@@ -1356,14 +1367,14 @@ def generate_metadata_only(request):
 def generate_seo_only(request):
     """Generate SEO metadata only from uploaded file (new separated endpoint)"""
     if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'POST method required'})
+        return JsonResponse({'success': False, 'error': _('POST method required')})
     
     try:
         from core.services.gemini_seo_service import get_gemini_seo_service
         
         file_obj = request.FILES.get('file')
         if not file_obj:
-            return JsonResponse({'success': False, 'error': 'File required'})
+            return JsonResponse({'success': False, 'error': _('File required')})
         
         # Determine content type
         content_type, error = _determine_content_type(file_obj, request.POST.get('content_type', ''))
@@ -1373,7 +1384,7 @@ def generate_seo_only(request):
         # Use Gemini SEO service
         seo_service = get_gemini_seo_service()
         if not seo_service.is_available():
-            return JsonResponse({'success': False, 'error': 'AI service not available'})
+            return JsonResponse({'success': False, 'error': _('AI service not available')})
         
         # Save file temporarily for processing
         temp_file_path = _save_uploaded_file_temporarily(file_obj)
@@ -1388,7 +1399,7 @@ def generate_seo_only(request):
                     'seo': seo_data
                 })
             else:
-                error_msg = seo_data.get('error', 'Failed to generate SEO metadata') if isinstance(seo_data, dict) else 'Failed to generate SEO metadata'
+                error_msg = seo_data.get('error', _('Failed to generate SEO metadata')) if isinstance(seo_data, dict) else _('Failed to generate SEO metadata')
                 return JsonResponse({'success': False, 'error': error_msg})
                 
         finally:
@@ -1441,11 +1452,11 @@ def api_content_seo(request, content_id):
                         # Validate it's valid JSON and store as dict
                         content.structured_data = json.loads(structured_data)
                     except json.JSONDecodeError:
-                        return JsonResponse({'success': False, 'error': 'Invalid JSON in structured data'})
+                        return JsonResponse({'success': False, 'error': _('Invalid JSON in structured data')})
                 elif isinstance(structured_data, dict):
                     content.structured_data = structured_data
                 else:
-                    return JsonResponse({'success': False, 'error': 'Invalid format for structured data'})
+                    return JsonResponse({'success': False, 'error': _('Invalid format for structured data')})
             else:
                 content.structured_data = {}
             
@@ -1453,11 +1464,11 @@ def api_content_seo(request, content_id):
             
             return JsonResponse({
                 'success': True,
-                'message': 'SEO data updated successfully'
+                'message': _('SEO data updated successfully')
             })
         
         else:
-            return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+            return JsonResponse({'success': False, 'error': _('Method not allowed')}, status=405)
             
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
@@ -1827,7 +1838,7 @@ def update_search_sensitivity(request):
         if not mode:
             return JsonResponse({
                 'success': False,
-                'error': 'Mode is required'
+                'error': _('Mode is required')
             }, status=400)
         
         # Update settings with audit logging
@@ -1853,7 +1864,7 @@ def update_search_sensitivity(request):
     except json.JSONDecodeError:
         return JsonResponse({
             'success': False,
-            'error': 'Invalid JSON data'
+            'error': _('Invalid JSON data')
         }, status=400)
     except Exception as e:
         logger.error(f"Error updating search sensitivity: {str(e)}", exc_info=True)
@@ -1876,7 +1887,7 @@ def test_search_sensitivity(request):
         if not search_query:
             return JsonResponse({
                 'success': False,
-                'error': 'Search query is required'
+                'error': _('Search query is required')
             }, status=400)
         
         # Get threshold for the test mode
@@ -1887,12 +1898,12 @@ def test_search_sensitivity(request):
                 if not 0.0 <= threshold <= 1.0:
                     return JsonResponse({
                         'success': False,
-                        'error': 'Custom threshold must be between 0.0 and 1.0'
+                        'error': _('Custom threshold must be between 0.0 and 1.0')
                     }, status=400)
             except (ValueError, TypeError):
                 return JsonResponse({
                     'success': False,
-                    'error': 'Invalid custom threshold value'
+                    'error': _('Invalid custom threshold value')
                 }, status=400)
         else:
             threshold = search_service.get_threshold_for_mode(test_mode)
@@ -1920,7 +1931,7 @@ def test_search_sensitivity(request):
     except json.JSONDecodeError:
         return JsonResponse({
             'success': False,
-            'error': 'Invalid JSON data'
+            'error': _('Invalid JSON data')
         }, status=400)
     except Exception as e:
         logger.error(f"Error testing search sensitivity: {str(e)}", exc_info=True)
@@ -1951,7 +1962,7 @@ def initiate_google_reindexing(request):
     if not request.user.is_staff:
         return JsonResponse({
             'success': False,
-            'error': 'Permission denied. Staff access required.'
+            'error': _('Permission denied. Staff access required.')
         }, status=403)
     
     try:
@@ -2004,7 +2015,7 @@ def initiate_google_reindexing(request):
             'task_id': task_id,
             'total_urls': len(urls),
             'estimated_duration': estimated_duration,
-            'message': 'Re-indexing task initiated successfully'
+            'message': _('Re-indexing task initiated successfully')
         })
         
     except Exception as e:
@@ -2027,7 +2038,7 @@ def reindex_status(request, task_id):
     if not request.user.is_staff:
         return JsonResponse({
             'success': False,
-            'error': 'Permission denied. Staff access required.'
+            'error': _('Permission denied. Staff access required.')
         }, status=403)
     
     try:
@@ -2078,7 +2089,7 @@ def cancel_reindex(request, task_id):
     if not request.user.is_staff:
         return JsonResponse({
             'success': False,
-            'error': 'Permission denied. Staff access required.'
+            'error': _('Permission denied. Staff access required.')
         }, status=403)
     
     try:
@@ -2090,7 +2101,7 @@ def cancel_reindex(request, task_id):
         if not cancelled:
             return JsonResponse({
                 'success': False,
-                'error': 'Task cannot be cancelled (already completed or not found)'
+                'error': _('Task cannot be cancelled (already completed or not found)')
             }, status=400)
         
         # Get final status
@@ -2101,7 +2112,7 @@ def cancel_reindex(request, task_id):
         return JsonResponse({
             'success': True,
             'cancelled': True,
-            'message': 'Re-indexing task cancelled successfully',
+            'message': _('Re-indexing task cancelled successfully'),
             'partial_results': {
                 'submitted': status_data.get('submitted', 0),
                 'successful': status_data.get('successful', 0),
@@ -2132,7 +2143,7 @@ def reindex_history(request):
     if not request.user.is_staff:
         return JsonResponse({
             'success': False,
-            'error': 'Permission denied. Staff access required.'
+            'error': _('Permission denied. Staff access required.')
         }, status=403)
     
     try:
@@ -2304,14 +2315,14 @@ def api_queue_promote(request, queue_id):
         
         messages.success(
             request, 
-            f'Queue item "{queue_item.file_name}" has been promoted and will be processed immediately.'
+            _('Queue item "%(file_name)s" has been promoted and will be processed immediately.') % {'file_name': queue_item.file_name}
         )
         
         # Return JSON for AJAX requests
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': True,
-                'message': 'Item promoted successfully'
+                'message': _('Item promoted successfully')
             })
         
         # Redirect for regular requests
@@ -2326,7 +2337,7 @@ def api_queue_promote(request, queue_id):
                 'error': str(e)
             }, status=400)
         
-        messages.error(request, f'Error promoting item: {str(e)}')
+        messages.error(request, _('Error promoting item: %(error)s') % {'error': str(e)})
         return redirect('frontend_api:api_queue_list')
 
 
@@ -2345,14 +2356,14 @@ def api_queue_cancel(request, queue_id):
         
         messages.success(
             request, 
-            f'Queue item "{queue_item.file_name}" has been cancelled.'
+            _('Queue item "%(file_name)s" has been cancelled.') % {'file_name': queue_item.file_name}
         )
         
         # Return JSON for AJAX requests
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': True,
-                'message': 'Item cancelled successfully'
+                'message': _('Item cancelled successfully')
             })
         
         # Redirect for regular requests
@@ -2367,7 +2378,7 @@ def api_queue_cancel(request, queue_id):
                 'error': str(e)
             }, status=400)
         
-        messages.error(request, f'Error cancelling item: {str(e)}')
+        messages.error(request, _('Error cancelling item: %(error)s') % {'error': str(e)})
         return redirect('frontend_api:api_queue_list')
 
 
@@ -2382,7 +2393,7 @@ def document_upload(request, content_id):
     if request.method != 'POST':
         return JsonResponse({
             'success': False,
-            'error': 'Method not allowed'
+            'error': _('Method not allowed')
         }, status=405)
     
     try:
@@ -2397,7 +2408,7 @@ def document_upload(request, content_id):
         if not document_file:
             return JsonResponse({
                 'success': False,
-                'error': 'No document file provided'
+                'error': _('No document file provided')
             }, status=400)
         
         # Validate file extension
@@ -2406,7 +2417,7 @@ def document_upload(request, content_id):
         if file_ext not in ['.doc', '.docx']:
             return JsonResponse({
                 'success': False,
-                'error': 'Only .doc and .docx files are supported'
+                'error': _('Only .doc and .docx files are supported')
             }, status=400)
         
         # Attach document
@@ -2449,7 +2460,7 @@ def document_download(request, content_id):
         content_item = get_object_or_404(ContentItem, id=content_id)
         
         if not content_item.has_supplementary_document:
-            messages.error(request, 'No document attached to this content')
+            messages.error(request, _('No document attached to this content'))
             return redirect('frontend_api:content_detail', content_id=content_id)
         
         # Get file path and create response - FileResponse handles closing
@@ -2468,7 +2479,7 @@ def document_download(request, content_id):
         
     except Exception as e:
         logger.error(f"Error downloading document from {content_id}: {str(e)}", exc_info=True)
-        messages.error(request, 'Error downloading document')
+        messages.error(request, _('Error downloading document'))
         return redirect('frontend_api:content_detail', content_id=content_id)
 
 
@@ -2483,7 +2494,7 @@ def document_delete(request, content_id):
     if request.method not in ['POST', 'DELETE']:
         return JsonResponse({
             'success': False,
-            'error': 'Method not allowed'
+            'error': _('Method not allowed')
         }, status=405)
     
     try:
@@ -2495,7 +2506,7 @@ def document_delete(request, content_id):
         if not content_item.has_supplementary_document:
             return JsonResponse({
                 'success': False,
-                'error': 'No document attached to this content'
+                'error': _('No document attached to this content')
             }, status=404)
         
         # Delete document

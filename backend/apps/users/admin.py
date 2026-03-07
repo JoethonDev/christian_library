@@ -197,7 +197,10 @@ class UserAdmin(BaseUserAdmin):
         
         messages.success(
             request,
-            _(f'User "{obj.username}" has been {action} successfully.')
+            _('User "%(username)s" has been %(action)s successfully.') % {
+                'username': obj.username,
+                'action': _(action)
+            }
         )
     
     def delete_model(self, request, obj):
@@ -215,8 +218,8 @@ class UserAdmin(BaseUserAdmin):
                 logger.info(f"User soft-deleted by {request.user.username}: {username} (had {content_count} content items)")
                 messages.warning(
                     request, 
-                    _(f'User "{username}" has been deactivated because they have {content_count} content items. '
-                      'Content remains available.')
+                    _('User "%(username)s" has been deactivated because they have %(count)s content items. '
+                      'Content remains available.') % {'username': username, 'count': content_count}
                 )
             else:
                 # Hard delete if no content

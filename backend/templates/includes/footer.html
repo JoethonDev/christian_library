@@ -12,20 +12,15 @@
                     </div>
                     <div>
                         <h6 class="mb-0 fw-bold heading-font" style="color: var(--color-golden-ochre);">
-                            {% if LANGUAGE_CODE == 'ar' %}مكتبة الأنبا أبرام{% else %}Bishop Abram Library{% endif %}
+                            {% trans "Bishop Abram Library" %}
                         </h6>
                         <small class="text-light opacity-75">
-                            {% if LANGUAGE_CODE == 'ar' %}التراث الروحي لمطرانية الفيوم{% else %}Spiritual Heritage of Fayoum Diocese{% endif %}
+                            {% trans "Spiritual Heritage of Fayoum Diocese" %}
                         </small>
                     </div>
                 </div>
                 <p class="small text-light opacity-75 body-font">
-                    {% get_current_language as LANGUAGE_CODE %}
-                    {% if LANGUAGE_CODE == 'ar' %}
-                        المكتبة الرقمية الرسمية لنيافة الحبر الجليل الأنبا أبرام مطران الفيوم ورئيس أديرتها، المخصصة لنشر الوسائط الروحية والكتب القبطية الأرثوذكسية.
-                    {% else %}
-                        The official digital library of His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of its monasteries, dedicated to sharing Coptic Orthodox spiritual media and educational resources.
-                    {% endif %}
+                    {% trans "The official digital library of His Grace Bishop Abram, Metropolitan of Fayoum and Abbot of its monasteries, dedicated to sharing Coptic Orthodox spiritual media and educational resources." %}
                 </p>
             </div>
             
@@ -56,17 +51,12 @@
                 </ul>
             </div>
             
-            <!-- Column 3: Contact Information -->
             <div class="col-lg-3 col-md-6 mb-4">
                 <h6 class="fw-bold heading-font mb-3" style="color: var(--color-golden-ochre);">{% trans "Contact" %}</h6>
                 <ul class="list-unstyled body-font">
                     <li class="mb-2 text-light opacity-75">
                         <i class="bi bi-geo-alt me-2 text-golden"></i>
-                        {% if LANGUAGE_CODE == 'ar' %}
-                            دير الملاك غبريال النقلون، الفيوم، مصر
-                        {% else %}
-                            Archangel Gabriel Monastery, Naqlun, Fayoum, Egypt
-                        {% endif %}
+                        {% trans "Archangel Gabriel Monastery, Naqlun, Fayoum, Egypt" %}
                     </li>
 
                     <!-- <li class="mb-2">

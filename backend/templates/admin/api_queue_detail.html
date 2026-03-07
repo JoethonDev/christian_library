@@ -39,9 +39,9 @@
                         <label class="text-muted small mb-1">{% trans "Content Type" %}</label>
                         <p>
                             {% if queue_item.content_type == 'video' %}
-                                <span class="badge bg-primary rounded-pill"><i class="bi bi-camera-video me-1"></i>Video</span>
+                                <span class="badge bg-primary rounded-pill"><i class="bi bi-camera-video me-1"></i>{% trans "Video" %}</span>
                             {% elif queue_item.content_type == 'audio' %}
-                                <span class="badge bg-info rounded-pill"><i class="bi bi-music-note me-1"></i>Audio</span>
+                                <span class="badge bg-info rounded-pill"><i class="bi bi-music-note me-1"></i>{% trans "Audio" %}</span>
                             {% elif queue_item.content_type == 'pdf' %}
                                 <span class="badge bg-danger rounded-pill"><i class="bi bi-file-pdf me-1"></i>PDF</span>
                             {% endif %}
@@ -139,21 +139,21 @@
                     <label class="text-muted small mb-1">{% trans "Current Status" %}</label>
                     <div>
                         {% if queue_item.status == 'pending' %}
-                            <span class="badge bg-secondary rounded-pill">Pending</span>
+                            <span class="badge bg-secondary rounded-pill">{% trans "Pending" %}</span>
                         {% elif queue_item.status == 'queued' %}
-                            <span class="badge bg-info rounded-pill">Queued</span>
+                            <span class="badge bg-info rounded-pill">{% trans "Queued" %}</span>
                         {% elif queue_item.status == 'processing' %}
                             <span class="badge bg-primary rounded-pill">
                                 <span class="spinner-border spinner-border-sm me-1"></span>Processing
                             </span>
                         {% elif queue_item.status == 'completed' %}
-                            <span class="badge bg-success rounded-pill">Completed</span>
+                            <span class="badge bg-success rounded-pill">{% trans "Completed" %}</span>
                         {% elif queue_item.status == 'failed' %}
-                            <span class="badge bg-danger rounded-pill">Failed</span>
+                            <span class="badge bg-danger rounded-pill">{% trans "Failed" %}</span>
                         {% elif queue_item.status == 'rate_limited' %}
-                            <span class="badge bg-warning text-dark rounded-pill">Rate Limited</span>
+                            <span class="badge bg-warning text-dark rounded-pill">{% trans "Rate Limited" %}</span>
                         {% elif queue_item.status == 'cancelled' %}
-                            <span class="badge bg-dark rounded-pill">Cancelled</span>
+                            <span class="badge bg-dark rounded-pill">{% trans "Cancelled" %}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -162,11 +162,11 @@
                     <label class="text-muted small mb-1">{% trans "Queue Status" %}</label>
                     <div>
                         {% if queue_item.queue_status == 'waiting' %}
-                            <span class="badge bg-light text-dark rounded-pill">Waiting</span>
+                            <span class="badge bg-light text-dark rounded-pill">{% trans "Waiting" %}</span>
                         {% elif queue_item.queue_status == 'delayed' %}
-                            <span class="badge bg-warning text-dark rounded-pill">Delayed</span>
+                            <span class="badge bg-warning text-dark rounded-pill">{% trans "Delayed" %}</span>
                         {% elif queue_item.queue_status == 'ready' %}
-                            <span class="badge bg-success rounded-pill">Ready</span>
+                            <span class="badge bg-success rounded-pill">{% trans "Ready" %}</span>
                         {% endif %}
                     </div>
                 </div>

@@ -167,7 +167,7 @@
 
     {% if pagination and pagination.has_pagination %}
     <div class="card-footer bg-white border-0 py-3">
-        <nav aria-label="Page navigation">
+        <nav aria-label="{% trans 'Page navigation' %}">
             <ul class="pagination justify-content-center mb-0">
                 {% if pagination.has_previous %}
                     <li class="page-item">
