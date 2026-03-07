@@ -4,6 +4,7 @@ DRF Serializers for RESTful Upload API.
 import os
 import logging
 from rest_framework import serializers
+from django.utils.translation import gettext_lazy as _
 from django.core.files.uploadedfile import UploadedFile
 from apps.media_manager.models import APIUploadQueue, ContentItem, Tag
 
@@ -78,7 +79,7 @@ class ContentItemUploadSerializer(serializers.Serializer):
         if value:
             existing_tags = Tag.objects.filter(id__in=value, is_active=True)
             if existing_tags.count() != len(value):
-                raise serializers.ValidationError('One or more tags not found or inactive')
+                raise serializers.ValidationError(_('One or more tags not found or inactive'))
         return value
     
     def validate(self, data):

@@ -1,0 +1,28 @@
+/*
+ * icons.css — SVG sprite icon sizing & colour helpers
+ *
+ * Replaces bootstrap-icons font CSS.
+ * Every icon is rendered as:
+ *   <svg class="bi [extra‑classes]" aria-hidden="true" focusable="false">
+ *     <use href="#bi-{name}"/>
+ *   </svg>
+ *
+ * The font-size trick: SVG width/height use "1em" so that a
+ *   style="font-size: 2rem;"
+ * attribute on the <svg> still controls the icon's physical size exactly
+ * like the old <i> tag did.
+ */
+
+svg.bi {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;   /* matches Bootstrap Icons font baseline */
+    fill: currentColor;
+    overflow: visible;
+    flex-shrink: 0;             /* prevents icon from shrinking inside flex rows */
+}
+
+/* Bootstrap Icons uses these size helpers via the 'fs-*' utilities,
+   but when they are applied to the <svg> element the font-size sets
+   the em-based width/height automatically — no extra rules needed.    */

@@ -10,10 +10,10 @@
     </div>
     <div class="col-auto d-flex gap-2">
         <a href="{% url 'frontend_api:r2_status_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
-            <i class="bi bi-cloud-check me-2"></i>{% trans "R2 Sync Status" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-cloud-check"/></svg>{% trans "R2 Sync Status" %}
         </a>
         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
-            <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Content" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-cloud-upload"/></svg>{% trans "Upload Content" %}
         </a>
     </div>
 </div>
@@ -26,7 +26,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2">
-                        <i class="bi bi-collection fs-4"></i>
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-collection"/></svg>
                     </div>
                      <span class="badge bg-success-subtle text-success rounded-pill">+2.5%</span>
                 </div>
@@ -47,11 +47,11 @@
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2">
-                        <i class="bi bi-play-circle fs-4"></i>
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                     </div>
                     {% if processing_videos > 0 %}
                         <span class="badge bg-warning-subtle text-warning rounded-pill">
-                             <i class="bi bi-arrow-clockwise me-1 spin"></i>{{ processing_videos }}
+                             <svg class="bi me-1 spin" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{{ processing_videos }}
                         </span>
                     {% else %}
                         <span class="badge bg-success-subtle text-success rounded-pill">{% trans "Healthy" %}</span>
@@ -73,7 +73,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2">
-                        <i class="bi bi-mic fs-4"></i>
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
                     </div>
                     <span class="badge bg-secondary-subtle text-secondary rounded-pill">{% trans "Stable" %}</span>
                 </div>
@@ -93,7 +93,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="bg-info bg-opacity-10 text-info rounded-3 p-2">
-                        <i class="bi bi-file-text fs-4"></i>
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
                     </div>
                     {% if stats.total_pdfs > 0 %}
                     <span class="badge bg-info-subtle text-info rounded-pill">
@@ -128,7 +128,7 @@
 <div class="card border-0 shadow-sm rounded-4 mb-5" id="search-sensitivity-widget">
     <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-bold text-dark">
-            <i class="bi bi-search me-2 text-primary"></i>
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
             {% trans "Search Sensitivity" %}
         </h5>
         <span class="badge rounded-pill" id="current-mode-badge"></span>
@@ -210,7 +210,7 @@
                                                min="0" max="1" step="0.01" value="0.1"
                                                placeholder="0.0 - 1.0">
                                         <span class="input-group-text">
-                                            <i class="bi bi-sliders"></i>
+                                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-sliders"/></svg>
                                         </span>
                                     </div>
                                     <small class="text-muted d-block mt-1">{% trans "Enter value between 0.0 and 1.0" %}</small>
@@ -229,10 +229,10 @@
                 <!-- Action Buttons -->
                 <div class="d-flex flex-column flex-sm-row gap-2">
                     <button type="button" class="btn btn-primary rounded-pill px-4" id="save-sensitivity-btn">
-                        <i class="bi bi-check-circle me-2"></i>{% trans "Save Settings" %}
+                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>{% trans "Save Settings" %}
                     </button>
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4" id="test-search-btn">
-                        <i class="bi bi-search me-2"></i>{% trans "Test Search" %}
+                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>{% trans "Test Search" %}
                     </button>
                 </div>
             </div>
@@ -241,7 +241,7 @@
             <div class="col-lg-5 mt-4 mt-lg-0">
                 <div class="bg-light rounded-3 p-3 h-100">
                     <h6 class="fw-bold mb-3">
-                        <i class="bi bi-lightning me-1 text-warning"></i>
+                        <svg class="bi me-1 text-warning" aria-hidden="true" focusable="false"><use href="#bi-lightning"/></svg>
                         {% trans "Live Test Search" %}
                     </h6>
                     
@@ -252,7 +252,7 @@
                     
                     <div id="test-results" class="mb-3" style="max-height: 300px; overflow-y: auto;">
                         <div class="text-center text-muted py-4">
-                            <i class="bi bi-search fs-1 d-block mb-2 opacity-25"></i>
+                            <svg class="bi fs-1 d-block mb-2 opacity-25" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
                             <small>{% trans "Enter a query and select a mode to preview results" %}</small>
                         </div>
                     </div>
@@ -270,7 +270,7 @@
         <h5 class="mb-0 fw-bold text-dark">{% trans "Recent Uploads" %}</h5>
         <div class="dropdown">
              <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown">
-                 <i class="bi bi-filter"></i>
+                 <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-filter"/></svg>
              </button>
              <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
                  <li><a class="dropdown-item" href="#">{% trans "All Types" %}</a></li>
@@ -298,11 +298,11 @@
                         <div class="d-flex align-items-center">
                             <div class="rounded p-2 me-3 {% if item.content_type == 'video' %}bg-danger-subtle text-danger{% elif item.content_type == 'audio' %}bg-warning-subtle text-warning{% else %}bg-info-subtle text-info{% endif %}">
                                 {% if item.content_type == 'video' %}
-                                    <i class="bi bi-play-circle fs-5"></i>
+                                    <svg class="bi fs-5" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                                 {% elif item.content_type == 'audio' %}
-                                    <i class="bi bi-mic fs-5"></i>
+                                    <svg class="bi fs-5" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
                                 {% else %}
-                                    <i class="bi bi-file-text fs-5"></i>
+                                    <svg class="bi fs-5" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
                                 {% endif %}
                             </div>
                             <div>
@@ -337,7 +337,7 @@
                     </td>
                     <td class="text-end pe-4">
                         <a href="{% url 'frontend_api:admin_content_detail' item.id %}" class="btn btn-sm btn-light rounded-circle" title="{% trans 'Edit' %}">
-                            <i class="bi bi-three-dots-vertical"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-three-dots-vertical"/></svg>
                         </a>
                     </td>
                 </tr>
@@ -345,7 +345,7 @@
                 <tr>
                     <td colspan="5" class="text-center py-5 text-muted">
                         <div class="mb-3">
-                            <i class="bi bi-inbox display-4 text-secondary opacity-50"></i>
+                            <svg class="bi display-4 text-secondary opacity-50" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
                         </div>
                         <h6 class="fw-bold">{% trans "No activity yet" %}</h6>
                         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-link text-decoration-none">{% trans "Upload your first item" %}</a>
@@ -572,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div class="flex-grow-1 min-w-0">
                                 <div class="fw-semibold text-dark text-truncate mb-1" style="font-size: 0.875rem;">${result.title}</div>
                                 <small class="text-muted text-uppercase" style="font-size: 0.75rem;">
-                                    <i class="bi bi-${result.type === 'video' ? 'play-circle' : result.type === 'audio' ? 'mic' : 'file-text'} me-1"></i>
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-${result.type === 'video' ? 'play-circle' : result.type === 'audio' ? 'mic' : 'file-text'}"/></svg>
                                     ${result.type}
                                 </small>
                             </div>
@@ -587,8 +587,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             resultsDiv.innerHTML = html;
             statsDiv.innerHTML = `
-                <i class="bi bi-info-circle me-1"></i>
-                Found ${data.total_results} results with threshold ${data.threshold}
+                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
+                {% trans "Found" %} ${data.total_results} {% trans "results with threshold" %} ${data.threshold}
             `;
         },
         

@@ -13,7 +13,7 @@
                 {% else %}
                     <div class="d-flex align-items-center justify-content-center" 
                          style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); border-radius: 16px; width: 56px; height: 56px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
-                        <i class="bi bi-play-circle-fill text-white" style="font-size: 1.75rem;"></i>
+                        <svg class="bi text-white" style="font-size: 1.75rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle-fill"/></svg>
                     </div>
                 {% endif %}
                 {% endwith %}
@@ -39,7 +39,7 @@
                     {% endif %}
                     {% if audio.audiometa.duration_seconds %}
                     <small class="body-font text-muted d-block">
-                        <i class="bi bi-clock-fill text-maroon me-1" style="opacity: 0.7;"></i>{{ audio.audiometa.get_duration_formatted }}
+                        <svg class="bi text-maroon me-1" style="opacity: 0.7;" aria-hidden="true" focusable="false"><use href="#bi-clock-fill"/></svg>{{ audio.audiometa.get_duration_formatted }}
                     </small>
                     {% endif %}
                 </div>
@@ -52,15 +52,15 @@
                     <button class="btn btn-link p-2" type="button" data-bs-toggle="dropdown" 
                             style="color: var(--color-maroon); border-radius: 12px; min-width: 44px; height: 44px;" 
                             aria-label="{% trans 'Audio options' %}">
-                        <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
+                        <svg class="bi" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-three-dots-vertical"/></svg>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="border-radius: 12px; background: white; border: 1px solid rgba(221, 153, 51, 0.2) !important;z-index: 999999;">
                         <li><a class="dropdown-item d-flex align-items-center hover-bg-golden" href="{{ audio.audiometa.get_direct_download_url }}" download>
-                            <i class="bi bi-download text-maroon me-2"></i>{% trans "Download Audio" %}
+                            <svg class="bi text-maroon me-2" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>{% trans "Download Audio" %}
                         </a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><span class="dropdown-item-text small body-font text-muted">
-                            <i class="bi bi-info-circle text-maroon me-1" style="opacity: 0.7;"></i>
+                            <svg class="bi text-maroon me-1" style="opacity: 0.7;" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
                             {% if audio.audiometa.file_size_mb %}{{ audio.audiometa.file_size_mb }} MB{% endif %}
                             {% if audio.audiometa.bitrate %}• {{ audio.audiometa.bitrate }} kbps{% endif %}
                         </span></li>
@@ -85,10 +85,10 @@
                 <!-- Audio Info -->
                 <div class="audio-info mt-3 d-flex justify-content-between align-items-center small body-font text-muted">
                     <span>
-                        <i class="bi bi-music-note-beamed text-maroon me-1" style="opacity: 0.7;"></i>{% trans "Spiritual Content" %}
+                        <svg class="bi text-maroon me-1" style="opacity: 0.7;" aria-hidden="true" focusable="false"><use href="#bi-music-note-beamed"/></svg>{% trans "Spiritual Content" %}
                     </span>
                     <span>
-                        <i class="bi bi-shield-check text-maroon me-1" style="opacity: 0.7;"></i>{% trans "Coptic Orthodox" %}
+                        <svg class="bi text-maroon me-1" style="opacity: 0.7;" aria-hidden="true" focusable="false"><use href="#bi-shield-check"/></svg>{% trans "Coptic Orthodox" %}
                     </span>
                 </div>
             </div>
@@ -97,7 +97,7 @@
             <div class="audio-error text-center py-4">
                 <div class="d-inline-flex align-items-center justify-content-center mb-3" 
                      style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); width: 64px; height: 64px; border-radius: 50%; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
-                    <i class="bi bi-exclamation-triangle text-white" style="font-size: 1.5rem;"></i>
+                    <svg class="bi text-white" style="font-size: 1.5rem;" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                 </div>
                 <h6 class="heading-font text-maroon mb-2">{% trans "Audio Not Available" %}</h6>
                 <small class="body-font text-muted">{% trans "The audio file is currently being processed or not found." %}</small>

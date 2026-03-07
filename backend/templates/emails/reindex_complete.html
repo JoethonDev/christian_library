@@ -1,9 +1,10 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Re-indexing Complete</title>
+    <title>{% trans "Google Re-indexing Complete" %}</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -90,37 +91,37 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1 style="margin: 0; color: #333;">Google Re-indexing Complete</h1>
+            <h1 style="margin: 0; color: #333;">{% trans "Google Re-indexing Complete" %}</h1>
             <div class="status-badge status-{{ status_text|lower|cut:' ' }}">{{ status_text }}</div>
         </div>
         
-        <p>Hello {{ user.get_full_name_or_username }},</p>
-        
-        <p>Your Google Search Console re-indexing operation has been completed.</p>
+        <p>{% blocktrans %}Hello {{ user.get_full_name_or_username }},{% endblocktrans %}</p>
+
+        <p>{% trans "Your Google Search Console re-indexing operation has been completed." %}</p>
         
         <div class="stats">
             <div class="stat-row">
-                <span class="stat-label">Content Type:</span>
+                <span class="stat-label">{% trans "Content Type:" %}</span>
                 <span class="stat-value">{{ task.content_type|title }}</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">Total URLs:</span>
+                <span class="stat-label">{% trans "Total URLs:" %}</span>
                 <span class="stat-value">{{ task.total_urls }}</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">Successful:</span>
+                <span class="stat-label">{% trans "Successful:" %}</span>
                 <span class="stat-value" style="color: #28a745;">{{ task.successful_urls }}</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">Failed:</span>
+                <span class="stat-label">{% trans "Failed:" %}</span>
                 <span class="stat-value" style="color: #dc3545;">{{ task.failed_urls }}</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">Success Rate:</span>
+                <span class="stat-label">{% trans "Success Rate:" %}</span>
                 <span class="stat-value">{{ success_rate }}%</span>
             </div>
             <div class="stat-row">
-                <span class="stat-label">Duration:</span>
+                <span class="stat-label">{% trans "Duration:" %}</span>
                 <span class="stat-value">
                     {% if duration %}
                         {{ duration }}
@@ -133,7 +134,7 @@
         
         {% if error_summary %}
         <div class="error-summary">
-            <strong>Error Summary:</strong>
+            <strong>{% trans "Error Summary:" %}</strong>
             <ul style="margin: 10px 0 0 0; padding-left: 20px;">
                 {% for error_type, count in error_summary.items %}
                 <li>{{ error_type }}: {{ count }} occurrence{{ count|pluralize }}</li>
@@ -143,16 +144,16 @@
         {% endif %}
         
         {% if task.sitemap_included %}
-        <p><strong>Note:</strong> The sitemap was also pinged to notify Google of the updates.</p>
+        <p><strong>{% trans "Note:" %}</strong> {% trans "The sitemap was also pinged to notify Google of the updates." %}</p>
         {% endif %}
         
         <div style="text-align: center;">
-            <a href="{{ site_url }}/dashboard/seo/reindex/history/" class="button">View Re-indexing History</a>
+            <a href="{{ site_url }}/dashboard/seo/reindex/history/" class="button">{% trans "View Re-indexing History" %}</a>
         </div>
         
         <div class="footer">
-            <p>This is an automated notification from Christian Library Admin Panel.</p>
-            <p>Initiated at: {{ task.started_at|date:"Y-m-d H:i:s" }} UTC</p>
+            <p>{% trans "This is an automated notification from Christian Library Admin Panel." %}</p>
+            <p>{% trans "Initiated at:" %} {{ task.started_at|date:"Y-m-d H:i:s" }} UTC</p>
         </div>
     </div>
 </body>

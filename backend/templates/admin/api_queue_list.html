@@ -11,7 +11,7 @@
     </div>
     <div class="col-auto">
         <button class="btn btn-outline-secondary rounded-pill px-4" onclick="location.reload()">
-            <i class="bi bi-arrow-clockwise me-2"></i>{% trans "Refresh" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
         </button>
     </div>
 </div>
@@ -23,7 +23,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-hourglass-split text-primary fs-4"></i>
+                        <svg class="bi text-primary fs-4" aria-hidden="true" focusable="false"><use href="#bi-hourglass-split"/></svg>
                     </div>
                     <div>
                         <p class="text-muted mb-0 small">{% trans "In Queue" %}</p>
@@ -38,7 +38,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-arrow-repeat text-info fs-4"></i>
+                        <svg class="bi text-info fs-4" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>
                     </div>
                     <div>
                         <p class="text-muted mb-0 small">{% trans "Processing" %}</p>
@@ -53,7 +53,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-check-circle text-success fs-4"></i>
+                        <svg class="bi text-success fs-4" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>
                     </div>
                     <div>
                         <p class="text-muted mb-0 small">{% trans "Completed" %}</p>
@@ -68,7 +68,7 @@
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
+                        <svg class="bi text-warning fs-4" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                     </div>
                     <div>
                         <p class="text-muted mb-0 small">{% trans "Rate Limited" %}</p>
@@ -86,7 +86,7 @@
         <div class="card border-0 shadow-sm rounded-3">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted"><i class="bi bi-camera-video me-2"></i>{% trans "Video" %}</span>
+                    <span class="text-muted"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>{% trans "Video" %}</span>
                     <span class="badge bg-primary rounded-pill">{{ type_stats.video }}</span>
                 </div>
             </div>
@@ -96,7 +96,7 @@
         <div class="card border-0 shadow-sm rounded-3">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted"><i class="bi bi-music-note me-2"></i>{% trans "Audio" %}</span>
+                    <span class="text-muted"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>{% trans "Audio" %}</span>
                     <span class="badge bg-info rounded-pill">{{ type_stats.audio }}</span>
                 </div>
             </div>
@@ -106,7 +106,7 @@
         <div class="card border-0 shadow-sm rounded-3">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted"><i class="bi bi-file-pdf me-2"></i>{% trans "PDF" %}</span>
+                    <span class="text-muted"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>{% trans "PDF" %}</span>
                     <span class="badge bg-danger rounded-pill">{{ type_stats.pdf }}</span>
                 </div>
             </div>
@@ -170,7 +170,7 @@
                                 <span class="fw-medium">{{ item.file_name|truncatechars:40 }}</span>
                                 {% if item.content_item %}
                                     <small class="text-muted">
-                                        <i class="bi bi-link-45deg"></i>
+                                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-link-45deg"/></svg>
                                         <a href="{% url 'frontend_api:admin_content_detail' item.content_item.id %}">
                                             {{ item.content_item.title_ar|truncatechars:30 }}
                                         </a>
@@ -180,11 +180,11 @@
                         </td>
                         <td>
                             {% if item.content_type == 'video' %}
-                                <span class="badge bg-primary rounded-pill"><i class="bi bi-camera-video me-1"></i>Video</span>
+                                <span class="badge bg-primary rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>{% trans "Video" %}</span>
                             {% elif item.content_type == 'audio' %}
-                                <span class="badge bg-info rounded-pill"><i class="bi bi-music-note me-1"></i>Audio</span>
+                                <span class="badge bg-info rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>{% trans "Audio" %}</span>
                             {% elif item.content_type == 'pdf' %}
-                                <span class="badge bg-danger rounded-pill"><i class="bi bi-file-pdf me-1"></i>PDF</span>
+                                <span class="badge bg-danger rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>PDF</span>
                             {% endif %}
                         </td>
                         <td>
@@ -192,30 +192,30 @@
                         </td>
                         <td>
                             {% if item.status == 'pending' %}
-                                <span class="badge bg-secondary rounded-pill">Pending</span>
+                                <span class="badge bg-secondary rounded-pill">{% trans "Pending" %}</span>
                             {% elif item.status == 'queued' %}
-                                <span class="badge bg-info rounded-pill">Queued</span>
+                                <span class="badge bg-info rounded-pill">{% trans "Queued" %}</span>
                             {% elif item.status == 'processing' %}
                                 <span class="badge bg-primary rounded-pill">
                                     <span class="spinner-border spinner-border-sm me-1"></span>Processing
                                 </span>
                             {% elif item.status == 'completed' %}
-                                <span class="badge bg-success rounded-pill">Completed</span>
+                                <span class="badge bg-success rounded-pill">{% trans "Completed" %}</span>
                             {% elif item.status == 'failed' %}
-                                <span class="badge bg-danger rounded-pill">Failed</span>
+                                <span class="badge bg-danger rounded-pill">{% trans "Failed" %}</span>
                             {% elif item.status == 'rate_limited' %}
-                                <span class="badge bg-warning text-dark rounded-pill">Rate Limited</span>
+                                <span class="badge bg-warning text-dark rounded-pill">{% trans "Rate Limited" %}</span>
                             {% elif item.status == 'cancelled' %}
-                                <span class="badge bg-dark rounded-pill">Cancelled</span>
+                                <span class="badge bg-dark rounded-pill">{% trans "Cancelled" %}</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if item.queue_status == 'waiting' %}
-                                <span class="badge bg-light text-dark rounded-pill">Waiting</span>
+                                <span class="badge bg-light text-dark rounded-pill">{% trans "Waiting" %}</span>
                             {% elif item.queue_status == 'delayed' %}
-                                <span class="badge bg-warning text-dark rounded-pill">Delayed</span>
+                                <span class="badge bg-warning text-dark rounded-pill">{% trans "Delayed" %}</span>
                             {% elif item.queue_status == 'ready' %}
-                                <span class="badge bg-success rounded-pill">Ready</span>
+                                <span class="badge bg-success rounded-pill">{% trans "Ready" %}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -250,19 +250,19 @@
                                     <form method="post" action="{% url 'frontend_api:api_queue_promote' item.id %}" style="display: inline;">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-outline-success btn-sm" title="{% trans 'Promote to process immediately' %}">
-                                            <i class="bi bi-arrow-up-circle"></i>
+                                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrow-up-circle"/></svg>
                                         </button>
                                     </form>
                                     <form method="post" action="{% url 'frontend_api:api_queue_cancel' item.id %}" style="display: inline;" 
                                           onsubmit="return confirm('{% trans "Are you sure you want to cancel this queue item?" %}')">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-outline-danger btn-sm" title="{% trans 'Cancel' %}">
-                                            <i class="bi bi-x-circle"></i>
+                                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>
                                         </button>
                                     </form>
                                 {% endif %}
                                 <a href="{% url 'frontend_api:api_queue_detail' item.id %}" class="btn btn-outline-primary btn-sm" title="{% trans 'View details' %}">
-                                    <i class="bi bi-eye"></i>
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                                 </a>
                             </div>
                         </td>
@@ -270,7 +270,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="10" class="text-center text-muted py-5">
-                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            <svg class="bi fs-1 d-block mb-2" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
                             {% trans "No queue items found" %}
                         </td>
                     </tr>
@@ -281,12 +281,12 @@
 
         <!-- Pagination -->
         {% if page_obj.has_other_pages %}
-        <nav aria-label="Page navigation" class="mt-4">
+        <nav aria-label="{% trans 'Page navigation' %}" class="mt-4">
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
                         <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
-                            <i class="bi bi-chevron-left"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                         </a>
                     </li>
                 {% endif %}
@@ -306,7 +306,7 @@
                 {% if page_obj.has_next %}
                     <li class="page-item">
                         <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
-                            <i class="bi bi-chevron-right"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                         </a>
                     </li>
                 {% endif %}

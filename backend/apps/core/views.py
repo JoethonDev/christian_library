@@ -48,7 +48,7 @@ def detailed_health_check(request):
     expected_token = getattr(settings, 'MONITORING_TOKEN', '')
     
     if not expected_token or token != expected_token:
-        return JsonResponse({'error': 'Unauthorized'}, status=401)
+        return JsonResponse({'error': _('Unauthorized')}, status=401)
 
     health_data = {
         'status': 'healthy',

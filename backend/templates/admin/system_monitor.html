@@ -10,7 +10,7 @@
     </div>
     <div class="col-auto">
         <button class="btn btn-white border shadow-sm rounded-pill" onclick="window.location.reload()">
-            <i class="bi bi-arrow-clockwise me-1"></i>{% trans "Refresh" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
         </button>
     </div>
 </div>
@@ -21,18 +21,18 @@
         <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
                 <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
-                    <i class="bi bi-hdd me-2 text-primary"></i>
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
                     {% trans "Local Storage" %}
                 </h6>
                 <div class="dropdown">
                     <button class="btn btn-sm btn-light rounded-pill px-3 dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-gear me-1"></i> {% trans "Maintenance Actions" %}
+                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-gear"/></svg> {% trans "Maintenance Actions" %}
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('clear_cache')"><i class="bi bi-trash me-2 text-danger"></i> {% trans "Clear Temporary Cache" %}</a></li>
-                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('cleanup_orphaned')"><i class="bi bi-file-earmark-x me-2 text-warning"></i> {% trans "Cleanup Orphaned Files" %}</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('clear_cache')"><svg class="bi me-2 text-danger" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg> {% trans "Clear Temporary Cache" %}</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('cleanup_orphaned')"><svg class="bi me-2 text-warning" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-x"/></svg> {% trans "Cleanup Orphaned Files" %}</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('reindex_search')"><i class="bi bi-search me-2 text-primary"></i> {% trans "Rebuild Search Index" %}</a></li>
+                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('reindex_search')"><svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg> {% trans "Rebuild Search Index" %}</a></li>
                     </ul>
                 </div>
             </div>
@@ -80,7 +80,7 @@
                 </div>
                 
                 <div class="text-center text-muted small">
-                    <i class="bi bi-info-circle me-1"></i>
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
                     {% trans "Total disk usage:" %} {{ disk_usage.used|filesizeformat }} / {{ disk_usage.total|filesizeformat }}
                 </div>
             </div>
@@ -118,11 +118,11 @@ function runAction(action) {
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-dark">
-            <i class="bi bi-search me-2 text-primary"></i>
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
             {% trans "Search Configuration" %}
         </h6>
         <a href="{% url 'frontend_api:admin_dashboard' %}#search-sensitivity-widget" class="btn btn-sm btn-outline-primary rounded-pill">
-            <i class="bi bi-gear me-1"></i> {% trans "Configure" %}
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-gear"/></svg> {% trans "Configure" %}
         </a>
     </div>
     <div class="card-body p-4">
@@ -185,7 +185,7 @@ function runAction(action) {
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-dark">
-            <i class="bi bi-list-task me-2 text-primary"></i>
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-list-task"/></svg>
             {% trans "Active Tasks" %}
         </h6>
         <span class="badge bg-light text-secondary border rounded-pill">{{ task_monitor.task_stats.total_registered|default:0 }}</span>
@@ -210,7 +210,7 @@ function runAction(action) {
                             <button class="btn btn-sm btn-light rounded-circle toggle-logs" 
                                     onclick="toggleTaskLogs('{{ forloop.counter }}')"
                                     title="{% trans 'Show/Hide Logs' %}">
-                                <i class="bi bi-chevron-right" id="icon-{{ forloop.counter }}"></i>
+                                <svg class="bi" id="icon-{{ forloop.counter }}" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                             </button>
                         </td>
                         <td>
@@ -235,19 +235,19 @@ function runAction(action) {
                         <td>
                             {% if task.current_status == 'STARTED' or task.status == 'STARTED' %}
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
-                                    <i class="bi bi-play-circle me-1"></i>Running
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>Running
                                 </span>
                             {% elif task.current_status == 'SUCCESS' or task.status == 'SUCCESS' %}
                                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
-                                    <i class="bi bi-check-circle me-1"></i>Success
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>Success
                                 </span>
                             {% elif task.current_status == 'FAILURE' or task.status == 'FAILURE' %}
                                 <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">
-                                    <i class="bi bi-x-circle me-1"></i>Failed
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>Failed
                                 </span>
                             {% elif task.current_status == 'RETRY' or task.status == 'RETRY' %}
                                 <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
-                                    <i class="bi bi-arrow-clockwise me-1"></i>Retry
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>Retry
                                 </span>
                             {% else %}
                                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">
@@ -271,7 +271,7 @@ function runAction(action) {
                             <div class="bg-dark text-light p-4" style="font-family: 'Courier New', monospace; font-size: 0.85rem;">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <div>
-                                        <i class="bi bi-journal-code text-warning me-2"></i>
+                                        <svg class="bi text-warning me-2" aria-hidden="true" focusable="false"><use href="#bi-journal-code"/></svg>
                                         <span class="text-warning fw-bold">{% trans "Task Logs" %}</span>
                                     </div>
                                     <small class="text-muted">Task ID: {{ task.task_id }}</small>
@@ -298,7 +298,7 @@ function runAction(action) {
                                     </div>
                                 {% else %}
                                     <div class="text-muted text-center py-3">
-                                        <i class="bi bi-inbox me-2"></i>
+                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
                                         {% trans "No logs available yet..." %}
                                     </div>
                                 {% endif %}
@@ -306,7 +306,7 @@ function runAction(action) {
                                 {% if task.error %}
                                 <div class="mt-3 p-3 bg-danger bg-opacity-25 rounded">
                                     <div class="text-danger fw-bold mb-1">
-                                        <i class="bi bi-exclamation-triangle me-2"></i>Error:
+                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>Error:
                                     </div>
                                     <div class="text-light">{{ task.error }}</div>
                                 </div>
@@ -315,7 +315,7 @@ function runAction(action) {
                                 {% if task.result %}
                                 <div class="mt-3 p-3 bg-success bg-opacity-25 rounded">
                                     <div class="text-success fw-bold mb-1">
-                                        <i class="bi bi-check-circle me-2"></i>Result:
+                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>Result:
                                     </div>
                                     <div class="text-light">{{ task.result.message|default:task.result }}</div>
                                 </div>
@@ -329,7 +329,7 @@ function runAction(action) {
         </div>
         {% else %}
         <div class="text-center py-5">
-            <div class="text-muted mb-2"><i class="bi bi-check2-circle fs-1"></i></div>
+            <div class="text-muted mb-2"><svg class="bi fs-1" aria-hidden="true" focusable="false"><use href="#bi-check2-circle"/></svg></div>
             <p class="text-muted mb-0">{% trans "No active background tasks" %}</p>
         </div>
         {% endif %}

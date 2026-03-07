@@ -12,7 +12,7 @@
                          style="border-radius: 16px; width: 56px; height: 56px; object-fit: cover; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
                 {% else %}
                     <div class="p-3 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); border-radius: 16px; width: 56px; height: 56px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
-                        <i class="bi bi-play-circle-fill text-white" style="font-size: 1.75rem;"></i>
+                        <svg class="bi text-white" style="font-size: 1.75rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle-fill"/></svg>
                     </div>
                 {% endif %}
                 {% endwith %}
@@ -31,12 +31,12 @@
                     <div class="d-flex align-items-center gap-3 text-muted small">
                         {% if video.videometa.duration_seconds %}
                         <span>
-                            <i class="bi bi-clock-fill me-1 text-maroon" style="opacity: 0.7;"></i>{{ video.videometa.get_duration_formatted }}
+                            <svg class="bi me-1 text-maroon" style="opacity: 0.7;" aria-hidden="true" focusable="false"><use href="#bi-clock-fill"/></svg>{{ video.videometa.get_duration_formatted }}
                         </span>
                         {% endif %}
                         {% if video.videometa.resolution_width and video.videometa.resolution_height %}
                         <span>
-                            <i class="bi bi-aspect-ratio me-1 text-maroon" style="opacity: 0.7;"></i>{{ video.videometa.resolution_width }}x{{ video.videometa.resolution_height }}
+                            <svg class="bi me-1 text-maroon" style="opacity: 0.7;" aria-hidden="true" focusable="false"><use href="#bi-aspect-ratio"/></svg>{{ video.videometa.resolution_width }}x{{ video.videometa.resolution_height }}
                         </span>
                         {% endif %}
                     </div>
@@ -49,18 +49,18 @@
                     <button class="btn btn-link p-2" type="button" data-bs-toggle="dropdown" 
                             style="color: var(--color-maroon); border-radius: 12px; min-width: 44px; height: 44px;" 
                             aria-label="{% trans 'Video options' %}">
-                        <i class="bi bi-three-dots-vertical" style="font-size: 1.1rem;"></i>
+                        <svg class="bi" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-three-dots-vertical"/></svg>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end shadow" style="border-radius: 12px; border: 1px solid rgba(221, 153, 51, 0.2); z-index: 999999;">
                         <li><a class="dropdown-item d-flex align-items-center" href="{{ video.videometa.get_direct_download_url }}">
-                            <i class="bi bi-download me-2 text-maroon"></i>{% trans "Download Video" %}
+                            <svg class="bi me-2 text-maroon" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>{% trans "Download Video" %}
                         </a></li>
                         <li><button class="dropdown-item d-flex align-items-center" type="button" onclick="toggleFullscreen('video-{{ video.id }}')">
-                            <i class="bi bi-arrows-fullscreen me-2 text-maroon"></i>{% trans "Fullscreen" %}
+                            <svg class="bi me-2 text-maroon" aria-hidden="true" focusable="false"><use href="#bi-arrows-fullscreen"/></svg>{% trans "Fullscreen" %}
                         </button></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><span class="dropdown-item-text small text-muted">
-                            <i class="bi bi-info-circle me-1 text-maroon" style="opacity: 0.7;"></i>
+                            <svg class="bi me-1 text-maroon" style="opacity: 0.7;" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
                             {% if video.videometa.file_size_mb %}{{ video.videometa.file_size_mb }} MB{% endif %}
                             {% if video.videometa.bitrate %}• {{ video.videometa.bitrate }} kbps{% endif %}
                         </span></li>
@@ -130,7 +130,7 @@
             <div class="video-error text-center py-5" style="min-height: 300px; display: flex; align-items: center; justify-content: center;">
                 <div>
                     <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: linear-gradient(135deg, var(--color-maroon) 0%, #9B0000 100%); width: 80px; height: 80px; box-shadow: 0 4px 12px rgba(128, 0, 0, 0.25);">
-                        <i class="bi bi-exclamation-triangle text-white" style="font-size: 2rem;"></i>
+                        <svg class="bi text-white" style="font-size: 2rem;" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                     </div>
                     <h6 class="text-maroon mb-2">{% trans "Video Not Available" %}</h6>
                     <p class="text-muted small mb-0">{% trans "The video file is currently being processed or not found." %}</p>

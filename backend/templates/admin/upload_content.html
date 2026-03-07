@@ -36,7 +36,7 @@
                             <div class="col-6 col-md-3">
                                 <input type="radio" class="btn-check" name="content_type" id="video-type" value="video" autocomplete="off">
                                 <label class="btn btn-outline-light text-dark border w-100 p-3 h-100 d-flex flex-column align-items-center rounded-3 shadow-sm hover-shadow" for="video-type">
-                                    <i class="bi bi-camera-video fs-1 text-primary mb-2"></i>
+                                    <svg class="bi fs-1 text-primary mb-2" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>
                                     <span class="fw-semibold">{% trans "Video" %}</span>
                                     <small class="text-muted d-none d-md-block mt-1">{% trans "MP4, AVI, MOV" %}</small>
                                 </label>
@@ -45,7 +45,7 @@
                             <div class="col-6 col-md-3">
                                 <input type="radio" class="btn-check" name="content_type" id="audio-type" value="audio" autocomplete="off">
                                 <label class="btn btn-outline-light text-dark border w-100 p-3 h-100 d-flex flex-column align-items-center rounded-3 shadow-sm hover-shadow" for="audio-type">
-                                    <i class="bi bi-mic fs-1 text-primary mb-2"></i>
+                                    <svg class="bi fs-1 text-primary mb-2" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
                                     <span class="fw-semibold">{% trans "Audio" %}</span>
                                     <small class="text-muted d-none d-md-block mt-1">{% trans "MP3, WAV" %}</small>
                                 </label>
@@ -54,7 +54,7 @@
                             <div class="col-6 col-md-3">
                                 <input type="radio" class="btn-check" name="content_type" id="pdf-type" value="pdf" autocomplete="off">
                                 <label class="btn btn-outline-light text-dark border w-100 p-3 h-100 d-flex flex-column align-items-center rounded-3 shadow-sm hover-shadow" for="pdf-type">
-                                    <i class="bi bi-file-earmark-pdf fs-1 text-primary mb-2"></i>
+                                    <svg class="bi fs-1 text-primary mb-2" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-pdf"/></svg>
                                     <span class="fw-semibold">{% trans "Document" %}</span>
                                     <small class="text-muted d-none d-md-block mt-1">{% trans "PDF" %}</small>
                                 </label>
@@ -71,7 +71,7 @@
                             
                             <div class="mb-3">
                                 <div class="d-inline-flex align-items-center justify-content-center bg-white rounded-circle shadow-sm p-4">
-                                    <i class="bi bi-cloud-arrow-up fs-1 text-primary"></i>
+                                    <svg class="bi fs-1 text-primary" aria-hidden="true" focusable="false"><use href="#bi-cloud-arrow-up"/></svg>
                                 </div>
                             </div>
                             
@@ -80,7 +80,7 @@
                             
                             <div id="file-name-display" class="d-none mt-3">
                                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fs-6">
-                                    <i class="bi bi-file-earmark-check me-2"></i><span id="selected-file-name"></span>
+                                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-check"/></svg><span id="selected-file-name"></span>
                                 </span>
                             </div>
                         </div>
@@ -101,7 +101,7 @@
                             <input type="file" id="document-input" name="document" class="d-none" accept=".doc,.docx" onchange="updateDocumentFileName(this)">
                             
                             <div class="mb-2">
-                                <i class="bi bi-file-earmark-word fs-2 text-primary"></i>
+                                <svg class="bi fs-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-word"/></svg>
                             </div>
                             
                             <p class="mb-2 fw-semibold">{% trans "Click to upload document" %}</p>
@@ -109,10 +109,10 @@
                             
                             <div id="document-name-display" class="d-none mt-3">
                                 <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
-                                    <i class="bi bi-file-earmark-check me-2"></i><span id="selected-document-name"></span>
+                                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-check"/></svg><span id="selected-document-name"></span>
                                 </span>
                                 <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearDocument(event)">
-                                    <i class="bi bi-x-circle"></i> {% trans "Remove" %}
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg> {% trans "Remove" %}
                                 </button>
                             </div>
                         </div>
@@ -123,7 +123,7 @@
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <label class="form-label fw-bold text-uppercase small text-secondary mb-0">{% trans "Content Information" %}</label>
                             <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" onclick="generateMetadataAndSEO()">
-                                <i class="bi bi-magic me-1"></i>{% trans "Generate with AI" %}
+                                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Generate with AI" %}
                                 <span class="spinner-border spinner-border-sm d-none ms-1" id="magic-spinner"></span>
                             </button>
                         </div>
@@ -133,13 +133,13 @@
                             <div class="col-12">
                                 <div class="p-3 bg-white border rounded-3 shadow-sm">
                                     <label class="form-label small text-muted d-block mb-3">
-                                        <i class="bi bi-image me-1"></i> {% trans "Custom Thumbnail" %} 
+                                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg> {% trans "Custom Thumbnail" %} 
                                         <span class="badge bg-secondary-subtle text-secondary ms-2">{% trans "Optional" %}</span>
                                     </label>
                                     <div class="row align-items-center">
                                         <div class="col-auto">
                                             <div id="thumbnail-preview-container" class="bg-light rounded-3 d-flex align-items-center justify-content-center overflow-hidden" style="width: 120px; height: 68px; border: 1px dashed #dee2e6;">
-                                                <i class="bi bi-camera text-muted fs-3"></i>
+                                                <svg class="bi text-muted fs-3" aria-hidden="true" focusable="false"><use href="#bi-camera"/></svg>
                                             </div>
                                         </div>
                                         <div class="col">
@@ -154,7 +154,7 @@
                             <div class="col-md-6">
                                 <div class="p-3 bg-white border rounded-3 h-100 shadow-sm">
                                     <div class="d-flex align-items-center mb-3 text-primary">
-                                        <i class="bi bi-translate me-2"></i>
+                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-translate"/></svg>
                                         <span class="fw-semibold">{% trans "Arabic Details" %}</span>
                                     </div>
                                     <div class="mb-3">
@@ -172,7 +172,7 @@
                             <div class="col-md-6">
                                 <div class="p-3 bg-white border rounded-3 h-100 shadow-sm">
                                     <div class="d-flex align-items-center mb-3 text-secondary">
-                                        <i class="bi bi-globe me-2"></i>
+                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-globe"/></svg>
                                         <span class="fw-semibold">{% trans "English Details" %}</span>
                                     </div>
                                     <div class="mb-3">
@@ -199,7 +199,7 @@
                         <div class="accordion-item border-0">
                             <h2 class="accordion-header">
                                 <button class="accordion-button collapsed bg-white fw-semibold text-dark" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSEO">
-                                    <i class="bi bi-search me-2"></i>{% trans "SEO Configuration" %} <span class="text-muted fw-normal ms-2 small">({% trans "Optional" %})</span>
+                                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>{% trans "SEO Configuration" %} <span class="text-muted fw-normal ms-2 small">({% trans "Optional" %})</span>
                                 </button>
                             </h2>
                             <div id="collapseSEO" class="accordion-collapse collapse" data-bs-parent="#seoAccordion">
@@ -254,7 +254,7 @@
                     <div class="d-flex justify-content-end gap-2 pt-3 border-top">
                         <a href="{% url 'frontend_api:admin_dashboard' %}" class="btn btn-light rounded-pill px-4">{% trans "Cancel" %}</a>
                         <button type="submit" class="btn btn-primary rounded-pill px-5 fw-bold shadow-sm">
-                            <i class="bi bi-cloud-upload me-2"></i>{% trans "Upload Content" %}
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-cloud-upload"/></svg>{% trans "Upload Content" %}
                         </button>
                     </div>
                 </form>
@@ -491,7 +491,7 @@
             }
             reader.readAsDataURL(input.files[0]);
         } else {
-            previewContainer.innerHTML = '<i class="bi bi-camera text-muted fs-3"></i>';
+            previewContainer.innerHTML = '<svg class="bi text-muted fs-3" aria-hidden="true" focusable="false"><use href="#bi-camera"/></svg>';
             previewContainer.style.border = '1px dashed #dee2e6';
         }
     }

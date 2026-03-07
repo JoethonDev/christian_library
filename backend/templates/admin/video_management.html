@@ -10,7 +10,7 @@
     </div>
     <div class="col-auto">
         <a href="{% url 'frontend_api:upload_content' %}?type=video" class="btn btn-danger text-white rounded-pill px-4 shadow-sm">
-            <i class="bi bi-camera-video me-2"></i>{% trans "Add Video" %}
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>{% trans "Add Video" %}
         </a>
     </div>
 </div>
@@ -42,7 +42,7 @@
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-funnel me-1"></i>{% trans "Filter" %}
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-funnel"/></svg>{% trans "Filter" %}
                 </button>
             </div>
         </form>
@@ -55,22 +55,22 @@
         <div class="d-flex align-items-center justify-content-between">
             <div>
                 <span class="text-muted me-3">
-                    <i class="bi bi-check-circle me-1"></i>
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>
                     <span id="selectedCount">0</span> {% trans "selected" %}
                 </span>
             </div>
             <div class="btn-group" role="group">
                 <button type="button" class="btn btn-sm btn-warning text-white" onclick="bulkGenerateSEO()">
-                    <i class="bi bi-sparkles me-1"></i>{% trans "Generate SEO" %}
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Generate SEO" %}
                 </button>
                 <button type="button" class="btn btn-sm btn-success" onclick="bulkActivate()">
-                    <i class="bi bi-eye me-1"></i>{% trans "Activate" %}
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>{% trans "Activate" %}
                 </button>
                 <button type="button" class="btn btn-sm btn-secondary" onclick="bulkDeactivate()">
-                    <i class="bi bi-eye-slash me-1"></i>{% trans "Deactivate" %}
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-eye-slash"/></svg>{% trans "Deactivate" %}
                 </button>
                 <button type="button" class="btn btn-sm btn-danger" onclick="bulkDelete()">
-                    <i class="bi bi-trash me-1"></i>{% trans "Delete" %}
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Delete" %}
                 </button>
             </div>
         </div>

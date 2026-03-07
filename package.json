@@ -1,0 +1,15 @@
+{
+  "name": "christian-library-assets",
+  "version": "1.0.0",
+  "description": "Asset build tools for Christian Library",
+  "private": true,
+  "scripts": {
+    "build:icons": "node build-icons.js",
+    "build:purgecss": "node build-purgecss.js",
+    "build": "npm run build:icons && npm run build:purgecss"
+  },
+  "dependencies": {
+    "bootstrap-icons": "^1.11.3",
+    "purgecss": "^6.0.0"
+  }
+}

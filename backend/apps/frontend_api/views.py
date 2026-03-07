@@ -446,7 +446,7 @@ def api_global_search(request):
         language = request.GET.get('language', get_language())
         
         if not query:
-            return JsonResponse({'success': False, 'error': 'Query parameter required'}, status=400)
+            return JsonResponse({'success': False, 'error': _('Query parameter required')}, status=400)
         
         results = api_service.get_search_api_data(query, content_type, language)
         return JsonResponse({'success': True, 'results': results})
@@ -482,7 +482,7 @@ def api_tag_search(request):
         language = request.GET.get('language', get_language())
         
         if not query:
-            return JsonResponse({'success': False, 'error': 'Query parameter required'}, status=400)
+            return JsonResponse({'success': False, 'error': _('Query parameter required')}, status=400)
         
         # Search tags using optimized manager method
         tags = Tag.objects.search_tags(query, language)[:20]  # Limit to 20 results
@@ -532,7 +532,7 @@ def api_track_content_view(request):
         except json.JSONDecodeError:
             return JsonResponse({
                 'success': False, 
-                'error': 'Invalid JSON'
+                'error': _('Invalid JSON')
             }, status=400)
         
         # Validate required fields

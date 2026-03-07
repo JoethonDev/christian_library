@@ -136,7 +136,7 @@ class RegisterView(View):
             
             # Auto login after registration
             login(request, user)
-            messages.success(request, _(f'Welcome to Christian Library, {user.get_full_name() or user.username}!'))
+            messages.success(request, _('Welcome to Christian Library, %(name)s!') % {'name': user.get_full_name() or user.username})
             return redirect('frontend:home')
             
         except Exception as e:

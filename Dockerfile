@@ -10,6 +10,32 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app:${PATH}"
 
 #==============================================================================
+# Node.js Asset Builder Stage
+# Runs PurgeCSS + SVG sprite generation at build time — zero runtime cost.
+#==============================================================================
+FROM node:20-slim AS node-builder
+
+WORKDIR /build
+
+# Copy only what the build scripts need
+COPY package.json package-lock.json build-icons.js build-purgecss.js ./
+
+# The Bootstrap source CSS files (input for PurgeCSS)
+COPY backend/static/css/bootstrap.min.css     backend/static/css/
+COPY backend/static/css/bootstrap.rtl.min.css backend/static/css/
+
+# All templates (PurgeCSS scans them to find used classes)
+COPY backend/templates/ backend/templates/
+
+# All static JS (PurgeCSS scans for dynamically applied classes)
+COPY backend/static/js/ backend/static/js/
+
+# Install deps and generate artefacts
+RUN npm ci && \
+    node build-icons.js && \
+    node build-purgecss.js
+
+#==============================================================================
 # Builder Stage (Compilers & Heavy Dev Tools)
 #==============================================================================
 FROM base AS builder
@@ -71,6 +97,16 @@ COPY --from=builder /install /usr/local
 
 # Copy Application Code
 COPY --chown=app:app backend/ /app/
+
+# Copy icon-replacement safety-net script (runs at startup as a fallback)
+COPY --chown=app:app replace_bi_icons.py /app/replace_bi_icons.py
+
+# Overlay the Node-generated assets (purged CSS, SVG sprite, icons template)
+# These overwrite the source files baked in by the COPY above.
+COPY --from=node-builder --chown=app:app /build/backend/static/css/bootstrap.purged.css     /app/static/css/
+COPY --from=node-builder --chown=app:app /build/backend/static/css/bootstrap.rtl.purged.css /app/static/css/
+COPY --from=node-builder --chown=app:app /build/backend/static/images/icons-sprite.svg      /app/static/images/
+COPY --from=node-builder --chown=app:app /build/backend/templates/includes/icons-sprite.html /app/templates/includes/
 
 # Copy Config Scripts
 COPY --chown=app:app docker/entrypoint.sh /app/entrypoint.sh

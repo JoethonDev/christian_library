@@ -27,7 +27,7 @@
                 <td class="py-3">
                     <div class="d-flex align-items-center">
                         <div class="bg-light rounded p-2 me-3 text-danger">
-                            <i class="bi bi-file-earmark-pdf fs-4"></i>
+                            <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-pdf"/></svg>
                         </div>
                         <div>
                             <div class="fw-semibold text-dark">{{ pdf.title_ar }}</div>
@@ -36,12 +36,12 @@
                             {% endif %}
                             {% if not pdf.pdfmeta.has_seo %}
                                 <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill small">
-                                    <i class="bi bi-exclamation-triangle me-1"></i>{% trans "No SEO" %}
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>{% trans "No SEO" %}
                                 </span>
                             {% endif %}
                             {% if not pdf.pdfmeta.has_metadata %}
                                 <span class="badge bg-info-subtle text-info border border-info-subtle rounded-pill small">
-                                    <i class="bi bi-info-circle me-1"></i>{% trans "Incomplete" %}
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>{% trans "Incomplete" %}
                                 </span>
                             {% endif %}
                         </div>
@@ -80,7 +80,7 @@
                 <td>
                      {% if pdf.indexed_char_count > 0 %}
                         <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
-                            <i class="bi bi-check2 me-1"></i>{{ pdf.indexed_char_count|floatformat:0 }}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check2"/></svg>{{ pdf.indexed_char_count|floatformat:0 }}
                         </span>
                     {% elif pdf.content_type == 'pdf' %}
                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
@@ -120,31 +120,31 @@
                                 title="{% trans 'Auto-Fill SEO' %}"
                                 @click="confirmAutoFill('{{ pdf.id }}', '{{ pdf.title_ar|escapejs }}')"
                                 :disabled="autoFilling">
-                            <i class="bi me-1" :class="autoFilling ? 'bi-hourglass-split' : 'bi-sparkles'"></i>
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use :href="autoFilling ? '#bi-hourglass-split' : '#bi-magic'"></use></svg>
                             <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
                         </button>
                         {% endif %}
                         <a href="{% url 'frontend_api:admin_content_detail' pdf.id %}" 
                            class="btn btn-sm btn-light" 
                            title="{% trans 'Edit' %}">
-                            <i class="bi bi-pencil"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg>
                         </a>
                         <a href="{% url 'frontend_api:pdf_detail' pdf.id %}" 
                            class="btn btn-sm btn-light" 
                            title="{% trans 'Preview' %}" target="_blank">
-                            <i class="bi bi-eye"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% if pdf.pdfmeta.r2_original_file_url %}
                         <a href="{% url 'frontend_api:delete_local_confirm' pdf.id %}" 
                            class="btn btn-sm btn-light text-warning" 
                            title="{% trans 'Delete Local Only' %}">
-                            <i class="bi bi-hdd"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
                         </a>
                         {% endif %}
                         <a href="{% url 'frontend_api:content_delete_confirm' pdf.id %}" 
                            class="btn btn-sm btn-light text-danger" 
                            title="{% trans 'Delete' %}">
-                            <i class="bi bi-trash"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>
                         </a>
                     </div>
                 </td>
@@ -153,7 +153,7 @@
             <tr>
                 <td colspan="9" class="text-center py-5 text-muted">
                     <div class="mb-3">
-                        <i class="bi bi-file-earmark-pdf display-4 text-secondary opacity-50"></i>
+                        <svg class="bi display-4 text-secondary opacity-50" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-pdf"/></svg>
                     </div>
                     <h6 class="fw-bold">{% trans "No PDFs found" %}</h6>
                     <a href="{% url 'frontend_api:upload_content' %}?type=pdf" class="btn btn-primary rounded-pill px-4 mt-2">
@@ -167,7 +167,7 @@
 
     {% if pagination and pagination.has_pagination %}
     <div class="card-footer bg-white border-0 py-3">
-        <nav aria-label="Page navigation">
+        <nav aria-label="{% trans 'Page navigation' %}">
             <ul class="pagination justify-content-center mb-0">
                 {% if pagination.has_previous %}
                     <li class="page-item">
@@ -175,7 +175,7 @@
                                 hx-get="{% url 'frontend_api:pdf_management' %}?page={{ pagination.previous_page_number }}&status={{ filters.status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
                                 hx-target="#pdf-table-container"
                                 hx-push-url="true">
-                            <i class="bi bi-chevron-left"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                         </button>
                     </li>
                 {% endif %}
@@ -190,7 +190,7 @@
                                 hx-get="{% url 'frontend_api:pdf_management' %}?page={{ pagination.next_page_number }}&status={{ filters.status }}&search={{ filters.search }}&missing_data={{ filters.missing_data }}"
                                 hx-target="#pdf-table-container"
                                 hx-push-url="true">
-                            <i class="bi bi-chevron-right"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                         </button>
                     </li>
                 {% endif %}

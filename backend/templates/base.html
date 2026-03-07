@@ -15,32 +15,46 @@
     <title>{% block title %}{% trans "Christian Library" %}{% endblock %}</title>
     {% block meta %}{% endblock %}
 
-    <!-- Bootstrap 5 RTL/LTR -->
+    <!-- LCP image preloading:
+         - icon.webp: Main brand logo (Visible LCP candidate)
+         - coptic-cross-patron-New.webp: Header background
+         Preloaded from HTML so browser discovers them immediately. fetchpriority=high moves them to 
+         the top of the browser's fetch queue. -->
+    <link rel="preload" as="image"
+          href="{% static 'images/icon.webp' %}"
+          type="image/webp"
+          fetchpriority="high">
+    <link rel="preload" as="image"
+          href="{% static 'images/coptic-cross-patron-New.webp' %}"
+          type="image/webp"
+          fetchpriority="high">
+
+    <!-- Bootstrap 5 RTL/LTR (render-blocking — purged to 75 KiB local; eliminates CLS from flex/grid utilities) -->
     {% if LANGUAGE_BIDI %}
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+        <link rel="stylesheet" href="{% static 'css/bootstrap.rtl.purged.css' %}">
     {% else %}
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+        <link rel="stylesheet" href="{% static 'css/bootstrap.purged.css' %}">
     {% endif %}
 
-    <!-- Google Fonts for Coptic Orthodox Theming -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <!-- Google Fonts — display=optional prevents font-swap CLS (browser uses fallback if font isn't cached) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Serif fonts for headings (traditional/ecclesiastical feel) -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    <!-- Sans-serif fonts for body text (readability) -->
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    <!-- Arabic fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=optional">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=optional" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700&display=optional"></noscript>
     
-    <!-- Custom Coptic Orthodox Theme CSS -->
+    <!-- Custom Coptic Orthodox Theme CSS (render-blocking — controls navbar height and card layout above the fold) -->
     <link rel="stylesheet" href="{% static 'css/bootstrap-custom.css' %}">
     
-    <!-- Enhanced UI/UX Improvements -->
-    <link rel="stylesheet" href="{% static 'css/enhanced-ui.css' %}">
+    <!-- Enhanced UI/UX Improvements (non-blocking — hover effects and decorative polish only) -->
+    <link rel="preload" as="style" href="{% static 'css/enhanced-ui.css' %}" onload="this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{% static 'css/enhanced-ui.css' %}"></noscript>
     
-    <!-- Icons & HTMX -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- SVG icon sizing helpers (replaces Bootstrap Icons font CSS) -->
+    <link rel="preload" as="style" href="{% static 'css/icons.css' %}" onload="this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{% static 'css/icons.css' %}"></noscript>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" defer></script>
     
     <!-- PDF Viewer placeholder - will be overridden by component -->
     <script>
@@ -61,20 +75,60 @@
     
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
     
-    <!-- HLS.js for video streaming -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.12/dist/hls.min.js"></script>
+    <!-- Video & PDF specific loading handled in detail templates -->
 
-    <!-- PDF.js v5.4.149 CSS (loaded globally, JS loaded as ES module in component) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf_viewer.min.css" integrity="sha512-qbvpAGzPFbd9HG4VorZWXYAkAnbwKIxiLinTA1RW8KGJEZqYK04yjvd+Felx2HOeKPDKVLetAqg8RIJqHewaIg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-    
     <style>
+        /* ===== CRITICAL CSS — inlined to prevent FOUC while external CSS loads async ===== */
+
+        /* Coptic theme custom properties (mirrors bootstrap-custom.css :root) */
         :root {
+            --color-maroon: #800000;
+            --color-golden-ochre: #DD9933;
+            --color-white: #FFFFFF;
+            --color-off-white: #F8F9FA;
+            --color-near-black: #1A1A1A;
+            --color-body-text: #444444;
+            --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+            --font-sans: 'Open Sans', Arial, Roboto, sans-serif;
+            --font-arabic: 'Cairo', 'Tajawal', system-ui, sans-serif;
+
             /* Heavenly Christian Theme */
+            --primary-color: #B8860B;
+            --secondary-color: #8B0000;
+            --gradient-gold: linear-gradient(135deg, #B8860B 0%, #DAA520 100%);
+        }
+
+        body {
+            font-family: var(--font-sans);
+            color: var(--color-body-text);
+            margin: 0;
+            background-color: #FAFAFA;
+        }
+        [dir="rtl"] body { font-family: var(--font-arabic); }
+
+        /* Navbar critical styles — prevents layout jump before bootstrap-custom.css loads */
+        .navbar-coptic {
+            background-color: var(--color-off-white);
+            border-bottom: 3px solid var(--color-golden-ochre);
+            padding: 1rem 0 0;
+            min-height: 120px;
+        }
+        .golden-3d-text {
+            color: var(--color-golden-ochre);
+            font-family: var(--font-serif);
+            font-weight: 700;
+            display: inline-block;
+        }
+        .container-boxed {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        /* ===== END CRITICAL CSS ===== */
+
+        :root {
+            /* Heavenly Christian Theme (legacy — kept for base.html scoped components) */
             --primary-color: #B8860B;        /* Golden */
             --secondary-color: #8B0000;      /* Deep Crimson */
             --accent-color: #E6E6FA;         /* Lavender */
@@ -221,10 +275,11 @@
             text-align: start !important;
         }
     </style>
-    <!-- pdf_viewer.min.css is now included above with the correct version -->
     {% block extra_css %}{% endblock %}
 </head>
 <body class="d-flex flex-column min-vh-100" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+    {# SVG icon sprite — hidden, must be first child of <body> so href="#bi-..." works #}
+    {% include "includes/icons-sprite.html" %}
 
     {% include "includes/navbar.html" %}
 
@@ -235,7 +290,7 @@
 
     {% include "includes/footer.html" %}
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -13,10 +13,10 @@
             <span class="badge border rounded-pill px-3 py-2"
                   :class="isActive ? 'bg-success-subtle text-success border-success-subtle' : 'bg-secondary-subtle text-secondary border-secondary-subtle'">
                 <template x-if="isActive">
-                    <span><i class="bi bi-check-circle me-1"></i>{% trans "Active & Published" %}</span>
+                    <span><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>{% trans "Active & Published" %}</span>
                 </template>
                 <template x-if="!isActive">
-                    <span><i class="bi bi-pause-circle me-1"></i>{% trans "Inactive / Draft" %}</span>
+                    <span><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-pause-circle"/></svg>{% trans "Inactive / Draft" %}</span>
                 </template>
             </span>
         </div>
@@ -28,7 +28,7 @@
             <div class="card border-0 shadow-sm rounded-4 h-100">
                 <div class="card-header bg-transparent border-0 py-3 px-4">
                     <h5 class="mb-0 fw-bold text-dark">
-                        <i class="bi bi-pencil-square me-2 text-primary"></i>
+                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-pencil-square"/></svg>
                         {% trans "Edit Information" %}
                     </h5>
                 </div>
@@ -50,7 +50,7 @@
                                             {% if content_item.get_thumbnail_url %}
                                                 <img src="{{ content_item.get_thumbnail_url }}" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
                                             {% else %}
-                                                <i class="bi bi-image text-muted fs-2"></i>
+                                                <svg class="bi text-muted fs-2" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -135,7 +135,7 @@
                             <div class="accordion-item border-0 shadow-sm rounded-3 overflow-hidden mb-3">
                                 <h2 class="accordion-header">
                                     <button class="accordion-button collapsed bg-light text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseText" aria-expanded="false" aria-controls="collapseText">
-                                        <i class="bi bi-file-text me-2"></i>{% trans "View Extracted Text" %}
+                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>{% trans "View Extracted Text" %}
                                         <span class="badge bg-secondary ms-2 rounded-pill">{{ content_item.indexed_char_count }} chars</span>
                                     </button>
                                 </h2>
@@ -154,7 +154,7 @@
                             {% trans "Cancel" %}
                         </a>
                         <button type="submit" class="btn btn-primary rounded-pill px-5 shadow-sm fw-bold">
-                            <i class="bi bi-check-lg me-2"></i>{% trans "Save Changes" %}
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-lg"/></svg>{% trans "Save Changes" %}
                         </button>
                     </div>
                 </form>
@@ -168,7 +168,7 @@
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-header bg-transparent border-0 py-3 px-4">
                 <h6 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-hdd-network me-2 text-primary"></i>
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-hdd-network"/></svg>
                     {% trans "Media Information" %}
                 </h6>
             </div>
@@ -176,11 +176,11 @@
                 <div class="d-flex align-items-center mb-3 p-3 bg-light rounded-3">
                     <div class="me-3 display-6 text-secondary">
                         {% if content_item.content_type == 'video' %}
-                            <i class="bi bi-camera-video"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>
                         {% elif content_item.content_type == 'audio' %}
-                            <i class="bi bi-mic"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
                         {% else %}
-                            <i class="bi bi-file-earmark-pdf"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-pdf"/></svg>
                         {% endif %}
                     </div>
                     <div class="overflow-hidden">
@@ -235,7 +235,7 @@
         <div class="card border-0 shadow-sm rounded-4 mb-4" id="supplementaryDocumentCard">
             <div class="card-header bg-transparent border-0 py-3 px-4">
                 <h6 class="mb-0 fw-bold text-dark">
-                    <i class="bi bi-file-earmark-word me-2 text-primary"></i>
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-word"/></svg>
                     {% trans "Supplementary Document" %}
                 </h6>
             </div>
@@ -244,7 +244,7 @@
                     <!-- Document exists -->
                     <div class="d-flex align-items-center mb-3 p-3 bg-light rounded-3">
                         <div class="me-3 display-6 text-primary">
-                            <i class="bi bi-file-earmark-word-fill"></i>
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-word-fill"/></svg>
                         </div>
                         <div class="overflow-hidden flex-grow-1">
                             <div class="small text-muted text-uppercase mb-1">{% trans "Document" %}</div>
@@ -256,11 +256,11 @@
                     <div class="d-grid gap-2">
                         <a href="{% url 'frontend_api:document_download' content_item.id %}" 
                            class="btn btn-outline-primary btn-sm rounded-pill">
-                            <i class="bi bi-download me-2"></i>{% trans "Download as Word" %}
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>{% trans "Download as Word" %}
                         </a>
                         <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" 
                                 @click="openDeleteModal()">
-                            <i class="bi bi-trash me-2"></i>{% trans "Delete Document" %}
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Delete Document" %}
                         </button>
                     </div>
                     
@@ -284,7 +284,7 @@
                                 <div class="form-text">{% trans "Supported: .doc, .docx (Max 2GB)" %}</div>
                             </div>
                             <button type="submit" class="btn btn-primary w-100 rounded-pill" :disabled="!selectedFile">
-                                <i class="bi bi-upload me-2"></i>{% trans "Upload Document" %}
+                                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-upload"/></svg>{% trans "Upload Document" %}
                             </button>
                         </form>
                     </div>
@@ -307,7 +307,7 @@
         <div class="card border-0 shadow-sm rounded-4">
              <div class="card-header bg-transparent border-0 py-3 px-4">
                 <h6 class="mb-0 fw-bold text-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                     {% trans "Danger Zone" %}
                 </h6>
             </div>
@@ -315,7 +315,7 @@
                 <p class="small text-muted mb-3">{% trans "Deleting this content is permanent and cannot be undone." %}</p>
                 <a href="{% url 'frontend_api:content_delete_confirm' content_item.id %}" 
                    class="btn btn-outline-danger w-100 rounded-pill">
-                    <i class="bi bi-trash me-2"></i>{% trans "Delete Content" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Delete Content" %}
                 </a>
             </div>
         </div>
@@ -328,14 +328,14 @@
         <div class="modal-content rounded-4 border-0 shadow">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title fw-bold text-danger" id="deleteDocumentModalLabel">
-                    <i class="bi bi-exclamation-triangle me-2"></i>{% trans "Delete Document" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>{% trans "Delete Document" %}
                 </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Close' %}"></button>
             </div>
             <div class="modal-body py-4">
                 <p class="mb-2">{% trans "Are you sure you want to delete this supplementary document?" %}</p>
                 <div class="alert alert-info small mb-0 mt-3">
-                    <i class="bi bi-info-circle me-2"></i>
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
                     {% trans "Note: The extracted text content will be preserved in book_content for search purposes." %}
                 </div>
             </div>
@@ -344,7 +344,7 @@
                     {% trans "Cancel" %}
                 </button>
                 <button type="button" class="btn btn-danger rounded-pill" @click="confirmDelete('{{ content_item.id }}')">
-                    <i class="bi bi-trash me-2"></i>{% trans "Delete Document" %}
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Delete Document" %}
                 </button>
             </div>
         </div>
@@ -540,7 +540,7 @@ function previewDetailThumb(input) {
         }
         reader.readAsDataURL(input.files[0]);
     } else {
-        previewDiv.innerHTML = '<i class="bi bi-image text-muted fs-2"></i>';
+        previewDiv.innerHTML = '<svg class="bi text-muted fs-2" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg>';
         previewDiv.classList.add('border');
     }
 }
