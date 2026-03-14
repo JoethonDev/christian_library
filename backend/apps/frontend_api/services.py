@@ -119,29 +119,62 @@ class ContentService:
         search_query: str = '', 
         tag_filter: str = '',
         page: int = 1,
-        per_page: int = 12
+        per_page: int = 12,
+        offset: int = 0
     ) -> Dict[str, Any]:
-        """Get paginated content listing with filtering - optimized queries"""
+        """Get paginated or offset-based content listing with filtering - optimized queries"""
         current_language = get_language()
         
         # Single optimized query with all relations
         if search_query:
             content_qs = ContentItem.objects.search_optimized(search_query, content_type)
         else:
+            # Note: for_listing defaults to order_by('-created_at')
             content_qs = ContentItem.objects.for_listing(content_type)
         
         # Apply tag filter if provided
         if tag_filter:
             content_qs = content_qs.filter(tags__id=tag_filter)
         
-        # Pagination
-        paginator = Paginator(content_qs, per_page)
-        content_page = paginator.get_page(page)
-        
-        # Process content items
-        processed_content = self.language_processor.process_content_list(
-            content_page, current_language
-        )
+        # Determine if we use limit/offset (Infinite Scroll) or standard page-based pagination
+        if offset > 0 or per_page != 12:
+            # Infinite scroll logic (limit/offset)
+            total_count = content_qs.count()
+            content_list = content_qs[offset:offset + per_page]
+            
+            # Process content items
+            processed_content = self.language_processor.process_content_list(
+                content_list, current_language
+            )
+            
+            has_next = (offset + per_page) < total_count
+            next_offset = offset + per_page if has_next else None
+            
+            pagination_data = {
+                'page': None,
+                'total_count': total_count,
+                'has_next': has_next,
+                'next_offset': next_offset,
+                'is_infinite': True
+            }
+        else:
+            # Standard Page-based pagination
+            paginator = Paginator(content_qs, per_page)
+            content_page = paginator.get_page(page)
+            
+            # Process content items
+            processed_content = self.language_processor.process_content_list(
+                content_page, current_language
+            )
+            
+            pagination_data = {
+                'page': content_page,
+                'total_count': paginator.count,
+                'num_pages': paginator.num_pages,
+                'has_previous': content_page.has_previous(),
+                'has_next': content_page.has_next(),
+                'is_infinite': False
+            }
         
         # Get available tags for filter - single query
         available_tags = Tag.objects.for_content_type(content_type)
@@ -152,13 +185,7 @@ class ContentService:
         return {
             'content': processed_content,
             'available_tags': processed_tags,
-            'pagination': {
-                'page': content_page,
-                'total_count': paginator.count,
-                'num_pages': paginator.num_pages,
-                'has_previous': content_page.has_previous(),
-                'has_next': content_page.has_next(),
-            }
+            'pagination': pagination_data
         }
     
     def get_content_detail(self, content_id: str, content_type: str, user=None) -> Dict[str, Any]:
@@ -256,13 +283,11 @@ class ContentService:
         tag_filter: str = '',
         sort_by: str = '-created_at',
         page: int = 1,
-        per_page: int = 12
+        per_page: int = 12,
+        offset: int = 0
     ) -> Dict[str, Any]:
-        """Unified search with all filters - optimized queries"""
+        """Unified search with all filters - supports both pagination and limit/offset"""
         current_language = get_language()
-        
-        # Allow search by tag filter alone (without search query)
-        # Original condition was too restrictive
         
         # Single optimized search query
         results_qs = ContentItem.objects.search_optimized(search_query, content_type_filter)
@@ -272,8 +297,6 @@ class ContentService:
             results_qs = results_qs.filter(tags__id=tag_filter)
         
         # Apply sorting
-        # If search query is provided, results are already sorted by rank in search_optimized
-        # Only override sorting if explicitly requested or if no search query
         if not search_query:
             # No search query - sort by date or specified field
             if sort_by in ['title_ar', 'title_en']:
@@ -285,17 +308,48 @@ class ContentService:
             results_qs = results_qs.order_by(sort_by)
         # else: keep the FTS ranking order from search_optimized (-rank, -created_at)
         
-        # Pagination
-        paginator = Paginator(results_qs, per_page)
-        results_page = paginator.get_page(page)
-        
+        # Pagination or Infinite Scroll?
+        if offset > 0 or per_page != 12:
+            # Limit/Offset Search Results
+            total_count = results_qs.count()
+            results_list = results_qs[offset:offset + per_page]
+            
+            # Process results in memory
+            processed_results = self.language_processor.process_content_list(
+                results_list, current_language
+            )
+            
+            has_next = (offset + per_page) < total_count
+            next_offset = offset + per_page if has_next else None
+            
+            pagination_data = {
+                'page': None,
+                'total_count': total_count,
+                'has_next': has_next,
+                'next_offset': next_offset,
+                'is_infinite': True
+            }
+        else:
+            # Standard Page-based search
+            paginator = Paginator(results_qs, per_page)
+            results_page = paginator.get_page(page)
+            
+            # Process in memory
+            processed_results = self.language_processor.process_content_list(
+                results_page, current_language
+            )
+            
+            pagination_data = {
+                'page': results_page,
+                'total_count': paginator.count,
+                'num_pages': paginator.num_pages,
+                'has_previous': results_page.has_previous(),
+                'has_next': results_page.has_next(),
+                'is_infinite': False
+            }
+            
         # Get available tags for filters
         available_tags = Tag.objects.active().order_by('name_ar')
-        
-        # Process in memory
-        processed_results = self.language_processor.process_content_list(
-            results_page, current_language
-        )
         processed_tags = self.language_processor.process_tag_list(
             available_tags, current_language
         )
@@ -303,15 +357,10 @@ class ContentService:
         return {
             'results': processed_results,
             'available_tags': processed_tags,
-            'pagination': {
-                'page': results_page,
-                'total_count': paginator.count,
-                'num_pages': paginator.num_pages,
-                'has_previous': results_page.has_previous(),
-                'has_next': results_page.has_next(),
-            },
-            'total_count': paginator.count
+            'total_count': pagination_data['total_count'],
+            'pagination': pagination_data
         }
+        
     
     def get_autocomplete_suggestions(self, query: str) -> List[str]:
         """Get autocomplete suggestions from both content and tags - optimized"""

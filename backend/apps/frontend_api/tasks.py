@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 REINDEX_LOCK_KEY = 'google_reindex_lock'
 REINDEX_LOCK_TIMEOUT = 3600  # 1 hour
 
+# Lock key for indexing queue processing
+INDEXING_QUEUE_LOCK_KEY = 'google_indexing_queue_lock'
+INDEXING_QUEUE_LOCK_TIMEOUT = 300  # 5 minutes
+
 
 def get_googlereindexingtask_model():
     """Get GoogleReindexingTask model dynamically to avoid circular imports"""
@@ -267,3 +271,188 @@ Completed: {task.completed_at}
         logger.info(f"Sent completion email for task {task.id} to {task.initiated_by.email}")
     except Exception as e:
         logger.error(f"Error sending email: {e}")
+
+
+# ============================================================================
+# Google Indexing Queue Tasks
+# ============================================================================
+
+@shared_task(bind=True, max_retries=3)
+def process_google_indexing_queue(self, batch_size=10):
+    """
+    Process pending items in the Google Indexing Queue.
+    
+    This task:
+    1. Checks daily quota (200 requests/day max)
+    2. Processes pending items by priority
+    3. Handles rate limiting and errors
+    4. Reschedules items if quota exceeded
+    5. Retries failed items with exponential backoff
+    
+    Args:
+        batch_size: Max number of items to process (default: 10)
+    
+    Returns:
+        dict: Processing statistics
+    """
+    from apps.frontend_api.services.google_indexing_queue_service import (
+        GoogleIndexingQueueService
+    )
+    
+    # Acquire lock to prevent concurrent processing
+    lock_acquired = cache.add(INDEXING_QUEUE_LOCK_KEY, self.request.id, INDEXING_QUEUE_LOCK_TIMEOUT)
+    if not lock_acquired:
+        logger.warning("Another indexing queue task is already running")
+        return {
+            'success': False,
+            'error': 'Lock not acquired'
+        }
+    
+    try:
+        logger.info(f"Processing Google Indexing Queue (batch_size={batch_size})")
+        
+        # Process batch
+        result = GoogleIndexingQueueService.process_queue_batch(batch_size=batch_size)
+        
+        logger.info(
+            f"Indexing queue batch completed: "
+            f"{result['processed']} processed, "
+            f"{result['successful']} successful, "
+            f"{result['failed']} failed"
+        )
+        
+        return {
+            'success': True,
+            **result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing indexing queue: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e)
+        }
+    finally:
+        # Release lock
+        cache.delete(INDEXING_QUEUE_LOCK_KEY)
+
+
+@shared_task
+def revalidate_invalid_indexing_items():
+    """
+    Revalidate items marked as invalid to check if they're now ready.
+    
+    This task checks items that were previously invalid due to missing
+    SEO/metadata to see if they're now complete and ready for indexing.
+    
+    Should be run periodically (e.g., every hour) to catch items whose
+    SEO metadata was generated after initial queueing.
+    
+    Returns:
+        dict: Revalidation statistics
+    """
+    from apps.frontend_api.services.google_indexing_queue_service import (
+        GoogleIndexingQueueService
+    )
+    
+    try:
+        logger.info("Revalidating invalid indexing queue items")
+        
+        result = GoogleIndexingQueueService.revalidate_invalid_items()
+        
+        logger.info(
+            f"Revalidation complete: "
+            f"{result['revalidated']} now valid, "
+            f"{result['still_invalid']} still invalid"
+        )
+        
+        return {
+            'success': True,
+            **result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error revalidating indexing items: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+@shared_task
+def retry_failed_indexing_items(limit=50):
+    """
+    Retry previously failed indexing items.
+    
+    This task resets failed items to pending status so they can be retried.
+    Useful for recovering from temporary API failures or configuration issues.
+    
+    Args:
+        limit: Maximum number of failed items to retry (default: 50)
+    
+    Returns:
+        dict: Retry statistics
+    """
+    from apps.frontend_api.services.google_indexing_queue_service import (
+        GoogleIndexingQueueService
+    )
+    
+    try:
+        logger.info(f"Retrying failed indexing items (limit={limit})")
+        
+        result = GoogleIndexingQueueService.retry_failed_items(limit=limit)
+        
+        logger.info(f"Reset {result['reset_count']} failed items for retry")
+        
+        return {
+            'success': True,
+            **result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error retrying failed indexing items: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+@shared_task
+def cleanup_old_indexing_queue_items(days=30):
+    """
+    Clean up old completed/failed indexing queue items.
+    
+    Removes items older than specified days to prevent database bloat.
+    Only removes items with final status (success/failed).
+    
+    Args:
+        days: Remove items older than this many days (default: 30)
+    
+    Returns:
+        dict: Cleanup statistics
+    """
+    from apps.frontend_api.models_indexing import GoogleIndexingQueue
+    from datetime import timedelta
+    
+    try:
+        cutoff_date = timezone.now() - timedelta(days=days)
+        
+        # Only delete completed or failed items
+        deleted_count = GoogleIndexingQueue.objects.filter(
+            status__in=['success', 'failed'],
+            processed_at__lt=cutoff_date
+        ).delete()[0]
+        
+        logger.info(f"Cleaned up {deleted_count} old indexing queue items (older than {days} days)")
+        
+        return {
+            'success': True,
+            'deleted_count': deleted_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Error cleaning up indexing queue: {e}", exc_info=True)
+        return {
+            'success': False,
+            'error': str(e)
+        }

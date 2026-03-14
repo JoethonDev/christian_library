@@ -1,0 +1,20 @@
+<!-- templates/admin/partials/r2_status_table.html -->
+{% load i18n %}
+<div class="table-responsive" id="r2-status-table-container">
+    <table class="table table-hover align-middle mb-0" id="status-table">
+        <thead class="bg-light">
+            <tr>
+                <th class="ps-4"></th>
+                <th class="text-secondary text-uppercase small fw-bold">{% trans "Content Item" %}</th>
+                <th class="text-secondary text-uppercase small fw-bold">{% trans "Type" %}</th>
+                <th class="text-secondary text-uppercase small fw-bold">{% trans "Status" %}</th>
+                <th class="text-secondary text-uppercase small fw-bold" style="width: 200px;">{% trans "Progress" %}</th>
+                <th class="text-secondary text-uppercase small fw-bold">{% trans "Created" %}</th>
+                <th class="text-end pe-4 text-secondary text-uppercase small fw-bold">{% trans "Actions" %}</th>
+            </tr>
+        </thead>
+        <tbody id="status-tbody">
+            <!-- Content will be loaded via JavaScript from r2_status_dashboard.html -->
+        </tbody>
+    </table>
+</div>

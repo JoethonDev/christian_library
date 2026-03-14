@@ -22,7 +22,8 @@
               hx-get="{% url 'frontend_api:audio_management' %}"
               hx-target="#audio-table-container"
               hx-swap="innerHTML"
-              hx-trigger="submit, change from:select, keyup delay:500ms from:input[name='search']">
+              hx-trigger="submit, change from:select, keyup delay:500ms from:input[name='search']"
+              hx-push-url="true">
             <div class="col-md-5">
                 <input type="text" name="search" class="form-control" placeholder="{% trans 'Search audio...' %}" value="{{ filters.search }}">
             </div>

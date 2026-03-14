@@ -55,6 +55,11 @@ class SEODashboardView(TemplateView):
         ).order_by('-updated_at')[:10]
         context['recent_seo_updates'] = recent_seo_updates
         
+        # HTMX partial support
+        if self.request.headers.get('HX-Request') == 'true':
+            # Note: We need to handle this specially if it's just the table
+            return render(self.request, 'admin/partials/seo_analysis_table.html', context)
+            
         return context
 
 

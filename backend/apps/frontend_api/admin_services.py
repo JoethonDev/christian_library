@@ -133,7 +133,8 @@ class AdminService:
         search_query: str = '',
         page: int = 1,
         per_page: int = 20,
-        language: str = None
+        language: str = None,
+        ordering: str = '-created_at'
     ) -> Dict[str, Any]:
         """Get paginated content list for admin with optimized queries (1-2 total)"""
         if not language:
@@ -142,7 +143,7 @@ class AdminService:
         # Single optimized query with all relations
         content_qs = ContentItem.objects.select_related(
             'videometa', 'audiometa', 'pdfmeta'
-        ).prefetch_related('tags').order_by('-created_at')
+        ).prefetch_related('tags')
         
         # Apply filters
         if content_type:
@@ -156,6 +157,16 @@ class AdminService:
                 Q(description_en__icontains=search_query)
             )
             content_qs = content_qs.filter(search_conditions)
+            
+            if 'rank' not in [getattr(expr, 'name', None) for expr in content_qs.query.annotations.values()]:
+                # If no ranking yet (not using FTS), we still respect provided ordering
+                content_qs = content_qs.order_by(ordering)
+            else:
+                # If ranking exists from FTS, we use ranking then date as per modified rule
+                content_qs = content_qs.order_by('-rank', '-created_at')
+        else:
+            # No search query, use default or provided ordering
+            content_qs = content_qs.order_by(ordering)
         
         # Pagination
         paginator = Paginator(content_qs, per_page)
@@ -231,7 +242,8 @@ class AdminService:
         content_type: str, 
         page: int = 1, 
         per_page: int = 20,
-        filters: Dict[str, Any] = None
+        filters: Dict[str, Any] = None,
+        ordering: str = '-created_at'
     ) -> Dict[str, Any]:
         """Get content for type-specific management pages"""
         if not filters:
@@ -260,6 +272,7 @@ class AdminService:
             elif filters['status'] == 'inactive':
                 content_qs = content_qs.filter(is_active=False)
         
+        has_rank = False
         if filters.get('search'):
             search_query = filters['search']
             
@@ -278,7 +291,8 @@ class AdminService:
                         rank=SearchRank(models.F('search_vector'), search_query_obj)
                     ).filter(
                         rank__gte=search_threshold
-                    ).order_by('-rank')
+                    )
+                    has_rank = True
                 else:
                     # Fallback to search in content, title, and description
                     content_qs = content_qs.filter(
@@ -333,7 +347,10 @@ class AdminService:
                         Q(tag_count=0)
                     )
         
-        content_qs = content_qs.order_by('-created_at')
+        if has_rank:
+            content_qs = content_qs.order_by('-rank', '-created_at')
+        else:
+            content_qs = content_qs.order_by(ordering)
         
         # Pagination
         paginator = Paginator(content_qs, per_page)

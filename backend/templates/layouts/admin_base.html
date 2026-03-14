@@ -305,6 +305,12 @@
                 {% trans "SEO Dashboard" %}
             </a>
             
+            <a href="{% url 'frontend_api:indexing_queue_dashboard' %}" 
+               class="nav-link-admin {% if 'indexing-queue' in request.path %}active{% endif %}">
+                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-graph-up-arrow"/></svg>
+                {% trans "Google Index Dashboard" %}
+            </a>
+            
             <a href="{% url 'frontend_api:system_monitor' %}" 
                class="nav-link-admin {% if 'system' in request.path %}active{% endif %}">
                 <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-cpu"/></svg>

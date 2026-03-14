@@ -1,26 +1,64 @@
 <!-- templates/frontend_api/partials/search_results.html -->
 {% load i18n %}
-{% for item in results %}
-    {% include "components/media_card.html" with item=item %}
-{% empty %}
-    <div class="col-12">
-        <div class="text-center py-5">
-            <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: rgba(184,134,11,0.1); width: 120px; height: 120px;">
-                <svg class="bi" style="font-size: 3rem; color: #B8860B;" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+
+{% if query %}
+    {% if results %}
+        {% if pagination.offset == 0 or not pagination.offset %}
+            <!-- Results Header -->
+            <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h4 class="heading-font text-maroon mb-0">
+                        {% trans "Search Results" %}
+                    </h4>
+                    <span class="body-font text-muted">{{ total_count }} {% trans "results found" %}</span>
+                </div>
+                <p class="body-font text-muted mb-0">{% trans "Results for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
             </div>
-            <h4 class="text-muted mb-2">{% trans "No results found" %}</h4>
-            <p class="text-muted mb-4">{% trans "Try different keywords or browse our categories below" %}</p>
-            <div class="d-flex justify-content-center gap-3 flex-wrap">
-                <a href="{% url 'frontend_api:videos' %}" class="btn btn-outline-primary px-3 py-2" style="border-radius: 20px;">
-                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>{% trans "Videos" %}
-                </a>
-                <a href="{% url 'frontend_api:audios' %}" class="btn btn-outline-primary px-3 py-2" style="border-radius: 20px;">
-                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>{% trans "Audio" %}
-                </a>
-                <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-outline-primary px-3 py-2" style="border-radius: 20px;">
-                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark"/></svg>{% trans "Books" %}
-                </a>
-            </div>
+        {% endif %}
+
+        <div class="row g-4 mb-5">
+            {% for item in results %}
+                {% include "components/media_card.html" with item=item %}
+            {% endfor %}
         </div>
-    </div>
-{% endfor %}
+
+        {% if pagination.has_next %}
+            <div class="col-12" id="loading-search-{{ pagination.next_offset }}">
+                <div hx-get="{% url 'frontend_api:search' %}?q={{ query|urlencode }}&offset={{ pagination.next_offset }}{% if pagination.limit %}&limit={{ pagination.limit }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}"
+                     hx-trigger="revealed"
+                     hx-target="#loading-search-{{ pagination.next_offset }}"
+                     hx-swap="outerHTML"
+                     class="text-center py-5">
+                    <div class="d-inline-flex align-items-center gap-3 px-4 py-3 rounded-pill sacred-shadow" 
+                         style="background: var(--color-golden-ochre-10); border: 2px solid var(--color-golden-ochre);">
+                        <div class="spinner-border text-golden spinner-border-sm"></div>
+                        <span class="body-font text-maroon fw-medium">{% trans "Loading more results..." %}</span>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        {% if pagination.offset == 0 or not pagination.offset %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <div class="p-4 rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="background: rgba(184,134,11,0.1); width: 120px; height: 120px;">
+                        <svg class="bi" style="font-size: 3rem; color: #B8860B;" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+                    </div>
+                    <h4 class="text-muted mb-2">{% trans "No results found" %}</h4>
+                    <p class="text-muted mb-4">{% trans "Try different keywords or browse our categories below" %}</p>
+                    <div class="d-flex justify-content-center gap-3 flex-wrap">
+                        <a href="{% url 'frontend_api:videos' %}" class="btn btn-outline-primary px-3 py-2" style="border-radius: 20px;">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>{% trans "Videos" %}
+                        </a>
+                        <a href="{% url 'frontend_api:audios' %}" class="btn btn-outline-primary px-3 py-2" style="border-radius: 20px;">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>{% trans "Audio" %}
+                        </a>
+                        <a href="{% url 'frontend_api:pdfs' %}" class="btn btn-outline-primary px-3 py-2" style="border-radius: 20px;">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark"/></svg>{% trans "Books" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+{% endif %}

@@ -4,6 +4,7 @@ Refactored to use AdminService layer and eliminate N+1 queries.
 All administrative operations now use minimal database queries.
 """
 import json
+import logging
 import os
 import re
 import tempfile
@@ -16,6 +17,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
@@ -24,8 +26,15 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.frontend_api.admin_services import AdminService
 from apps.frontend_api.models import GoogleReindexingTask
+from apps.frontend_api.models_indexing import GoogleIndexingQueue, GoogleIndexingQuota
+from apps.frontend_api.services.google_indexing_queue_service import GoogleIndexingQueueService
 from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
-from apps.frontend_api.tasks import reindex_website_google
+from apps.frontend_api.tasks import (
+    process_google_indexing_queue,
+    reindex_website_google,
+    revalidate_invalid_indexing_items,
+    retry_failed_indexing_items
+)
 from apps.media_manager.models import (
     APIUploadQueue, ContentItem, ContentViewEvent,
     DailyContentViewSummary, Tag, VideoMeta, AudioMeta, PdfMeta,
@@ -41,9 +50,8 @@ from core.services.gemini_manager import get_gemini_manager
 from core.services.gemini_metadata_service import get_gemini_metadata_service
 from core.services.gemini_seo_service import get_gemini_seo_service
 from core.services.r2_storage_service import get_r2_storage_service
+from core.storage_backends import R2Service
 from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +76,16 @@ def content_list(request):
     content_type = request.GET.get('type', '')
     search_query = request.GET.get('q', '').strip()
     page = int(request.GET.get('page', 1))
+    ordering = request.GET.get('sort', '-created_at')
+    per_page = int(request.GET.get('limit', 20))
     
     # Get content list using optimized service
     content_data = admin_service.get_content_list(
         content_type=content_type,
         search_query=search_query,
         page=page,
-        per_page=20
+        per_page=per_page,
+        ordering=ordering
     )
     
     context = {
@@ -82,7 +93,13 @@ def content_list(request):
         'search_query': search_query,
         'content_data': content_data,
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
+    
+    # HTMX partial support
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/content_list.html', context)
     
     return render(request, 'admin/content_list.html', context)
 
@@ -142,7 +159,6 @@ def content_detail(request, content_id):
                         
                         # 2. Delete from R2 if it exists
                         if content.r2_thumbnail_url:
-                            from core.storage_backends import R2Service
                             r2 = R2Service()
                             if r2.use_r2:
                                 # Key is the name of the file in the ImageField
@@ -163,7 +179,6 @@ def content_detail(request, content_id):
                 # 4. Handle R2 upload for the new thumbnail if enabled
                 if thumbnail_file and getattr(settings, 'R2_ENABLED', False):
                     try:
-                        from core.storage_backends import R2Service
                         r2 = R2Service()
                         if r2.use_r2:
                             r2.upload_thumbnail(content)
@@ -425,12 +440,12 @@ def generate_content_metadata(request):
             return JsonResponse({
                 'success': True,
                 'message': _('Metadata generated successfully'),
-                'metadata': result['metadata']
+                'metadata': metadata
             })
         else:
             return JsonResponse({
                 'success': False,
-                'error': result.get('error', _('Metadata generation failed'))
+                'error': metadata.get('error', _('Metadata generation failed')) if isinstance(metadata, dict) else _('Metadata generation failed')
             })
             
     except Exception as e:
@@ -441,6 +456,9 @@ def generate_content_metadata(request):
 def video_management(request):
     """Video management page - Optimized queries"""
     page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('limit', 20))
+    ordering = request.GET.get('sort', '-created_at')
+    
     filters = {
         'status': request.GET.get('status', ''),
         'processing_status': request.GET.get('processing_status', ''),
@@ -452,8 +470,9 @@ def video_management(request):
     video_data = admin_service.get_type_specific_content(
         content_type='video',
         page=page,
-        per_page=20,
-        filters=filters
+        per_page=per_page,
+        filters=filters,
+        ordering=ordering
     )
     
     context = {
@@ -462,6 +481,8 @@ def video_management(request):
         'videos': video_data.get('content_items', []),
         'pagination': video_data.get('pagination'),
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
     
     if request.headers.get('HX-Request') == 'true':
@@ -474,6 +495,9 @@ def video_management(request):
 def audio_management(request):
     """Audio management page - Optimized queries"""
     page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('limit', 20))
+    ordering = request.GET.get('sort', '-created_at')
+    
     filters = {
         'status': request.GET.get('status', ''),
         'search': request.GET.get('search', '').strip(),
@@ -484,8 +508,9 @@ def audio_management(request):
     audio_data = admin_service.get_type_specific_content(
         content_type='audio',
         page=page,
-        per_page=20,
-        filters=filters
+        per_page=per_page,
+        filters=filters,
+        ordering=ordering
     )
     
     context = {
@@ -494,6 +519,8 @@ def audio_management(request):
         'audios': audio_data.get('content_items', []),
         'pagination': audio_data.get('pagination'),
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
     
     if request.headers.get('HX-Request') == 'true':
@@ -506,6 +533,9 @@ def audio_management(request):
 def pdf_management(request):
     """PDF management page - Optimized queries"""
     page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('limit', 20))
+    ordering = request.GET.get('sort', '-created_at')
+    
     filters = {
         'status': request.GET.get('status', ''),
         'search': request.GET.get('search', '').strip(),
@@ -516,8 +546,9 @@ def pdf_management(request):
     pdf_data = admin_service.get_type_specific_content(
         content_type='pdf',
         page=page,
-        per_page=20,
-        filters=filters
+        per_page=per_page,
+        filters=filters,
+        ordering=ordering
     )
     
     context = {
@@ -526,6 +557,8 @@ def pdf_management(request):
         'pdfs': pdf_data.get('content_items', []),
         'pagination': pdf_data.get('pagination'),
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
     
     if request.headers.get('HX-Request') == 'true':
@@ -1013,6 +1046,10 @@ def r2_status_dashboard(request):
         if request.headers.get('Accept') == 'application/json':
             return JsonResponse(context)
         
+        # HTMX partial support
+        if request.headers.get('HX-Request') == 'true':
+            return render(request, 'admin/partials/r2_status_table.html', context)
+            
         return render(request, 'admin/r2_status_dashboard.html', context)
         
     except Exception as e:
@@ -1681,6 +1718,10 @@ def analytics_dashboard(request):
             'days': days,
         }
         
+        # HTMX partial support
+        if request.headers.get('HX-Request') == 'true':
+            return render(request, 'admin/partials/analytics_table.html', context)
+            
         return render(request, 'admin/analytics_dashboard.html', context)
         
     except Exception as e:
@@ -2246,6 +2287,22 @@ def api_queue_list(request):
         ],
     }
     
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('admin/partials/api_queue_list.html', context, request=request)
+        
+        # Render just the pagination portion
+        pagination_html = render_to_string('admin/api_queue_list.html', context, request=request)
+        # Extract pagination part from the full template (coarse but effective if partial doesn't include it)
+        # Better: render a small snippet for pagination
+        pagination_match = re.search(r'<nav aria-label="Page navigation".*?</nav>', pagination_html, re.DOTALL)
+        pagination_snippet = pagination_match.group(0) if pagination_match else ""
+        
+        return JsonResponse({
+            'html': html,
+            'pagination_html': pagination_snippet,
+            'total_count': paginator.count
+        })
+
     return render(request, 'admin/api_queue_list.html', context)
 
 
@@ -2475,6 +2532,222 @@ def document_delete(request, content_id):
             
     except Exception as e:
         logger.error(f"Error deleting document from {content_id}: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+# ============================================================================
+# Google Indexing Queue Management Views
+# ============================================================================
+
+@login_required
+def indexing_queue_dashboard(request):
+    """
+    Display Google Indexing Queue dashboard with statistics and recent items.
+    Shows queue status, quota usage, and allows manual processing/revalidation.
+    """
+    # Check staff permission
+    if not request.user.is_staff:
+        messages.error(request, _('Permission denied. Staff access required.'))
+        return redirect('frontend_api:admin_dashboard')
+    
+    # Get statistics
+    stats = GoogleIndexingQueueService.get_queue_statistics()
+    
+    # Get recent items by status
+    recent_pending = GoogleIndexingQueue.objects.filter(
+        status='pending'
+    ).select_related('content_item').order_by('-priority', 'created_at')[:10]
+    
+    recent_invalid = GoogleIndexingQueue.objects.filter(
+        status='invalid'
+    ).select_related('content_item').order_by('-created_at')[:10]
+    
+    recent_failed = GoogleIndexingQueue.objects.filter(
+        status='failed'
+    ).select_related('content_item').order_by('-processed_at')[:10]
+    
+    recent_success = GoogleIndexingQueue.objects.filter(
+        status='success'
+    ).select_related('content_item').order_by('-processed_at')[:10]
+    
+    context = {
+        'stats': stats,
+        'recent_pending': recent_pending,
+        'recent_invalid': recent_invalid,
+        'recent_failed': recent_failed,
+        'recent_success': recent_success,
+        'current_language': get_language(),
+    }
+    
+    return render(request, 'admin/indexing_queue_dashboard.html', context)
+
+
+@login_required
+def api_indexing_queue_stats(request):
+    """
+    API endpoint to get indexing queue statistics.
+    GET /dashboard/indexing-queue/stats/
+    """
+    try:
+        stats = GoogleIndexingQueueService.get_queue_statistics()
+        
+        return JsonResponse({
+            'success': True,
+            'stats': stats
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting indexing queue stats: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def api_process_indexing_queue(request):
+    """
+    Manually trigger processing of indexing queue.
+    POST /dashboard/indexing-queue/process/
+    """
+    try:
+        batch_size = int(request.POST.get('batch_size', 10))
+        
+        # Trigger task
+        task = process_google_indexing_queue.delay(batch_size=batch_size)
+        
+        logger.info(f"Manually triggered indexing queue processing (batch_size={batch_size})")
+        
+        return JsonResponse({
+            'success': True,
+            'message': _('Queue processing started'),
+            'task_id': task.id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error triggering indexing queue processing: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def api_revalidate_invalid_items(request):
+    """
+    Manually trigger revalidation of invalid items.
+    POST /dashboard/indexing-queue/revalidate/
+    """
+    try:
+        # Trigger task
+        task = revalidate_invalid_indexing_items.delay()
+        
+        logger.info("Manually triggered revalidation of invalid indexing items")
+        
+        return JsonResponse({
+            'success': True,
+            'message': _('Revalidation started'),
+            'task_id': task.id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error triggering revalidation: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def api_retry_failed_items(request):
+    """
+    Manually trigger retry of failed items.
+    POST /dashboard/indexing-queue/retry-failed/
+    """
+    try:
+        limit = int(request.POST.get('limit', 50))
+        
+        # Trigger task
+        task = retry_failed_indexing_items.delay(limit=limit)
+        
+        logger.info(f"Manually triggered retry of failed items (limit={limit})")
+        
+        return JsonResponse({
+            'success': True,
+            'message': _('Retry started'),
+            'task_id': task.id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error triggering retry: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def api_indexing_queue_items(request):
+    """
+    API endpoint to get indexing queue items with filtering and pagination.
+    GET /dashboard/indexing-queue/items/
+    """
+    try:
+        # Get filters
+        status = request.GET.get('status', '')
+        page = int(request.GET.get('page', 1))
+        per_page = int(request.GET.get('per_page', 20))
+        
+        # Build queryset
+        queryset = GoogleIndexingQueue.objects.select_related('content_item').order_by('-priority', 'created_at')
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        # Paginate
+        paginator = Paginator(queryset, per_page)
+        page_obj = paginator.get_page(page)
+        
+       # Serialize items
+        items = []
+        for item in page_obj:
+            items.append({
+                'id': str(item.id),
+                'url': item.url,
+                'action': item.action,
+                'status': item.status,
+                'priority': item.priority,
+                'retry_count': item.retry_count,
+                'error_message': item.error_message,
+                'error_code': item.error_code,
+                'content_title': item.content_item.get_title() if item.content_item else 'N/A',
+                'content_type': item.content_item.content_type if item.content_item else 'N/A',
+                'created_at': item.created_at.isoformat() if item.created_at else None,
+                'processed_at': item.processed_at.isoformat() if item.processed_at else None,
+                'scheduled_for': item.scheduled_for.isoformat() if item.scheduled_for else None,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'items': items,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total_pages': paginator.num_pages,
+                'total_items': paginator.count,
+                'has_previous': page_obj.has_previous(),
+                'has_next': page_obj.has_next(),
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting indexing queue items: {e}", exc_info=True)
         return JsonResponse({
             'success': False,
             'error': str(e)

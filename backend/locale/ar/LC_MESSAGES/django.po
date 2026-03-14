@@ -4631,7 +4631,7 @@ msgstr "عن المكتبة"
 
 #: .\templates\frontend_api\home.html:47
 msgid "His Grace the Bishop"
-msgstr "نيافة الأسقف"
+msgstr "نيافة المطران"
 
 #: .\templates\frontend_api\home.html:127
 msgid "Photo Gallery"

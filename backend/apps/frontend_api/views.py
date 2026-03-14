@@ -60,23 +60,46 @@ class ContentListMixin:
     def get(self, request):
         search_query = request.GET.get('search', '').strip()
         tag_filter = request.GET.get('tag', '').strip()
-        page = int(request.GET.get('page', 1))
+        
+        # Guard against empty strings in query parameters
+        try:
+            page = int(request.GET.get('page') or 1)
+        except (ValueError, TypeError):
+            page = 1
+            
+        try:
+            offset = int(request.GET.get('offset') or 0)
+        except (ValueError, TypeError):
+            offset = 0
+            
+        try:
+            limit = int(request.GET.get('limit') or 12)
+        except (ValueError, TypeError):
+            limit = 12
+        
         data = content_service.get_content_listing(
             content_type=self.content_type,
             search_query=search_query,
             tag_filter=tag_filter,
             page=page,
-            per_page=12,
+            per_page=limit,
+            offset=offset
         )
+        
+        pagination = data['pagination']
         context = {
-            self.context_object_name: data['pagination']['page'],
-            'page_obj': data['pagination']['page'],
-            'is_paginated': data['pagination']['num_pages'] > 1,
+            self.context_object_name: data['content'],
+            'page_obj': pagination.get('page'),
+            'pagination': pagination,
+            'is_paginated': pagination.get('num_pages', 1) > 1 or pagination.get('has_next', False),
             'search_query': search_query,
             'tag_filter': tag_filter,
             'available_tags': data['available_tags'],
-            'total_count': data['pagination']['total_count'],
+            'total_count': pagination['total_count'],
+            'offset': offset,
+            'limit': limit,
         }
+        
         if request.headers.get('HX-Request'):
             return render(request, self.partial_template_name, context)
         return render(request, self.template_name, context)
@@ -200,12 +223,27 @@ class TagContentView(View):
 # ---------------------------------------------------------------------------
 
 def search(request):
-    """Global search functionality - Optimized to 3 queries max"""
+    """Global search functionality - Optimized for Infinite Scroll and Pagination"""
     search_query = request.GET.get('q', '').strip()
     content_type_filter = request.GET.get('content_type', '').strip()
     tag_filter = request.GET.get('tag', '').strip()
     sort_by = request.GET.get('sort', '-created_at').strip()
-    page = int(request.GET.get('page', 1))
+    
+    # Guard against empty strings in query parameters
+    try:
+        page = int(request.GET.get('page') or 1)
+    except (ValueError, TypeError):
+        page = 1
+        
+    try:
+        offset = int(request.GET.get('offset') or 0)
+    except (ValueError, TypeError):
+        offset = 0
+        
+    try:
+        limit = int(request.GET.get('limit') or 12)
+    except (ValueError, TypeError):
+        limit = 12
     
     # Get current language for proper processing
     current_language = get_language()
@@ -217,20 +255,25 @@ def search(request):
         tag_filter=tag_filter,
         sort_by=sort_by,
         page=page,
-        per_page=12
+        per_page=limit,
+        offset=offset
     )
     
+    pagination = data['pagination']
     context = {
         'query': search_query,
         'content_type_filter': content_type_filter,
         'tag_filter': tag_filter,
         'sort_by': sort_by,
-        'results': data['pagination']['page'] if data['pagination'] else [],
-        'page_obj': data['pagination']['page'] if data['pagination'] else None,
-        'is_paginated': data['pagination']['num_pages'] > 1 if data['pagination'] else False,
+        'results': data['results'],
+        'page_obj': pagination.get('page'),
+        'pagination': pagination,
+        'is_paginated': pagination.get('num_pages', 1) > 1 or pagination.get('has_next', False),
         'total_count': data['total_count'],
         'available_tags': data['available_tags'],
         'current_language': current_language,
+        'offset': offset,
+        'limit': limit,
     }
     
     # HTMX partial for search results

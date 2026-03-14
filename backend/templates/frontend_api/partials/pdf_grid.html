@@ -3,6 +3,7 @@
 {% for item in pdfs %}
     {% include "components/media_card.html" with item=item %}
 {% empty %}
+    {% if pagination.offset == 0 or not pagination.offset %}
     <div class="col-12">
         <div class="card card-coptic text-center py-5">
             <div class="card-body">
@@ -31,13 +32,15 @@
             </div>
         </div>
     </div>
+    {% endif %}
 {% endfor %}
 
-{% if pdfs.has_next %}
-    <div class="col-12">
-        <div hx-get="{% url 'frontend_api:pdfs' %}?page={{ pdfs.next_page_number }}&search={{ search_query }}"
+{% if pagination.has_next %}
+    <div class="col-12" id="loading-pdf-{{ pagination.next_offset }}">
+        <div hx-get="{% url 'frontend_api:pdfs' %}?offset={{ pagination.next_offset }}{% if pagination.limit %}&limit={{ pagination.limit }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if tag_filter %}&tag={{ tag_filter }}{% endif %}"
              hx-trigger="revealed"
-             hx-swap="afterend"
+             hx-target="#loading-pdf-{{ pagination.next_offset }}"
+             hx-swap="outerHTML"
              class="text-center py-4">
             <div class="d-inline-flex align-items-center gap-3 px-4 py-3 rounded-pill sacred-shadow" 
                  style="background: var(--color-golden-ochre-10); border: 2px solid var(--color-golden-ochre);">

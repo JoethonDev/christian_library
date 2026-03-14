@@ -11,9 +11,9 @@
     <div class="col-auto">
         <!-- Date range selector -->
         <div class="btn-group" role="group">
-            <a href="?days=7" class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-outline-primary{% endif %}">7 {% trans "Days" %}</a>
-            <a href="?days=30" class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-outline-primary{% endif %}">30 {% trans "Days" %}</a>
-            <a href="?days=90" class="btn btn-sm {% if days == 90 %}btn-primary{% else %}btn-outline-primary{% endif %}">90 {% trans "Days" %}</a>
+            <button onclick="updateAnalytics(7)" class="btn btn-sm analytics-filter-btn {% if days == 7 %}btn-primary{% else %}btn-outline-primary{% endif %}" data-days="7">7 {% trans "Days" %}</button>
+            <button onclick="updateAnalytics(30)" class="btn btn-sm analytics-filter-btn {% if days == 30 %}btn-primary{% else %}btn-outline-primary{% endif %}" data-days="30">30 {% trans "Days" %}</button>
+            <button onclick="updateAnalytics(90)" class="btn btn-sm analytics-filter-btn {% if days == 90 %}btn-primary{% else %}btn-outline-primary{% endif %}" data-days="90">90 {% trans "Days" %}</button>
         </div>
     </div>
 </div>
@@ -140,70 +140,12 @@
 </div>
 
 <!-- Top Content Table -->
-<div class="card border-0 shadow-sm rounded-4 mb-5">
+<div class="card border-0 shadow-sm rounded-4 mb-5" id="analytics-table-container">
     <div class="card-header bg-white border-0 pt-4 pb-3">
         <h5 class="card-title mb-0 fw-bold">{% trans "Top 20 Most Viewed Content" %}</h5>
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th class="border-0 ps-4">#</th>
-                        <th class="border-0">{% trans "Title" %}</th>
-                        <th class="border-0">{% trans "Type" %}</th>
-                        <th class="border-0 text-end">{% trans "Total Views" %}</th>
-                        <th class="border-0 text-end pe-4">{% trans "Unique Views" %}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in top_content %}
-                    <tr>
-                        <td class="ps-4 text-muted">{{ forloop.counter }}</td>
-                        <td>
-                            {% if item.content_object %}
-                                <a href="{% url 'frontend_api:admin_content_detail' item.content_id %}" class="text-decoration-none text-dark fw-medium">
-                                    {{ item.title }}
-                                </a>
-                            {% else %}
-                                <span class="text-muted">{{ item.title }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="badge bg-{{ item.content_type }}-subtle text-{{ item.content_type }}">
-                                {% if item.content_type == 'video' %}
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
-                                {% elif item.content_type == 'audio' %}
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
-                                {% elif item.content_type == 'pdf' %}
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>
-                                {% endif %}
-                                {{ item.content_type|title }}
-                            </span>
-                        </td>
-                        <td class="text-end fw-bold">{{ item.total_views|floatformat:0 }}</td>
-                        <td class="text-end pe-4 text-muted">{{ item.unique_views|floatformat:0 }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center py-5">
-                            <div class="empty-state-container">
-                                <svg class="bi fs-1 d-block mb-3 text-muted opacity-25" aria-hidden="true" focusable="false"><use href="#bi-bar-chart"/></svg>
-                                <h5 class="text-muted mb-2">{% trans "No Analytics Data Yet" %}</h5>
-                                <p class="text-muted small mb-3">
-                                    {% trans "Content views will appear here once visitors start accessing your library." %}
-                                </p>
-                                <p class="text-muted small">
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
-                                    {% trans "Analytics data is updated daily at midnight." %}
-                                </p>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% include "admin/partials/analytics_table.html" %}
     </div>
 </div>
 
@@ -212,42 +154,110 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Prepare data for charts
-    const dailyStats = {{ daily_stats|safe }};
-    const totalsByType = {{ totals_by_type|safe }};
-    
-    // Process daily stats by content type
+let dailyViewsChart = null;
+let typeDistributionChart = null;
+
+function updateAnalytics(days) {
+    // Update active button state
+    document.querySelectorAll('.analytics-filter-btn').forEach(btn => {
+        if (btn.getAttribute('data-days') == days) {
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-primary');
+        } else {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        }
+    });
+
+    // Update URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('days', days);
+    window.history.pushState({}, '', url);
+
+    // Fetch new content table via AJAX
+    fetch(url, { headers: { 'HX-Request': 'true' } })
+        .then(response => response.text())
+        .then(html => {
+            const container = document.getElementById('analytics-table-container');
+            const cardBody = container.querySelector('.card-body');
+            cardBody.innerHTML = html;
+        });
+
+    // Fetch new chart data
+    fetch(`/api/analytics/views/?days=${days}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateCharts(data.daily_stats, data.totals_by_type);
+            }
+        });
+}
+
+function updateCharts(dailyStats, totalsByType) {
+    // Process data similar to initial load
     const dates = [...new Set(dailyStats.map(s => s.date))].sort();
     const contentTypes = [...new Set(dailyStats.map(s => s.content_type))];
     
-    // Color scheme
+    // Color scheme (re-using yours)
     const colorMap = {
-        'video': {
-            background: 'rgba(220, 53, 69, 0.2)',
-            border: 'rgba(220, 53, 69, 1)'
-        },
-        'audio': {
-            background: 'rgba(255, 193, 7, 0.2)',
-            border: 'rgba(255, 193, 7, 1)'
-        },
-        'pdf': {
-            background: 'rgba(13, 110, 253, 0.2)',
-            border: 'rgba(13, 110, 253, 1)'
-        },
-        'static': {
-            background: 'rgba(25, 135, 84, 0.2)',
-            border: 'rgba(25, 135, 84, 1)'
-        }
+        'video': { background: 'rgba(220, 53, 69, 0.2)', border: 'rgba(220, 53, 69, 1)' },
+        'audio': { background: 'rgba(255, 193, 7, 0.2)', border: 'rgba(255, 193, 7, 1)' },
+        'pdf': { background: 'rgba(13, 110, 253, 0.2)', border: 'rgba(13, 110, 253, 1)' },
+        'static': { background: 'rgba(25, 135, 84, 0.2)', border: 'rgba(25, 135, 84, 1)' }
     };
-    
-    // Build datasets for line chart
+
     const datasets = contentTypes.map(type => {
         const data = dates.map(date => {
             const stat = dailyStats.find(s => s.date === date && s.content_type === type);
             return stat ? stat.total_views : 0;
         });
-        
+        return {
+            label: type.charAt(0).toUpperCase() + type.slice(1),
+            data: data,
+            borderColor: colorMap[type]?.border || 'rgba(75, 192, 192, 1)',
+            backgroundColor: colorMap[type]?.background || 'rgba(75, 192, 192, 0.2)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true
+        };
+    });
+
+    if (dailyViewsChart) {
+        dailyViewsChart.data.labels = dates;
+        dailyViewsChart.data.datasets = datasets;
+        dailyViewsChart.update();
+    }
+
+    if (typeDistributionChart) {
+        typeDistributionChart.data.labels = totalsByType.map(t => t.content_type.toUpperCase());
+        typeDistributionChart.data.datasets[0].data = totalsByType.map(t => t.total_views);
+        typeDistributionChart.update();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial data from template
+    const dailyStats = {{ daily_stats|safe }};
+    const totalsByType = {{ totals_by_type|safe }};
+    
+    // ... (Your existing chart initialization logic, just assign to globally declared dailyViewsChart and typeDistributionChart)
+    // For brevity, I'm adapting your existing Chart initialization below:
+    
+    const dates = [...new Set(dailyStats.map(s => s.date))].sort();
+    const contentTypes = [...new Set(dailyStats.map(s => s.content_type))];
+    
+    const colorMap = {
+        'video': { background: 'rgba(220, 53, 69, 0.2)', border: 'rgba(220, 53, 69, 1)' },
+        'audio': { background: 'rgba(255, 193, 7, 0.2)', border: 'rgba(255, 193, 7, 1)' },
+        'pdf': { background: 'rgba(13, 110, 253, 0.2)', border: 'rgba(13, 110, 253, 1)' },
+        'static': { background: 'rgba(25, 135, 84, 0.2)', border: 'rgba(25, 135, 84, 1)' }
+    };
+    
+    const datasets = contentTypes.map(type => {
+        const data = dates.map(date => {
+            const stat = dailyStats.find(s => s.date === date && s.content_type === type);
+            return stat ? stat.total_views : 0;
+        });
         return {
             label: type.charAt(0).toUpperCase() + type.slice(1),
             data: data,
@@ -259,60 +269,36 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     });
     
-    // Daily Views Chart
     const dailyCtx = document.getElementById('dailyViewsChart');
     if (dailyCtx && dailyStats.length > 0) {
-        new Chart(dailyCtx, {
+        dailyViewsChart = new Chart(dailyCtx, {
             type: 'line',
-            data: {
-                labels: dates,
-                datasets: datasets
-            },
+            data: { labels: dates, datasets: datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                }
+                plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
             }
         });
     }
-    
-    // Type Distribution Pie Chart
+
     const typeCtx = document.getElementById('typeDistributionChart');
     if (typeCtx && totalsByType.length > 0) {
-        new Chart(typeCtx, {
+        typeDistributionChart = new Chart(typeCtx, {
             type: 'doughnut',
             data: {
-                labels: totalsByType.map(t => t.content_type.charAt(0).toUpperCase() + t.content_type.slice(1)),
+                labels: totalsByType.map(t => t.content_type.toUpperCase()),
                 datasets: [{
                     data: totalsByType.map(t => t.total_views),
-                    backgroundColor: totalsByType.map(t => colorMap[t.content_type]?.border || 'rgba(75, 192, 192, 1)'),
+                    backgroundColor: totalsByType.map(t => colorMap[t.content_type]?.border || '#777'),
                     borderWidth: 0
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                    }
-                }
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
             }
         });
     }
