@@ -1,8 +1,8 @@
 """
 SEO Change Detection Signals
-Detects changes to SEO-specific fields and triggers Google Indexing API notifications
-Only notifies Google when SEO metadata actually changes, not on every save
-Also handles content deletion notifications
+Detects changes to SEO-specific fields and queues Google Indexing API notifications.
+Only queues when SEO metadata is complete and ready for indexing.
+Also handles content deletion notifications.
 """
 import logging
 
@@ -59,81 +59,120 @@ def track_seo_fields_before_save(sender, instance, **kwargs):
 @receiver(post_save, sender=ContentItem)
 def notify_google_on_seo_change(sender, instance, created, **kwargs):
     """
-    Notify Google Indexing API when SEO metadata changes
+    Queue content for Google Indexing when SEO metadata is ready.
     
     Triggers on:
-    - New content creation (created=True)
-    - SEO field updates (any of: seo_title_*, seo_meta_description_*, seo_keywords_*, structured_data)
+    - SEO field updates (seo_title_*, seo_meta_description_*, seo_keywords_*, structured_data)
+    - Only if SEO processing status is 'completed'
+    - Only if all required metadata is present
     
     Does NOT trigger on:
+    - New content creation without SEO (will queue once SEO is done)
     - Non-SEO field updates (e.g., view_count, is_active, etc.)
     - Updates that don't change SEO values
+    
+    Uses queue system with validation to ensure:
+    - Only complete content is submitted to Google
+    - Daily quota limits are respected (200/day)
+    - Errors are tracked and retryable
     """
-    # Only notify for active content
+    # Import here to avoid circular imports
+    from apps.frontend_api.services.google_indexing_queue_service import (
+        GoogleIndexingQueueService
+    )
+    
+    # Only process active content
     if not instance.is_active:
+        logger.debug(f"Skipping inactive content: {instance.get_title()}")
         return
     
-    should_notify = False
+    should_queue = False
     changed_fields = []
+    priority = 5  # Default priority
     
     if created:
-        # Always notify for new content
-        should_notify = True
-        changed_fields = ['NEW_CONTENT']
-        logger.info(f"New content created: {instance.get_title()} - will notify Google")
+        # New content - check if SEO is ready
+        if instance.seo_processing_status == 'completed' and instance.has_seo_metadata():
+            should_queue = True
+            changed_fields = ['NEW_CONTENT_WITH_SEO']
+            priority = 7  # Higher priority for new content
+            logger.info(f"New content with complete SEO: {instance.get_title()}")
+        else:
+            logger.info(
+                f"New content without complete SEO: {instance.get_title()} "
+                f"(status: {instance.seo_processing_status}) - will queue once SEO is done"
+            )
+            return
     
     else:
-        # Check whether cached pre-save SEO values exist (set by pre_save in any worker)
+        # Update - check if SEO fields changed
         cache_key = f'{_SEO_TRACKER_PREFIX}{instance.pk}'
         old_values = cache.get(cache_key)
+        
         if old_values is not None:
             cache.delete(cache_key)
-        
-        for field in SEO_FIELDS:
-            old_val = old_values.get(field)
-            new_val = getattr(instance, field)
             
-            # Handle structured_data (JSON) comparison carefully
-            if field == 'structured_data':
-                # Compare as strings to avoid dict ordering issues
-                if str(old_val) != str(new_val):
-                    changed_fields.append(field)
-            else:
-                # Direct comparison for other fields
-                if old_val != new_val:
-                    changed_fields.append(field)
-        
-        if changed_fields:
-            should_notify = True
-            logger.info(f"SEO fields changed for {instance.get_title()}: {', '.join(changed_fields)}")
+            for field in SEO_FIELDS:
+                old_val = old_values.get(field)
+                new_val = getattr(instance, field)
+                
+                # Handle structured_data (JSON) comparison
+                if field == 'structured_data':
+                    if str(old_val) != str(new_val):
+                        changed_fields.append(field)
+                else:
+                    if old_val != new_val:
+                        changed_fields.append(field)
+            
+            if changed_fields:
+                # SEO changed - check if now complete
+                if instance.seo_processing_status == 'completed' and instance.has_seo_metadata():
+                    should_queue = True
+                    priority = 6  # Medium-high priority for SEO updates
+                    logger.info(
+                        f"SEO updated and complete: {instance.get_title()} "
+                        f"| Changed: {', '.join(changed_fields)}"
+                    )
+                else:
+                    logger.info(
+                        f"SEO updated but not complete: {instance.get_title()} "
+                        f"| Status: {instance.seo_processing_status}"
+                    )
+                    return
     
-    # Notify Google if SEO changed
-    if should_notify:
+    # Queue for Google indexing if ready
+    if should_queue:
         try:
-            from apps.frontend_api.google_seo_service import notify_content_update
+            result = GoogleIndexingQueueService.queue_for_indexing(
+                content_item=instance,
+                action='URL_UPDATED',
+                priority=priority
+            )
             
-            success = notify_content_update(instance)
-            
-            if success:
-                logger.info(
-                    f"✓ Google notified about SEO changes for: {instance.get_title()} "
-                    f"| Type: {instance.content_type} "
-                    f"| Changed: {', '.join(changed_fields)}"
-                )
+            if result['queued']:
+                if result.get('already_queued'):
+                    logger.debug(f"Already queued: {instance.get_title()}")
+                else:
+                    logger.info(
+                        f"✓ Queued for Google indexing: {instance.get_title()} "
+                        f"| Priority: {priority} | Changed: {', '.join(changed_fields)}"
+                    )
             else:
-                # Don't log as error - might just be credentials not configured yet
-                logger.debug(
-                    f"Google Indexing API not notified (may not be configured) "
-                    f"for: {instance.get_title()}"
+                # Not ready yet
+                validation = result.get('validation', {})
+                logger.info(
+                    f"⚠ Not ready for indexing: {instance.get_title()} "
+                    f"| Reason: {validation.get('reason')} "
+                    f"| Missing: {', '.join(validation.get('missing', []))}"
                 )
         
         except Exception as e:
-            logger.warning(f"Failed to notify Google Indexing API: {e}")
+            logger.error(f"Error queuing content for indexing: {e}", exc_info=True)
     
     else:
-        # Non-SEO update - skip notification
+        # Non-SEO update - skip
         logger.debug(
-            f"Non-SEO update for {instance.get_title()} - skipping Google notification"
+            f"Non-SEO update for {instance.get_title()} - skipping indexing queue"
         )
 
 
@@ -200,9 +239,13 @@ def store_deleted_content_url(sender, instance, **kwargs):
 @receiver(post_delete, sender=ContentItem)
 def notify_google_on_content_deletion(sender, instance, **kwargs):
     """
-    Notify Google Indexing API when content is deleted
-    This ensures Google removes the URL from search results quickly
+    Queue content deletion notification for Google Indexing API.
+    This ensures Google removes the URL from search results quickly.
     """
+    from apps.frontend_api.services.google_indexing_queue_service import (
+        GoogleIndexingQueueService
+    )
+    
     try:
         # Get stored URL (from pre_delete, any worker)
         cache_key = f'{_DEL_TRACKER_PREFIX}{instance.id}'
@@ -214,22 +257,23 @@ def notify_google_on_content_deletion(sender, instance, **kwargs):
             logger.warning(f"No URL stored for deleted content: {instance.id}")
             return
         
-        # Notify Google about deletion
-        from apps.frontend_api.google_seo_service import notify_google_indexing_api
+        # Queue deletion notification (high priority)
+        result = GoogleIndexingQueueService.queue_for_indexing(
+            content_item=instance,
+            action='URL_DELETED',
+            priority=8  # High priority for deletions
+        )
         
-        success = notify_google_indexing_api(url, action='URL_DELETED')
-        
-        if success:
+        if result['queued']:
             logger.info(
-                f"✓ Google notified about content deletion: {instance.get_title()} "
-                f"| Type: {instance.content_type} "
-                f"| URL: {url}"
+                f"✓ Queued deletion for Google: {instance.get_title()} "
+                f"| Type: {instance.content_type} | URL: {url}"
             )
         else:
-            logger.debug(
-                f"Google Indexing API not notified about deletion (may not be configured) "
-                f"for: {instance.get_title()}"
+            logger.warning(
+                f"Failed to queue deletion: {instance.get_title()} "
+                f"| Error: {result.get('validation', {}).get('reason')}"
             )
     
     except Exception as e:
-        logger.warning(f"Failed to notify Google about content deletion: {e}")
+        logger.error(f"Error queuing content deletion for indexing: {e}", exc_info=True)

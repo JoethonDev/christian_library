@@ -94,6 +94,14 @@ urlpatterns = [
     path('dashboard/seo/reindex/status/<uuid:task_id>/', admin_views.reindex_status, name='reindex_status'),
     path('dashboard/seo/reindex/cancel/<uuid:task_id>/', admin_views.cancel_reindex, name='cancel_reindex'),
     path('dashboard/seo/reindex/history/', admin_views.reindex_history, name='reindex_history'),
+    
+    # Google Indexing Queue Management (at /en/dashboard/indexing-queue/)
+    path('dashboard/indexing-queue/', admin_views.indexing_queue_dashboard, name='indexing_queue_dashboard'),
+    path('dashboard/indexing-queue/stats/', admin_views.api_indexing_queue_stats, name='api_indexing_queue_stats'),
+    path('dashboard/indexing-queue/items/', admin_views.api_indexing_queue_items, name='api_indexing_queue_items'),
+    path('dashboard/indexing-queue/process/', admin_views.api_process_indexing_queue, name='api_process_indexing_queue'),
+    path('dashboard/indexing-queue/revalidate/', admin_views.api_revalidate_invalid_items, name='api_revalidate_invalid_items'),
+    path('dashboard/indexing-queue/retry-failed/', admin_views.api_retry_failed_items, name='api_retry_failed_items'),
 
     # R2 Upload Status Dashboard (at /en/dashboard/r2/)
     path('dashboard/r2/', admin_views.r2_status_dashboard, name='r2_status_dashboard'),

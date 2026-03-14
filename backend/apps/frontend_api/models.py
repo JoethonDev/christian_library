@@ -5,8 +5,10 @@ import uuid
 import json
 from datetime import datetime, timedelta
 
-# Frontend API models if needed in the future
+# Import Google Indexing Queue models
+from apps.frontend_api.models_indexing import GoogleIndexingQueue, GoogleIndexingQuota
 
+# Frontend API models if needed in the future
 
 class GoogleReindexingTask(models.Model):
     """

@@ -207,7 +207,8 @@ class GoogleReindexingService:
             
             # Submit to Google API
             try:
-                success = notify_google_indexing_api(url, action='URL_UPDATED')
+                result = notify_google_indexing_api(url, action='URL_UPDATED')
+                success = result.get('success', False)
                 
                 if success:
                     successful += 1
@@ -216,11 +217,13 @@ class GoogleReindexingService:
                     errors.append({
                         'url': url,
                         'type': 'api_failure',
-                        'message': 'Google Indexing API returned failure',
+                        'message': result.get('error', 'Google Indexing API returned failure'),
+                        'error_code': result.get('error_code', 'UNKNOWN'),
                         'timestamp': timezone.now().isoformat()
                     })
             except Exception as e:
                 failed += 1
+                success = False
                 error_msg = str(e)
                 errors.append({
                     'url': url,
