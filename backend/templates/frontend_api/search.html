@@ -49,49 +49,11 @@
 
 <!-- Search Results -->
 <div id="search-results">
-    {% if query %}
-        {% if results %}
-            <!-- Results Header -->
-            <div class="mb-4">
-                <div class="d-flex align-items-center justify-content-between">
-                    <h4 class="heading-font text-maroon mb-0">
-                        {% trans "Search Results" %}
-                    </h4>
-                    <span class="body-font text-muted">{{ results|length }} {% trans "results found" %}</span>
-                </div>
-                <p class="body-font text-muted mb-0">{% trans "Results for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
-            </div>
-            
-            <div class="row g-4 mb-5">
-                {% for item in results %}
-                    {% include "components/media_card.html" with item=item %}
-                {% endfor %}
-            </div>
-        {% else %}
-            <div class="text-center py-5">
-                <div class="d-inline-flex align-items-center justify-content-center mb-4 sacred-shadow" 
-                     style="width: 120px; height: 120px; background: var(--color-maroon); border-radius: 50%; border: 4px solid var(--color-golden-ochre);">
-                    <svg class="bi text-white" style="font-size: 3rem;" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
-                </div>
-                <h4 class="heading-font text-maroon mt-3">{% trans "No results found" %}</h4>
-                <p class="body-font text-muted mb-3">{% trans "No results found for" %} "<strong class="text-golden">{{ query }}</strong>"</p>
-                <p class="body-font text-muted small">{% trans "Try different keywords or check spelling" %}</p>
-                
-                <!-- Search Suggestions -->
-                <div class="mt-4">
-                    <h6 class="heading-font text-maroon mb-3">{% trans "Search Suggestions" %}:</h6>
-                    <div class="d-flex flex-wrap gap-2 justify-content-center">
-                        <span class="badge bg-secondary px-3 py-2">{% trans "sermons" %}</span>
-                        <span class="badge bg-secondary px-3 py-2">{% trans "prayers" %}</span>
-                        <span class="badge bg-secondary px-3 py-2">{% trans "teachings" %}</span>
-                        <span class="badge bg-secondary px-3 py-2">{% trans "hymns" %}</span>
-                        <span class="badge bg-secondary px-3 py-2">{% trans "scripture" %}</span>
-                    </div>
-                </div>
-            </div>
-        {% endif %}
-    {% else %}
-        <!-- Quick Access Categories -->
+    {% include "frontend_api/partials/search_results.html" %}
+</div>
+
+{% if not query %}
+    <!-- Quick Access Categories -->
         <div class="row g-4">
             <div class="col-md-6 col-lg-3">
                 <a href="{% url 'frontend_api:videos' %}" class="text-decoration-none">
