@@ -9,7 +9,7 @@ from django.core.cache import cache
 from django.conf import settings
 
 from core.services.r2_storage_service import R2StorageService, get_r2_storage_service
-from apps.core.task_monitor import TaskMonitor
+from apps.health.task_monitor import TaskMonitor
 
 
 class R2StorageServiceTestCase(TestCase):

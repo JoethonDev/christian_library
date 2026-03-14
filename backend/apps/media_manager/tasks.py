@@ -1,10 +1,19 @@
 import os
+from datetime import datetime, timedelta
+from pathlib import Path
 from celery import shared_task
 from django.apps import apps
 from django.conf import settings
-from apps.core.task_monitor import TaskMonitor
+from django.db.models import Count
+from django.utils import timezone
+from apps.health.task_monitor import TaskMonitor
 import logging
-from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
+from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2, delete_files_task
+from core.services.gemini_manager import get_gemini_manager
+from apps.media_manager.models import ContentViewEvent, DailyContentViewSummary, APIUploadQueue
+from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+
+logger = logging.getLogger(__name__)
 
 def get_contentitem_model():
     return apps.get_model('media_manager', 'ContentItem')
@@ -16,7 +25,6 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
     Retries up to 3 times with 60 second delays on failure.
     Now includes task monitoring for admin dashboard.
     """
-    logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
     
     # Register task for monitoring with checklist tracking
@@ -191,7 +199,6 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         contentitem_id: ID of the ContentItem to generate SEO for
         force_regenerate: If True, regenerate even if SEO data already exists
     """
-    logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
     
     # Register task for monitoring with checklist tracking
@@ -280,9 +287,6 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
              )
              return
 
-        # Import Gemini service
-        from apps.media_manager.services.gemini_service import get_gemini_service
-        
         TaskMonitor.update_progress(
             self.request.id, 
             30,
@@ -291,8 +295,9 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         )
         
         # Generate SEO metadata
-        service = get_gemini_service()
-        if not service.is_available():
+        manager = get_gemini_manager()
+        is_seo_avail, _ = manager.check_seo_availability()
+        if not is_seo_avail:
             logger.error("Gemini AI service not available")
             raise Exception("Gemini AI service not available")
         
@@ -303,7 +308,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
             'AI Processing'
         )
         
-        success, seo_metadata = service.generate_seo_metadata(file_path, item.content_type)
+        success, seo_metadata = manager.generate_seo(file_path, item.content_type)
         
         if success and seo_metadata:
             TaskMonitor.update_progress(
@@ -473,8 +478,6 @@ def _is_gemini_server_error(exception):
 
 def _calculate_next_3am_delay():
     """Calculate seconds until next 3:00 AM"""
-    from django.utils import timezone
-    from datetime import time, timedelta
     
     now = timezone.now()
     
@@ -500,11 +503,7 @@ def finalize_media_processing(contentitem_id):
     Check if both R2 upload and SEO generation are finished.
     If both are done, safe to delete local files.
     """
-    logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
-    from core.tasks.media_processing import delete_files_task
-    from pathlib import Path
-    import os
     
     try:
         item = ContentItem.objects.get(id=contentitem_id)
@@ -565,7 +564,6 @@ def bulk_generate_seo_metadata(content_type=None, limit=None):
         content_type: Optional filter by content type ('video', 'audio', 'pdf')
         limit: Optional limit on number of items to process
     """
-    logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
     
     try:
@@ -611,12 +609,7 @@ def aggregate_daily_content_views():
     Processes events from yesterday and updates summary records.
     Counts both total views and unique views (by IP address).
     """
-    from django.db.models import Count
-    from django.utils import timezone
-    from datetime import datetime, timedelta
-    from apps.media_manager.models import ContentViewEvent, DailyContentViewSummary
     
-    logger = logging.getLogger(__name__)
     
     try:
         # Process events from yesterday
@@ -704,10 +697,7 @@ def process_upload_queue_item(self, queue_item_id):
     Args:
         queue_item_id: UUID string of APIUploadQueue item
     """
-    logger = logging.getLogger(__name__)
     
-    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
-    from apps.media_manager.models import APIUploadQueue
     
     try:
         queue_item = APIUploadQueue.objects.get(id=queue_item_id)
@@ -755,10 +745,6 @@ def process_scheduled_queue_items():
     Runs every hour via Celery Beat.
     Respects content type concurrency limits.
     """
-    logger = logging.getLogger(__name__)
-    from django.utils import timezone
-    from apps.media_manager.models import APIUploadQueue
-    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
     
     now = timezone.now()
     logger.info(f'Processing scheduled queue items at {now}')
@@ -802,10 +788,6 @@ def process_delayed_3am_queue():
     Runs daily at 3:00 AM via Celery Beat.
     Processes all items scheduled for current day.
     """
-    logger = logging.getLogger(__name__)
-    from django.utils import timezone
-    from apps.media_manager.models import APIUploadQueue
-    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
     
     now = timezone.now()
     logger.info(f'Processing 3:00 AM delayed queue at {now}')
@@ -851,9 +833,6 @@ def cleanup_expired_queue_items():
     Cancels items with delay_count >= 7.
     Cleans up temporary files.
     """
-    logger = logging.getLogger(__name__)
-    from apps.media_manager.models import APIUploadQueue
-    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
     
     logger.info('Cleaning up expired queue items')
     
@@ -899,7 +878,6 @@ def extract_document_text(self, contentitem_id, user_id=None):
         contentitem_id: UUID of the ContentItem
         user_id: Optional user ID for task monitoring
     """
-    logger = logging.getLogger(__name__)
     ContentItem = get_contentitem_model()
     
     # Register task for monitoring

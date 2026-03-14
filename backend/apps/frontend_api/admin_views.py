@@ -5,29 +5,45 @@ All administrative operations now use minimal database queries.
 """
 import json
 import os
+import re
 import tempfile
+from datetime import date, timedelta
+
 from django.conf import settings
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, Http404
 from django.contrib import messages
-from django.views.decorators.http import require_http_methods, require_POST
-from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Count, Q, Sum
+from django.http import FileResponse, Http404, JsonResponse
+from django.shortcuts import render, get_object_or_404, redirect
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
-from django.contrib.auth.decorators import login_required
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods, require_POST
 
-from apps.media_manager.models import ContentItem, Tag
-from apps.media_manager.services.content_service import ContentService
-from apps.media_manager.services.upload_service import MediaUploadService
-from apps.media_manager.services.delete_service import MediaProcessingService
-from apps.media_manager.services.gemini_service import get_gemini_service
-from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.frontend_api.admin_services import AdminService
+from apps.frontend_api.models import GoogleReindexingTask
+from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
+from apps.frontend_api.tasks import reindex_website_google
+from apps.media_manager.models import (
+    APIUploadQueue, ContentItem, ContentViewEvent,
+    DailyContentViewSummary, Tag, VideoMeta, AudioMeta, PdfMeta,
+)
+from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+from apps.media_manager.services.content_service import ContentService
+from apps.media_manager.services.delete_service import MediaProcessingService
+from apps.media_manager.services.search_settings_service import get_search_settings_service
+from apps.media_manager.services.unified_search_service import get_unified_search_service
+from apps.media_manager.services.upload_service import MediaUploadService
+from apps.media_manager.tasks import generate_seo_metadata_task
 from core.services.gemini_manager import get_gemini_manager
+from core.services.gemini_metadata_service import get_gemini_metadata_service
+from core.services.gemini_seo_service import get_gemini_seo_service
+from core.services.r2_storage_service import get_r2_storage_service
+from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
 
 import logging
-import tempfile
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -394,13 +410,17 @@ def generate_content_metadata(request):
         # Get content item
         content = admin_service.get_content_detail(content_id)
         
-        # Use Gemini service to generate metadata
-        gemini_service = get_gemini_service()
-        result = gemini_service.generate_content_metadata(content)
-        
-        if result['success']:
+        # Use Gemini manager to generate metadata
+        meta_obj = content.get_meta_object()
+        if not meta_obj or not meta_obj.original_file:
+            return JsonResponse({'success': False, 'error': _('No media file found for content')})
+        success, metadata = get_gemini_manager().generate_metadata(
+            meta_obj.original_file.path, content.content_type
+        )
+
+        if success:
             # Update content with generated metadata
-            content.update_seo_from_gemini(result['metadata'])
+            content.update_seo_from_gemini(metadata)
             
             return JsonResponse({
                 'success': True,
@@ -537,7 +557,6 @@ def bulk_operations(request):
         content_ids_str = request.POST.get('content_ids[]', '') or request.POST.get('content_ids', '')
         
         # Parse IDs (comma or newline separated)
-        import re
         content_ids = [cid.strip() for cid in re.split(r'[,\n\r\s]+', content_ids_str) if cid.strip()]
         
         if not content_ids:
@@ -655,18 +674,24 @@ def api_bulk_generate_seo(request):
         
         # Process each content item
         results = []
-        gemini_service = get_gemini_service()
-        
+
         for content_id in content_ids:
             try:
                 content = admin_service.get_content_detail(content_id)
-                result = gemini_service.generate_content_metadata(content)
-                
-                if result['success']:
-                    content.update_seo_from_gemini(result['metadata'])
+                meta_obj = content.get_meta_object()
+                if not meta_obj or not meta_obj.original_file:
+                    results.append({'id': content_id, 'success': False, 'error': 'No media file'})
+                    continue
+                success, metadata = get_gemini_manager().generate_metadata(
+                    meta_obj.original_file.path, content.content_type
+                )
+
+                if success:
+                    content.update_seo_from_gemini(metadata)
                     results.append({'id': content_id, 'success': True})
                 else:
-                    results.append({'id': content_id, 'success': False, 'error': result.get('error')})
+                    results.append({'id': content_id, 'success': False, 'error':
+                        metadata.get('error') if isinstance(metadata, dict) else 'Generation failed'})
                     
             except Exception as e:
                 results.append({'id': content_id, 'success': False, 'error': str(e)})
@@ -795,14 +820,12 @@ def generate_metadata_from_file(request):
             else:
                 return JsonResponse({'success': False, 'error': _('Unsupported file type')})
         
-        # Use Gemini service to generate metadata from file
-        gemini_service = get_gemini_service()
-        if not gemini_service.is_available():
+        # Use Gemini manager to generate metadata from file
+        is_seo_avail, _ = get_gemini_manager().check_seo_availability()
+        if not is_seo_avail:
             return JsonResponse({'success': False, 'error': _('AI service not available')})
         
         # Save file temporarily for processing
-        import tempfile
-        import os
         file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
         with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{file_extension}') as temp_file:
             for chunk in file_obj.chunks():
@@ -811,7 +834,7 @@ def generate_metadata_from_file(request):
         
         try:
             # Generate metadata using the temporary file
-            success, metadata = gemini_service.generate_seo_metadata(temp_file_path, content_type)
+            success, metadata = get_gemini_manager().generate_seo(temp_file_path, content_type)
             
             if success and metadata:
                 return JsonResponse({
@@ -841,8 +864,6 @@ def get_r2_storage_usage(request):
     Use ?refresh=true to force refresh.
     """
     try:
-        from core.services.r2_storage_service import get_r2_storage_service
-        
         # Check if user has permission (staff or superuser)
         if not request.user.is_staff:
             return JsonResponse({
@@ -883,9 +904,6 @@ def r2_status_dashboard(request):
         return JsonResponse({'error': _('Permission denied')}, status=403)
     
     try:
-        from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta
-        from django.db.models import Q
-        
         # Get filter parameters
         status_filter = request.GET.get('status', 'all')  # all, pending, uploading, completed, failed
         content_type = request.GET.get('type', 'all')  # all, video, audio, pdf
@@ -1015,8 +1033,6 @@ def retry_r2_upload(request, content_type, meta_id):
         return JsonResponse({'error': _('Permission denied')}, status=403)
     
     try:
-        from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
-        
         # Validate content type
         if content_type not in ['video', 'audio', 'pdf']:
             return JsonResponse({'error': _('Invalid content type')}, status=400)
@@ -1025,7 +1041,6 @@ def retry_r2_upload(request, content_type, meta_id):
         task_id = None
         
         if content_type == 'video':
-            from apps.media_manager.models import VideoMeta
             video_meta = get_object_or_404(VideoMeta, id=meta_id)
             video_meta.r2_upload_status = 'pending'  # Reset status
             video_meta.r2_upload_progress = 0
@@ -1034,7 +1049,6 @@ def retry_r2_upload(request, content_type, meta_id):
             task_id = task_result.id
             
         elif content_type == 'audio':
-            from apps.media_manager.models import AudioMeta
             audio_meta = get_object_or_404(AudioMeta, id=meta_id)
             audio_meta.r2_upload_status = 'pending'  # Reset status
             audio_meta.r2_upload_progress = 0
@@ -1043,7 +1057,6 @@ def retry_r2_upload(request, content_type, meta_id):
             task_id = task_result.id
             
         elif content_type == 'pdf':
-            from apps.media_manager.models import PdfMeta
             pdf_meta = get_object_or_404(PdfMeta, id=meta_id)
             pdf_meta.r2_upload_status = 'pending'  # Reset status
             pdf_meta.r2_upload_progress = 0
@@ -1075,9 +1088,6 @@ def bulk_retry_r2_uploads(request):
         return JsonResponse({'error': _('Permission denied')}, status=403)
     
     try:
-        import json
-        from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
-        
         # Parse request data
         data = json.loads(request.body)
         items = data.get('items', [])
@@ -1098,7 +1108,6 @@ def bulk_retry_r2_uploads(request):
             
             try:
                 if content_type == 'video':
-                    from apps.media_manager.models import VideoMeta
                     video_meta = VideoMeta.objects.get(id=meta_id)
                     video_meta.r2_upload_status = 'pending'
                     video_meta.r2_upload_progress = 0
@@ -1107,7 +1116,6 @@ def bulk_retry_r2_uploads(request):
                     results['task_ids'].append(task_result.id)
                     
                 elif content_type == 'audio':
-                    from apps.media_manager.models import AudioMeta
                     audio_meta = AudioMeta.objects.get(id=meta_id)
                     audio_meta.r2_upload_status = 'pending'
                     audio_meta.r2_upload_progress = 0
@@ -1116,7 +1124,6 @@ def bulk_retry_r2_uploads(request):
                     results['task_ids'].append(task_result.id)
                     
                 elif content_type == 'pdf':
-                    from apps.media_manager.models import PdfMeta
                     pdf_meta = PdfMeta.objects.get(id=meta_id)
                     pdf_meta.r2_upload_status = 'pending'
                     pdf_meta.r2_upload_progress = 0
@@ -1174,9 +1181,6 @@ def get_r2_sync_status(request):
 
 def get_r2_sync_status_data():
     """Helper function to get R2 sync status data"""
-    from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta
-    from django.db.models import Count
-    
     # Video R2 status counts
     video_status = VideoMeta.objects.values('r2_upload_status').annotate(count=Count('id'))
     video_counts = {status['r2_upload_status']: status['count'] for status in video_status}
@@ -1221,9 +1225,6 @@ def api_auto_fill_metadata(request):
     Trigger auto-fill action for content item(s) (SEO metadata generation).
     Supports both single and bulk operations.
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
     try:
         data = json.loads(request.body)
         content_id = data.get('content_id')
@@ -1231,8 +1232,6 @@ def api_auto_fill_metadata(request):
         
         # Handle bulk operation
         if content_ids:
-            from apps.media_manager.tasks import generate_seo_metadata_task
-            
             task_ids = []
             success_count = 0
             
@@ -1264,9 +1263,6 @@ def api_auto_fill_metadata(request):
             content = ContentItem.objects.get(id=content_id)
         except ContentItem.DoesNotExist:
             return JsonResponse({'success': False, 'error': _('Content not found')})
-        
-        # Import the task
-        from apps.media_manager.tasks import generate_seo_metadata_task
         
         # Trigger the background task
         task = generate_seo_metadata_task.delay(str(content_id))
@@ -1325,8 +1321,6 @@ def generate_metadata_only(request):
         return JsonResponse({'success': False, 'error': _('POST method required')})
     
     try:
-        from core.services.gemini_metadata_service import get_gemini_metadata_service
-        
         file_obj = request.FILES.get('file')
         if not file_obj:
             return JsonResponse({'success': False, 'error': _('File required')})
@@ -1370,8 +1364,6 @@ def generate_seo_only(request):
         return JsonResponse({'success': False, 'error': _('POST method required')})
     
     try:
-        from core.services.gemini_seo_service import get_gemini_seo_service
-        
         file_obj = request.FILES.get('file')
         if not file_obj:
             return JsonResponse({'success': False, 'error': _('File required')})
@@ -1516,11 +1508,6 @@ def analytics_dashboard(request):
     Includes historical summaries and real-time events for today.
     Shows both total views and unique views (by IP).
     """
-    from datetime import timedelta, date
-    from django.db.models import Sum, Count
-    from django.utils import timezone
-    from apps.media_manager.models import DailyContentViewSummary, ContentViewEvent, ContentItem
-    
     try:
         # Date range (last 30 days by default)
         days = int(request.GET.get('days', 30))
@@ -1716,11 +1703,6 @@ def api_analytics_views(request):
     Used for AJAX requests and chart rendering.
     Includes historical summaries and real-time events for today.
     """
-    from datetime import timedelta, date
-    from django.db.models import Sum, Count
-    from django.utils import timezone
-    from apps.media_manager.models import DailyContentViewSummary, ContentViewEvent
-    
     try:
         # Date range parameters
         days = int(request.GET.get('days', 30))
@@ -1909,8 +1891,6 @@ def test_search_sensitivity(request):
             threshold = search_service.get_threshold_for_mode(test_mode)
         
         # Use UnifiedSearchService for consistent search behavior
-        from apps.media_manager.services.unified_search_service import get_unified_search_service
-        
         unified_search = get_unified_search_service()
         results_data = unified_search.get_search_preview(
             query=search_query,
@@ -1966,9 +1946,6 @@ def initiate_google_reindexing(request):
         }, status=403)
     
     try:
-        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
-        from apps.frontend_api.tasks import reindex_website_google
-        
         # Parse request body
         data = json.loads(request.body) if request.body else {}
         content_type = data.get('content_type', 'all')
@@ -2042,9 +2019,6 @@ def reindex_status(request, task_id):
         }, status=403)
     
     try:
-        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
-        from apps.frontend_api.models import GoogleReindexingTask
-        
         service = GoogleReindexingService()
         status_data = service.get_task_status(str(task_id))
         
@@ -2093,8 +2067,6 @@ def cancel_reindex(request, task_id):
         }, status=403)
     
     try:
-        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
-        
         service = GoogleReindexingService()
         cancelled = service.cancel_task(str(task_id))
         
@@ -2147,8 +2119,6 @@ def reindex_history(request):
         }, status=403)
     
     try:
-        from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
-        
         # Get limit from query params
         limit = min(int(request.GET.get('limit', 10)), 50)
         
@@ -2211,9 +2181,6 @@ def api_queue_list(request):
     Display and manage API upload queue items.
     Supports filtering by status, content type, and pagination.
     """
-    from apps.media_manager.models import APIUploadQueue
-    from django.core.paginator import Paginator
-    
     # Get filter parameters
     status_filter = request.GET.get('status', '')
     content_type_filter = request.GET.get('content_type', '')
@@ -2285,8 +2252,6 @@ def api_queue_list(request):
 @login_required
 def api_queue_detail(request, queue_id):
     """Display detailed information about a queue item."""
-    from apps.media_manager.models import APIUploadQueue
-    
     queue_item = get_object_or_404(
         APIUploadQueue.objects.select_related('content_item'), 
         id=queue_id
@@ -2304,9 +2269,6 @@ def api_queue_detail(request, queue_id):
 @require_POST
 def api_queue_promote(request, queue_id):
     """Promote a queue item to process immediately."""
-    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
-    from apps.media_manager.models import APIUploadQueue
-    
     try:
         queue_item = get_object_or_404(APIUploadQueue, id=queue_id)
         
@@ -2345,9 +2307,6 @@ def api_queue_promote(request, queue_id):
 @require_POST
 def api_queue_cancel(request, queue_id):
     """Cancel a queue item."""
-    from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
-    from apps.media_manager.models import APIUploadQueue
-    
     try:
         queue_item = get_object_or_404(APIUploadQueue, id=queue_id)
         
@@ -2397,9 +2356,6 @@ def document_upload(request, content_id):
         }, status=405)
     
     try:
-        from apps.media_manager.models import ContentItem
-        from apps.media_manager.services.upload_service import MediaUploadService
-        
         # Get content item
         content_item = get_object_or_404(ContentItem, id=content_id)
         
@@ -2412,7 +2368,6 @@ def document_upload(request, content_id):
             }, status=400)
         
         # Validate file extension
-        import os
         file_ext = os.path.splitext(document_file.name)[1].lower()
         if file_ext not in ['.doc', '.docx']:
             return JsonResponse({
@@ -2454,9 +2409,6 @@ def document_download(request, content_id):
     GET /dashboard/content/<uuid>/document/download/
     """
     try:
-        from django.http import FileResponse
-        from apps.media_manager.models import ContentItem
-        
         content_item = get_object_or_404(ContentItem, id=content_id)
         
         if not content_item.has_supplementary_document:
@@ -2498,9 +2450,6 @@ def document_delete(request, content_id):
         }, status=405)
     
     try:
-        from apps.media_manager.models import ContentItem
-        from apps.media_manager.services.upload_service import MediaUploadService
-        
         content_item = get_object_or_404(ContentItem, id=content_id)
         
         if not content_item.has_supplementary_document:

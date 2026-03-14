@@ -5,10 +5,12 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# The fallback is intentionally insecure — for local dev only. Never use in production.
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Base defaults to False. development.py overrides to True for local use.
+DEBUG = False
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
 
@@ -16,8 +18,8 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
 SITE_ID = 1
 SITE_NAME = os.environ.get('SITE_NAME', 'Christian Library')
 SITE_DOMAIN = os.environ.get('SITE_DOMAIN', 'localhost:8000')
-# Default to http in dev and for localhost, use https in prod
-SITE_PROTOCOL = os.environ.get('SITE_PROTOCOL', 'http' if DEBUG or 'localhost' in SITE_DOMAIN else 'https')
+# Rely on env var; fallback evaluates after DEBUG is set correctly per environment
+SITE_PROTOCOL = os.environ.get('SITE_PROTOCOL', 'https')
 
 DJANGO_APPS = [
     'django.contrib.admin',

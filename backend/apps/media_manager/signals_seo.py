@@ -4,19 +4,21 @@ Detects changes to SEO-specific fields and triggers Google Indexing API notifica
 Only notifies Google when SEO metadata actually changes, not on every save
 Also handles content deletion notifications
 """
+import logging
+
 from django.db.models.signals import post_save, pre_save, pre_delete, post_delete
 from django.dispatch import receiver
+from django.core.cache import cache
+
 from apps.media_manager.models import ContentItem
-import logging
 
 logger = logging.getLogger(__name__)
 
 
-# Track previous SEO field values before save
-_seo_field_tracker = {}
-
-# Track URLs of deleted content for Google notification
-_deleted_content_urls = {}
+# Cache key prefixes & TTL for cross-worker signal state
+_SEO_TRACKER_PREFIX = 'seo_track:'
+_DEL_TRACKER_PREFIX = 'del_track:'
+_TRACKER_TTL = 60  # seconds — well beyond any pre/post signal gap
 
 # SEO fields that should trigger Google notification when changed
 SEO_FIELDS = [
@@ -42,11 +44,12 @@ def track_seo_fields_before_save(sender, instance, **kwargs):
             old_instance = ContentItem.objects.filter(pk=instance.pk).only(*SEO_FIELDS).first()
             
             if old_instance:
-                # Store old SEO field values
-                _seo_field_tracker[instance.pk] = {
-                    field: getattr(old_instance, field)
-                    for field in SEO_FIELDS
-                }
+                # Store old SEO field values in shared cache (safe across workers)
+                cache.set(
+                    f'{_SEO_TRACKER_PREFIX}{instance.pk}',
+                    {field: getattr(old_instance, field) for field in SEO_FIELDS},
+                    timeout=_TRACKER_TTL,
+                )
         except ContentItem.DoesNotExist:
             pass
         except Exception as e:
@@ -79,9 +82,12 @@ def notify_google_on_seo_change(sender, instance, created, **kwargs):
         changed_fields = ['NEW_CONTENT']
         logger.info(f"New content created: {instance.get_title()} - will notify Google")
     
-    elif instance.pk in _seo_field_tracker:
-        # Check which SEO fields changed
-        old_values = _seo_field_tracker.pop(instance.pk)
+    else:
+        # Check whether cached pre-save SEO values exist (set by pre_save in any worker)
+        cache_key = f'{_SEO_TRACKER_PREFIX}{instance.pk}'
+        old_values = cache.get(cache_key)
+        if old_values is not None:
+            cache.delete(cache_key)
         
         for field in SEO_FIELDS:
             old_val = old_values.get(field)
@@ -178,8 +184,12 @@ def store_deleted_content_url(sender, instance, **kwargs):
     try:
         from apps.frontend_api.google_seo_service import get_absolute_content_url
         
-        # Store URL for post_delete handler
-        _deleted_content_urls[instance.id] = get_absolute_content_url(instance)
+        # Store URL in shared cache for post_delete handler (safe across workers)
+        cache.set(
+            f'{_DEL_TRACKER_PREFIX}{instance.id}',
+            get_absolute_content_url(instance),
+            timeout=_TRACKER_TTL,
+        )
         
         logger.debug(f"Stored URL for deletion notification: {instance.get_title()}")
     
@@ -194,8 +204,11 @@ def notify_google_on_content_deletion(sender, instance, **kwargs):
     This ensures Google removes the URL from search results quickly
     """
     try:
-        # Get stored URL (from pre_delete)
-        url = _deleted_content_urls.pop(instance.id, None)
+        # Get stored URL (from pre_delete, any worker)
+        cache_key = f'{_DEL_TRACKER_PREFIX}{instance.id}'
+        url = cache.get(cache_key)
+        if url:
+            cache.delete(cache_key)
         
         if not url:
             logger.warning(f"No URL stored for deleted content: {instance.id}")
