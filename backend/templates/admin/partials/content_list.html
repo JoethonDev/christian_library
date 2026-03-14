@@ -198,23 +198,27 @@
 </div>
 
 <!-- Pagination -->
-{% if content_data.has_pagination %}
+{% if content_data.pagination.has_pagination %}
 <div class="d-flex justify-content-between align-items-center mt-3 border-top pt-3">
     <div class="text-muted small">
-        {% trans "Showing" %} <strong>{{ content_data.start_index }}-{{ content_data.end_index }}</strong> {% trans "of" %} <strong>{{ content_data.total_count }}</strong>
+        {% trans "Showing" %} <strong>{{ content_data.pagination.page.start_index }}-{{ content_data.pagination.page.end_index }}</strong> {% trans "of" %} <strong>{{ content_data.pagination.total_count }}</strong>
     </div>
     <nav>
         <ul class="pagination pagination-sm mb-0">
-            {% if content_data.has_previous %}
+            {% if content_data.pagination.has_previous %}
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
-                   href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
+                   hx-get="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
+                   hx-target="#admin-content-table"
+                   href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
                     <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-double-left"/></svg>
                 </a>
             </li>
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
-                   href="?page={{ content_data.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
+                   hx-get="?page={{ content_data.pagination.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
+                   hx-target="#admin-content-table"
+                   href="?page={{ content_data.pagination.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
                     <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                 </a>
             </li>
@@ -222,20 +226,24 @@
             
             <li class="page-item active">
                 <span class="page-link bg-primary border-primary">
-                    {{ content_data.number }}
+                    {{ content_data.pagination.page.number }}
                 </span>
             </li>
             
-            {% if content_data.has_next %}
+            {% if content_data.pagination.has_next %}
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
-                   href="?page={{ content_data.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
+                   hx-get="?page={{ content_data.pagination.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
+                   hx-target="#admin-content-table"
+                   href="?page={{ content_data.pagination.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
                     <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                 </a>
             </li>
             <li class="page-item">
                 <a class="page-link border-0 text-secondary" 
-                   href="?page={{ content_data.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type_filter %}&type={{ content_type_filter }}{% endif %}">
+                   hx-get="?page={{ content_data.pagination.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
+                   hx-target="#admin-content-table"
+                   href="?page={{ content_data.pagination.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
                     <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-double-right"/></svg>
                 </a>
             </li>

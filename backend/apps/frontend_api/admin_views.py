@@ -68,13 +68,16 @@ def content_list(request):
     content_type = request.GET.get('type', '')
     search_query = request.GET.get('q', '').strip()
     page = int(request.GET.get('page', 1))
+    ordering = request.GET.get('sort', '-created_at')
+    per_page = int(request.GET.get('limit', 20))
     
     # Get content list using optimized service
     content_data = admin_service.get_content_list(
         content_type=content_type,
         search_query=search_query,
         page=page,
-        per_page=20
+        per_page=per_page,
+        ordering=ordering
     )
     
     context = {
@@ -82,7 +85,13 @@ def content_list(request):
         'search_query': search_query,
         'content_data': content_data,
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
+    
+    # HTMX partial support
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/content_list.html', context)
     
     return render(request, 'admin/content_list.html', context)
 
@@ -425,12 +434,12 @@ def generate_content_metadata(request):
             return JsonResponse({
                 'success': True,
                 'message': _('Metadata generated successfully'),
-                'metadata': result['metadata']
+                'metadata': metadata
             })
         else:
             return JsonResponse({
                 'success': False,
-                'error': result.get('error', _('Metadata generation failed'))
+                'error': metadata.get('error', _('Metadata generation failed')) if isinstance(metadata, dict) else _('Metadata generation failed')
             })
             
     except Exception as e:
@@ -441,6 +450,9 @@ def generate_content_metadata(request):
 def video_management(request):
     """Video management page - Optimized queries"""
     page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('limit', 20))
+    ordering = request.GET.get('sort', '-created_at')
+    
     filters = {
         'status': request.GET.get('status', ''),
         'processing_status': request.GET.get('processing_status', ''),
@@ -452,8 +464,9 @@ def video_management(request):
     video_data = admin_service.get_type_specific_content(
         content_type='video',
         page=page,
-        per_page=20,
-        filters=filters
+        per_page=per_page,
+        filters=filters,
+        ordering=ordering
     )
     
     context = {
@@ -462,6 +475,8 @@ def video_management(request):
         'videos': video_data.get('content_items', []),
         'pagination': video_data.get('pagination'),
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
     
     if request.headers.get('HX-Request') == 'true':
@@ -474,6 +489,9 @@ def video_management(request):
 def audio_management(request):
     """Audio management page - Optimized queries"""
     page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('limit', 20))
+    ordering = request.GET.get('sort', '-created_at')
+    
     filters = {
         'status': request.GET.get('status', ''),
         'search': request.GET.get('search', '').strip(),
@@ -484,8 +502,9 @@ def audio_management(request):
     audio_data = admin_service.get_type_specific_content(
         content_type='audio',
         page=page,
-        per_page=20,
-        filters=filters
+        per_page=per_page,
+        filters=filters,
+        ordering=ordering
     )
     
     context = {
@@ -494,6 +513,8 @@ def audio_management(request):
         'audios': audio_data.get('content_items', []),
         'pagination': audio_data.get('pagination'),
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
     
     if request.headers.get('HX-Request') == 'true':
@@ -506,6 +527,9 @@ def audio_management(request):
 def pdf_management(request):
     """PDF management page - Optimized queries"""
     page = int(request.GET.get('page', 1))
+    per_page = int(request.GET.get('limit', 20))
+    ordering = request.GET.get('sort', '-created_at')
+    
     filters = {
         'status': request.GET.get('status', ''),
         'search': request.GET.get('search', '').strip(),
@@ -516,8 +540,9 @@ def pdf_management(request):
     pdf_data = admin_service.get_type_specific_content(
         content_type='pdf',
         page=page,
-        per_page=20,
-        filters=filters
+        per_page=per_page,
+        filters=filters,
+        ordering=ordering
     )
     
     context = {
@@ -526,6 +551,8 @@ def pdf_management(request):
         'pdfs': pdf_data.get('content_items', []),
         'pagination': pdf_data.get('pagination'),
         'current_language': get_language(),
+        'ordering': ordering,
+        'per_page': per_page,
     }
     
     if request.headers.get('HX-Request') == 'true':
@@ -1013,6 +1040,10 @@ def r2_status_dashboard(request):
         if request.headers.get('Accept') == 'application/json':
             return JsonResponse(context)
         
+        # HTMX partial support
+        if request.headers.get('HX-Request') == 'true':
+            return render(request, 'admin/partials/r2_status_table.html', context)
+            
         return render(request, 'admin/r2_status_dashboard.html', context)
         
     except Exception as e:
@@ -1681,6 +1712,10 @@ def analytics_dashboard(request):
             'days': days,
         }
         
+        # HTMX partial support
+        if request.headers.get('HX-Request') == 'true':
+            return render(request, 'admin/partials/analytics_table.html', context)
+            
         return render(request, 'admin/analytics_dashboard.html', context)
         
     except Exception as e:
@@ -2246,6 +2281,26 @@ def api_queue_list(request):
         ],
     }
     
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.template.loader import render_to_string
+        from django.http import JsonResponse
+        
+        html = render_to_string('admin/partials/api_queue_list.html', context, request=request)
+        
+        # Render just the pagination portion
+        pagination_html = render_to_string('admin/api_queue_list.html', context, request=request)
+        # Extract pagination part from the full template (coarse but effective if partial doesn't include it)
+        # Better: render a small snippet for pagination
+        import re
+        pagination_match = re.search(r'<nav aria-label="Page navigation".*?</nav>', pagination_html, re.DOTALL)
+        pagination_snippet = pagination_match.group(0) if pagination_match else ""
+        
+        return JsonResponse({
+            'html': html,
+            'pagination_html': pagination_snippet,
+            'total_count': paginator.count
+        })
+
     return render(request, 'admin/api_queue_list.html', context)
 
 

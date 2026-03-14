@@ -127,7 +127,7 @@
 </div>
 
 <!-- Data Table -->
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden" id="r2-status-table-container">
     <div class="card-header bg-white py-3 border-bottom">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold">{% trans "Synchronization Details" %}</h5>
@@ -139,26 +139,8 @@
             </div>
         </div>
     </div>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0" id="status-table">
-            <thead class="bg-light">
-                <tr>
-                    <th class="ps-4"></th>
-                    <th class="text-secondary text-uppercase small fw-bold">{% trans "Content Item" %}</th>
-                    <th class="text-secondary text-uppercase small fw-bold">{% trans "Type" %}</th>
-                    <th class="text-secondary text-uppercase small fw-bold">{% trans "Status" %}</th>
-                    <th class="text-secondary text-uppercase small fw-bold" style="width: 200px;">{% trans "Progress" %}</th>
-                    <th class="text-secondary text-uppercase small fw-bold">{% trans "Created" %}</th>
-                    <th class="text-end pe-4 text-secondary text-uppercase small fw-bold">{% trans "Actions" %}</th>
-                </tr>
-            </thead>
-            <tbody id="status-tbody">
-                <!-- Content will be loaded via JavaScript -->
-            </tbody>
-        </table>
-    </div>
+    {% include "admin/partials/r2_status_table.html" %}
 </div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let currentData = {{ status_data|safe }};
@@ -166,8 +148,41 @@ document.addEventListener('DOMContentLoaded', function() {
     // CSRF Token for fetch calls
     const csrfToken = '{{ csrf_token }}';
     
-    // Render the table
-    function renderTable(data) {
+    // Function to apply filters with AJAX and URL Sync
+    function applyFilters() {
+        const status = document.getElementById('status-filter').value;
+        const type = document.getElementById('type-filter').value;
+        
+        const url = new URL(window.location);
+        url.searchParams.set('status', status);
+        url.searchParams.set('type', type);
+        window.history.pushState({}, '', url);
+
+        // Update table partial
+        fetch(url, { headers: { 'HX-Request': 'true' } })
+            .then(response => response.text())
+            .then(html => {
+                const container = document.getElementById('r2-status-table-container');
+                const tbody = document.getElementById('status-tbody');
+                // We need to re-render the JS logic too or just update the data
+                // In this case, since the original code uses a JS render function, 
+                // we should fetch the JSON data instead.
+                refreshData(status, type);
+            });
+    }
+
+    function refreshData(status, type) {
+        fetch(`?status=${status}&type=${type}`, { headers: { 'Accept': 'application/json' } })
+            .then(response => response.json())
+            .then(data => {
+                currentData = data.status_data;
+                renderTable(currentData);
+            });
+    }
+
+    document.getElementById('apply-filters').addEventListener('click', applyFilters);
+    
+    // ... (rest of your existing JS)
         const tbody = document.getElementById('status-tbody');
         tbody.innerHTML = '';
         
@@ -277,18 +292,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Refresh data
     document.getElementById('refresh-btn').addEventListener('click', function() {
-        const icon = this.querySelector('i');
-        icon.classList.add('spinner-border', 'spinner-border-sm', 'border-0');
-        icon.classList.remove('bi-arrow-clockwise');
-        window.location.reload();
-    });
-    
-    // Apply filters
-    document.getElementById('apply-filters').addEventListener('click', function() {
-        const statusFilter = document.getElementById('status-filter').value;
-        const typeFilter = document.getElementById('type-filter').value;
-        const url = `?status=${statusFilter}&type=${typeFilter}`;
-        window.location.href = url;
+        const status = document.getElementById('status-filter').value;
+        const type = document.getElementById('type-filter').value;
+        refreshData(status, type);
     });
     
     // Individual retry buttons

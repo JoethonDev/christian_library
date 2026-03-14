@@ -20,44 +20,66 @@
 </div>
 
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="card-body p-4">
+    <div class="card-body p-4" 
+         x-data="{ 
+            q: '{{ search_query }}', 
+            type: '{{ content_type }}', 
+            sort: '{{ ordering }}', 
+            limit: '{{ per_page }}',
+            updateUrl() {
+                const url = new URL(window.location);
+                if (this.q) url.searchParams.set('q', this.q); else url.searchParams.delete('q');
+                if (this.type) url.searchParams.set('type', this.type); else url.searchParams.delete('type');
+                if (this.sort) url.searchParams.set('sort', this.sort); else url.searchParams.delete('sort');
+                if (this.limit) url.searchParams.set('limit', this.limit); else url.searchParams.delete('limit');
+                window.history.replaceState({}, '', url);
+            }
+         }"
+         @htmx:after-request="updateUrl()">
         <!-- Search and Filter Section -->
         <div class="row g-3 align-items-center mb-4">
-            <div class="col-lg-8">
+            <div class="col-lg-12">
                 <form hx-get="{% url 'frontend_api:admin_content_list' %}" 
                       hx-target="#admin-content-table" 
                       hx-trigger="change, keyup delay:300ms from:input"
-                      class="d-flex gap-2 flex-column flex-md-row">
+                      class="row g-2">
                     
-                    <div class="position-relative flex-grow-1">
+                    <div class="col-md-4 position-relative">
                         <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
                         </span>
-                        <input type="search" name="q" class="form-control rounded-pill ps-5 bg-light border-0" 
-                               placeholder="{% trans 'Search content by title, description, or ID...' %}" 
+                        <input type="search" name="q" x-model="q" class="form-control rounded-pill ps-5 bg-light border-0" 
+                               placeholder="{% trans 'Search content...' %}" 
                                value="{{ search_query }}">
                     </div>
                     
-                    <select name="type" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;">
-                        <option value="">{% trans "All Types" %}</option>
-                        {% for type_code, type_name in content_types %}
-                            <option value="{{ type_code }}" {% if content_type_filter == type_code %}selected{% endif %}>
-                                {{ type_name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+                    <div class="col-md-3">
+                        <select name="type" x-model="type" class="form-select rounded-pill bg-light border-0">
+                            <option value="">{% trans "All Types" %}</option>
+                            <option value="video" {% if content_type == 'video' %}selected{% endif %}>{% trans "Videos" %}</option>
+                            <option value="audio" {% if content_type == 'audio' %}selected{% endif %}>{% trans "Audios" %}</option>
+                            <option value="pdf" {% if content_type == 'pdf' %}selected{% endif %}>{% trans "PDFs" %}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <select name="sort" x-model="sort" class="form-select rounded-pill bg-light border-0">
+                            <option value="-created_at" {% if ordering == '-created_at' %}selected{% endif %}>{% trans "Newest First" %}</option>
+                            <option value="created_at" {% if ordering == 'created_at' %}selected{% endif %}>{% trans "Oldest First" %}</option>
+                            <option value="title_ar" {% if ordering == 'title_ar' %}selected{% endif %}>{% trans "Title (Arabic) A-Z" %}</option>
+                            <option value="title_en" {% if ordering == 'title_en' %}selected{% endif %}>{% trans "Title (English) A-Z" %}</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <select name="limit" x-model="limit" class="form-select rounded-pill bg-light border-0">
+                            <option value="10" {% if per_page == 10 %}selected{% endif %}>10 / {% trans "page" %}</option>
+                            <option value="20" {% if per_page == 20 %}selected{% endif %}>20 / {% trans "page" %}</option>
+                            <option value="50" {% if per_page == 50 %}selected{% endif %}>50 / {% trans "page" %}</option>
+                            <option value="100" {% if per_page == 100 %}selected{% endif %}>100 / {% trans "page" %}</option>
+                        </select>
+                    </div>
                 </form>
-            </div>
-            <div class="col-lg-4 text-end">
-                <div class="btn-group">
-                    <button class="btn btn-light rounded-pill px-3" onclick="window.print()" title="{% trans 'Print' %}">
-                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-printer"/></svg>
-                    </button>
-                    <!-- Future Export Feature -->
-                    <!-- <button class="btn btn-light rounded-pill px-3 ms-2" title="{% trans 'Export' %}">
-                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>
-                    </button> -->
-                </div>
             </div>
         </div>
 

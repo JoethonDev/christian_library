@@ -120,8 +120,8 @@
         <!-- Filter Section -->
         <div class="row g-3 align-items-center mb-4">
             <div class="col-lg-8">
-                <form method="get" class="d-flex gap-2 flex-column flex-md-row">
-                    <select name="status" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;" onchange="this.form.submit()">
+                <form method="get" id="queue-filter-form" class="d-flex gap-2 flex-column flex-md-row">
+                    <select name="status" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;">
                         {% for value, label in status_choices %}
                             <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
                                 {{ label }}
@@ -129,7 +129,7 @@
                         {% endfor %}
                     </select>
                     
-                    <select name="content_type" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;" onchange="this.form.submit()">
+                    <select name="content_type" class="form-select rounded-pill bg-light border-0" style="width: auto; min-width: 150px;">
                         {% for value, label in content_type_choices %}
                             <option value="{{ value }}" {% if content_type_filter == value %}selected{% endif %}>
                                 {{ label }}
@@ -140,7 +140,7 @@
             </div>
             <div class="col-lg-4 text-end">
                 <span class="text-muted small">
-                    {% trans "Total:" %} {{ page_obj.paginator.count }} {% trans "items" %}
+                    {% trans "Total:" %} <span id="total-count">{{ page_obj.paginator.count }}</span> {% trans "items" %}
                 </span>
             </div>
         </div>
@@ -162,157 +162,48 @@
                         <th class="text-end">{% trans "Actions" %}</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for item in page_obj %}
-                    <tr>
-                        <td>
-                            <div class="d-flex flex-column">
-                                <span class="fw-medium">{{ item.file_name|truncatechars:40 }}</span>
-                                {% if item.content_item %}
-                                    <small class="text-muted">
-                                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-link-45deg"/></svg>
-                                        <a href="{% url 'frontend_api:admin_content_detail' item.content_item.id %}">
-                                            {{ item.content_item.title_ar|truncatechars:30 }}
-                                        </a>
-                                    </small>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>
-                            {% if item.content_type == 'video' %}
-                                <span class="badge bg-primary rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>{% trans "Video" %}</span>
-                            {% elif item.content_type == 'audio' %}
-                                <span class="badge bg-info rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>{% trans "Audio" %}</span>
-                            {% elif item.content_type == 'pdf' %}
-                                <span class="badge bg-danger rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>PDF</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span class="text-muted small">{{ item.file_size_mb|floatformat:2 }} MB</span>
-                        </td>
-                        <td>
-                            {% if item.status == 'pending' %}
-                                <span class="badge bg-secondary rounded-pill">{% trans "Pending" %}</span>
-                            {% elif item.status == 'queued' %}
-                                <span class="badge bg-info rounded-pill">{% trans "Queued" %}</span>
-                            {% elif item.status == 'processing' %}
-                                <span class="badge bg-primary rounded-pill">
-                                    <span class="spinner-border spinner-border-sm me-1"></span>Processing
-                                </span>
-                            {% elif item.status == 'completed' %}
-                                <span class="badge bg-success rounded-pill">{% trans "Completed" %}</span>
-                            {% elif item.status == 'failed' %}
-                                <span class="badge bg-danger rounded-pill">{% trans "Failed" %}</span>
-                            {% elif item.status == 'rate_limited' %}
-                                <span class="badge bg-warning text-dark rounded-pill">{% trans "Rate Limited" %}</span>
-                            {% elif item.status == 'cancelled' %}
-                                <span class="badge bg-dark rounded-pill">{% trans "Cancelled" %}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if item.queue_status == 'waiting' %}
-                                <span class="badge bg-light text-dark rounded-pill">{% trans "Waiting" %}</span>
-                            {% elif item.queue_status == 'delayed' %}
-                                <span class="badge bg-warning text-dark rounded-pill">{% trans "Delayed" %}</span>
-                            {% elif item.queue_status == 'ready' %}
-                                <span class="badge bg-success rounded-pill">{% trans "Ready" %}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if item.status in 'pending,queued,rate_limited' %}
-                                <span class="badge bg-light text-dark">#{{ item.calculated_position }}</span>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <small class="text-muted">{{ item.created_at|date:"Y-m-d H:i" }}</small>
-                        </td>
-                        <td>
-                            {% if item.scheduled_for %}
-                                <small class="text-muted">{{ item.scheduled_for|date:"Y-m-d H:i" }}</small>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if item.delay_count > 0 %}
-                                <span class="badge {% if item.delay_count >= 5 %}bg-danger{% elif item.delay_count >= 3 %}bg-warning text-dark{% else %}bg-secondary{% endif %} rounded-pill">
-                                    {{ item.delay_count }}/7
-                                </span>
-                            {% else %}
-                                <span class="text-muted">0</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-end">
-                            <div class="btn-group btn-group-sm">
-                                {% if item.status in 'pending,queued,rate_limited' %}
-                                    <form method="post" action="{% url 'frontend_api:api_queue_promote' item.id %}" style="display: inline;">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-outline-success btn-sm" title="{% trans 'Promote to process immediately' %}">
-                                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrow-up-circle"/></svg>
-                                        </button>
-                                    </form>
-                                    <form method="post" action="{% url 'frontend_api:api_queue_cancel' item.id %}" style="display: inline;" 
-                                          onsubmit="return confirm('{% trans "Are you sure you want to cancel this queue item?" %}')">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="{% trans 'Cancel' %}">
-                                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>
-                                        </button>
-                                    </form>
-                                {% endif %}
-                                <a href="{% url 'frontend_api:api_queue_detail' item.id %}" class="btn btn-outline-primary btn-sm" title="{% trans 'View details' %}">
-                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
-                                </a>
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="10" class="text-center text-muted py-5">
-                            <svg class="bi fs-1 d-block mb-2" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
-                            {% trans "No queue items found" %}
-                        </td>
-                    </tr>
-                    {% endfor %}
+                <tbody id="api-queue-table-body">
+                    {% include "admin/partials/api_queue_list.html" %}
                 </tbody>
             </table>
         </div>
 
         <!-- Pagination -->
-        {% if page_obj.has_other_pages %}
-        <nav aria-label="{% trans 'Page navigation' %}" class="mt-4">
-            <ul class="pagination justify-content-center">
-                {% if page_obj.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
-                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
-                        </a>
-                    </li>
-                {% endif %}
-                
-                {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <div id="pagination-container">
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="{% trans 'Page navigation' %}" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
-                                {{ num }}
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}" data-page="{{ page_obj.previous_page_number }}">
+                                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                             </a>
                         </li>
                     {% endif %}
-                {% endfor %}
-                
-                {% if page_obj.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}">
-                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
-                        </a>
-                    </li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}" data-page="{{ num }}">
+                                    {{ num }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if content_type_filter %}&content_type={{ content_type_filter }}{% endif %}" data-page="{{ page_obj.next_page_number }}">
+                                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
     </div>
 </div>
 
@@ -324,11 +215,100 @@
 }
 </style>
 
-<script>
-// Auto-refresh every 30 seconds
-setTimeout(function() {
-    location.reload();
-}, 30000);
-</script>
+{% endblock %}
 
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('queue-filter-form');
+    const tableBody = document.getElementById('api-queue-table-body');
+    const paginationContainer = document.getElementById('pagination-container');
+    const totalCountSpan = document.getElementById('total-count');
+
+    function updateUrl(params) {
+        const url = new URL(window.location);
+        Object.entries(params).forEach(([key, value]) => {
+            if (value) {
+                url.searchParams.set(key, value);
+            } else {
+                url.searchParams.delete(key);
+            }
+        });
+        window.history.pushState({}, '', url);
+    }
+
+    async function loadQueueItems(page = 1) {
+        const formData = new FormData(filterForm);
+        const params = new URLSearchParams(formData);
+        params.append('page', page);
+        params.append('ajax', '1');
+
+        tableBody.style.opacity = '0.5';
+        
+        try {
+            const response = await fetch(`${window.location.pathname}?${params.toString()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            const data = await response.json();
+            
+            tableBody.innerHTML = data.html;
+            paginationContainer.innerHTML = data.pagination_html;
+            totalCountSpan.textContent = data.total_count;
+            
+            tableBody.style.opacity = '1';
+            
+            // Update URL without reloading
+            const urlParams = Object.fromEntries(params.entries());
+            delete urlParams.ajax;
+            updateUrl(urlParams);
+            
+            attachPaginationListeners();
+        } catch (error) {
+            console.error('Error loading queue items:', error);
+            tableBody.style.opacity = '1';
+        }
+    }
+
+    function attachPaginationListeners() {
+        paginationContainer.querySelectorAll('.page-link[data-page]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = this.dataset.page;
+                loadQueueItems(page);
+            });
+        });
+    }
+
+    filterForm.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', () => loadQueueItems(1));
+    });
+
+    attachPaginationListeners();
+    
+    window.addEventListener('popstate', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const page = urlParams.get('page') || 1;
+        
+        filterForm.querySelectorAll('select').forEach(select => {
+            select.value = urlParams.get(select.name) || '';
+        });
+        
+        loadQueueItems(page);
+    });
+
+    // Auto-refresh every 30 seconds but use AJAX instead of reload
+    setInterval(function() {
+        if (document.visibilityState === 'visible') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const page = urlParams.get('page') || 1;
+            loadQueueItems(page);
+        }
+    }, 30000);
+});
+</script>
 {% endblock %}

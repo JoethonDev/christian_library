@@ -266,17 +266,22 @@
 
 <!-- Recent Activity -->
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-5">
-    <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold text-dark">{% trans "Recent Uploads" %}</h5>
-        <div class="dropdown">
-             <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown">
-                 <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-filter"/></svg>
-             </button>
+    <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center">
+        <h5 class="mb-0 fw-bold text-dark me-auto">{% trans "Recent Uploads" %}</h5>
+        <div class="d-flex align-items-center gap-2 mt-2 mt-sm-0 ms-auto">
+            <a href="{% url 'frontend_api:admin_content_list' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-medium">
+                {% trans "View All Items" %} <svg class="bi ms-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
+            </a>
+            <div class="dropdown">
+                 <button class="btn btn-sm btn-light border-0" type="button" data-bs-toggle="dropdown">
+                     <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-filter"/></svg>
+                 </button>
              <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
                  <li><a class="dropdown-item" href="#">{% trans "All Types" %}</a></li>
                  <li><a class="dropdown-item" href="#">{% trans "Videos" %}</a></li>
                  <li><a class="dropdown-item" href="#">{% trans "Audio" %}</a></li>
              </ul>
+            </div>
         </div>
     </div>
     

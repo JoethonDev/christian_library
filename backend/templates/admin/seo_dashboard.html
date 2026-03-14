@@ -189,38 +189,14 @@
 </div>
 
 <!-- Detailed Table -->
-<div class="card border-0 shadow-sm rounded-4 mb-4">
+<div class="card border-0 shadow-sm rounded-4 mb-4" id="seo-analysis-table-container">
     <div class="card-header bg-transparent border-0 py-3 px-4">
         <h6 class="mb-0 fw-bold text-dark">
             <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-list-check"/></svg>{% trans "Content Analysis" %}
         </h6>
     </div>
     <div class="card-body p-0">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0" id="content-analysis-table">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4 py-3 border-0" style="width: 40px;">
-                            <input class="form-check-input" type="checkbox" id="select-all">
-                        </th>
-                        <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Content" %}</th>
-                        <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Type" %}</th>
-                        <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Score" %}</th>
-                        <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Priority" %}</th>
-                        <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Issues" %}</th>
-                        <th class="pe-4 py-3 border-0 text-end text-secondary text-uppercase small fw-bold">{% trans "Actions" %}</th>
-                    </tr>
-                </thead>
-                <tbody id="content-analysis-body">
-                    <tr>
-                        <td colspan="7" class="text-center py-5 text-muted">
-                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                            {% trans "Loading analysis..." %}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        {% include "admin/partials/seo_analysis_table.html" %}
     </div>
 </div>
 
@@ -279,8 +255,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Refresh
     document.getElementById('refresh-analysis').addEventListener('click', function() {
-        loadContentAnalysis();
-        loadSEOAnalytics();
+        // Update table partial with AJAX after reloading data
+        fetch(window.location.href, { headers: { 'HX-Request': 'true' } })
+            .then(response => response.text())
+            .then(html => {
+                const cardBody = document.querySelector('#seo-analysis-table-container .card-body');
+                cardBody.innerHTML = html;
+                loadContentAnalysis(); // Re-trigger JS rendering after HTML update
+                loadSEOAnalytics();
+            });
     });
     
     // Bulk SEO

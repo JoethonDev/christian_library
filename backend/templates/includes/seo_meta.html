@@ -218,14 +218,24 @@ Usage: {% include "includes/seo_meta.html" with content_item=object %}
 {# STRUCTURED DATA (Schema.org JSON-LD)                                  #}
 {# ===================================================================== #}
 <script type="application/ld+json">
-[
+{
+  "@context": "https://schema.org",
+  "@graph": [
     {% if site_config %}
-        {% if LANGUAGE_CODE == 'ar' %}{{ site_config.structured_data_ar_json|safe }}{% else %}{{ site_config.structured_data_en_json|safe }}{% endif %}
+        {% if LANGUAGE_CODE == 'ar' %}
+            {{ site_config.structured_data_ar_json|safe }}
+        {% else %}
+            {{ site_config.structured_data_en_json|safe }}
+        {% endif %}
         {% if content_item and content_item.structured_data %},{% endif %}
     {% endif %}
-
     {% if content_item and content_item.structured_data %}
-        {% if LANGUAGE_CODE == 'ar' %}{{ content_item.structured_data_ar_json|safe }}{% else %}{{ content_item.structured_data_en_json|safe }}{% endif %}
+        {% if LANGUAGE_CODE == 'ar' %}
+            {{ content_item.structured_data_ar_json|safe }}
+        {% else %}
+            {{ content_item.structured_data_en_json|safe }}
+        {% endif %}
     {% endif %}
-]
+  ]
+}
 </script>

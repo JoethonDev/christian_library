@@ -1,0 +1,57 @@
+<!-- templates/admin/partials/analytics_table.html -->
+{% load i18n %}
+<div class="table-responsive" id="analytics-table-container">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th class="border-0 ps-4">{% trans "Rank" %}</th>
+                <th class="border-0">{% trans "Title" %}</th>
+                <th class="border-0">{% trans "Type" %}</th>
+                <th class="border-0 text-end">{% trans "Total Views" %}</th>
+                <th class="border-0 text-end pe-4">{% trans "Unique Views" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in top_content %}
+            <tr>
+                <td class="ps-4 text-muted">{{ forloop.counter }}</td>
+                <td>
+                    {% if item.content_object %}
+                        <a href="{% url 'frontend_api:admin_content_detail' item.content_id %}" class="text-decoration-none text-dark fw-medium">
+                            {{ item.title }}
+                        </a>
+                    {% else %}
+                        <span class="text-muted">{{ item.title }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-{{ item.content_type }}-subtle text-{{ item.content_type }}">
+                        {% if item.content_type == 'video' %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
+                        {% elif item.content_type == 'audio' %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
+                        {% elif item.content_type == 'pdf' %}
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-pdf"/></svg>
+                        {% endif %}
+                        {{ item.content_type|title }}
+                    </span>
+                </td>
+                <td class="text-end fw-bold">{{ item.total_views|floatformat:0 }}</td>
+                <td class="text-end pe-4 text-muted">{{ item.unique_views|floatformat:0 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center py-5">
+                    <div class="empty-state-container">
+                        <svg class="bi fs-1 d-block mb-3 text-muted opacity-25" aria-hidden="true" focusable="false"><use href="#bi-bar-chart"/></svg>
+                        <h5 class="text-muted mb-2">{% trans "No Analytics Data Yet" %}</h5>
+                        <p class="text-muted small mb-3">
+                            {% trans "Content views will appear here once visitors start accessing your library." %}
+                        </p>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
