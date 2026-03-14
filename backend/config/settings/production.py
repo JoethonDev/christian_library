@@ -1,10 +1,13 @@
 from .base import *
+import logging
 import os
 
+logger = logging.getLogger(__name__)
+
 # Production settings
-# DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
-DEBUG = True
-print(f"Production settings loaded. DEBUG={DEBUG}")
+# DEBUG is controlled by the optional DEBUG env var; defaults to False (secure).
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+logger.info("Production settings loaded. DEBUG=%s", DEBUG)
 # Keep APP_DIRS enabled for admin templates
 # TEMPLATES[0]['APP_DIRS'] = False  # Disable APP_DIRS for performance in production
 # Security

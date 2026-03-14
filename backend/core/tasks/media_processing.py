@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import logging
 import tempfile
-from apps.core.task_monitor import TaskMonitor
+from apps.health.task_monitor import TaskMonitor
 
 from core.utils.media_processing import (
     VideoProcessor, AudioProcessor, PDFProcessor,

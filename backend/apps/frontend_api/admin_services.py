@@ -17,7 +17,7 @@ from apps.media_manager.services.search_settings_service import get_search_setti
 from apps.frontend_api.services import ContentLanguageProcessor
 
 
-from apps.core.task_monitor import TaskMonitor
+from apps.health.task_monitor import TaskMonitor
 from core.services.gemini_manager import get_gemini_manager
 
 

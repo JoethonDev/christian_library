@@ -8,27 +8,27 @@ app_name = 'frontend_api'
 
 urlpatterns = [
     # Main pages
-    path('', views.home, name='home'),
-    
+    path('', views.HomeView.as_view(), name='home'),
+
     # Content listing pages
-    path('videos/', views.videos, name='videos'),
-    path('videos/<uuid:video_uuid>/', views.video_detail, name='video_detail'),
-    
-    path('audios/', views.audios, name='audios'),
-    path('audios/<uuid:audio_uuid>/', views.audio_detail, name='audio_detail'),
-    
-    path('pdfs/', views.pdfs, name='pdfs'),
-    path('pdfs/<uuid:pdf_uuid>/', views.pdf_detail, name='pdf_detail'),
-    
+    path('videos/', views.VideoListView.as_view(), name='videos'),
+    path('videos/<uuid:video_uuid>/', views.VideoDetailView.as_view(), name='video_detail'),
+
+    path('audios/', views.AudioListView.as_view(), name='audios'),
+    path('audios/<uuid:audio_uuid>/', views.AudioDetailView.as_view(), name='audio_detail'),
+
+    path('pdfs/', views.PdfListView.as_view(), name='pdfs'),
+    path('pdfs/<uuid:pdf_uuid>/', views.PdfDetailView.as_view(), name='pdf_detail'),
+
     # Search
     path('search/', views.search, name='search'),
     path('search/autocomplete/', views.search_autocomplete, name='search_autocomplete'),
-    
+
     # Component showcase for Phase 4
     path('showcase/', views.component_showcase, name='component_showcase'),
-    
+
     # Tag-based content filtering
-    path('tags/<uuid:tag_id>/', views.tag_content, name='tag_content'),
+    path('tags/<uuid:tag_id>/', views.TagContentView.as_view(), name='tag_content'),
     
     # Media player endpoints
     path('player/audio/<uuid:audio_uuid>/', views.audio_player, name='audio_player'),

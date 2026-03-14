@@ -2,7 +2,7 @@
 Management command to monitor and clean up task tracking system
 """
 from django.core.management.base import BaseCommand
-from apps.core.task_monitor import TaskMonitor
+from apps.health.task_monitor import TaskMonitor
 import logging
 
 logger = logging.getLogger(__name__)

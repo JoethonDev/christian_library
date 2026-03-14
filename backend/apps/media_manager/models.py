@@ -32,33 +32,28 @@ Verification:
 
 See tests.py for FTS/Arabic search tests.
 """
-from django.conf import settings
-from django.db import models
-from django.utils.translation import gettext_lazy as _
-from django.utils import timezone
-from django.core.exceptions import ValidationError
-from django.urls import reverse
-import uuid
-# For full-text search support
-from django.contrib.postgres.indexes import GinIndex
-from django.contrib.postgres.search import SearchVectorField, SearchVector
-from pdfminer.high_level import extract_text
-from django.contrib.postgres.search import SearchVector
-from django.db import connection
 import os
 import logging
 import re
+import time
+import uuid
+
+from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField, SearchVector
+from django.core.exceptions import ValidationError
+from django.db import connection, models
+from django.db.models import Q, Count
+from django.urls import reverse
+from django.utils import timezone, translation
+from django.utils.translation import gettext_lazy as _
+from django.contrib.sites.models import Site
+
+# Heavy processing imports (pdfminer, fitz, PIL, cv2) live in services only:
+#   apps/media_manager/services/pdf_processor_service.py
+#   core/utils/media_processing.py
 
 logger = logging.getLogger(__name__)
-
-
-import fitz  # PyMuPDF for PDF processing and OCR fallback
-from PIL import Image
-import io
-import subprocess
-from pathlib import Path
-import cv2
-import numpy as np
 
 # Module-level constants
 # FTS_RANK_THRESHOLD moved to UnifiedSearchService for dynamic threshold support
@@ -267,8 +262,6 @@ class ContentItemQuerySet(models.QuerySet):
     
     def ready_for_playback(self):
         """Return content items ready for playback/viewing"""
-        from django.db.models import Q
-        
         return self.active().select_related(
             'videometa', 'audiometa', 'pdfmeta'
         ).filter(
@@ -344,10 +337,7 @@ class ContentItemQuerySet(models.QuerySet):
     
     def get_statistics(self, include_inactive=True):
         """Get content statistics. If include_inactive=True, counts all items."""
-        from django.db.models import Count, Q
-        
         target_qs = self.all() if include_inactive else self.active()
-        
         return target_qs.aggregate(
             total_videos=Count('id', filter=Q(content_type='video')),
             total_audios=Count('id', filter=Q(content_type='audio')),
@@ -431,6 +421,15 @@ class ContentItemManager(models.Manager):
 
 
 class ContentItem(models.Model):
+    """
+    Core content model for videos, audio files, and PDFs with full-text search.
+    
+    NOTE: Class structure intentionally deviates from standard Django ordering.
+    Methods (_clean_filename, save) appear before field definitions due to:
+    - save() method complexity and tight coupling with field initialization
+    - Historical structure predating refactoring (Phase 11+ for full reorder)
+    Standard order: fields → managers → Meta → __str__ → save → custom methods
+    """
     @staticmethod
     def _clean_filename(filename):
         """
@@ -521,8 +520,6 @@ class ContentItem(models.Model):
         
         Uses PdfProcessorService for text extraction, OCR, and normalization.
         """
-        logger = logging.getLogger(__name__)
-        import time
         
         try:
             # OPTIMIZATION 1: Skip extraction if book_content is already populated (from document upload)
@@ -594,7 +591,6 @@ class ContentItem(models.Model):
         Extract text from the supplementary document and store in supplementary_document_text.
         This should be called from a background task.
         """
-        logger = logging.getLogger(__name__)
         
         try:
             if not self.supplementary_document or not self.supplementary_document.name:
@@ -1187,7 +1183,6 @@ class ContentItem(models.Model):
         Otherwise detects current request language.
         """
         import json
-        from django.utils import translation
         
         if not self.structured_data:
             return ''
@@ -1200,15 +1195,15 @@ class ContentItem(models.Model):
         # Return specific language block if it exists
         if isinstance(self.structured_data, dict):
             if target_lang in self.structured_data:
-                return self.structured_data[target_lang]
+                return json.dumps(self.structured_data[target_lang], ensure_ascii=False, indent=2)
             
             # Fallback to any available language if target not found
             for lang in ['ar', 'en']:
                 if lang in self.structured_data:
-                    return self.structured_data[lang]
+                    return json.dumps(self.structured_data[lang], ensure_ascii=False, indent=2)
                     
             # If it's an old-format dict (no ar/en keys), return as is
-            return self.structured_data
+            return json.dumps(self.structured_data, ensure_ascii=False, indent=2)
             
         return ''
 
@@ -1262,6 +1257,12 @@ class ContentItem(models.Model):
         if not self.structured_data or not isinstance(self.structured_data, dict):
             self.structured_data = {}
         
+        # Get canonical URL for @id generation
+        try:
+            canonical_url = self.get_canonical_url()
+        except Exception:
+            canonical_url = ""
+        
         # Ensure en and ar keys exist
         for lang in ['en', 'ar']:
             if lang not in self.structured_data or not isinstance(self.structured_data[lang], dict):
@@ -1276,6 +1277,15 @@ class ContentItem(models.Model):
                 self.structured_data[lang]["@type"] = self.get_schema_type()
                 self.structured_data[lang]["inLanguage"] = lang
 
+            # Add @id field (canonical URL + content type identifier)
+            if canonical_url:
+                content_type_fragment = {
+                    'video': '#video',
+                    'audio': '#audio',
+                    'pdf': '#book'
+                }.get(self.content_type, '#content')
+                self.structured_data[lang]["@id"] = f"{canonical_url}{content_type_fragment}"
+            
             # Update language specific fields
             if lang == 'ar':
                 self.structured_data[lang]["name"] = self.title_ar or self.title_en
@@ -1296,6 +1306,16 @@ class ContentItem(models.Model):
             thumbnail_url = self.get_thumbnail_url()
             if thumbnail_url:
                 self.structured_data[lang]["thumbnailUrl"] = thumbnail_url
+            
+            # Add publisher reference to organization
+            try:
+                current_site = Site.objects.get_current()
+                site_url = f"https://{current_site.domain}"
+                self.structured_data[lang]["publisher"] = {
+                    "@id": f"{site_url}/#organization"
+                }
+            except Exception:
+                pass
             
         return self.structured_data
 
@@ -2635,8 +2655,6 @@ class APIUploadQueue(models.Model):
         Check if this item can be processed now.
         Returns True if ready and no concurrent processing of same type.
         """
-        from django.utils import timezone
-        
         # Must be in pending or queued status
         if self.status not in ['pending', 'queued', 'rate_limited']:
             return False
@@ -2653,9 +2671,7 @@ class APIUploadQueue(models.Model):
     
     def schedule_for_next_day(self):
         """Schedule for next day at 3:00 AM and increment delay count."""
-        from django.utils import timezone
-        import datetime
-        
+
         self.delay_count += 1
         
         # If delay count reaches 7, mark as cancelled
@@ -2683,8 +2699,6 @@ class APIUploadQueue(models.Model):
     
     def promote_to_ready(self):
         """Admin action to process immediately (skip queue)."""
-        from django.utils import timezone
-        
         self.priority = 1000  # High priority
         self.scheduled_for = timezone.now()
         self.queue_status = 'ready'

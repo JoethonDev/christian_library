@@ -1,60 +1,29 @@
-# robots.txt
-from apps.frontend_api.views_root_robots import robots_txt
-from django.contrib import admin
-from django.urls import path, include
-from django.conf import settings
-from django.conf.urls.static import static
-from django.conf.urls.i18n import i18n_patterns
-from django.http import HttpResponseRedirect
-from django.urls import reverse
-from django.views.i18n import set_language
-from django.views.generic import RedirectView
-from apps.frontend_api.views_root_redirect import smart_root_redirect
-from core.utils.cache_utils import cache_unless_authenticated
-from django.views.decorators.cache import cache_page
 import logging
 
-logger = logging.getLogger(__name__)
+from django.conf import settings
+from django.conf.urls.i18n import i18n_patterns
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.http import HttpResponseRedirect
+from django.urls import path, include, reverse
+from django.views.decorators.cache import cache_page
+from django.views.generic import RedirectView
+from django.views.i18n import set_language
 
-
-urlpatterns = [
-    # Django Default Admin (at /admin/)
-    path('admin/', admin.site.urls, name='django_admin'),
-    
-    # Task Monitoring Admin (at /admin/tasks/)
-    path('admin/tasks/', include('apps.admin_django.urls', namespace='admin_django')),
-    
-    # Authentication redirects
-    path('accounts/login/', RedirectView.as_view(url='/ar/users/login/', permanent=False), name='login_redirect'),
-    path('accounts/logout/', RedirectView.as_view(url='/ar/users/logout/', permanent=False), name='logout_redirect'),
-    
-    # API endpoints (non-internationalized for consistency)
-    path('api/auth/', include(('apps.users.urls', 'users'), namespace='auth_api')),
-    path('api/media/', include('apps.media_manager.urls', namespace='media_api')),
-    path('api/v1/', include('apps.media_manager.api.urls', namespace='api_upload')),  # RESTful Upload API
-
-    path('api/users/', include('apps.users.urls', namespace='users_api')),
-    
-    # System endpoints
-    path('', include('apps.core.urls', namespace='core')),
-    path('core/', include('core.urls', namespace='core_utils')),
-    path('i18n/setlang/', set_language, name='set_language'),
-    path('i18n/', include('django.conf.urls.i18n')),
-    
-    # Root redirect to user's preferred language
-    path('', smart_root_redirect, name='root_redirect'),
-]
-
-# Sitemap and SEO
+from apps.frontend_api.feeds import (
+    LatestContentFeed, LatestVideosFeed, LatestAudiosFeed,
+    LatestPdfsFeed, LatestContentAtomFeed,
+)
 from apps.frontend_api.sitemap_wrappers import sitemap, sitemap_index
 from apps.frontend_api.sitemaps import (
-    HomeSitemap, ContentListSitemap, VideoSitemap, AudioSitemap, 
-    PdfSitemap, SEOOptimizedSitemap, PdfListSitemap, PdfDetailSitemap
+    HomeSitemap, ContentListSitemap, VideoSitemap, AudioSitemap,
+    PdfSitemap, SEOOptimizedSitemap, PdfListSitemap, PdfDetailSitemap,
 )
-from apps.frontend_api.feeds import (
-    LatestContentFeed, LatestVideosFeed, LatestAudiosFeed, 
-    LatestPdfsFeed, LatestContentAtomFeed
-)
+from apps.frontend_api.views_root_redirect import smart_root_redirect
+from apps.frontend_api.views_root_robots import robots_txt
+from core.utils.cache_utils import cache_unless_authenticated
+
+logger = logging.getLogger(__name__)
 
 sitemaps = {
     'home': HomeSitemap(),
@@ -68,19 +37,44 @@ sitemaps = {
     'pdf-detail': PdfDetailSitemap(),
 }
 
-urlpatterns += [
-    # Main sitemap (index of all sitemaps)
+urlpatterns = [
+    # Django Default Admin (at /admin/)
+    path('admin/', admin.site.urls, name='django_admin'),
+
+    # Task Monitoring Admin (at /admin/tasks/)
+    path('admin/tasks/', include('apps.admin_django.urls', namespace='admin_django')),
+
+    # Authentication redirects
+    path('accounts/login/', RedirectView.as_view(url='/ar/users/login/', permanent=False), name='login_redirect'),
+    path('accounts/logout/', RedirectView.as_view(url='/ar/users/logout/', permanent=False), name='logout_redirect'),
+
+    # API endpoints (non-internationalized for consistency)
+    # H-06: removed duplicate api/auth/ include — api/users/ is the canonical users API endpoint
+    path('api/users/', include('apps.users.urls', namespace='users_api')),
+    path('api/media/', include('apps.media_manager.urls', namespace='media_api')),
+    path('api/v1/', include('apps.media_manager.api.urls', namespace='api_upload')),  # RESTful Upload API
+
+    # System endpoints
+    # Two path('') entries are intentional:
+    #   - health include routes sub-paths (health/, metrics/, readiness/, liveness/)
+    #   - smart_root_redirect handles only the exact root '/'
+    path('', include('apps.health.urls', namespace='health')),  # H-05/H-08: apps.health, namespace='health' matches app_name='health'
+    path('core/', include('core.urls', namespace='core_utils')),
+    path('i18n/setlang/', set_language, name='set_language'),
+    path('i18n/', include('django.conf.urls.i18n')),
+    path('', smart_root_redirect, name='root_redirect'),
+
+    # Sitemap (index + per-section)
     path('sitemap.xml', sitemap_index, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.index'),
-    # Individual sitemap sections
     path('sitemap-<section>.xml', sitemap, {'sitemaps': sitemaps}, name='django.contrib.sitemaps.views.sitemap'),
-    
+
     # RSS/Atom Feeds
     path('feeds/latest.rss', LatestContentFeed(), name='feed_latest'),
     path('feeds/latest.atom', LatestContentAtomFeed(), name='feed_latest_atom'),
     path('feeds/videos.rss', LatestVideosFeed(), name='feed_videos'),
     path('feeds/audios.rss', LatestAudiosFeed(), name='feed_audios'),
     path('feeds/pdfs.rss', LatestPdfsFeed(), name='feed_pdfs'),
-    
+
     # robots.txt
     path('robots.txt', robots_txt, name='robots_txt'),
 ]
@@ -126,7 +120,7 @@ else:
 
 
 # Custom error handlers for production
-handler400 = 'apps.core.views.custom_bad_request'
-handler403 = 'apps.core.views.custom_permission_denied'  
-handler404 = 'apps.core.views.custom_page_not_found'
-handler500 = 'apps.core.views.custom_server_error'
+handler400 = 'apps.health.views.custom_bad_request'
+handler403 = 'apps.health.views.custom_permission_denied'
+handler404 = 'apps.health.views.custom_page_not_found'
+handler500 = 'apps.health.views.custom_server_error'

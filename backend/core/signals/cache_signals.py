@@ -1,13 +1,13 @@
 """
 Cache invalidation signals for automatic cache management.
 """
+import logging
 
 from django.db.models.signals import post_save, post_delete, pre_delete
 from django.dispatch import receiver
 from django.core.cache import cache
-from core.utils.cache_utils import cache_invalidator
-import logging
 
+from core.utils.cache_utils import cache_invalidator
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
 from apps.users.models import User
 

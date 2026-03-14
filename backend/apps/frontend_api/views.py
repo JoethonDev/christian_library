@@ -6,18 +6,20 @@ Each view now uses minimal queries with proper relationship loading.
 import logging
 from typing import Dict, Any
 
+from django.http import HttpResponse, Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse, HttpResponse, Http404
-from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
-from rest_framework.decorators import api_view
 from django.utils.translation import get_language
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from rest_framework.decorators import api_view
 
-from apps.media_manager.models import ContentItem, Tag
-from apps.frontend_api.services import ContentService, APIService
-from core.utils.cache_utils import cache_invalidator
+from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
+from apps.frontend_api.services import ContentService, APIService, ContentLanguageProcessor
 from apps.media_manager.analytics import record_content_view
+from apps.media_manager.models import ContentItem, Tag
+from core.utils.cache_utils import cache_invalidator
 
 # Initialize services
 content_service = ContentService()
@@ -25,234 +27,177 @@ api_service = APIService()
 logger = logging.getLogger(__name__)
 
 
-def home(request):
-    """Homepage with featured content and categories - Optimized to 2-3 queries total"""
-    # Try cache first
-    try:
-        context = cache_invalidator.get_home_context()
-        if context:
-            return render(request, 'frontend_api/home.html', context)
-    except Exception:
-        pass  # Continue with database queries if cache fails
-    
-    # Get all home data with minimal queries (2-3 total)
-    context = content_service.get_home_page_data()
-    
-    # Cache the results
-    try:
-        cache_invalidator.set_home_context(context)
-    except Exception:
-        pass  # Continue even if caching fails
-    
-    return render(request, 'frontend_api/home.html', context)
+# ---------------------------------------------------------------------------
+# Class-Based Views (replaces the original 8 FBVs)
+# ---------------------------------------------------------------------------
 
+class HomeView(View):
+    """Homepage with featured content and categories — 2-3 queries total."""
+    template_name = 'frontend_api/home.html'
 
-def videos(request):
-    """Video listing page - Optimized to 2 queries total"""
-    search_query = request.GET.get('search', '').strip()
-    tag_filter = request.GET.get('tag', '').strip()
-    page = int(request.GET.get('page', 1))
-    
-    # Get all data with optimized service (2 queries: content + tags)
-    data = content_service.get_content_listing(
-        content_type='video',
-        search_query=search_query,
-        tag_filter=tag_filter,
-        page=page,
-        per_page=12
-    )
-    
-    context = {
-        'videos': data['pagination']['page'],  # Processed list for HTMX and meta
-        'page_obj': data['pagination']['page'],  # Page object for main template pagination
-        'is_paginated': data['pagination']['num_pages'] > 1,
-        'search_query': search_query,
-        'tag_filter': tag_filter,
-        'available_tags': data['available_tags'],
-        'total_count': data['pagination']['total_count'],
-    }
-    
-    # HTMX partial template for infinite scroll
-    if request.headers.get('HX-Request'):
-        return render(request, 'frontend_api/partials/video_grid.html', context)
-    
-    return render(request, 'frontend_api/videos.html', context)
-
-
-def video_detail(request, video_uuid):
-    """Individual video detail page - Optimized to 2 queries total"""
-    try:
-        data = content_service.get_content_detail(str(video_uuid), 'video', user=request.user)
-        
-        # Import schema generator
-        from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
-        
-        # Generate schema for this video
-        video_schema = generate_schema_for_content(data['content'], request)
-        
-        context = {
-            'video': data['content'],
-            'related_videos': data['related_content'],
-            'schema_json_ld': schema_to_json_ld(video_schema),
-        }
-        
-        return render(request, 'frontend_api/video_detail.html', context)
-        
-    except ContentItem.DoesNotExist:
-        raise Http404("Video not found")
-
-def audios(request):
-    """Audio listing page - Optimized to 2 queries total"""
-    search_query = request.GET.get('search', '').strip()
-    tag_filter = request.GET.get('tag', '').strip()
-    page = int(request.GET.get('page', 1))
-    
-    # Get all data with optimized service
-    data = content_service.get_content_listing(
-        content_type='audio',
-        search_query=search_query,
-        tag_filter=tag_filter,
-        page=page,
-        per_page=12
-    )
-    
-    context = {
-        'audios': data['pagination']['page'],
-        'page_obj': data['pagination']['page'],
-        'is_paginated': data['pagination']['num_pages'] > 1,
-        'search_query': search_query,
-        'tag_filter': tag_filter,
-        'available_tags': data['available_tags'],
-        'total_count': data['pagination']['total_count'],
-    }
-    
-    # HTMX partial template
-    if request.headers.get('HX-Request'):
-        return render(request, 'frontend_api/partials/audio_grid.html', context)
-    
-    return render(request, 'frontend_api/audios.html', context)
-
-
-def audio_detail(request, audio_uuid):
-    """Individual audio detail page - Optimized to 2 queries total"""
-    try:
-        data = content_service.get_content_detail(str(audio_uuid), 'audio', user=request.user)
-        
-        # Import schema generator
-        from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
-        
-        # Generate schema for this audio
-        audio_schema = generate_schema_for_content(data['content'], request)
-        
-        context = {
-            'audio': data['content'],
-            'related_audios': data['related_content'],
-            'schema_json_ld': schema_to_json_ld(audio_schema),
-        }
-        
-        return render(request, 'frontend_api/audio_detail.html', context)
-        
-    except ContentItem.DoesNotExist:
-        raise Http404("Audio not found")
-
-
-def pdfs(request):
-    """PDF listing page - Optimized to 2 queries total"""
-    search_query = request.GET.get('search', '').strip()
-    tag_filter = request.GET.get('tag', '').strip()
-    page = int(request.GET.get('page', 1))
-    
-    # Get all data with optimized service
-    data = content_service.get_content_listing(
-        content_type='pdf',
-        search_query=search_query,
-        tag_filter=tag_filter,
-        page=page,
-        per_page=12
-    )
-    
-    context = {
-        'pdfs': data['pagination']['page'],
-        'page_obj': data['pagination']['page'],
-        'is_paginated': data['pagination']['num_pages'] > 1,
-        'search_query': search_query,
-        'tag_filter': tag_filter,
-        'available_tags': data['available_tags'],
-        'total_count': data['pagination']['total_count'],
-    }
-    
-    # HTMX partial template
-    if request.headers.get('HX-Request'):
-        return render(request, 'frontend_api/partials/pdf_grid.html', context)
-    
-    return render(request, 'frontend_api/pdfs.html', context)
-
-
-def pdf_detail(request, pdf_uuid):
-    """Individual PDF detail page - Optimized with caching and 2 queries max"""
-    try:
-        # Get data using service (handles permissions internally now)
-        data = content_service.get_content_detail(str(pdf_uuid), 'pdf', user=request.user)
-        
-        # Import schema generator
-        from apps.frontend_api.schema_generators import generate_schema_for_content, schema_to_json_ld
-        
-        # Generate schema for this PDF
-        pdf_schema = generate_schema_for_content(data['content'], request)
-        
-        # Cache the related content for future use
+    def get(self, request):
         try:
-            cache_invalidator.set_related_content(str(pdf_uuid), 'pdf', data['related_content'])
+            context = cache_invalidator.get_home_context()
+            if context:
+                return render(request, self.template_name, context)
         except Exception:
             pass
-        
+        context = content_service.get_home_page_data()
+        try:
+            cache_invalidator.set_home_context(context)
+        except Exception:
+            pass
+        return render(request, self.template_name, context)
+
+
+class ContentListMixin:
+    """Shared GET logic for listing views that delegate to ContentService."""
+    template_name = None
+    partial_template_name = None
+    content_type = None
+    context_object_name = None  # e.g. 'videos', 'audios', 'pdfs'
+
+    def get(self, request):
+        search_query = request.GET.get('search', '').strip()
+        tag_filter = request.GET.get('tag', '').strip()
+        page = int(request.GET.get('page', 1))
+        data = content_service.get_content_listing(
+            content_type=self.content_type,
+            search_query=search_query,
+            tag_filter=tag_filter,
+            page=page,
+            per_page=12,
+        )
         context = {
-            'pdf': data['content'],
-            'related_pdfs': data['related_content'],
-            'schema_json_ld': schema_to_json_ld(pdf_schema),
+            self.context_object_name: data['pagination']['page'],
+            'page_obj': data['pagination']['page'],
+            'is_paginated': data['pagination']['num_pages'] > 1,
+            'search_query': search_query,
+            'tag_filter': tag_filter,
+            'available_tags': data['available_tags'],
+            'total_count': data['pagination']['total_count'],
         }
-        
-        return render(request, 'frontend_api/pdf_detail.html', context)
-        
-    except ContentItem.DoesNotExist:
-        raise Http404("PDF not found")
-    except Http404:
-        raise
-    except Exception as e:
-        logger.error(f"Error in pdf_detail: {str(e)}")
-        # Fallback to direct query if service fails unexpectedly
-        pdf = get_object_or_404(ContentItem, id=pdf_uuid, content_type='pdf')
-        if not pdf.is_active and not request.user.is_staff:
-            raise Http404("Content is not active")
-            
-        return render(request, 'frontend_api/pdf_detail.html', {'pdf': pdf, 'related_pdfs': []})
+        if request.headers.get('HX-Request'):
+            return render(request, self.partial_template_name, context)
+        return render(request, self.template_name, context)
 
 
-def tag_content(request, tag_id):
-    """Tag content listing page - Optimized to 2 queries total"""
-    content_type_filter = request.GET.get('content_type', '').strip()
-    page = int(request.GET.get('page', 1))
-    
-    # Get all data with optimized service
-    data = content_service.get_tag_content(
-        tag_id=str(tag_id),
-        content_type_filter=content_type_filter,
-        page=page,
-        per_page=12
-    )
-    
-    context = {
-        'tag': data['tag'],
-        'content': data['pagination']['page'],
-        'page_obj': data['pagination']['page'],
-        'is_paginated': data['pagination']['num_pages'] > 1,
-        'content_type_filter': content_type_filter,
-        'tag_stats': data['tag_stats'],
-        'total_count': data['pagination']['total_count'],
-    }
-    
-    return render(request, 'frontend_api/tag_content.html', context)
+class VideoListView(ContentListMixin, View):
+    template_name = 'frontend_api/videos.html'
+    partial_template_name = 'frontend_api/partials/video_grid.html'
+    content_type = 'video'
+    context_object_name = 'videos'
 
+
+class AudioListView(ContentListMixin, View):
+    template_name = 'frontend_api/audios.html'
+    partial_template_name = 'frontend_api/partials/audio_grid.html'
+    content_type = 'audio'
+    context_object_name = 'audios'
+
+
+class PdfListView(ContentListMixin, View):
+    template_name = 'frontend_api/pdfs.html'
+    partial_template_name = 'frontend_api/partials/pdf_grid.html'
+    content_type = 'pdf'
+    context_object_name = 'pdfs'
+
+
+class ContentDetailMixin:
+    """Shared GET logic for detail views that delegate to ContentService."""
+    template_name = None
+    content_type = None
+    context_object_name = None
+    uuid_kwarg = None
+
+    def get(self, request, **kwargs):
+        uuid = kwargs[self.uuid_kwarg]
+        try:
+            data = content_service.get_content_detail(str(uuid), self.content_type, user=request.user)
+            schema = generate_schema_for_content(data['content'], request)
+            context = {
+                self.context_object_name: data['content'],
+                f'related_{self.content_type}s': data['related_content'],
+                'schema_json_ld': schema_to_json_ld(schema),
+            }
+            return render(request, self.template_name, context)
+        except ContentItem.DoesNotExist:
+            raise Http404(f"{self.content_type.capitalize()} not found")
+
+
+class VideoDetailView(ContentDetailMixin, View):
+    template_name = 'frontend_api/video_detail.html'
+    content_type = 'video'
+    context_object_name = 'video'
+    uuid_kwarg = 'video_uuid'
+
+
+class AudioDetailView(ContentDetailMixin, View):
+    template_name = 'frontend_api/audio_detail.html'
+    content_type = 'audio'
+    context_object_name = 'audio'
+    uuid_kwarg = 'audio_uuid'
+
+
+class PdfDetailView(ContentDetailMixin, View):
+    """PDF detail — overrides get() to preserve the service-failure fallback."""
+    template_name = 'frontend_api/pdf_detail.html'
+    content_type = 'pdf'
+    context_object_name = 'pdf'
+    uuid_kwarg = 'pdf_uuid'
+
+    def get(self, request, pdf_uuid):
+        try:
+            data = content_service.get_content_detail(str(pdf_uuid), 'pdf', user=request.user)
+            pdf_schema = generate_schema_for_content(data['content'], request)
+            try:
+                cache_invalidator.set_related_content(str(pdf_uuid), 'pdf', data['related_content'])
+            except Exception:
+                pass
+            return render(request, self.template_name, {
+                'pdf': data['content'],
+                'related_pdfs': data['related_content'],
+                'schema_json_ld': schema_to_json_ld(pdf_schema),
+            })
+        except ContentItem.DoesNotExist:
+            raise Http404("PDF not found")
+        except Http404:
+            raise
+        except Exception as e:
+            logger.error(f"Error in PdfDetailView: {str(e)}")
+            pdf = get_object_or_404(ContentItem, id=pdf_uuid, content_type='pdf')
+            if not pdf.is_active and not request.user.is_staff:
+                raise Http404("Content is not active")
+            return render(request, self.template_name, {'pdf': pdf, 'related_pdfs': []})
+
+
+class TagContentView(View):
+    """Tag content listing with optional content_type filter — 2 queries total."""
+    template_name = 'frontend_api/tag_content.html'
+
+    def get(self, request, tag_id):
+        content_type_filter = request.GET.get('content_type', '').strip()
+        page = int(request.GET.get('page', 1))
+        data = content_service.get_tag_content(
+            tag_id=str(tag_id),
+            content_type_filter=content_type_filter,
+            page=page,
+            per_page=12,
+        )
+        return render(request, self.template_name, {
+            'tag': data['tag'],
+            'content': data['pagination']['page'],
+            'page_obj': data['pagination']['page'],
+            'is_paginated': data['pagination']['num_pages'] > 1,
+            'content_type_filter': content_type_filter,
+            'tag_stats': data['tag_stats'],
+            'total_count': data['pagination']['total_count'],
+        })
+
+
+# ---------------------------------------------------------------------------
+# FBVs kept as-is: search, autocomplete, API endpoints, media players
+# ---------------------------------------------------------------------------
 
 def search(request):
     """Global search functionality - Optimized to 3 queries max"""
@@ -488,7 +433,6 @@ def api_tag_search(request):
         tags = Tag.objects.search_tags(query, language)[:20]  # Limit to 20 results
         
         # Process tag list for API response
-        from apps.frontend_api.services import ContentLanguageProcessor
         processor = ContentLanguageProcessor()
         processed_tags = processor.process_tag_list(tags, language)
         

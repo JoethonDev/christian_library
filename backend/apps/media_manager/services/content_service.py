@@ -5,7 +5,7 @@ Handles all business logic for content operations
 from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
 from django.db import transaction, models
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.utils.translation import gettext_lazy as _
@@ -335,33 +335,6 @@ class ContentService:
         except Exception as e:
             logger.error(f"Error updating content item {content_id}: {str(e)}")
             raise ValidationError(f"{_('Error updating content item')}: {str(e)}")
-    
-    @staticmethod
-    def delete_content_item(content_id: str) -> bool:
-        """
-        Soft delete a content item
-        
-        Args:
-            content_id: UUID string of the content item
-            
-        Returns:
-            True if successful
-            
-        Raises:
-            ContentNotFoundError: If content doesn't exist
-        """
-        try:
-            content_item = ContentService.get_content_by_id(content_id)
-            content_item.is_active = False
-            content_item.save()
-            
-            logger.info(f"Deleted content item {content_item.id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error deleting content item {content_id}: {str(e)}")
-            raise
-    
     @staticmethod
     def get_content_statistics() -> Dict:
         """
@@ -380,7 +353,6 @@ class ContentService:
         if cached_stats is not None:
             return cached_stats
         
-        from django.db.models import Count, Q
         
         # OPTIMIZATION: Use single query with conditional aggregation instead of 7 separate COUNT queries
         content_stats = ContentItem.objects.filter(is_active=True).aggregate(

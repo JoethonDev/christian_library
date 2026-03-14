@@ -7,6 +7,7 @@ from django.db import models
 from apps.media_manager.models import ContentItem
 from apps.media_manager.tasks import bulk_generate_seo_metadata
 import logging
+from core.services.gemini_manager import get_gemini_manager
 
 logger = logging.getLogger(__name__)
 
@@ -226,13 +227,12 @@ class Command(BaseCommand):
                     file_path = meta.original_file.path
                     
                     # Generate SEO metadata
-                    from apps.media_manager.services.gemini_service import get_gemini_service
-                    service = get_gemini_service()
-                    
-                    if not service.is_available():
-                        raise Exception("Gemini AI service not available")
-                    
-                    success, seo_metadata = service.generate_seo_metadata(file_path, item.content_type)
+                    manager = get_gemini_manager()
+                    is_avail, avail_msg = manager.check_seo_availability()
+                    if not is_avail:
+                        raise Exception(f"Gemini AI service not available: {avail_msg}")
+
+                    success, seo_metadata = manager.generate_seo(file_path, item.content_type)
                     
                     if success and seo_metadata:
                         # Update the item

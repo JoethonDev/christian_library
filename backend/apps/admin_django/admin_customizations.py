@@ -8,7 +8,7 @@ from django.template.response import TemplateResponse
 from django.urls import path
 from apps.media_manager.models import ContentItem, Tag, VideoMeta, AudioMeta, PdfMeta
 from apps.users.models import User
-from apps.core.task_monitor import TaskMonitor
+from apps.health.task_monitor import TaskMonitor
 
 
 class CustomAdminSite(AdminSite):

@@ -1,8 +1,20 @@
+"""
+Development settings for Christian Library project.
+
+For personal local overrides (e.g., different database, debug toolbar settings),
+create a local.py file in this directory:
+    from .development import *
+    # Your overrides here
+Then set: DJANGO_SETTINGS_MODULE=config.settings.local
+"""
 from .base import *
 
 # Development specific settings
 DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '*']
+
+# Use http for local development
+SITE_PROTOCOL = 'http'
 
 
 INTERNAL_IPS = [
