@@ -1975,6 +1975,7 @@ def initiate_google_reindexing(request):
     POST Body:
         content_type: 'all', 'video', 'audio', or 'pdf' (optional, default: 'all')
         include_sitemap: boolean (optional, default: true)
+        force: boolean (optional, default: false) - Re-index all URLs even if already indexed
     
     Returns:
         JSON with task_id, estimated_duration, and total_urls
@@ -1991,6 +1992,7 @@ def initiate_google_reindexing(request):
         data = json.loads(request.body) if request.body else {}
         content_type = data.get('content_type', 'all')
         include_sitemap = data.get('include_sitemap', True)
+        force = data.get('force', False)
         
         # Validate content_type
         valid_types = ['all', 'video', 'audio', 'pdf']
@@ -2008,7 +2010,8 @@ def initiate_google_reindexing(request):
             task_id = service.initiate_reindexing(
                 user=request.user,
                 content_type=content_type,
-                include_sitemap=include_sitemap
+                include_sitemap=include_sitemap,
+                force=force
             )
         except ValueError as e:
             return JsonResponse({
@@ -2021,11 +2024,11 @@ def initiate_google_reindexing(request):
         estimated_duration = service.estimate_duration(len(urls))
         
         # Start Celery task asynchronously
-        reindex_website_google.delay(task_id, content_type, include_sitemap)
+        reindex_website_google.delay(task_id, content_type, include_sitemap, force)
         
         logger.info(
             f"User {request.user.username} initiated re-indexing task {task_id} "
-            f"for {len(urls)} URLs (content_type={content_type})"
+            f"for {len(urls)} URLs (content_type={content_type}, force={force})"
         )
         
         return JsonResponse({
@@ -2572,6 +2575,15 @@ def indexing_queue_dashboard(request):
     recent_success = GoogleIndexingQueue.objects.filter(
         status='success'
     ).select_related('content_item').order_by('-processed_at')[:10]
+    
+    # Format google_response as pretty JSON for display
+    import json
+    for item in list(recent_pending) + list(recent_invalid) + list(recent_failed) + list(recent_success):
+        if item.google_response:
+            try:
+                item.google_response = json.dumps(item.google_response, indent=2, ensure_ascii=False)
+            except:
+                pass
     
     context = {
         'stats': stats,

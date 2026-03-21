@@ -111,7 +111,19 @@
 <!-- Action Buttons -->
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-body p-4">
-        <h5 class="fw-bold mb-3">{% trans "Manual Actions" %}</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">{% trans "Manual Actions" %}</h5>
+            <button type="button" class="btn btn-sm btn-outline-info rounded-circle" data-bs-toggle="modal" data-bs-target="#google-response-info">
+                <svg class="bi" width="16" height="16"><use href="#bi-info-circle"/></svg>
+            </button>
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label for="batch-size" class="form-label small fw-bold">{% trans "Batch Size" %}</label>
+                <input type="number" id="batch-size" class="form-control" value="10" min="1" max="50">
+                <small class="text-muted">{% trans "URLs to process (1-50)" %}</small>
+            </div>
+        </div>
         <div class="d-flex gap-2">
             <button onclick="processQueue()" class="btn btn-primary rounded-pill" id="process-btn">
                 <svg class="bi me-1" width="16" height="16"><use href="#bi-play-fill"/></svg>
@@ -125,6 +137,44 @@
                 <svg class="bi me-1" width="16" height="16"><use href="#bi-arrow-repeat"/></svg>
                 {% trans "Retry Failed" %}
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- Google Response Info Modal -->
+<div class="modal fade" id="google-response-info" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% trans "Understanding Google API Responses" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6 class="fw-bold">{% trans "Successful Response" %}</h6>
+                <p class="text-muted small">{% trans "When Google successfully receives your URL submission:" %}</p>
+                <pre class="bg-light p-3 rounded small mb-4"><code>{
+  "urlNotificationMetadata": {
+    "url": "https://example.com/page",
+    "latestUpdate": {
+      "url": "https://example.com/page",
+      "type": "URL_UPDATED",
+      "notifyTime": "2024-01-15T10:30:00Z"
+    }
+  }
+}</code></pre>
+                
+                <h6 class="fw-bold">{% trans "Common Error Responses" %}</h6>
+                <ul class="small">
+                    <li><strong>QUOTA_EXCEEDED:</strong> {% trans "200 requests/day limit reached. URLs will be queued for next day." %}</li>
+                    <li><strong>PERMISSION_DENIED:</strong> {% trans "Service account not authorized in Google Search Console." %}</li>
+                    <li><strong>HTTP_400:</strong> {% trans "Invalid URL format or action type." %}</li>
+                    <li><strong>HTTP_403:</strong> {% trans "Site ownership not verified in Search Console." %}</li>
+                </ul>
+                
+                <div class="alert alert-info mt-3">
+                    <strong>{% trans "Note:" %}</strong> {% trans "Successful submission doesn't guarantee immediate indexing. Google will review and index content based on quality and relevance. Check Google Search Console for indexing status." %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -179,6 +229,12 @@
                                     </div>
                                 </div>
                             </div>
+                            {% if item.google_response %}
+                            <details class="mt-2">
+                                <summary class="text-muted small" style="cursor: pointer;">{% trans "Google API Response" %}</summary>
+                                <pre class="bg-light p-2 rounded mt-2 small" style="max-height: 200px; overflow-y: auto;"><code>{{ item.google_response|safe }}</code></pre>
+                            </details>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 {% else %}
@@ -204,6 +260,12 @@
                                     <span class="status-badge status-{{ item.status }}">{{ item.get_status_display }}</span>
                                 </div>
                             </div>
+                            {% if item.google_response %}
+                            <details class="mt-2">
+                                <summary class="text-muted small" style="cursor: pointer;">{% trans "Google API Response" %}</summary>
+                                <pre class="bg-light p-2 rounded mt-2 small" style="max-height: 200px; overflow-y: auto;"><code>{{ item.google_response|safe }}</code></pre>
+                            </details>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 {% else %}
@@ -235,6 +297,12 @@
                                     </div>
                                 </div>
                             </div>
+                            {% if item.google_response %}
+                            <details class="mt-2">
+                                <summary class="text-danger small" style="cursor: pointer;">{% trans "Google API Response (Error)" %}</summary>
+                                <pre class="bg-light p-2 rounded mt-2 small" style="max-height: 200px; overflow-y: auto;"><code>{{ item.google_response|safe }}</code></pre>
+                            </details>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 {% else %}
@@ -262,6 +330,12 @@
                                     </div>
                                 </div>
                             </div>
+                            {% if item.google_response %}
+                            <details class="mt-2">
+                                <summary class="text-success small" style="cursor: pointer;">{% trans "Google API Response (Success)" %}</summary>
+                                <pre class="bg-light p-2 rounded mt-2 small" style="max-height: 200px; overflow-y: auto;"><code>{{ item.google_response|safe }}</code></pre>
+                            </details>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 {% else %}
@@ -278,20 +352,25 @@ function refreshStats() {
 }
 
 function processQueue() {
+    const batchSize = parseInt(document.getElementById('batch-size').value) || 10;
+    
     showConfirmation(
         '{% trans "Process pending items now? This will use your daily quota." %}',
-        null,
+        '<strong>{% trans "Batch size:" %}</strong> ' + batchSize + ' {% trans "URLs" %}',
         function() {
             const btn = document.getElementById('process-btn');
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>{% trans "Processing..." %}';
             
+            const formData = new FormData();
+            formData.append('batch_size', batchSize);
+            
             fetch('{% url "frontend_api:api_process_indexing_queue" %}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                }
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
             })
             .then(response => response.json())
             .then(data => {

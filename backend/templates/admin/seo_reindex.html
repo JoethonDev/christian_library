@@ -95,6 +95,17 @@
                 </div>
             </div>
 
+            <!-- Force Re-index Option -->
+            <div class="mb-4">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="force-reindex">
+                    <label class="form-check-label fw-bold" for="force-reindex">
+                        {% trans "Force Re-index All URLs" %}
+                    </label>
+                    <div class="form-text">{% trans "Re-submit ALL URLs to Google, even if already indexed (useful for SEO updates)" %}</div>
+                </div>
+            </div>
+
             <!-- Estimated URLs Count -->
             <div class="alert alert-info border-0 rounded-3 mb-4">
                 <div class="d-flex align-items-center">
@@ -366,6 +377,7 @@ document.getElementById('reindex-form').addEventListener('submit', function(e) {
     
     const contentType = document.querySelector('input[name="content_type"]:checked').value;
     const includeSitemap = document.getElementById('include-sitemap').checked;
+    const forceReindex = document.getElementById('force-reindex').checked;
     
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     
@@ -381,7 +393,8 @@ document.getElementById('reindex-form').addEventListener('submit', function(e) {
         },
         body: JSON.stringify({
             content_type: contentType,
-            include_sitemap: includeSitemap
+            include_sitemap: includeSitemap,
+            force: forceReindex
         })
     })
     .then(response => response.json())
