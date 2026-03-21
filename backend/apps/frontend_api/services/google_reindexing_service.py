@@ -226,6 +226,10 @@ class GoogleReindexingService:
         """
         Submit a batch of URLs to Google Indexing API.
         
+        DEPRECATED: Use queue_urls_for_reindexing() instead.
+        This method is kept for backward compatibility but will be removed in future versions.
+        The queue-based approach provides better error handling and quota management.
+        
         Args:
             urls_batch: List of URL dictionaries
             task_id: UUID of the GoogleReindexingTask
@@ -233,6 +237,8 @@ class GoogleReindexingService:
         Returns:
             Tuple of (successful_count, failed_count, errors)
         """
+        logger.warning("submit_url_batch is deprecated. Use queue_urls_for_reindexing() instead.")
+        
         task = GoogleReindexingTask.objects.get(id=task_id)
         
         successful = 0

@@ -227,32 +227,3 @@ def get_absolute_content_url(content_item, request=None, language=None):
         logger.error(f"Error building absolute URL: {e}")
         return content_item.get_absolute_url()
 
-
-def notify_content_update(content_item, request=None):
-    """
-    Notify Google of content update via Indexing API
-    
-    Args:
-        content_item: ContentItem object that was created or updated
-        request: Optional Django request object
-    
-    Returns:
-        dict: {'success': bool, 'response': dict, 'error': str}
-    """
-    url = get_absolute_content_url(content_item, request)
-    return notify_google_indexing_api(url, action='URL_UPDATED')
-
-
-def notify_content_deletion(content_item, request=None):
-    """
-    Notify Google of content deletion via Indexing API
-    
-    Args:
-        content_item: ContentItem object that was deleted
-        request: Optional Django request object
-    
-    Returns:
-        dict: {'success': bool, 'response': dict, 'error': str}
-    """
-    url = get_absolute_content_url(content_item, request)
-    return notify_google_indexing_api(url, action='URL_DELETED')
