@@ -27,22 +27,18 @@ def get_googlereindexingtask_model():
 
 
 @shared_task(bind=True, max_retries=0, time_limit=3600)
-def reindex_website_google(self, task_id, content_type=None, include_sitemap=True):
+def reindex_website_google(self, task_id, content_type=None, include_sitemap=True, force=False):
     """
     Re-index website content on Google Search Console.
     
-    This task:
-    1. Retrieves all active content URLs (with language variants)
-    2. Submits them in batches to Google Indexing API
-    3. Respects rate limits (200 requests/minute)
-    4. Tracks progress and logs errors
-    5. Optionally pings sitemap on completion
-    6. Sends email notification to initiator
+    Now uses GoogleIndexingQueue system for actual submission.
+    This task queues URLs; processing happens in process_google_indexing_queue.
     
     Args:
         task_id: UUID of GoogleReindexingTask
         content_type: Type of content to re-index (optional)
         include_sitemap: Whether to ping sitemap after completion
+        force: Force re-indexing of ALL URLs (even if already indexed)
     """
     GoogleReindexingTask = get_googlereindexingtask_model()
     
@@ -64,67 +60,77 @@ def reindex_website_google(self, task_id, content_type=None, include_sitemap=Tru
         task.started_at = timezone.now()
         task.save(update_fields=['status', 'started_at', 'updated_at'])
         
-        logger.info(f"Starting re-indexing task {task_id} for content_type={content_type}")
+        logger.info(f"Starting re-indexing task {task_id} | Content type: {content_type} | Force: {force}")
         
         # Initialize service
         service = GoogleReindexingService()
         
-        # Get all URLs to submit
-        urls = service.get_active_urls(content_type)
+        # Get URLs to index (from URL generator + registry filtering)
+        from apps.frontend_api.services.url_generator_service import get_url_generator
+        from apps.frontend_api.models_indexing import GoogleIndexedUrl
         
-        if not urls:
-            logger.warning(f"No URLs found for re-indexing task {task_id}")
-            task.mark_as_completed()
+        url_generator = get_url_generator()
+        all_urls = url_generator.get_all_urls(content_type=content_type, include_static=True)
+        
+        # Filter based on force flag
+        urls_to_queue = []
+        
+        if force:
+            # Force: queue ALL URLs
+            urls_to_queue = all_urls
+            # Mark all existing registry entries for re-index
+            GoogleIndexedUrl.objects.filter(
+                url__in=[u['url'] for u in all_urls]
+            ).update(needs_reindex=True)
+            logger.info(f"Force re-index: queueing all {len(urls_to_queue)} URLs")
+        else:
+            # Normal: only queue not_indexed, failed, or needing re-index
+            for url_info in all_urls:
+                indexed_url = GoogleIndexedUrl.objects.filter(url=url_info['url']).first()
+                if not indexed_url or indexed_url.status in ['not_indexed', 'failed'] or indexed_url.needs_reindex:
+                    urls_to_queue.append(url_info)
+            
+            logger.info(f"Normal re-index: queueing {len(urls_to_queue)} URLs (out of {len(all_urls)} total)")
+        
+        if not urls_to_queue:
+            logger.info(f"No URLs to queue for re-indexing task {task_id}")
+            task.status = 'completed'
+            task.completed_at = timezone.now()
+            task.save(update_fields=['status', 'completed_at', 'updated_at'])
             return {
                 'success': True,
-                'message': 'No URLs to re-index',
+                'message': 'No URLs need re-indexing',
                 'total': 0,
-                'successful': 0,
-                'failed': 0
+                'queued': 0,
+                'skipped': 0
             }
         
-        # Update total URLs if different (in case content was added/removed)
-        if task.total_urls != len(urls):
-            task.total_urls = len(urls)
-            task.save(update_fields=['total_urls', 'updated_at'])
+        # Update total URLs
+        task.total_urls = len(urls_to_queue)
+        task.save(update_fields=['total_urls', 'updated_at'])
         
-        # Process URLs in batches of 50
-        batch_size = 50
-        all_errors = []
+        # Queue URLs via GoogleIndexingQueue
+        queued_count, skipped_count = service.queue_urls_for_reindexing(
+            urls_to_queue, 
+            task_id,
+            force=force
+        )
         
-        for i in range(0, len(urls), batch_size):
-            # Check for cancellation
-            task.refresh_from_db()
-            if task.status == 'cancelled':
-                logger.info(f"Re-indexing task {task_id} was cancelled")
-                return {
-                    'success': False,
-                    'message': 'Task cancelled by user',
-                    'total': task.total_urls,
-                    'successful': task.successful_urls,
-                    'failed': task.failed_urls
-                }
-            
-            # Get batch
-            batch = urls[i:i + batch_size]
-            
-            # Submit batch
-            logger.info(f"Submitting batch {i//batch_size + 1}/{(len(urls) + batch_size - 1)//batch_size}")
-            successful, failed, errors = service.submit_url_batch(batch, task_id)
-            
-            # Collect errors
-            all_errors.extend(errors)
-            
-            # Log batch progress
-            logger.info(
-                f"Batch {i//batch_size + 1} completed: "
-                f"{successful} successful, {failed} failed"
-            )
+        # Update task
+        task.submitted_urls = len(urls_to_queue)
+        task.successful_urls = queued_count
+        task.failed_urls = skipped_count
+        task.status = 'completed'
+        task.completed_at = timezone.now()
+        task.save(update_fields=[
+            'submitted_urls', 'successful_urls', 'failed_urls',
+            'status', 'completed_at', 'updated_at'
+        ])
         
-        # Save all errors to task
-        if all_errors:
-            task.error_log = json.dumps(all_errors)
-            task.save(update_fields=['error_log', 'updated_at'])
+        logger.info(
+            f"Re-indexing task {task_id} completed | "
+            f"Queued: {queued_count}, Skipped: {skipped_count}"
+        )
         
         # Ping sitemap if requested
         if include_sitemap:
@@ -134,27 +140,18 @@ def reindex_website_google(self, task_id, content_type=None, include_sitemap=Tru
             except Exception as e:
                 logger.error(f"Error pinging sitemap: {e}")
         
-        # Mark as completed
-        task.mark_as_completed()
-        
         # Send notification email
         try:
             send_reindex_completion_email(task)
         except Exception as e:
             logger.error(f"Error sending completion email: {e}")
         
-        logger.info(
-            f"Re-indexing task {task_id} completed: "
-            f"{task.successful_urls} successful, {task.failed_urls} failed"
-        )
-        
         return {
             'success': True,
             'task_id': str(task_id),
             'total': task.total_urls,
-            'successful': task.successful_urls,
-            'failed': task.failed_urls,
-            'success_rate': task.get_success_rate()
+            'queued': queued_count,
+            'skipped': skipped_count
         }
         
     except GoogleReindexingTask.DoesNotExist:

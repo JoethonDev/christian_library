@@ -21,6 +21,49 @@ from apps.frontend_api.google_seo_service import (
 logger = logging.getLogger(__name__)
 
 
+# Priority levels for Google Indexing Queue
+# Higher number = higher priority = processed first
+PRIORITY_DELETION = 8      # Deletions (immediate)
+PRIORITY_ARABIC = 10       # Arabic URLs (highest for normal indexing)
+PRIORITY_STATIC = 7        # Static pages (home, search, lists)
+PRIORITY_TAG = 6           # Tag pages
+PRIORITY_ENGLISH = 5       # English URLs
+PRIORITY_FEED = 4          # RSS feeds (lowest)
+
+
+def get_priority_for_url(url_info: Dict) -> int:
+    """
+    Get priority based on URL type and language.
+    
+    Priority order:
+    1. Deletions (8)
+    2. Arabic content/pages (10)
+    3. Static pages (7)
+    4. Tag pages (6)
+    5. English content/pages (5)
+    6. RSS feeds (4)
+    """
+    if url_info.get('action') == 'URL_DELETED':
+        return PRIORITY_DELETION
+    
+    language = url_info.get('language', 'ar')
+    url_type = url_info.get('url_type', 'content')
+    
+    # Arabic always higher than English
+    if language == 'ar':
+        return PRIORITY_ARABIC
+    
+    # English URLs by type
+    if url_type == 'static_page':
+        return PRIORITY_STATIC
+    elif url_type == 'tag_page':
+        return PRIORITY_TAG
+    elif url_type == 'rss_feed':
+        return PRIORITY_FEED
+    else:
+        return PRIORITY_ENGLISH
+
+
 class GoogleIndexingQueueService:
     """Service for managing Google Indexing API queue"""
     
@@ -90,85 +133,148 @@ content_item: ContentItem instance
     
     @staticmethod
     def queue_for_indexing(
-        content_item, 
-        action='URL_UPDATED', 
-        priority=5, 
-        force=False
+        content_item=None,
+        url=None,
+        url_type='content',
+        action='URL_UPDATED',
+        priority=None,
+        force=False,
+        language='ar',
+        tag=None,
+        **metadata
     ) -> Dict[str, any]:
         """
-        Queue content for Google indexing.
+        Queue URL for Google indexing.
+        Creates/updates GoogleIndexedUrl registry entry.
         
         Args:
-            content_item: ContentItem instance
+            content_item: ContentItem instance (optional if url provided)
+            url: Direct URL (optional if content_item provided)
+            url_type: Type of URL ('content', 'static_page', 'tag_page', 'rss_feed')
             action: 'URL_UPDATED' or 'URL_DELETED'
-            priority: Priority level (1-10, higher = more important)
+            priority: Priority level (1-10, higher = more important). If None, auto-calculated
             force: Force queueing even if validation fails
+            language: Language variant ('ar', 'en')
+            tag: Tag instance (for tag pages)
+            **metadata: Additional metadata
         
         Returns:
-            dict: {'queued': bool, 'queue_item': GoogleIndexingQueue, 'validation': dict}
+            dict: {'queued': bool, 'queue_item': GoogleIndexingQueue, 'indexed_url': GoogleIndexedUrl}
         """
+        from apps.frontend_api.models_indexing import GoogleIndexedUrl
+        
+        # Get or build URL
+        if not url:
+            if not content_item:
+                raise ValueError("Must provide either content_item or url")
+            url = get_absolute_content_url(content_item, language=language)
+        
+        # Auto-calculate priority if not provided
+        if priority is None:
+            priority = get_priority_for_url({
+                'action': action,
+                'language': language,
+                'url_type': url_type
+            })
+        
         # For deletions, skip validation
         if action == 'URL_DELETED':
-            url = get_absolute_content_url(content_item)
+            # Mark as deleted in registry
+            indexed_url = GoogleIndexedUrl.objects.filter(url=url).first()
+            if indexed_url:
+                indexed_url.mark_as_deleted()
             
             # Create queue item
             queue_item = GoogleIndexingQueue.objects.create(
                 content_item=None,  # Don't keep reference to deleted content
                 url=url,
-                action=action,
+                action='URL_DELETED',
                 priority=priority,
                 status='pending'
             )
             
-            logger.info(f"Queued deletion for indexing: {url}")
+            logger.info(f"✓ Queued deletion: {url}")
             
             return {
                 'queued': True,
                 'queue_item': queue_item,
+                'indexed_url': indexed_url,
                 'validation': {'ready': True, 'reason': 'Deletion request', 'missing': []}
             }
         
-        # For updates, validate content
-        validation = GoogleIndexingQueueService.validate_content_ready_for_indexing(content_item)
+        # For content URLs, validate if not forced
+        validation_result = {'ready': True, 'reason': '', 'missing': []}
         
-        if not validation['ready'] and not force:
-            logger.info(
-                f"Content {content_item.id} not ready for indexing: {validation['reason']} "
-                f"Missing: {', '.join(validation['missing'])}"
-            )
+        if url_type == 'content' and content_item:
+            validation_result = GoogleIndexingQueueService.validate_content_ready_for_indexing(content_item)
             
-            # Create queue item with 'invalid' status
-            url = get_absolute_content_url(content_item)
-            queue_item = GoogleIndexingQueue.objects.create(
-                content_item=content_item,
-                url=url,
-                action=action,
-                priority=priority,
-                status='invalid',
-                error_message=f"{validation['reason']}. Missing: {', '.join(validation['missing'])}"
-            )
-            
-            return {
-                'queued': False,
-                'queue_item': queue_item,
-                'validation': validation
+            if not validation_result['ready'] and not force:
+                # Create registry entry as not_indexed
+                indexed_url, created = GoogleIndexedUrl.objects.get_or_create(
+                    url=url,
+                    defaults={
+                        'url_type': url_type,
+                        'language': language,
+                        'content_item': content_item,
+                        'tag': tag,
+                        'status': 'not_indexed',
+                        'needs_reindex': False,
+                        'last_error': f"{validation_result['reason']}. Missing: {', '.join(validation_result['missing'])}"
+                    }
+                )
+                
+                # Create queue item with 'invalid' status
+                queue_item = GoogleIndexingQueue.objects.create(
+                    content_item=content_item,
+                    url=url,
+                    action=action,
+                    priority=priority,
+                    status='invalid',
+                    error_message=f"{validation_result['reason']}. Missing: {', '.join(validation_result['missing'])}"
+                )
+                
+                logger.info(
+                    f"⚠ Not ready for indexing: {url} | "
+                    f"Reason: {validation_result['reason']} | "
+                    f"Missing: {', '.join(validation_result['missing'])}"
+                )
+                
+                return {
+                    'queued': False,
+                    'queue_item': queue_item,
+                    'indexed_url': indexed_url,
+                    'validation': validation_result
+                }
+        
+        # Get or create registry entry
+        indexed_url, created = GoogleIndexedUrl.objects.get_or_create(
+            url=url,
+            defaults={
+                'url_type': url_type,
+                'language': language,
+                'content_item': content_item,
+                'tag': tag,
+                'status': 'not_indexed',
+                'needs_reindex': False
             }
+        )
         
-        # Content is ready, queue it
-        url = get_absolute_content_url(content_item)
+        # Mark as pending in registry
+        indexed_url.mark_as_pending()
         
         # Check if already queued
         existing = GoogleIndexingQueue.objects.filter(
-            content_item=content_item,
+            url=url,
             status__in=['pending', 'processing']
         ).first()
         
         if existing:
-            logger.debug(f"Content {content_item.id} already queued: {existing.id}")
+            logger.debug(f"URL already queued: {url}")
             return {
                 'queued': True,
                 'queue_item': existing,
-                'validation': validation,
+                'indexed_url': indexed_url,
+                'validation': validation_result,
                 'already_queued': True
             }
         
@@ -181,12 +287,13 @@ content_item: ContentItem instance
             status='pending'
         )
         
-        logger.info(f"✓ Queued for indexing: {content_item.get_title()} | Priority: {priority}")
+        logger.info(f"✓ Queued for indexing: {url} | Priority: {priority}")
         
         return {
             'queued': True,
             'queue_item': queue_item,
-            'validation': validation
+            'indexed_url': indexed_url,
+            'validation': validation_result
         }
     
     @staticmethod
@@ -273,6 +380,7 @@ content_item: ContentItem instance
     def process_queue_item(queue_item: GoogleIndexingQueue) -> Dict[str, any]:
         """
         Process a single queue item.
+        Updates GoogleIndexedUrl registry on success/failure.
         
         Args:
             queue_item: GoogleIndexingQueue instance
@@ -280,18 +388,30 @@ content_item: ContentItem instance
         Returns:
             dict: {'success': bool, 'error': str, 'quota_exceeded': bool}
         """
+        from apps.frontend_api.models_indexing import GoogleIndexedUrl
+        
+        # Get registry entry
+        indexed_url = GoogleIndexedUrl.objects.filter(url=queue_item.url).first()
+        
         # Mark as processing
         queue_item.status = 'processing'
         queue_item.save(update_fields=['status', 'updated_at'])
+        
+        if indexed_url:
+            indexed_url.mark_as_pending()
+            indexed_url.increment_submission()
         
         # Submit to Google
         result = notify_google_indexing_api(queue_item.url, queue_item.action)
         
         # Handle result
         if result['success']:
-            # Success
+            # Success - update both queue and registry
             queue_item.mark_as_success(response=result.get('response'))
             GoogleIndexingQuota.increment_usage(success=True)
+            
+            if indexed_url:
+                indexed_url.mark_as_indexed(response=result.get('response'))
             
             logger.info(f"✓ Indexed successfully: {queue_item.url}")
             
@@ -324,13 +444,20 @@ content_item: ContentItem instance
         queue_item.increment_retry()
         
         if queue_item.retry_count >= queue_item.max_retries:
-            # Max retries reached
+            # Max retries reached - mark as failed in both queue and registry
             queue_item.mark_as_failed(
                 error_message=f"Max retries reached. {error_message}",
                 error_code=error_code,
                 response=result.get('response')
             )
             GoogleIndexingQuota.increment_usage(success=False)
+            
+            if indexed_url:
+                indexed_url.mark_as_failed(
+                    error_message=error_message,
+                    error_code=error_code,
+                    response=result.get('response')
+                )
             
             logger.error(f"✗ Indexing failed (max retries): {queue_item.url} - {error_message}")
         else:
