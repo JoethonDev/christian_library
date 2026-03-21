@@ -74,7 +74,8 @@ class GoogleReindexingService:
         self, 
         user, 
         content_type: Optional[str] = None, 
-        include_sitemap: bool = True
+        include_sitemap: bool = True,
+        force: bool = False
     ) -> str:
         """
         Initiate a new re-indexing task.
@@ -83,10 +84,13 @@ class GoogleReindexingService:
             user: User initiating the task
             content_type: Type of content to re-index ('all', 'video', 'audio', 'pdf')
             include_sitemap: Whether to ping sitemap after completion
+            force: If True, re-index ALL URLs even if already indexed
             
         Returns:
             str: Task UUID
         """
+        from apps.frontend_api.models_indexing import GoogleIndexedUrl
+        
         # Check for active tasks
         active_tasks = GoogleReindexingTask.objects.filter(
             status__in=['pending', 'in_progress']
@@ -94,19 +98,42 @@ class GoogleReindexingService:
         if active_tasks.exists():
             raise ValueError("Another re-indexing operation is already in progress")
         
-        # Get URL count
-        urls = self.get_active_urls(content_type)
+        # Get all URLs (including static pages)
+        urls = self.get_active_urls(content_type, include_static=True)
+        
+        # Filter URLs based on force flag and registry
+        urls_to_index = []
+        
+        if force:
+            # Force: re-index ALL URLs
+            urls_to_index = urls
+            logger.info(f"Force re-index: queueing all {len(urls_to_index)} URLs")
+        else:
+            # Normal: only index not_indexed, failed, or needing re-index
+            for url_info in urls:
+                indexed_url = GoogleIndexedUrl.objects.filter(url=url_info['url']).first()
+                
+                if not indexed_url or indexed_url.status in ['not_indexed', 'failed'] or indexed_url.needs_reindex:
+                    urls_to_index.append(url_info)
+            
+            logger.info(
+                f"Normal re-index: queueing {len(urls_to_index)} URLs "
+                f"(out of {len(urls)} total)"
+            )
         
         # Create task
         task = GoogleReindexingTask.objects.create(
             status='pending',
             content_type=content_type or 'all',
-            total_urls=len(urls),
+            total_urls=len(urls_to_index),
             initiated_by=user,
             sitemap_included=include_sitemap
         )
         
-        logger.info(f"Initiated re-indexing task {task.id} for {len(urls)} URLs")
+        logger.info(
+            f"Initiated re-indexing task {task.id} | "
+            f"URLs: {len(urls_to_index)} | Force: {force}"
+        )
         
         return str(task.id)
     
@@ -128,6 +155,68 @@ class GoogleReindexingService:
         
         logger.info(f"Collected {len(urls)} URLs for re-indexing")
         return urls
+    
+    def queue_urls_for_reindexing(
+        self, 
+        urls_batch: List[Dict[str, str]], 
+        task_id: str,
+        force: bool = False
+    ) -> Tuple[int, int]:
+        """
+        Queue URLs for re-indexing via GoogleIndexingQueue.
+        Replaces direct API submission with queue-based approach.
+        
+        Args:
+            urls_batch: List of URL dictionaries with metadata
+            task_id: UUID of the GoogleReindexingTask
+            force: Force re-indexing even if already indexed
+            
+        Returns:
+            Tuple of (queued_count, skipped_count)
+        """
+        from apps.frontend_api.services.google_indexing_queue_service import GoogleIndexingQueueService
+        
+        task = GoogleReindexingTask.objects.get(id=task_id)
+        
+        queued = 0
+        skipped = 0
+        
+        for url_info in urls_batch:
+            # Check for cancellation
+            task.refresh_from_db()
+            if task.status == 'cancelled':
+                logger.info(f"Task {task_id} cancelled, stopping")
+                break
+            
+            # Queue via service
+            try:
+                result = GoogleIndexingQueueService.queue_for_indexing(
+                    content_item=None,  # Re-indexing works with URLs directly
+                    url=url_info['url'],
+                    url_type=url_info.get('url_type', 'content'),
+                    action='URL_UPDATED',
+                    priority=url_info.get('priority'),
+                    force=force,
+                    language=url_info.get('language', 'ar'),
+                    **{k: v for k, v in url_info.items() if k not in ['url', 'content_item', 'url_type', 'priority', 'language', 'action']}
+                )
+                
+                if result['queued']:
+                    queued += 1
+                else:
+                    skipped += 1
+            
+            except Exception as e:
+                logger.error(f"Error queueing URL {url_info['url']}: {e}")
+                skipped += 1
+            
+            # Update task progress
+            task.submitted_urls += 1
+            task.save(update_fields=['submitted_urls', 'updated_at'])
+        
+        logger.info(f"Queued {queued} URLs for re-indexing, skipped {skipped}")
+        
+        return queued, skipped
     
     def submit_url_batch(
         self, 
