@@ -143,23 +143,31 @@ def notify_google_on_seo_change(sender, instance, created, **kwargs):
     # Queue for Google indexing if ready
     if should_queue:
         try:
-            result = GoogleIndexingQueueService.queue_for_indexing(
+            # Queue Arabic variant (priority=10 - highest)
+            result_ar = GoogleIndexingQueueService.queue_for_indexing(
                 content_item=instance,
+                url_type='content',
                 action='URL_UPDATED',
-                priority=priority
+                language='ar'  # Priority will be auto-calculated as 10 for Arabic
             )
             
-            if result['queued']:
-                if result.get('already_queued'):
-                    logger.debug(f"Already queued: {instance.get_title()}")
-                else:
-                    logger.info(
-                        f"✓ Queued for Google indexing: {instance.get_title()} "
-                        f"| Priority: {priority} | Changed: {', '.join(changed_fields)}"
-                    )
+            # Queue English variant (priority=5)
+            result_en = GoogleIndexingQueueService.queue_for_indexing(
+                content_item=instance,
+                url_type='content',
+                action='URL_UPDATED',
+                language='en'  # Priority will be auto-calculated as 5 for English
+            )
+            
+            if result_ar['queued'] or result_en['queued']:
+                logger.info(
+                    f"✓ Queued for Google indexing: {instance.get_title()} "
+                    f"| AR queued: {result_ar['queued']}, EN queued: {result_en['queued']} "
+                    f"| Changed: {', '.join(changed_fields)}"
+                )
             else:
                 # Not ready yet
-                validation = result.get('validation', {})
+                validation = result_ar.get('validation', {})
                 logger.info(
                     f"⚠ Not ready for indexing: {instance.get_title()} "
                     f"| Reason: {validation.get('reason')} "
@@ -216,63 +224,75 @@ def log_seo_generation_status(sender, instance, created, **kwargs):
 @receiver(pre_delete, sender=ContentItem)
 def store_deleted_content_url(sender, instance, **kwargs):
     """
-    Store the URL before deletion so we can notify Google
+    Store the URLs (AR and EN) before deletion so we can notify Google.
     Must happen in pre_delete because we need the instance to still exist
-    to generate its URL
+    to generate its URLs.
     """
     try:
         from apps.frontend_api.google_seo_service import get_absolute_content_url
         
-        # Store URL in shared cache for post_delete handler (safe across workers)
+        # Store both language variant URLs in shared cache
+        urls = {
+            'ar': get_absolute_content_url(instance, language='ar'),
+            'en': get_absolute_content_url(instance, language='en')
+        }
+        
         cache.set(
             f'{_DEL_TRACKER_PREFIX}{instance.id}',
-            get_absolute_content_url(instance),
+            urls,
             timeout=_TRACKER_TTL,
         )
         
-        logger.debug(f"Stored URL for deletion notification: {instance.get_title()}")
+        logger.debug(f"Stored URLs for deletion notification: {instance.get_title()}")
     
     except Exception as e:
-        logger.error(f"Error storing deleted content URL: {e}")
+        logger.error(f"Error storing deleted content URLs: {e}")
 
 
 @receiver(post_delete, sender=ContentItem)
 def notify_google_on_content_deletion(sender, instance, **kwargs):
     """
     Queue content deletion notification for Google Indexing API.
-    This ensures Google removes the URL from search results quickly.
+    This ensures Google removes both AR and EN URLs from search results quickly.
     """
     from apps.frontend_api.services.google_indexing_queue_service import (
         GoogleIndexingQueueService
     )
     
     try:
-        # Get stored URL (from pre_delete, any worker)
+        # Get stored URLs (from pre_delete, any worker)
         cache_key = f'{_DEL_TRACKER_PREFIX}{instance.id}'
-        url = cache.get(cache_key)
-        if url:
+        urls = cache.get(cache_key)
+        if urls:
             cache.delete(cache_key)
         
-        if not url:
-            logger.warning(f"No URL stored for deleted content: {instance.id}")
+        if not urls:
+            logger.warning(f"No URLs stored for deleted content: {instance.id}")
             return
         
-        # Queue deletion notification (high priority)
-        result = GoogleIndexingQueueService.queue_for_indexing(
-            content_item=instance,
+        # Queue deletion notification for both language variants
+        result_ar = GoogleIndexingQueueService.queue_for_indexing(
+            url=urls['ar'],
+            url_type='content',
             action='URL_DELETED',
-            priority=8  # High priority for deletions
+            language='ar'
         )
         
-        if result['queued']:
+        result_en = GoogleIndexingQueueService.queue_for_indexing(
+            url=urls['en'],
+            url_type='content',
+            action='URL_DELETED',
+            language='en'
+        )
+        
+        if result_ar['queued'] or result_en['queued']:
             logger.info(
                 f"✓ Queued deletion for Google: {instance.get_title()} "
-                f"| Type: {instance.content_type} | URL: {url}"
+                f"| Type: {instance.content_type} | AR: {urls['ar']}, EN: {urls['en']}"
             )
         else:
             logger.warning(
-                f"Failed to queue deletion: {instance.get_title()} "
-                f"| Error: {result.get('validation', {}).get('reason')}"
+                f"Failed to queue deletions: {instance.get_title()}"
             )
     
     except Exception as e:
