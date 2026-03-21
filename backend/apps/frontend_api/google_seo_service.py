@@ -192,13 +192,14 @@ def notify_google_indexing_api(url, action='URL_UPDATED'):
         }
 
 
-def get_absolute_content_url(content_item, request=None):
+def get_absolute_content_url(content_item, request=None, language=None):
     """
     Get absolute URL for a content item
     
     Args:
         content_item: ContentItem object
         request: Optional Django request object
+        language: Optional language code ('ar' or 'en') to override default
     
     Returns:
         str: Absolute URL
@@ -212,7 +213,16 @@ def get_absolute_content_url(content_item, request=None):
             domain = current_site.domain
             protocol = 'https'
         
-        return f"{protocol}://{domain}{content_item.get_absolute_url()}"
+        url_path = content_item.get_absolute_url()
+        
+        # Override language if specified
+        if language:
+            if url_path.startswith('/ar/') or url_path.startswith('/en/'):
+                url_path = f'/{language}{url_path[3:]}'
+            else:
+                url_path = f'/{language}{url_path}'
+        
+        return f"{protocol}://{domain}{url_path}"
     except Exception as e:
         logger.error(f"Error building absolute URL: {e}")
         return content_item.get_absolute_url()

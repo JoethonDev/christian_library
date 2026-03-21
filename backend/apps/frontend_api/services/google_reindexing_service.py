@@ -110,63 +110,21 @@ class GoogleReindexingService:
         
         return str(task.id)
     
-    def get_active_urls(self, content_type: Optional[str] = None) -> List[Dict[str, str]]:
+    def get_active_urls(self, content_type: Optional[str] = None, include_static: bool = True) -> List[Dict[str, str]]:
         """
-        Get all active content URLs with language variants.
+        Get all active URLs for indexing including content and static pages.
         
         Args:
             content_type: Filter by content type ('video', 'audio', 'pdf') or None for all
+            include_static: Whether to include static pages, tags, and feeds (default: True)
             
         Returns:
-            List of dicts with 'url' and 'content_type' keys
+            List of dicts with URL metadata
         """
-        # Base queryset - only active content
-        queryset = ContentItem.objects.filter(is_active=True)
+        from apps.frontend_api.services.url_generator_service import get_url_generator
         
-        # Filter by content type if specified
-        if content_type and content_type != 'all':
-            queryset = queryset.filter(content_type=content_type)
-        
-        # Get site domain
-        try:
-            current_site = Site.objects.get_current()
-            domain = current_site.domain
-            # Protocol preference from settings, fallback to dynamic detection
-            protocol = getattr(settings, 'SITE_PROTOCOL', 'http' if settings.DEBUG or 'localhost' in domain else 'https')
-        except Exception as e:
-            logger.warning(f"Could not get site domain: {e}")
-            # Fallback to localhost if Site framework fails
-            domain = getattr(settings, 'SITE_DOMAIN', 'localhost')
-            protocol = getattr(settings, 'SITE_PROTOCOL', 'http' if settings.DEBUG else 'https')
-            logger.info(f"Using fallback domain: {domain} ({protocol})")
-        
-        urls = []
-        
-        # Get all content items
-        # Optimization: No need to select_related('user') as it's not used in URL generation
-        # and doesn't exist on the ContentItem model.
-        for item in queryset.iterator(chunk_size=500):
-            # Add URL for each language variant (ar and en)
-            for lang in ['ar', 'en']:
-                try:
-                    url_path = item.get_absolute_url()
-                    # Replace language prefix
-                    if url_path.startswith('/ar/') or url_path.startswith('/en/'):
-                        url_path = f'/{lang}{url_path[3:]}'
-                    else:
-                        url_path = f'/{lang}{url_path}'
-                    
-                    absolute_url = f"{protocol}://{domain}{url_path}"
-                    
-                    urls.append({
-                        'url': absolute_url,
-                        'content_type': item.content_type,
-                        'content_id': str(item.id),
-                        'language': lang
-                    })
-                except Exception as e:
-                    logger.warning(f"Could not build URL for content {item.id}: {e}")
-                    continue
+        url_generator = get_url_generator()
+        urls = url_generator.get_all_urls(content_type=content_type, include_static=include_static)
         
         logger.info(f"Collected {len(urls)} URLs for re-indexing")
         return urls
