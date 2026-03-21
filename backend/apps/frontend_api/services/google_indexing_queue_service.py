@@ -7,9 +7,9 @@ Manages the queue for Google Indexing API submissions with:
 - Error tracking
 """
 import logging
-from typing import Dict, Optional, List
+from typing import Dict
 from django.utils import timezone
-from django.db import transaction
+from apps.frontend_api.models_indexing import GoogleIndexedUrl
 from datetime import timedelta
 
 from apps.frontend_api.models_indexing import GoogleIndexingQueue, GoogleIndexingQuota
@@ -160,9 +160,7 @@ content_item: ContentItem instance
         
         Returns:
             dict: {'queued': bool, 'queue_item': GoogleIndexingQueue, 'indexed_url': GoogleIndexedUrl}
-        """
-        from apps.frontend_api.models_indexing import GoogleIndexedUrl
-        
+        """        
         # Get or build URL
         if not url:
             if not content_item:

@@ -2,12 +2,13 @@
 Celery tasks for frontend_api app
 """
 import logging
-import json
 from celery import shared_task
 from django.apps import apps
 from django.utils import timezone
 from django.core.cache import cache
 from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
+from apps.frontend_api.services.url_generator_service import get_url_generator
+from apps.frontend_api.models_indexing import GoogleIndexedUrl
 from apps.frontend_api.google_seo_service import ping_google_sitemap
 
 logger = logging.getLogger(__name__)
@@ -65,10 +66,7 @@ def reindex_website_google(self, task_id, content_type=None, include_sitemap=Tru
         # Initialize service
         service = GoogleReindexingService()
         
-        # Get URLs to index (from URL generator + registry filtering)
-        from apps.frontend_api.services.url_generator_service import get_url_generator
-        from apps.frontend_api.models_indexing import GoogleIndexedUrl
-        
+        # Get URLs to index (from URL generator + registry filtering)        
         url_generator = get_url_generator()
         all_urls = url_generator.get_all_urls(content_type=content_type, include_static=True)
         

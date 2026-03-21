@@ -278,37 +278,39 @@ function refreshStats() {
 }
 
 function processQueue() {
-    if (!confirm('{% trans "Process pending items now? This will use your daily quota." %}')) {
-        return;
-    }
-    
-    const btn = document.getElementById('process-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>{% trans "Processing..." %}';
-    
-    fetch('{% url "frontend_api:api_process_indexing_queue" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json'
+    showConfirmation(
+        '{% trans "Process pending items now? This will use your daily quota." %}',
+        null,
+        function() {
+            const btn = document.getElementById('process-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>{% trans "Processing..." %}';
+            
+            fetch('{% url "frontend_api:api_process_indexing_queue" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('{% trans "Processing started! Refresh page to see results." %}', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast('{% trans "Error:" %} ' + data.error, 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="bi me-1" width="16" height="16"><use href="#bi-play-fill"/></svg>{% trans "Process Queue Now" %}';
+                }
+            })
+            .catch(error => {
+                showToast('{% trans "Error processing queue" %}', 'danger');
+                btn.disabled = false;
+                btn.innerHTML = '<svg class="bi me-1" width="16" height="16"><use href="#bi-play-fill"/></svg>{% trans "Process Queue Now" %}';
+            });
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('{% trans "Processing started! Refresh page to see results." %}');
-            window.location.reload();
-        } else {
-            alert('{% trans "Error:" %} ' + data.error);
-            btn.disabled = false;
-            btn.innerHTML = '<svg class="bi me-1" width="16" height="16"><use href="#bi-play-fill"/></svg>{% trans "Process Queue Now" %}';
-        }
-    })
-    .catch(error => {
-        alert('{% trans "Error processing queue" %}');
-        btn.disabled = false;
-        btn.innerHTML = '<svg class="bi me-1" width="16" height="16"><use href="#bi-play-fill"/></svg>{% trans "Process Queue Now" %}';
-    });
+    );
 }
 
 function revalidateInvalid() {
@@ -325,10 +327,10 @@ function revalidateInvalid() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('{% trans "Revalidation started! Refresh page to see results." %}');
-            window.location.reload();
+            showToast('{% trans "Revalidation started! Refresh page to see results." %}', 'success');
+            setTimeout(() => window.location.reload(), 1500);
         } else {
-            alert('{% trans "Error:" %} ' + data.error);
+            showToast('{% trans "Error:" %} ' + data.error, 'danger');
             btn.disabled = false;
             btn.innerHTML = '<svg class="bi me-1" width="16" height="16"><use href="#bi-arrow-clockwise"/></svg>{% trans "Revalidate Invalid" %}';
         }
@@ -336,31 +338,33 @@ function revalidateInvalid() {
 }
 
 function retryFailed() {
-    if (!confirm('{% trans "Retry all failed items?" %}')) {
-        return;
-    }
-    
-    const btn = document.getElementById('retry-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>{% trans "Retrying..." %}';
-    
-    fetch('{% url "frontend_api:api_retry_failed_items" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
+    showConfirmation(
+        '{% trans "Retry all failed items?" %}',
+        null,
+        function() {
+            const btn = document.getElementById('retry-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>{% trans "Retrying..." %}';
+            
+            fetch('{% url "frontend_api:api_retry_failed_items" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('{% trans "Retry started! Refresh page to see results." %}', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast('{% trans "Error:" %} ' + data.error, 'danger');
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="bi me-1" width="16" height="16"><use href="#bi-arrow-repeat"/></svg>{% trans "Retry Failed" %}';
+                }
+            });
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('{% trans "Retry started! Refresh page to see results." %}');
-            window.location.reload();
-        } else {
-            alert('{% trans "Error:" %} ' + data.error);
-            btn.disabled = false;
-            btn.innerHTML = '<svg class="bi me-1" width="16" height="16"><use href="#bi-arrow-repeat"/></svg>{% trans "Retry Failed" %}';
-        }
-    });
+    );
 }
 </script>
 {% endblock %}

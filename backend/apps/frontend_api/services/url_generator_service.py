@@ -133,7 +133,7 @@ class URLGeneratorService:
         """
         # Only include tags that have active content
         active_tags = Tag.objects.filter(
-            content_items__is_active=True
+            contentitem__is_active=True
         ).distinct()
         
         urls = []

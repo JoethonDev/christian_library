@@ -6,6 +6,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.core.cache import cache
+from django.db.models import Count
+
+from apps.frontend_api.google_seo_service import get_absolute_content_url
 import uuid
 
 
@@ -451,9 +454,7 @@ class GoogleIndexedUrl(models.Model):
     
     @classmethod
     def get_or_create_for_content(cls, content_item, language):
-        """Get or create indexed URL entry for content item"""
-        from apps.frontend_api.google_seo_service import get_absolute_content_url
-        
+        """Get or create indexed URL entry for content item"""        
         # Build URL with language
         url = get_absolute_content_url(content_item, language=language)
         
@@ -499,9 +500,7 @@ class GoogleIndexedUrl(models.Model):
     
     @classmethod
     def get_statistics(cls):
-        """Get comprehensive statistics"""
-        from django.db.models import Count
-        
+        """Get comprehensive statistics"""        
         stats = cls.objects.values('status').annotate(count=Count('id'))
         
         return {
