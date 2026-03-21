@@ -525,8 +525,10 @@ function showToast(message, type = 'info') {
         const toast = new bootstrap.Toast(toastNode, { delay: 5000 });
         toast.show();
         toastNode.addEventListener('hidden.bs.toast', () => toastNode.remove());
+    } else if (typeof window.showToast === 'function') {
+        window.showToast(message, type || 'info');
     } else {
-        alert(message);
+        console.warn('Toast display unavailable:', message);
     }
 }
 
