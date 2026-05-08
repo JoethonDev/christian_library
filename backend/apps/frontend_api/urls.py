@@ -8,7 +8,15 @@ app_name = 'frontend_api'
 
 urlpatterns = [
     # Main pages
-    path('', views.HomeView.as_view(), name='home'),
+    path(
+        '',
+        RedirectView.as_view(
+            url='/ar/home/',
+            permanent=False
+        ),
+        name='root-redirect'
+    ),
+    path('home/', views.HomeView.as_view(), name='home'),
 
     # Content listing pages
     path('videos/', views.VideoListView.as_view(), name='videos'),

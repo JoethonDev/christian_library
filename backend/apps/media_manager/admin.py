@@ -14,7 +14,6 @@ from .models import (
     ContentViewEvent, DailyContentViewSummary, SiteConfiguration
 )
 from .forms import ContentItemForm
-from .services import ContentService, MediaUploadService
 
 logger = logging.getLogger(__name__)
 

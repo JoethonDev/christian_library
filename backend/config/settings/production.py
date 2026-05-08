@@ -172,7 +172,7 @@ LOGGING = {
 }
 
 # Internationalization
-LANGUAGE_CODE = os.getenv('LANGUAGE_CODE', 'en')
+LANGUAGE_CODE = os.getenv('LANGUAGE_CODE', 'ar')
 TIME_ZONE = os.getenv('TIME_ZONE', 'UTC')
 USE_TZ = True
 
