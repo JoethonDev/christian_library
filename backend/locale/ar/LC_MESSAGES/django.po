@@ -5072,8 +5072,8 @@ msgid "All rights reserved"
 msgstr "جميع الحقوق محفوظة"
 
 #: .\templates\includes\navbar.html:24
-msgid "The Library"
-msgstr "المكتبة"
+msgid "Library"
+msgstr "مكتبة"
 
 #: .\templates\includes\navbar.html:27
 msgid ""
