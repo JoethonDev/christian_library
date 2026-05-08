@@ -164,11 +164,15 @@ R2_REGION_NAME = os.environ.get('R2_REGION_NAME', 'auto')
 R2_PUBLIC_MEDIA_URL = os.environ.get('R2_PUBLIC_MEDIA_URL', '')  # e.g., 'https://pub-<public-id>.r2.dev'
 
 # Optional: Use a custom storage backend if R2 is enabled (to be implemented)
+MEDIA_STORAGE_BACKEND = 'django.core.files.storage.FileSystemStorage'
 if R2_ENABLED:
     DEFAULT_FILE_STORAGE = 'core.storage_backends.R2MediaStorage'
+    MEDIA_STORAGE_BACKEND = 'core.storage_backends.R2MediaStorage'
     # MEDIA_URL should point to the public R2 bucket URL if using public access
     if os.environ.get('R2_PUBLIC_MEDIA_URL'):
         MEDIA_URL = os.environ['R2_PUBLIC_MEDIA_URL']
+else:
+    DEFAULT_FILE_STORAGE = MEDIA_STORAGE_BACKEND
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -532,6 +536,9 @@ GOOGLE_SERVICE_ACCOUNT_FILE = os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE', None
 API_SECRET_KEY = os.environ.get('API_SECRET_KEY', None)
 
 STORAGES = {
+    "default": {
+        "BACKEND": MEDIA_STORAGE_BACKEND,
+    },
     "staticfiles": {
         "BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage",
     },
