@@ -2,7 +2,7 @@
 
 > Branch: `refactor/normalize-background-tasks`  
 > Date: 2026-05-16  
-> Status: **Phase 1 code cleanup complete; validation partly blocked by environment deps**
+> Status: **Phase 2 code cleanup complete; validation passed**
 
 ---
 
@@ -861,4 +861,8 @@ celery_worker_2:
 - [x] Removed Google Indexing queueing from `apps/media_manager/signals_seo.py`
 - [x] Removed the Google Indexing API implementation from `apps/frontend_api/google_seo_service.py`
 - [x] Replaced `apps/frontend_api/models.py` with a minimal module
-- [ ] `python manage.py check` is still blocked locally by missing `django_redis`
+- [x] `python manage.py check` passes in the backend virtual environment
+- [x] Removed processing-trigger signals from `apps/media_manager/signals.py`
+- [x] Removed premature R2 dispatch from `apps/media_manager/services/upload_service.py`
+- [x] Removed duplicate PDF R2 dispatch from `apps/media_manager/tasks.py`
+- [x] Added admin inline save hook for direct media edits in `apps/media_manager/admin.py`

@@ -22,10 +22,7 @@ from core.storage_backends import R2Service
 from core.tasks.media_processing import (
     process_video_to_hls,
     process_audio_compression,
-    process_pdf_optimization,
-    upload_video_to_r2,
-    upload_audio_to_r2,
-    upload_pdf_to_r2
+    process_pdf_optimization
 )
 
 logger = logging.getLogger(__name__)
@@ -587,19 +584,6 @@ class MediaUploadService:
             if not self.r2_service.use_r2:
                 logger.debug(f"R2 not enabled, skipping upload for {content_type}: {meta_instance.content_item.id}")
                 return
-            
-            # Schedule appropriate Celery task based on content type
-            if content_type == 'video':
-                upload_video_to_r2.delay(str(meta_instance.id))
-                logger.info(f"Queued R2 video upload task for: {meta_instance.content_item.id}")
-            elif content_type == 'audio':
-                upload_audio_to_r2.delay(str(meta_instance.id))
-                logger.info(f"Queued R2 audio upload task for: {meta_instance.content_item.id}")
-            elif content_type == 'pdf':
-                upload_pdf_to_r2.delay(str(meta_instance.id))
-                logger.info(f"Queued R2 PDF upload task for: {meta_instance.content_item.id}")
-            else:
-                logger.warning(f"Unknown content type for R2 upload: {content_type}")
                 
         except Exception as e:
             logger.error(f"Failed to queue R2 upload for {content_type} {meta_instance.content_item.id}: {str(e)}")

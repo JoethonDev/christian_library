@@ -8,7 +8,7 @@ from django.db.models import Count
 from django.utils import timezone
 from apps.health.task_monitor import TaskMonitor
 import logging
-from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2, delete_files_task
+from core.tasks.media_processing import delete_files_task
 from core.services.gemini_manager import get_gemini_manager
 from apps.media_manager.models import ContentViewEvent, DailyContentViewSummary, APIUploadQueue
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
@@ -112,7 +112,7 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         extracted_length = len(item.book_content) if item.book_content else 0
         logger.info(f"Successfully completed extraction and indexing for ContentItem {contentitem_id}: {extracted_length} characters")
         
-        # Parallel Trigger: Trigger SEO generation and R2 upload at the same time
+        # Trigger SEO generation after extraction finishes.
         if item.content_type in ['video', 'audio', 'pdf']:
             TaskMonitor.update_progress(
                 self.request.id, 
@@ -120,20 +120,8 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
                 step="finalization"
             )
             
-            # 1. Trigger SEO generation
+            # Trigger SEO generation.
             generate_seo_metadata_task.delay(str(item.id))
-            
-            # 2. Trigger R2 upload
-            if getattr(settings, 'R2_ENABLED', False):
-                meta = item.get_meta_object()
-                if meta:
-                    if item.content_type == 'video':
-                        upload_video_to_r2.delay(str(meta.id))
-                    elif item.content_type == 'audio':
-                        upload_audio_to_r2.delay(str(meta.id))
-                    elif item.content_type == 'pdf':
-                        upload_pdf_to_r2.delay(str(meta.id))
-                    logger.info(f"Triggered parallel R2 upload for {item.content_type}: {meta.id}")
         
         # Mark finalization as completed
         TaskMonitor.update_checklist_step(

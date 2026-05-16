@@ -7,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.core.cache import cache
 from django.conf import settings
+from django.db import transaction
 import logging
 
 from .models import (
@@ -431,6 +432,52 @@ class ContentItemAdmin(admin.ModelAdmin):
                 'action': _(action)
             }
         )
+
+    def save_formset(self, request, form, formset, change):
+        """Queue processing when an inline media file is changed in admin."""
+        super().save_formset(request, form, formset, change)
+
+        task_map = {
+            VideoMeta: 'process_video_to_hls',
+            AudioMeta: 'process_audio_compression',
+            PdfMeta: 'process_pdf_optimization',
+        }
+        task_name = task_map.get(getattr(formset, 'model', None))
+        if not task_name:
+            return
+
+        task = None
+        if task_name == 'process_video_to_hls':
+            from core.tasks.media_processing import process_video_to_hls
+            task = process_video_to_hls
+        elif task_name == 'process_audio_compression':
+            from core.tasks.media_processing import process_audio_compression
+            task = process_audio_compression
+        elif task_name == 'process_pdf_optimization':
+            from core.tasks.media_processing import process_pdf_optimization
+            task = process_pdf_optimization
+
+        if task is None:
+            return
+
+        for inline_form in getattr(formset, 'forms', []):
+            if not hasattr(inline_form, 'cleaned_data'):
+                continue
+            if inline_form.cleaned_data.get('DELETE'):
+                continue
+
+            instance = inline_form.instance
+            if not instance.pk:
+                continue
+            if instance.processing_status in ('processing', 'completed'):
+                continue
+            if 'original_file' not in getattr(inline_form, 'changed_data', []):
+                continue
+            if not getattr(instance, 'original_file', None) or not instance.original_file.name:
+                continue
+
+            task_id = str(instance.id)
+            transaction.on_commit(lambda task=task, task_id=task_id: task.delay(task_id))
     
     def seo_status_display(self, obj):
         """Display SEO generation status with processing state"""

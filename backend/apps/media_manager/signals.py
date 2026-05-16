@@ -4,9 +4,6 @@ from django.core.files.storage import default_storage
 import os
 
 from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta
-from core.tasks.media_processing import (
-    process_video_to_hls, process_audio_compression, process_pdf_optimization
-)
 
 
 @receiver(post_save, sender=ContentItem)
@@ -19,50 +16,6 @@ def create_content_meta(sender, instance, created, **kwargs):
             AudioMeta.objects.get_or_create(content_item=instance)
         elif instance.content_type == 'pdf':
             PdfMeta.objects.get_or_create(content_item=instance)
-
-
-@receiver(post_save, sender=VideoMeta)
-def trigger_video_processing(sender, instance, created, **kwargs):
-    """Trigger video processing when video file is uploaded"""
-    if instance.original_file and instance.processing_status == 'pending':
-        # Only trigger if file was just uploaded or changed
-        update_fields = kwargs.get('update_fields', []) or []
-        if created or 'original_file' in update_fields:
-            # Only trigger if there's actually a file to process
-            if instance.original_file.name:
-                # Delay the task to ensure file is fully saved
-                process_video_to_hls.apply_async(
-                    args=[instance.id],
-                    countdown=5  # Wait 5 seconds before starting
-                )
-
-
-@receiver(post_save, sender=AudioMeta)
-def trigger_audio_processing(sender, instance, created, **kwargs):
-    """Trigger audio processing when audio file is uploaded"""
-    if instance.original_file and instance.processing_status == 'pending':
-        update_fields = kwargs.get('update_fields', []) or []
-        if created or 'original_file' in update_fields:
-            # Only trigger if there's actually a file to process
-            if instance.original_file.name:
-                process_audio_compression.apply_async(
-                    args=[instance.id],
-                    countdown=5
-                )
-
-
-@receiver(post_save, sender=PdfMeta)
-def trigger_pdf_processing(sender, instance, created, **kwargs):
-    """Trigger PDF processing when PDF file is uploaded"""
-    if instance.original_file and instance.processing_status == 'pending':
-        update_fields = kwargs.get('update_fields', []) or []
-        if created or 'original_file' in update_fields:
-            # Only trigger if there's actually a file to process
-            if instance.original_file.name:
-                process_pdf_optimization.apply_async(
-                    args=[instance.id],
-                    countdown=5
-                )
 
 
 @receiver(post_delete, sender=VideoMeta)
