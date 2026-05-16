@@ -371,6 +371,8 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
             # This was the 3rd attempt (retries = 2)
             next_3am_delay = _calculate_next_3am_delay()
             logger.warning(f"❌ 3 attempts failed for ContentItem {contentitem_id}. Scheduling next attempt for 3:00 AM.")
+            item.seo_processing_status = 'failed'
+            item.save(update_fields=['seo_processing_status'])
             
             TaskMonitor.update_task_status(
                 self.request.id, 

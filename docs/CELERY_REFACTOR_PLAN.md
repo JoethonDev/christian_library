@@ -2,7 +2,7 @@
 
 > Branch: `refactor/normalize-background-tasks`  
 > Date: 2026-05-16  
-> Status: **Phase 2 code cleanup complete; validation passed**
+> Status: **Phase 3 code cleanup complete; validation passed**
 
 ---
 
@@ -866,3 +866,4 @@ celery_worker_2:
 - [x] Removed premature R2 dispatch from `apps/media_manager/services/upload_service.py`
 - [x] Removed duplicate PDF R2 dispatch from `apps/media_manager/tasks.py`
 - [x] Added admin inline save hook for direct media edits in `apps/media_manager/admin.py`
+- [x] Set `seo_processing_status='failed'` before the 3 AM Gemini retry in `apps/media_manager/tasks.py`
