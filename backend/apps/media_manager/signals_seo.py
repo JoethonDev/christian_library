@@ -1,12 +1,11 @@
 """
-SEO Change Detection Signals
-Detects changes to SEO-specific fields and queues Google Indexing API notifications.
-Only queues when SEO metadata is complete and ready for indexing.
-Also handles content deletion notifications.
+SEO change detection signals.
+
+Tracks SEO field updates and logs the content state for monitoring.
 """
 import logging
 
-from django.db.models.signals import post_save, pre_save, pre_delete, post_delete
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.core.cache import cache
 
@@ -20,7 +19,7 @@ _SEO_TRACKER_PREFIX = 'seo_track:'
 _DEL_TRACKER_PREFIX = 'del_track:'
 _TRACKER_TTL = 60  # seconds — well beyond any pre/post signal gap
 
-# SEO fields that should trigger Google notification when changed
+# SEO fields that should be tracked when changed
 SEO_FIELDS = [
     'seo_title_ar',
     'seo_title_en',
@@ -59,28 +58,8 @@ def track_seo_fields_before_save(sender, instance, **kwargs):
 @receiver(post_save, sender=ContentItem)
 def notify_google_on_seo_change(sender, instance, created, **kwargs):
     """
-    Queue content for Google Indexing when SEO metadata is ready.
-    
-    Triggers on:
-    - SEO field updates (seo_title_*, seo_meta_description_*, seo_keywords_*, structured_data)
-    - Only if SEO processing status is 'completed'
-    - Only if all required metadata is present
-    
-    Does NOT trigger on:
-    - New content creation without SEO (will queue once SEO is done)
-    - Non-SEO field updates (e.g., view_count, is_active, etc.)
-    - Updates that don't change SEO values
-    
-    Uses queue system with validation to ensure:
-    - Only complete content is submitted to Google
-    - Daily quota limits are respected (200/day)
-    - Errors are tracked and retryable
+    Log SEO readiness when tracked fields change.
     """
-    # Import here to avoid circular imports
-    from apps.frontend_api.services.google_indexing_queue_service import (
-        GoogleIndexingQueueService
-    )
-    
     # Only process active content
     if not instance.is_active:
         logger.debug(f"Skipping inactive content: {instance.get_title()}")
@@ -140,47 +119,10 @@ def notify_google_on_seo_change(sender, instance, created, **kwargs):
                     )
                     return
     
-    # Queue for Google indexing if ready
+    # Log readiness when SEO is complete.
     if should_queue:
-        try:
-            # Queue Arabic variant (priority=10 - highest)
-            result_ar = GoogleIndexingQueueService.queue_for_indexing(
-                content_item=instance,
-                url_type='content',
-                action='URL_UPDATED',
-                language='ar'  # Priority will be auto-calculated as 10 for Arabic
-            )
-            
-            # Queue English variant (priority=5)
-            result_en = GoogleIndexingQueueService.queue_for_indexing(
-                content_item=instance,
-                url_type='content',
-                action='URL_UPDATED',
-                language='en'  # Priority will be auto-calculated as 5 for English
-            )
-            
-            if result_ar['queued'] or result_en['queued']:
-                logger.info(
-                    f"✓ Queued for Google indexing: {instance.get_title()} "
-                    f"| AR queued: {result_ar['queued']}, EN queued: {result_en['queued']} "
-                    f"| Changed: {', '.join(changed_fields)}"
-                )
-            else:
-                # Not ready yet
-                validation = result_ar.get('validation', {})
-                logger.info(
-                    f"⚠ Not ready for indexing: {instance.get_title()} "
-                    f"| Reason: {validation.get('reason')} "
-                    f"| Missing: {', '.join(validation.get('missing', []))}"
-                )
-        
-        except Exception as e:
-            logger.error(f"Error queuing content for indexing: {e}", exc_info=True)
-    
-    else:
-        # Non-SEO update - skip
-        logger.debug(
-            f"Non-SEO update for {instance.get_title()} - skipping indexing queue"
+        logger.info(
+            f"SEO metadata ready: {instance.get_title()} | Changed: {', '.join(changed_fields)}"
         )
 
 
@@ -221,79 +163,3 @@ def log_seo_generation_status(sender, instance, created, **kwargs):
     except Exception as e:
         logger.error(f"Error logging SEO generation status: {e}")
 
-@receiver(pre_delete, sender=ContentItem)
-def store_deleted_content_url(sender, instance, **kwargs):
-    """
-    Store the URLs (AR and EN) before deletion so we can notify Google.
-    Must happen in pre_delete because we need the instance to still exist
-    to generate its URLs.
-    """
-    try:
-        from apps.frontend_api.google_seo_service import get_absolute_content_url
-        
-        # Store both language variant URLs in shared cache
-        urls = {
-            'ar': get_absolute_content_url(instance, language='ar'),
-            'en': get_absolute_content_url(instance, language='en')
-        }
-        
-        cache.set(
-            f'{_DEL_TRACKER_PREFIX}{instance.id}',
-            urls,
-            timeout=_TRACKER_TTL,
-        )
-        
-        logger.debug(f"Stored URLs for deletion notification: {instance.get_title()}")
-    
-    except Exception as e:
-        logger.error(f"Error storing deleted content URLs: {e}")
-
-
-@receiver(post_delete, sender=ContentItem)
-def notify_google_on_content_deletion(sender, instance, **kwargs):
-    """
-    Queue content deletion notification for Google Indexing API.
-    This ensures Google removes both AR and EN URLs from search results quickly.
-    """
-    from apps.frontend_api.services.google_indexing_queue_service import (
-        GoogleIndexingQueueService
-    )
-    
-    try:
-        # Get stored URLs (from pre_delete, any worker)
-        cache_key = f'{_DEL_TRACKER_PREFIX}{instance.id}'
-        urls = cache.get(cache_key)
-        if urls:
-            cache.delete(cache_key)
-        
-        if not urls:
-            logger.warning(f"No URLs stored for deleted content: {instance.id}")
-            return
-        
-        # Queue deletion notification for both language variants
-        result_ar = GoogleIndexingQueueService.queue_for_indexing(
-            url=urls['ar'],
-            url_type='content',
-            action='URL_DELETED',
-            language='ar'
-        )
-        
-        result_en = GoogleIndexingQueueService.queue_for_indexing(
-            url=urls['en'],
-            url_type='content',
-            action='URL_DELETED',
-            language='en'
-        )
-        
-        if result_ar['queued'] or result_en['queued']:
-            logger.info(
-                f"✓ Queued deletion for Google: {instance.get_title()} "
-                f"| Type: {instance.content_type} | AR: {urls['ar']}, EN: {urls['en']}"
-            )
-        else:
-            logger.warning(
-                f"Failed to queue deletions: {instance.get_title()}"
-            )
-    
-    except Exception as e:
-        logger.error(f"Error queuing content deletion for indexing: {e}", exc_info=True)
