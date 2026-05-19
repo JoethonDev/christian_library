@@ -1,11 +1,11 @@
 """
-Google SEO Services
-- Sitemap ping to notify Google of updates
-- Google Indexing API integration for URL updates
+SEO utility helpers.
+
+Provides sitemap pinging and absolute URL helpers used by content and SEO
+signals.
 """
 import logging
 import requests
-from django.conf import settings
 from django.contrib.sites.models import Site
 from urllib.parse import urlencode
 
@@ -57,139 +57,6 @@ def ping_google_sitemap(request=None):
     except Exception as e:
         logger.error(f"Unexpected error pinging Google sitemap: {e}")
         return False
-
-
-def notify_google_indexing_api(url, action='URL_UPDATED'):
-    """
-    Notify Google Indexing API about URL changes with proper error handling.
-    
-    Requirements:
-    1. Set up Google Cloud project and enable Indexing API
-    2. Create service account and download JSON key
-    3. Set GOOGLE_SERVICE_ACCOUNT_FILE in settings
-    4. Install: pip install google-auth google-api-python-client
-    
-    Args:
-        url: Absolute URL to notify Google about
-        action: 'URL_UPDATED' or 'URL_DELETED'
-    
-    Returns:
-        dict: {'success': bool, 'response': dict, 'error': str}
-    """
-    # Check if API is configured
-    service_account_file = getattr(settings, 'GOOGLE_SERVICE_ACCOUNT_FILE', None)
-    
-    if not service_account_file:
-        return {
-            'success': False,
-            'error': 'GOOGLE_SERVICE_ACCOUNT_FILE not configured',
-            'error_code': 'NOT_CONFIGURED'
-        }
-    
-    try:
-        # Import Google API libraries (only if configured)
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-        from googleapiclient.errors import HttpError
-        
-        # Load credentials
-        try:
-            credentials = service_account.Credentials.from_service_account_file(
-                service_account_file,
-                scopes=['https://www.googleapis.com/auth/indexing']
-            )
-        except FileNotFoundError:
-            logger.error(f"Service account file not found: {service_account_file}")
-            return {
-                'success': False,
-                'error': 'Service account file not found',
-                'error_code': 'FILE_NOT_FOUND'
-            }
-        except Exception as e:
-            logger.error(f"Error loading credentials: {e}")
-            return {
-                'success': False,
-                'error': f'Credential error: {str(e)}',
-                'error_code': 'CREDENTIAL_ERROR'
-            }
-        
-        # Build the service
-        try:
-            service = build('indexing', 'v3', credentials=credentials)
-        except Exception as e:
-            logger.error(f"Error building Google API service: {e}")
-            return {
-                'success': False,
-                'error': f'Service build error: {str(e)}',
-                'error_code': 'SERVICE_BUILD_ERROR'
-            }
-        
-        # Prepare the request body
-        body = {
-            'url': url,
-            'type': action
-        }
-        
-        # Send the notification
-        try:
-            response = service.urlNotifications().publish(body=body).execute()
-            logger.info(f"✓ Google Indexing API success: {url} ({action})")
-            return {
-                'success': True,
-                'response': response,
-                'error': None
-            }
-            
-        except HttpError as e:
-            # Handle HTTP errors from Google API
-            error_details = e.error_details if hasattr(e, 'error_details') else []
-            status_code = e.resp.status if hasattr(e, 'resp') else None
-            
-            error_msg = f"HTTP {status_code}: {str(e)}"
-            
-            # Check for quota exceeded
-            if status_code == 429:
-                logger.warning(f"Google API quota exceeded for: {url}")
-                return {
-                    'success': False,
-                    'error': 'Quota exceeded',
-                    'error_code': 'QUOTA_EXCEEDED',
-                    'response': {'details': error_details}
-                }
-            
-            # Check for permission errors
-            elif status_code in [403, 401]:
-                logger.error(f"Google API permission denied: {url} - {error_msg}")
-                return {
-                    'success': False,
-                    'error': 'Permission denied',
-                    'error_code': 'PERMISSION_DENIED',
-                    'response': {'details': error_details}
-                }
-            
-            # Other HTTP errors
-            logger.error(f"Google API HTTP error for {url}: {error_msg}")
-            return {
-                'success': False,
-                'error': error_msg,
-                'error_code': f'HTTP_{status_code}',
-                'response': {'details': error_details}
-            }
-        
-    except ImportError as e:
-        logger.warning(f"Google API libraries not installed: {e}")
-        return {
-            'success': False,
-            'error': 'Google API libraries not installed. Run: pip install google-auth google-api-python-client',
-            'error_code': 'IMPORT_ERROR'
-        }
-    except Exception as e:
-        logger.error(f"Unexpected error in Google Indexing API: {e}")
-        return {
-            'success': False,
-            'error': str(e),
-            'error_code': 'UNEXPECTED_ERROR'
-        }
 
 
 def get_absolute_content_url(content_item, request=None, language=None):

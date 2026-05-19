@@ -1,0 +1,302 @@
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+{% csrf_token %}
+<div class="row mb-4 align-items-center">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Background Jobs" %}</h1>
+        <p class="text-muted mb-0">{% trans "Monitor and control ProcessingJob and API upload queue items from one place" %}</p>
+    </div>
+    <div class="col-auto d-flex gap-2">
+        <button class="btn btn-outline-primary rounded-pill px-4" onclick="window.location.reload()">
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
+        </button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-2">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-3">
+                <div class="text-primary fw-bold display-6" id="jobs-active-count">{{ status_counts.active }}</div>
+                <div class="text-muted small text-uppercase fw-semibold">{% trans "Active" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-3">
+                <div class="text-warning fw-bold display-6" id="jobs-pending-count">{{ status_counts.pending }}</div>
+                <div class="text-muted small text-uppercase fw-semibold">{% trans "Pending" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-3">
+                <div class="text-secondary fw-bold display-6" id="jobs-canceled-count">{{ status_counts.canceled }}</div>
+                <div class="text-muted small text-uppercase fw-semibold">{% trans "Canceled" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-3">
+                <div class="text-success fw-bold display-6" id="jobs-completed-count">{{ status_counts.completed }}</div>
+                <div class="text-muted small text-uppercase fw-semibold">{% trans "Completed" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-3">
+                <div class="text-danger fw-bold display-6" id="jobs-failed-count">{{ status_counts.failed }}</div>
+                <div class="text-muted small text-uppercase fw-semibold">{% trans "Failed" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-2">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body text-center py-3">
+                <div class="text-dark fw-bold display-6" id="jobs-total-count">{{ status_counts.active|add:status_counts.pending|add:status_counts.canceled|add:status_counts.completed|add:status_counts.failed }}</div>
+                <div class="text-muted small text-uppercase fw-semibold">{% trans "Total" %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <form id="jobs-filter-form"
+              hx-get="{% url 'frontend_api:api_jobs_list' %}"
+              hx-target="#jobs-table"
+              hx-swap="innerHTML"
+              hx-push-url="true"
+              hx-trigger="change, keyup delay:350ms from:input[name='search']"
+              class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Search" %}</label>
+                <input type="search" name="search" value="{{ search_query }}" class="form-control rounded-pill border-0 bg-light" placeholder="{% trans 'Search by title, file name, or metadata' %}">
+            </div>
+            <input type="hidden" name="status" id="jobs-status-input" value="{{ current_tab }}">
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Type" %}</label>
+                <select name="type" class="form-select rounded-pill border-0 bg-light">
+                    <option value="all" {% if content_type_filter == 'all' %}selected{% endif %}>{% trans "All" %}</option>
+                    <option value="video" {% if content_type_filter == 'video' %}selected{% endif %}>{% trans "Video" %}</option>
+                    <option value="audio" {% if content_type_filter == 'audio' %}selected{% endif %}>{% trans "Audio" %}</option>
+                    <option value="pdf" {% if content_type_filter == 'pdf' %}selected{% endif %}>{% trans "PDF" %}</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Per Page" %}</label>
+                <select name="per_page" class="form-select rounded-pill border-0 bg-light">
+                    <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
+                    <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
+                    <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2 text-md-end">
+                <button type="submit" class="btn btn-primary rounded-pill px-4 w-100">{% trans "Apply" %}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <button type="button" class="btn btn-sm {% if current_tab == 'active' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('active')">{% trans "Active" %} <span class="badge text-bg-light ms-1">{{ status_counts.active }}</span></button>
+    <button type="button" class="btn btn-sm {% if current_tab == 'pending' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('pending')">{% trans "Pending" %} <span class="badge text-bg-light ms-1">{{ status_counts.pending }}</span></button>
+    <button type="button" class="btn btn-sm {% if current_tab == 'canceled' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('canceled')">{% trans "Canceled" %} <span class="badge text-bg-light ms-1">{{ status_counts.canceled }}</span></button>
+    <button type="button" class="btn btn-sm {% if current_tab == 'completed' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('completed')">{% trans "Completed" %} <span class="badge text-bg-light ms-1">{{ status_counts.completed }}</span></button>
+    <button type="button" class="btn btn-sm {% if current_tab == 'failed' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('failed')">{% trans "Failed" %} <span class="badge text-bg-light ms-1">{{ status_counts.failed }}</span></button>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4 d-flex align-items-center justify-content-between">
+                <h5 class="mb-0 fw-bold">{% trans "Manual Dispatch" %}</h5>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <p class="text-muted small mb-4">{% trans "Queue or rerun a job for any ContentItem by ID." %}</p>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Content ID" %}</label>
+                    <input type="text" id="dispatch-content-id" class="form-control rounded-pill border-0 bg-light" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Stage" %}</label>
+                    <select id="dispatch-stage" class="form-select rounded-pill border-0 bg-light">
+                        <option value="full">{% trans "Full processing" %}</option>
+                        <option value="r2_upload">{% trans "R2 upload only" %}</option>
+                        <option value="seo_only">{% trans "SEO only" %}</option>
+                        <option value="text_extraction">{% trans "Text extraction only" %}</option>
+                    </select>
+                </div>
+                <button class="btn btn-dark rounded-pill px-4" onclick="dispatchJob()">{% trans "Dispatch Job" %}</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4 d-flex align-items-center justify-content-between">
+                <h5 class="mb-0 fw-bold">{% trans "Live Activity" %}</h5>
+                <span class="text-muted small">{% trans "Auto-refreshes every 5 seconds for active jobs" %}</span>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="text-muted small text-uppercase fw-semibold">{% trans "Processing Jobs" %}</div>
+                            <div class="fw-bold fs-4">{{ status_counts.active }}</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="text-muted small text-uppercase fw-semibold">{% trans "Queued Items" %}</div>
+                            <div class="fw-bold fs-4">{{ status_counts.pending }}</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="text-muted small text-uppercase fw-semibold">{% trans "Needs Attention" %}</div>
+                            <div class="fw-bold fs-4">{{ status_counts.failed }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3 text-muted small">{% trans "Use the filter bar above or the action buttons in the table to manage jobs." %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="jobs-table"
+     hx-get="{% url 'frontend_api:api_jobs_list' %}?status={{ current_tab }}&type={{ content_type_filter }}&search={{ search_query|urlencode }}&per_page={{ per_page }}"
+     hx-trigger="load{% if current_tab == 'active' %}, every 5s{% endif %}, jobs-refresh from:body"
+     hx-swap="innerHTML">
+    <div class="text-center text-muted py-5">{% trans "Loading jobs..." %}</div>
+</div>
+
+<script>
+function setJobsStatus(status) {
+    document.getElementById('jobs-status-input').value = status;
+    document.getElementById('jobs-filter-form').requestSubmit();
+}
+
+function refreshJobsTable() {
+    document.body.dispatchEvent(new CustomEvent('jobs-refresh', { bubbles: true }));
+}
+
+function runJobAction(action, jobId, source) {
+    const endpoints = {
+        cancel: "{% url 'frontend_api:api_job_cancel' %}",
+        promote: "{% url 'frontend_api:api_job_promote' %}",
+        retry: "{% url 'frontend_api:api_job_promote' %}",
+    };
+
+    const endpoint = endpoints[action];
+    if (!endpoint) return;
+
+    fetch(endpoint, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+            'HX-Request': 'true',
+        },
+        body: JSON.stringify({ job_id: jobId, source: source })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            refreshJobsTable();
+            window.refreshBackgroundJobsBadge();
+        } else {
+            alert(data.error || '{% trans "Action failed" %}');
+        }
+    })
+    .catch(() => alert('{% trans "Action failed" %}'));
+}
+
+function dispatchJob() {
+    const contentId = document.getElementById('dispatch-content-id').value.trim();
+    const stage = document.getElementById('dispatch-stage').value;
+
+    if (!contentId) {
+        alert('{% trans "Please enter a Content ID" %}');
+        return;
+    }
+
+    fetch("{% url 'frontend_api:api_job_dispatch' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+            'HX-Request': 'true',
+        },
+        body: JSON.stringify({ content_id: contentId, stage: stage })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            refreshJobsTable();
+            window.refreshBackgroundJobsBadge();
+        } else {
+            alert(data.error || '{% trans "Dispatch failed" %}');
+        }
+    })
+    .catch(() => alert('{% trans "Dispatch failed" %}'));
+}
+
+function forceReprocessJob(contentId, itemTitle) {
+    if (!contentId) {
+        alert('{% trans "Please enter a Content ID" %}');
+        return;
+    }
+
+    const confirmed = confirm(`{% trans "Force re-process" %} "${itemTitle}"?\n{% trans "This will re-upload to R2 and regenerate AI metadata." %}`);
+    if (!confirmed) {
+        return;
+    }
+
+    fetch("{% url 'frontend_api:api_job_dispatch' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+            'HX-Request': 'true',
+        },
+        body: JSON.stringify({ content_id: contentId, stage: 'full', force: true })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            refreshJobsTable();
+            window.refreshBackgroundJobsBadge();
+            if (window.showToast) {
+                window.showToast('{% trans "Force re-process queued" %}', 'success');
+            }
+        } else {
+            alert(data.error || '{% trans "Dispatch failed" %}');
+        }
+    })
+    .catch(() => alert('{% trans "Dispatch failed" %}'));
+}
+
+function refreshJobStats() {
+    fetch("{% url 'frontend_api:api_jobs_stats' %}", { headers: { 'HX-Request': 'true' } })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('jobs-active-count').textContent = data.active ?? 0;
+            document.getElementById('jobs-pending-count').textContent = data.pending ?? 0;
+            document.getElementById('jobs-canceled-count').textContent = data.canceled ?? 0;
+            document.getElementById('jobs-completed-count').textContent = data.completed ?? 0;
+            document.getElementById('jobs-failed-count').textContent = data.failed ?? 0;
+            document.getElementById('jobs-total-count').textContent = (data.active ?? 0) + (data.pending ?? 0) + (data.canceled ?? 0) + (data.completed ?? 0) + (data.failed ?? 0);
+        });
+}
+
+setInterval(refreshJobStats, 15000);
+window.refreshBackgroundJobsBadge();
+</script>
+{% endblock %}

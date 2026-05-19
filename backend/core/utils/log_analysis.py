@@ -348,40 +348,6 @@ class AlertManager:
             return False
 
 
-class LogRetention:
-    """Manage log retention and cleanup"""
-    
-    def __init__(self):
-        self.logger = logging.getLogger('log_retention')
-        self.retention_periods = {
-            'debug': 7,      # days
-            'info': 30,      # days
-            'warning': 90,   # days
-            'error': 365,    # days
-            'critical': 365  # days
-        }
-    
-    def cleanup_old_logs(self) -> Dict[str, int]:
-        """Clean up old log entries"""
-        cleaned_counts = defaultdict(int)
-        
-        try:
-            # Clean up cached metrics and alerts
-            current_time = int(datetime.utcnow().timestamp())
-            
-            # Clean up performance metrics older than 24 hours
-            cutoff_minute = current_time // 60 - (24 * 60)
-            
-            # This is a simplified version - in production you'd have a more sophisticated cleanup
-            self.logger.info(f"Log cleanup completed. Cleaned {sum(cleaned_counts.values())} entries")
-            
-        except Exception as e:
-            self.logger.error(f"Error during log cleanup: {e}")
-        
-        return dict(cleaned_counts)
-
-
 # Global instances
 log_analyzer = LogAnalyzer()
 alert_manager = AlertManager()
-log_retention = LogRetention()

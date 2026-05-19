@@ -17,7 +17,6 @@ from django.http import HttpResponseBadRequest, HttpResponseForbidden, HttpRespo
 import logging
 
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
-from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +128,6 @@ def detailed_health_check(request):
     # Application-specific checks
     try:
         # Check content counts
-        course_count = Course.objects.count()
         content_count = ContentItem.objects.count()
         video_count = VideoMeta.objects.count()
         audio_count = AudioMeta.objects.count()
@@ -138,7 +136,6 @@ def detailed_health_check(request):
         health_data['checks']['application'] = {
             'status': 'healthy',
             'metrics': {
-                'courses': course_count,
                 'content_items': content_count,
                 'videos': video_count,
                 'audios': audio_count,

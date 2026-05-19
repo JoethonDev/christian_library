@@ -4,7 +4,6 @@ Usage: python manage.py warmup_caches
 """
 
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 from apps.media_manager.services.content_service import ContentService
 from core.utils.cache_utils import cache_invalidator
 import time

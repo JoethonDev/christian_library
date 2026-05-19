@@ -15,97 +15,31 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class R2MediaStorage:
+class R2MediaStorage(FileSystemStorage):
     """
-    Custom storage backend for Cloudflare R2 (S3-compatible).
-    Falls back to local storage if R2 is not enabled or fails.
+    Local media storage backend used by Django file fields.
+
+    R2 uploads are handled explicitly by core.services.r2_service after files
+    have been processed locally. Keeping the default storage local preserves
+    .path access for video/audio/PDF processing tasks and thumbnails.
     """
     
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.use_r2 = getattr(settings, 'R2_ENABLED', False)
-        self.fallback_storage = FileSystemStorage()
-        
+
         if self.use_r2:
-            try:
-                # Validate R2 settings
-                required_settings = ['R2_BUCKET_NAME', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT_URL']
-                for setting in required_settings:
-                    if not getattr(settings, setting, None):
-                        logger.warning(f"R2 setting {setting} not configured, falling back to local storage")
-                        self.use_r2 = False
-                        break
-                
-                if self.use_r2 and S3Boto3Storage:
-                    # Initialize R2 storage
-                    self.r2_storage = S3Boto3Storage(
-                        bucket_name=settings.R2_BUCKET_NAME,
-                        access_key=settings.R2_ACCESS_KEY_ID,
-                        secret_key=settings.R2_SECRET_ACCESS_KEY,
-                        endpoint_url=settings.R2_ENDPOINT_URL,
-                        region_name=getattr(settings, 'R2_REGION_NAME', 'auto'),
-                        default_acl='public-read',
-                        file_overwrite=False,
-                        custom_domain=False
-                    )
-                    logger.info("R2 storage backend initialized successfully")
-                elif self.use_r2:
-                    logger.warning("django-storages not available, falling back to local storage")
-                    self.use_r2 = False
-                    
-            except Exception as e:
-                logger.error(f"Failed to initialize R2 storage: {str(e)}, falling back to local storage")
-                self.use_r2 = False
-    
-    def _save(self, name, content):
-        """Save file to R2 or local storage with fallback"""
-        if self.use_r2:
-            try:
-                return self.r2_storage._save(name, content)
-            except Exception as e:
-                logger.error(f"R2 save failed for {name}: {str(e)}, falling back to local storage")
-                self.use_r2 = False  # Disable R2 for this session
-        
-        return self.fallback_storage._save(name, content)
-    
-    def url(self, name):
-        """Get URL for file from R2 or local storage"""
-        if self.use_r2 and hasattr(self, 'r2_storage'):
-            try:
-                return self.r2_storage.url(name)
-            except Exception as e:
-                logger.error(f"R2 URL generation failed for {name}: {str(e)}, falling back to local storage")
-        
-        return self.fallback_storage.url(name)
-    
-    def exists(self, name):
-        """Check if file exists in R2 or local storage"""
-        if self.use_r2 and hasattr(self, 'r2_storage'):
-            try:
-                return self.r2_storage.exists(name)
-            except Exception as e:
-                logger.error(f"R2 exists check failed for {name}: {str(e)}, falling back to local storage")
-        
-        return self.fallback_storage.exists(name)
-    
-    def delete(self, name):
-        """Delete file from R2 or local storage"""
-        if self.use_r2 and hasattr(self, 'r2_storage'):
-            try:
-                return self.r2_storage.delete(name)
-            except Exception as e:
-                logger.error(f"R2 delete failed for {name}: {str(e)}, falling back to local storage")
-        
-        return self.fallback_storage.delete(name)
-    
-    def size(self, name):
-        """Get file size from R2 or local storage"""
-        if self.use_r2 and hasattr(self, 'r2_storage'):
-            try:
-                return self.r2_storage.size(name)
-            except Exception as e:
-                logger.error(f"R2 size check failed for {name}: {str(e)}, falling back to local storage")
-        
-        return self.fallback_storage.size(name)
+            required_settings = ['R2_BUCKET_NAME', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_ENDPOINT_URL']
+            missing = [setting for setting in required_settings if not getattr(settings, setting, None)]
+            if missing:
+                logger.warning(
+                    "R2 is enabled but default media storage remains local because settings are missing: %s",
+                    ", ".join(missing),
+                )
+            else:
+                logger.info(
+                    "R2 is enabled, but default media storage stays local so processing tasks can use local paths; explicit R2 upload service handles cloud sync."
+                )
 
 
 class R2Service:

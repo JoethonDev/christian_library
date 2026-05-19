@@ -1,0 +1,53 @@
+<!-- templates/users/profile_edit.html - Coptic Orthodox Theme -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="row g-4 py-4">
+    <div class="col-lg-4">
+        <div class="card card-coptic h-100">
+            <div class="card-body p-4 text-center">
+                <div class="d-inline-flex align-items-center justify-content-center mb-3 sacred-shadow" style="width: 96px; height: 96px; background: var(--color-maroon); border-radius: 50%; border: 4px solid var(--color-golden-ochre);">
+                    <svg class="bi text-white" style="font-size: 2.6rem;" aria-hidden="true" focusable="false"><use href="#bi-person-gear"/></svg>
+                </div>
+                <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Edit Profile" %}</h3>
+                <p class="body-font text-muted mb-0">{% trans "Update your account details and contact information." %}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card card-coptic">
+            <div class="card-body p-4 p-md-5">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "First Name" %}</label>
+                            <input type="text" name="first_name" value="{{ user.first_name }}" class="form-control form-control-lg" style="background: var(--color-golden-ochre-10); border-radius: 12px;">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "Last Name" %}</label>
+                            <input type="text" name="last_name" value="{{ user.last_name }}" class="form-control form-control-lg" style="background: var(--color-golden-ochre-10); border-radius: 12px;">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "Email" %}</label>
+                            <input type="email" name="email" value="{{ user.email }}" class="form-control form-control-lg" style="background: var(--color-golden-ochre-10); border-radius: 12px;">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "Phone" %}</label>
+                            <input type="text" name="phone" value="{{ user.phone|default:'' }}" class="form-control form-control-lg" style="background: var(--color-golden-ochre-10); border-radius: 12px;">
+                        </div>
+                    </div>
+
+                    <div class="text-center text-md-start mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 py-3">
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>{% trans "Save Changes" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

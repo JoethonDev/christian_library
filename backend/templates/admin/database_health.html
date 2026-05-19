@@ -1,0 +1,93 @@
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Database Health" %}{% endblock %}
+
+{% block admin_content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Database Health" %}</h1>
+        <p class="text-muted mb-0">{% trans "Connection status, query performance, and optimization hints" %}</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4 text-center">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "Status" %}</div>
+                <div class="display-6 fw-bold">{{ database_stats.connection_status|default:"unknown" }}</div>
+                <div class="text-muted small mt-2">{% trans "Database size" %}: {{ database_stats.database_size|default:"--" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4 text-center">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "Tables" %}</div>
+                <div class="display-6 fw-bold">{{ database_stats.table_count|default:"0" }}</div>
+                <div class="text-muted small mt-2">{% trans "Active connections" %}: {{ database_stats.active_connections|default:"0" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4 text-center">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "Connections" %}</div>
+                <div class="display-6 fw-bold">{{ connection_stats.total_connections|default:"0" }}</div>
+                <div class="text-muted small mt-2">{% trans "Idle" %}: {{ connection_stats.idle_connections|default:"0" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4 text-center">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "Cache Hit" %}</div>
+                <div class="display-6 fw-bold">{{ performance_metrics.cache_hit_ratio|default:"0" }}%</div>
+                <div class="text-muted small mt-2">{% trans "Long queries" %}: {{ database_stats.long_running_queries|default:"0" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">{% trans "Optimization Suggestions" %}</h6>
+            </div>
+            <div class="card-body p-4">
+                {% if optimization_suggestions %}
+                    <div class="list-group list-group-flush">
+                        {% for suggestion in optimization_suggestions %}
+                            <div class="list-group-item px-0">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <span>{{ suggestion.message }}</span>
+                                    <span class="badge {% if suggestion.priority == 'high' %}bg-danger{% elif suggestion.priority == 'medium' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ suggestion.priority }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">{% trans "No suggestions available." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">{% trans "Connection Summary" %}</h6>
+            </div>
+            <div class="card-body p-4">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">{% trans "Average query time" %}: {{ connection_stats.avg_query_time_ms|default:"--" }} ms</li>
+                    <li class="mb-2">{% trans "Maximum query time" %}: {{ connection_stats.max_query_time_ms|default:"--" }} ms</li>
+                    <li class="mb-2">{% trans "Total queries" %}: {{ connection_stats.total_queries|default:"0" }}</li>
+                    <li>{% trans "Performance top tables" %}: {{ performance_metrics.top_tables|length|default:"0" }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

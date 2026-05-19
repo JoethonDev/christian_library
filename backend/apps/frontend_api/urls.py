@@ -59,6 +59,9 @@ urlpatterns = [
     # Upload functionality (at /en/dashboard/upload/)
     path('dashboard/upload/', admin_views.upload_content, name='upload_content'),
     path('dashboard/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
+    path('dashboard/upload/bulk/', admin_views.bulk_upload_page, name='bulk_upload_page'),
+    path('dashboard/upload/bulk/handle/', admin_views.handle_bulk_upload, name='handle_bulk_upload'),
+    path('dashboard/upload/bulk/status/', admin_views.bulk_upload_status, name='bulk_upload_status'),
     path('dashboard/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
     path('dashboard/upload/generate-from-file/', admin_views.generate_metadata_from_file, name='generate_metadata_from_file'),
     path('dashboard/upload/generate-metadata-only/', admin_views.generate_metadata_only, name='generate_metadata_only'),
@@ -72,6 +75,14 @@ urlpatterns = [
     # System management (at /en/dashboard/system/, etc.)
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
     path('dashboard/bulk/', admin_views.bulk_operations, name='bulk_operations'),
+
+    # Background Jobs dashboard (at /en/dashboard/jobs/)
+    path('dashboard/jobs/', admin_views.jobs_dashboard, name='jobs_dashboard'),
+    path('dashboard/jobs/api/list/', admin_views.api_jobs_list, name='api_jobs_list'),
+    path('dashboard/jobs/api/cancel/', admin_views.api_job_cancel, name='api_job_cancel'),
+    path('dashboard/jobs/api/promote/', admin_views.api_job_promote, name='api_job_promote'),
+    path('dashboard/jobs/api/dispatch/', admin_views.api_job_dispatch, name='api_job_dispatch'),
+    path('dashboard/jobs/api/stats/', admin_views.api_jobs_stats, name='api_jobs_stats'),
     
     # API Upload Queue Management (at /en/dashboard/api-queue/)
     path('dashboard/api-queue/', admin_views.api_queue_list, name='api_queue_list'),
@@ -96,21 +107,6 @@ urlpatterns = [
     path('dashboard/seo/monitoring-api/', seo_views.seo_monitoring_api, name='seo_monitoring_api'),
     path('dashboard/seo/site-config-api/', seo_views.site_seo_api, name='site_seo_api'),
     
-    # Google Re-indexing Endpoints (at /en/dashboard/seo/reindex/)
-    path('dashboard/seo/reindex/', admin_views.initiate_google_reindexing, name='initiate_google_reindexing'),
-    path('dashboard/seo/reindex/page/', admin_views.seo_reindex_page, name='seo_reindex_page'),
-    path('dashboard/seo/reindex/status/<uuid:task_id>/', admin_views.reindex_status, name='reindex_status'),
-    path('dashboard/seo/reindex/cancel/<uuid:task_id>/', admin_views.cancel_reindex, name='cancel_reindex'),
-    path('dashboard/seo/reindex/history/', admin_views.reindex_history, name='reindex_history'),
-    
-    # Google Indexing Queue Management (at /en/dashboard/indexing-queue/)
-    path('dashboard/indexing-queue/', admin_views.indexing_queue_dashboard, name='indexing_queue_dashboard'),
-    path('dashboard/indexing-queue/stats/', admin_views.api_indexing_queue_stats, name='api_indexing_queue_stats'),
-    path('dashboard/indexing-queue/items/', admin_views.api_indexing_queue_items, name='api_indexing_queue_items'),
-    path('dashboard/indexing-queue/process/', admin_views.api_process_indexing_queue, name='api_process_indexing_queue'),
-    path('dashboard/indexing-queue/revalidate/', admin_views.api_revalidate_invalid_items, name='api_revalidate_invalid_items'),
-    path('dashboard/indexing-queue/retry-failed/', admin_views.api_retry_failed_items, name='api_retry_failed_items'),
-
     # R2 Upload Status Dashboard (at /en/dashboard/r2/)
     path('dashboard/r2/', admin_views.r2_status_dashboard, name='r2_status_dashboard'),
     path('dashboard/r2/status/', admin_views.get_r2_sync_status, name='r2_sync_status'),

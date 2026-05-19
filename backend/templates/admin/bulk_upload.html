@@ -1,0 +1,438 @@
+{% extends "layouts/admin_base.html" %}
+{% load i18n static %}
+
+{% block admin_content %}
+<style>
+    .bulk-upload-page { position: relative; direction: ltr; padding-inline: .25rem; }
+    .bulk-upload-page * { box-sizing: border-box; }
+    .bulk-upload-page::before,
+    .bulk-upload-page::after {
+        content: "";
+        position: fixed;
+        pointer-events: none;
+        z-index: 0;
+        border-radius: 999px;
+        filter: blur(0);
+    }
+    .bulk-upload-page::before {
+        inset: -18% -8% auto auto;
+        width: 30rem;
+        height: 30rem;
+        background: radial-gradient(circle, rgba(221, 153, 51, 0.12) 0%, rgba(221, 153, 51, 0) 72%);
+    }
+    .bulk-upload-page::after {
+        inset: auto auto -18% -10%;
+        width: 24rem;
+        height: 24rem;
+        background: radial-gradient(circle, rgba(128, 0, 0, 0.10) 0%, rgba(128, 0, 0, 0) 72%);
+    }
+    .bulk-upload-page > * { position: relative; z-index: 1; }
+    .bulk-upload-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 1.5rem;
+        color: var(--admin-text);
+        background: linear-gradient(180deg, rgba(255, 255, 255, .98) 0%, rgba(249, 251, 253, .98) 100%);
+        border: 1px solid rgba(13, 110, 253, .08);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, .06);
+    }
+    .bulk-upload-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at top right, rgba(13, 110, 253, .08) 0%, rgba(13, 110, 253, 0) 34%), radial-gradient(circle at 18% 88%, rgba(15, 23, 42, .05) 0%, rgba(15, 23, 42, 0) 30%);
+        pointer-events: none;
+    }
+    .bulk-upload-hero__content { position: relative; z-index: 1; }
+    .bulk-upload-hero__bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+    .bulk-upload-hero__copy { max-width: 58rem; color: var(--admin-text-muted) !important; }
+    .bulk-upload-hero__chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
+    .bulk-upload-chip {
+        padding: .95rem 1rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, .92);
+        border: 1px solid rgba(15, 23, 42, .08);
+        box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+    }
+    .bulk-upload-chip__label {
+        display: block;
+        margin-bottom: .35rem;
+        font-size: .8rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--admin-text-muted);
+    }
+    .bulk-upload-chip strong { display: block; font-size: 1.02rem; font-weight: 700; color: var(--admin-text); }
+    .bulk-upload-back-btn {
+        border-color: rgba(13, 110, 253, .14) !important;
+        background: rgba(13, 110, 253, .06) !important;
+        color: var(--admin-primary) !important;
+        box-shadow: none;
+    }
+    .bulk-upload-back-btn:hover { background: rgba(13, 110, 253, .1) !important; color: var(--admin-primary) !important; transform: translateY(-1px); }
+    .bulk-upload-panel,
+    .bulk-upload-progress { position: relative; z-index: 1; }
+    .bulk-upload-panel {
+        padding: 1.25rem;
+        background: #fff;
+        border-radius: 28px;
+        border: 1px solid rgba(128, 0, 0, .08);
+        box-shadow: 0 16px 40px rgba(29, 27, 23, .08);
+    }
+    .bulk-upload-panel__header,
+    .bulk-upload-list__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(128, 0, 0, .08);
+    }
+    .bulk-upload-panel__header {
+        align-items: center;
+        padding-bottom: 1rem;
+    }
+    .bulk-upload-panel__header h2,
+    .bulk-upload-panel__header p,
+    .bulk-upload-list__header h3,
+    .bulk-upload-list__header p { margin-inline: 0; }
+    .bulk-upload-dropzone {
+        min-height: 300px;
+        padding: 2.4rem 1.5rem;
+        border-color: rgba(13, 110, 253, .2) !important;
+        background: linear-gradient(180deg, rgba(240, 247, 255, .98) 0%, rgba(255, 255, 255, .98) 100%);
+        transition: transform .24s ease, border-color .24s ease, box-shadow .24s ease, background-color .24s ease;
+    }
+    .bulk-upload-dropzone:hover,
+    .bulk-upload-dropzone.is-dragover {
+        transform: translateY(-2px);
+        border-color: var(--admin-primary) !important;
+        box-shadow: 0 18px 34px rgba(13, 110, 253, .11);
+        background: linear-gradient(180deg, rgba(239, 246, 255, .98) 0%, rgba(255, 255, 255, 1) 100%);
+    }
+    .bulk-upload-dropzone__icon {
+        width: 4.5rem;
+        height: 4.5rem;
+        background: #fff;
+    }
+    .bulk-upload-dropzone__copy { max-width: 40rem; }
+    .bulk-upload-settings {
+        padding: 1.1rem 1.1rem 1rem;
+        border-radius: 22px;
+        border: 1px solid rgba(15, 23, 42, .08);
+        background: linear-gradient(180deg, rgba(249, 250, 251, .96) 0%, rgba(255, 255, 255, 1) 100%);
+    }
+    .bulk-upload-input { background: #fff; border-color: rgba(15, 23, 42, .14); }
+    .bulk-upload-input:focus { border-color: var(--admin-primary); box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .08); }
+    .bulk-upload-submit { min-height: 3.25rem; box-shadow: 0 12px 24px rgba(128, 0, 0, .18); }
+    .bulk-upload-list {
+        background: #fff;
+        border: 1px solid rgba(15, 23, 42, .08);
+        border-radius: 28px;
+        overflow: hidden;
+    }
+    .bulk-upload-list__header { margin-bottom: 0; padding: 1.15rem 1.25rem; background: linear-gradient(180deg, rgba(249, 250, 251, .95) 0%, rgba(255, 255, 255, 1) 100%); }
+    .bulk-upload-table { direction: ltr; }
+    .bulk-upload-table thead th {
+        padding: 1rem 1.15rem;
+        font-size: .77rem;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #4b5563;
+        background: #f3f4f6;
+        border-bottom: 1px solid rgba(15, 23, 42, .08) !important;
+    }
+    .bulk-upload-table tbody td { padding: 1rem 1.15rem; vertical-align: middle; border-color: rgba(15, 23, 42, .08); }
+    .bulk-upload-table tbody tr:hover { background: rgba(13, 110, 253, .035); }
+    .bulk-upload-table .form-control { min-height: 2.45rem; }
+    .bulk-upload-table .badge { font-weight: 700; }
+    .bulk-upload-empty {
+        min-height: 15rem;
+        padding: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        text-align: center;
+    }
+    .bulk-upload-empty__icon {
+        width: 4rem;
+        height: 4rem;
+        margin-bottom: 1rem;
+        border-radius: 999px;
+        background: rgba(13, 110, 253, .08);
+        color: var(--admin-primary);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.55rem;
+    }
+    .bulk-upload-progress {
+        background: linear-gradient(180deg, rgba(255, 255, 255, .98) 0%, rgba(252, 250, 247, .98) 100%);
+        border: 1px solid rgba(15, 23, 42, .08);
+        border-radius: 28px;
+    }
+    .bulk-upload-progress__pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .5rem;
+        padding: .45rem .8rem;
+        border-radius: 999px;
+        background: rgba(16, 185, 129, .08);
+        color: #059669;
+        font-size: .82rem;
+        font-weight: 700;
+    }
+    .bulk-upload-progress__dot {
+        width: .5rem;
+        height: .5rem;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 0 .35rem rgba(16, 185, 129, .18);
+        animation: bulk-upload-pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes bulk-upload-pulse {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, .28); }
+        70% { box-shadow: 0 0 0 .45rem rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .bulk-upload-progress__list { min-height: 22rem; direction: rtl; }
+    .bulk-upload-progress__list .list-group-item { border-color: rgba(128, 0, 0, .08); background: transparent; }
+    .bulk-upload-progress__list .badge { font-weight: 700; }
+    .bulk-upload-progress__list .list-group-item[data-progress-id] { transition: background-color .24s ease, transform .24s ease; }
+    .bulk-upload-progress__list .list-group-item[data-progress-id]:hover { background: rgba(15, 23, 42, .03); }
+    .bulk-upload-progress__empty {
+        min-height: 18rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        text-align: center;
+        gap: .75rem;
+    }
+    .bulk-upload-progress__empty-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, .05);
+        color: var(--admin-text-muted);
+        font-size: 1.4rem;
+    }
+    @media (max-width: 1199.98px) {
+        .bulk-upload-hero__chips { grid-template-columns: 1fr; }
+        .bulk-upload-panel__header,
+        .bulk-upload-list__header { flex-direction: column; }
+        .bulk-upload-panel__actions { width: 100%; }
+        .bulk-upload-panel__actions .btn { width: 100%; }
+        .bulk-upload-dropzone { min-height: 220px; }
+    }
+    @media (max-width: 767.98px) {
+        .bulk-upload-page { padding-inline: .25rem; }
+        .bulk-upload-hero { border-radius: 24px; padding: 1.25rem; }
+        .bulk-upload-panel { border-radius: 24px; padding: 1rem; }
+        .bulk-upload-list__header { padding: 1rem; }
+        .bulk-upload-table thead { display: none; }
+        .bulk-upload-table tbody tr {
+            display: block;
+            padding: .25rem 0;
+            border-top: 1px solid rgba(128, 0, 0, .08);
+        }
+        .bulk-upload-table tbody td {
+            display: block;
+            width: 100% !important;
+            padding: .55rem 1rem;
+            border: 0;
+        }
+        .bulk-upload-table tbody td:first-child { padding-top: 1rem; }
+        .bulk-upload-table tbody td:last-child { padding-bottom: 1rem; text-align: left; }
+        .bulk-upload-table tbody td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            margin-bottom: .35rem;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #7a6f63;
+        }
+        .bulk-upload-table tbody td[data-label="Type"]::before,
+        .bulk-upload-table tbody td[data-label="Actions"]::before { content: ""; display: none; }
+        .bulk-upload-empty { min-height: 11rem; padding: 1.5rem; }
+        .bulk-upload-progress__list { min-height: 16rem; }
+    }
+</style>
+<div class="container-fluid py-3 py-lg-4 bulk-upload-page" dir="ltr">
+    <div class="bulk-upload-hero mb-4 mb-lg-5">
+        <div class="bulk-upload-hero__content">
+            <div class="bulk-upload-hero__bar">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge rounded-pill text-bg-light text-uppercase tracking-wide px-3 py-2">{% trans "Batch Workspace" %}</span>
+                    <span class="badge rounded-pill text-bg-primary-subtle text-primary px-3 py-2">{% trans "Upload" %}</span>
+                </div>
+                <a class="btn btn-outline-light bulk-upload-back-btn rounded-pill px-4" href="{% url 'frontend_api:upload_content' %}">
+                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-left"/></svg>
+                    {% trans "Back to Single Upload" %}
+                </a>
+            </div>
+            <div class="row align-items-end g-3">
+                <div class="col-12 col-xl-8">
+                    <h1 class="display-6 fw-bold mb-3">{% trans "Bulk Upload" %}</h1>
+                    <p class="lead mb-0 bulk-upload-hero__copy">
+                        {% trans "Drop a batch of videos, audio files, or PDFs, set per-item titles, and follow each item as it moves through processing." %}
+                    </p>
+                </div>
+            </div>
+            <div class="bulk-upload-hero__chips mt-4">
+                <div class="bulk-upload-chip">
+                    <span class="bulk-upload-chip__label">{% trans "Files selected" %}</span>
+                    <strong id="bulk-selected-count">0</strong>
+                </div>
+                <div class="bulk-upload-chip">
+                    <span class="bulk-upload-chip__label">{% trans "Supported types" %}</span>
+                    <strong>{% trans "Video, Audio, PDF" %}</strong>
+                </div>
+                <div class="bulk-upload-chip">
+                    <span class="bulk-upload-chip__label">{% trans "Queue flow" %}</span>
+                    <strong>{% trans "Upload → Process → SEO" %}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-12 col-xxl-8">
+            <form id="bulk-upload-form" class="bulk-upload-panel" autocomplete="off">
+                {% csrf_token %}
+                <input type="hidden" id="bulk-upload-url" value="{% url 'frontend_api:handle_bulk_upload' %}">
+                <input type="hidden" id="bulk-status-url" value="{% url 'frontend_api:bulk_upload_status' %}">
+
+                <div class="bulk-upload-panel__header">
+                    <div>
+                        <h2 class="h4 fw-bold mb-2">{% trans "Prepare your batch" %}</h2>
+                        <p class="text-muted mb-0">{% trans "Add files, set the common tags, and fine-tune titles before uploading." %}</p>
+                    </div>
+                    <div class="bulk-upload-panel__actions">
+                        <button type="button" id="bulk-clear-selection" class="btn btn-outline-secondary rounded-pill px-4" disabled>
+                            {% trans "Clear Selection" %}
+                        </button>
+                    </div>
+                </div>
+
+                <div id="bulk-upload-alert" class="alert alert-info border-0 rounded-4 d-none" role="alert"></div>
+
+                <div class="bulk-upload-dropzone-wrap mb-4">
+                    <label for="bulk-file-input" class="dropzone-area bulk-upload-dropzone d-block text-center rounded-4 border border-2 border-dashed">
+                        <div class="bulk-upload-dropzone__icon mx-auto mb-3 d-inline-flex align-items-center justify-content-center rounded-circle shadow-sm">
+                            <svg class="bi text-primary fs-1" aria-hidden="true" focusable="false"><use href="#bi-cloud-arrow-up"/></svg>
+                        </div>
+                        <h2 class="h4 fw-bold mb-2">{% trans "Drop files here or click to browse" %}</h2>
+                        <p class="text-muted mb-3 mb-lg-4 mx-auto bulk-upload-dropzone__copy">{% trans "MP4, AVI, MOV, MP3, WAV, M4A, and PDF are supported. You can mix multiple file types in the same batch." %}</p>
+                        <div class="d-flex flex-wrap justify-content-center gap-2">
+                            <span class="badge rounded-pill text-bg-light border">MP4</span>
+                            <span class="badge rounded-pill text-bg-light border">MP3</span>
+                            <span class="badge rounded-pill text-bg-light border">PDF</span>
+                            <span class="badge rounded-pill text-bg-light border">WAV</span>
+                        </div>
+                        <input id="bulk-file-input" type="file" class="d-none" multiple accept=".mp4,.avi,.mov,.mp3,.wav,.m4a,.pdf">
+                    </label>
+                </div>
+
+                <div class="bulk-upload-settings mb-4">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12 col-lg-8">
+                            <label for="bulk-tags" class="form-label fw-semibold mb-2">{% trans "Common Tags" %}</label>
+                            <input type="text" id="bulk-tags" class="form-control form-control-lg rounded-4 bulk-upload-input" placeholder="{% trans 'Comma-separated tag IDs applied to all files' %}">
+                            <div class="form-text mt-2">{% trans "These tags are applied to every successfully queued item." %}</div>
+                        </div>
+                        <div class="col-12 col-lg-4 text-lg-end">
+                            <button type="button" id="bulk-upload-submit" class="btn btn-primary btn-lg rounded-pill px-4 bulk-upload-submit">
+                                <span class="submit-label">{% trans "Upload All" %}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bulk-upload-list card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="bulk-upload-list__header">
+                        <div>
+                            <h3 class="h5 fw-bold mb-1">{% trans "Files in batch" %}</h3>
+                            <p class="text-muted small mb-0">{% trans "Review titles, check file types, and remove anything before submission." %}</p>
+                        </div>
+                        <div class="bulk-upload-list__meta">
+                            <span class="badge rounded-pill text-bg-light border" id="bulk-type-summary">0 {% trans "items" %}</span>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive bulk-upload-table-wrap">
+                        <table class="table align-middle mb-0 bulk-upload-table">
+                            <thead class="bulk-upload-table__head">
+                                <tr dir="rtl" class="text-end">
+                                    <th style="width: 10%;">{% trans "Type" %}</th>
+                                    <th style="width: 30%;">{% trans "File" %}</th>
+                                    <th style="width: 25%;">{% trans "Arabic Title" %}</th>
+                                    <th style="width: 25%;">{% trans "English Title" %}</th>
+                                    <th style="width: 10%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bulk-file-rows">
+                                <tr id="bulk-empty-row">
+                                    <td colspan="5">
+                                        <div class="bulk-upload-empty">
+                                            <div class="bulk-upload-empty__icon">
+                                                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-folder2-open"/></svg>
+                                            </div>
+                                            <h4 class="h5 fw-bold mb-2">{% trans "No files selected yet." %}</h4>
+                                            <p class="text-muted mb-0">{% trans "Choose a batch to start building the upload queue." %}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-12 col-xxl-4">
+            <div class="bulk-upload-progress card border-0 shadow-sm rounded-4 h-100" dir="rtl">
+                <div class="card-body p-4 p-lg-4 d-flex flex-column">
+                    <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
+                        <div>
+                            <h3 class="h5 fw-bold mb-2">{% trans "Progress" %} <span class="text-muted fw-normal">/ {% trans "التقدم" %}</span></h3>
+                            <p class="text-muted small mb-0" dir="ltr">{% trans "Queued items appear here with live status updates." %}</p>
+                        </div>
+                        <div class="bulk-upload-progress__pill">
+                            <span class="bulk-upload-progress__dot"></span>
+                            {% trans "Live" %}
+                        </div>
+                    </div>
+
+                    <div id="bulk-progress-summary" class="mb-3 d-none"></div>
+
+                    <div id="bulk-progress-list" class="bulk-upload-progress__list list-group list-group-flush flex-grow-1 overflow-auto rounded-4 border bg-white">
+                        <div class="list-group-item text-center text-muted py-5 border-0">
+                            <div class="bulk-upload-progress__empty">
+                                <div class="bulk-upload-progress__empty-icon">
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-hourglass-split"/></svg>
+                                </div>
+                                <h4 class="h6 fw-bold mb-1" dir="ltr">{% trans "Upload files to see progress here." %}</h4>
+                                <p class="small text-muted mb-0" dir="ltr">{% trans "Each queued item will appear here with live processing updates." %}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/admin/bulk_upload.js' %}"></script>
+{% endblock %}
