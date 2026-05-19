@@ -147,7 +147,7 @@ def main():
             except Exception as exc:
                 print(f'ERROR processing {full_path}: {exc}', file=sys.stderr)
 
-    print(f'\n✅  {len(changed)} template(s) updated:')
+    print(f'\n✅ {len(changed)} template(s) updated:')
     for path in sorted(changed):
         print(f'    {path}')
 
