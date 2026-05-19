@@ -4,7 +4,6 @@ Handles queue operations, Redis locking, and rate limit management.
 """
 import os
 import logging
-import hashlib
 from datetime import timedelta
 from django.conf import settings
 from django.core.cache import cache

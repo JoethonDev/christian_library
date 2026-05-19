@@ -4,7 +4,6 @@ Usage: python manage.py monitor_cache_performance
 """
 
 from django.core.management.base import BaseCommand
-from django.core.cache import caches
 from core.utils.cache_utils import cache_invalidator
 import json
 from datetime import datetime

@@ -1,8 +1,8 @@
 # Management command for bulk SEO metadata generation
 # File: apps/media_manager/management/commands/generate_seo_metadata.py
 
-from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+import os
+from django.core.management.base import BaseCommand
 from django.db import models
 from apps.media_manager.models import ContentItem
 from apps.media_manager.tasks import bulk_generate_seo_metadata
@@ -108,7 +108,6 @@ class Command(BaseCommand):
                 try:
                     # Check if file exists on disk
                     file_path = meta.original_file.path
-                    import os
                     if os.path.exists(file_path):
                         items_to_process.append(item)
                     else:

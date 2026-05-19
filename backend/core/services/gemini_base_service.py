@@ -190,9 +190,9 @@ class BaseGeminiService:
             contents = []
             if text_content:
                 contents.append(text_content)
-            elif uploaded_file is not None:
+            if uploaded_file is not None:
                 contents.append(uploaded_file)
-            else:
+            if not contents:
                 contents.append(prompt)
 
             config = {

@@ -8,6 +8,11 @@
         <h1 class="h3 fw-bold text-dark mb-1">{% trans "Upload Content" %}</h1>
         <p class="text-muted mb-0">{% trans "Add new videos, audio, or documents to the library" %}</p>
     </div>
+    <div class="col-auto">
+        <a href="{% url 'frontend_api:bulk_upload_page' %}" class="btn btn-outline-primary rounded-pill px-4">
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-stack"/></svg>{% trans "Bulk Upload" %}
+        </a>
+    </div>
 </div>
 
 <div class="row justify-content-center">

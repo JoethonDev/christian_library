@@ -78,6 +78,25 @@ class GeminiManager:
         except Exception as e:
             logger.error(f"SEO generation failed: {e}")
             return False, {"error": str(e)}
+
+    def generate_combined_ai_data(self, file_path: str, content_type: str, context_text: str = None) -> Tuple[bool, Dict]:
+        """
+        Generate combined metadata + SEO output with one Gemini call.
+        """
+        is_available, message, _ = self.rate_limit_service.check_availability(
+            self.seo_service.default_model,
+            operation_type='seo'
+        )
+
+        if not is_available:
+            logger.warning(f"Combined Gemini generation rate limit check: {message}")
+            return False, {"error": message}
+
+        try:
+            return self.seo_service.generate_combined(file_path, content_type, context_text=context_text)
+        except Exception as e:
+            logger.error(f"Combined Gemini generation failed: {e}")
+            return False, {"error": str(e)}
     
     def get_rate_limit_status(self) -> Dict:
         """

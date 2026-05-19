@@ -7,7 +7,7 @@ when content or tags are created, updated, or deleted.
 
 from django.db.models.signals import post_save, post_delete, m2m_changed
 from django.dispatch import receiver
-from apps.media_manager.models import ContentItem, Tag
+from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
 from core.utils.cache_utils import CacheInvalidation
 import logging
 
@@ -77,7 +77,6 @@ def invalidate_content_tag_caches(sender, instance, action, pk_set, **kwargs):
 
 
 # Additional signals for metadata changes
-from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta
 
 @receiver(post_save, sender=VideoMeta)
 @receiver(post_save, sender=AudioMeta)

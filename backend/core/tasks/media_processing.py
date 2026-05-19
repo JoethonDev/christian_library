@@ -8,6 +8,7 @@ import logging
 import tempfile
 from apps.health.task_monitor import TaskMonitor
 from apps.media_manager.services.job_tracker import job_advance, job_complete, job_fail, job_start
+from apps.media_manager.tasks import generate_seo_metadata_task
 
 from core.utils.media_processing import (
     VideoProcessor, AudioProcessor, PDFProcessor,
@@ -159,10 +160,12 @@ def process_video_to_hls(self, video_meta_id):
         
         # --- NEW: Upload thumbnail to R2 if available but not uploaded ---
         if video_meta.content_item.thumbnail and not video_meta.content_item.r2_thumbnail_url:
-            if getattr(settings, 'R2_ENABLED', False):
+            try:
                 from core.storage_backends import R2Service
                 r2 = R2Service()
                 r2.upload_thumbnail(video_meta.content_item)
+            except Exception as e:
+                logger.error(f"Failed to upload video thumbnail to R2 for {content_uuid}: {e}")
         
         video_meta.processing_status = 'completed'
         video_meta.save()
@@ -171,18 +174,11 @@ def process_video_to_hls(self, video_meta_id):
         video_meta.content_item.processing_status = 'completed'
         video_meta.content_item.save(update_fields=['processing_status'])
         job_advance(video_meta.content_item.id, 'r2_upload')
-        
-        # Parallel Trigger: Trigger SEO generation and R2 upload at the same time
-        from apps.media_manager.tasks import generate_seo_metadata_task
+
         TaskMonitor.update_progress(self.request.id, 92, "Video processed. Starting AI enrichment and cloud delivery...", "Finalizing")
         
-        # 2. Trigger R2 upload
-        if getattr(settings, 'R2_ENABLED', False):
-            upload_video_to_r2.delay(str(video_meta.id))
-            logger.info(f"Triggered parallel R2 upload for video: {video_meta.id}")
-
-        # 1. Trigger SEO generation
-        generate_seo_metadata_task.delay(str(video_meta.content_item.id))
+        upload_video_to_r2.delay(str(video_meta.id))
+        logger.info(f"Triggered R2 upload for video: {video_meta.id}")
         
         
         
@@ -336,17 +332,10 @@ def process_audio_compression(self, audio_meta_id):
         
         logger.info(f"Audio processing completed successfully for: {audio_meta.content_item.title_ar}")
         
-        # Parallel Trigger: Trigger SEO generation and R2 upload at the same time
-        from apps.media_manager.tasks import generate_seo_metadata_task
         TaskMonitor.update_progress(self.request.id, 92, "Audio processed. Starting AI enrichment and cloud delivery...", "Finalizing")
     
-        # 2. Trigger R2 upload
-        if getattr(settings, 'R2_ENABLED', False):
-            upload_audio_to_r2.delay(str(audio_meta.id))
-            logger.info(f"Triggered parallel R2 upload for audio: {audio_meta.id}")
-
-        # 1. Trigger SEO generation
-        generate_seo_metadata_task.delay(str(audio_meta.content_item.id))
+        upload_audio_to_r2.delay(str(audio_meta.id))
+        logger.info(f"Triggered R2 upload for audio: {audio_meta.id}")
             
         return {
             'status': 'success',
@@ -399,6 +388,146 @@ def process_audio_compression(self, audio_meta_id):
             logger.info(f"Retrying audio processing (attempt {self.request.retries + 1})")
             raise self.retry(countdown=60 * (2 ** self.request.retries))
         
+        return {'status': 'error', 'message': str(e)}
+    finally:
+        if source_cleanup_path and os.path.exists(source_cleanup_path):
+            os.remove(source_cleanup_path)
+
+def _generate_pdf_thumbnail(processor, input_path, pdf_meta_id, content_item):
+    """Generate and optionally upload a PDF thumbnail."""
+    try:
+        thumb_filename = f"thumb_{pdf_meta_id}.jpg"
+        temp_thumb_path = os.path.join(tempfile.gettempdir(), thumb_filename)
+
+        processor.generate_thumbnail(input_path, temp_thumb_path)
+
+        if os.path.exists(temp_thumb_path) and os.path.getsize(temp_thumb_path) > 0:
+            from django.core.files import File
+
+            with open(temp_thumb_path, 'rb') as f:
+                content_item.thumbnail.save(thumb_filename, File(f), save=True)
+
+            try:
+                from core.storage_backends import R2Service as DjangoR2Service
+
+                r2_service = DjangoR2Service()
+                r2_service.upload_thumbnail(content_item)
+            except Exception as r2_err:
+                logger.error(f"Failed to upload PDF thumbnail to R2: {r2_err}")
+
+            logger.info(f"Generated and saved thumbnail for PDF: {content_item.title_ar}")
+
+        if os.path.exists(temp_thumb_path):
+            os.remove(temp_thumb_path)
+
+    except Exception as thumb_err:
+        logger.error(f"Failed to generate PDF thumbnail for {pdf_meta_id}: {thumb_err}")
+
+
+@shared_task(bind=True, max_retries=3)
+def process_pdf_metadata(self, pdf_meta_id):
+    """Process uploaded PDF metadata without optimization."""
+    PdfMeta = apps.get_model('media_manager', 'PdfMeta')
+    source_cleanup_path = None
+    try:
+        pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
+
+        TaskMonitor.register_task(
+            task_id=self.request.id,
+            task_name='PDF Metadata Extraction',
+            metadata={'pdf_id': pdf_meta_id, 'content_id': str(pdf_meta.content_item.id)}
+        )
+        job_start(pdf_meta.content_item.id, 'file_processing', self.request.id)
+
+        if not pdf_meta.original_file:
+            logger.warning(f"No file to process for PdfMeta {pdf_meta_id}")
+            pdf_meta.processing_status = 'completed'
+            pdf_meta.save()
+            job_complete(pdf_meta.content_item.id)
+            TaskMonitor.update_task_status(self.request.id, 'SUCCESS', {'message': 'Skipped - no file'})
+            return {'status': 'skipped', 'message': 'No file to process'}
+
+        pdf_meta.processing_status = 'processing'
+        pdf_meta.save()
+
+        content_item = pdf_meta.content_item
+        content_item.processing_status = 'processing'
+        content_item.save(update_fields=['processing_status'])
+
+        TaskMonitor.update_progress(self.request.id, 5, "Setting up PDF processing environment...", "Initialization")
+        logger.info(f"Starting PDF metadata extraction for: {content_item.title_ar}")
+
+        try:
+            processor = PDFProcessor()
+        except DependencyError as e:
+            logger.error(f"PDF processing dependencies not available: {e}")
+            pdf_meta.processing_status = 'failed'
+            pdf_meta.save()
+            TaskMonitor.update_task_status(self.request.id, 'FAILURE', error=f'Dependencies missing: {e}')
+            return {'status': 'error', 'message': f'Dependencies missing: {e}'}
+
+        input_path, source_cleanup_path = _resolve_local_source_path(pdf_meta.original_file, 'pdf')
+
+        TaskMonitor.update_progress(self.request.id, 15, "Analyzing PDF structure and complexity...", "Metadata Extraction")
+        pdf_info = processor.get_pdf_info(input_path)
+        pdf_meta.file_size = pdf_info['file_size']
+        pdf_meta.page_count = pdf_info['page_count']
+
+        if not content_item.thumbnail:
+            _generate_pdf_thumbnail(processor, input_path, pdf_meta_id, content_item)
+
+        pdf_meta.processing_status = 'completed'
+        pdf_meta.save()
+        content_item.processing_status = 'completed'
+        content_item.save(update_fields=['processing_status'])
+        job_advance(content_item.id, 'text_extraction')
+
+        TaskMonitor.update_task_status(self.request.id, 'SUCCESS', {'message': 'PDF metadata extraction complete', 'progress': 100})
+        TaskMonitor.update_progress(self.request.id, 90, "Metadata extraction complete. Starting text extraction...", "Indexing")
+
+        from apps.media_manager.tasks import extract_and_index_contentitem
+        extract_and_index_contentitem.delay(str(content_item.id))
+
+        return {
+            'status': 'success',
+            'pdf_id': str(content_item.id),
+            'file_size': pdf_meta.file_size,
+            'page_count': pdf_meta.page_count,
+        }
+
+    except PdfMeta.DoesNotExist:
+        logger.error(f"PdfMeta with id {pdf_meta_id} not found")
+        return {'status': 'error', 'message': 'PDF not found'}
+
+    except DependencyError as e:
+        logger.error(f"PDF processing dependencies not available: {e}")
+        try:
+            pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
+            pdf_meta.processing_status = 'failed'
+            pdf_meta.save()
+            job_fail(pdf_meta.content_item.id, 'file_processing', e)
+            pdf_meta.content_item.processing_status = 'failed'
+            pdf_meta.content_item.save(update_fields=['processing_status'])
+        except:
+            pass
+        return {'status': 'error', 'message': f'Dependencies missing: {e}'}
+
+    except Exception as e:
+        logger.error(f"PDF metadata processing failed: {e}")
+        try:
+            pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
+            pdf_meta.processing_status = 'failed'
+            pdf_meta.save()
+            job_fail(pdf_meta.content_item.id, 'file_processing', e)
+            pdf_meta.content_item.processing_status = 'failed'
+            pdf_meta.content_item.save(update_fields=['processing_status'])
+        except:
+            pass
+
+        if self.request.retries < self.max_retries:
+            logger.info(f"Retrying PDF metadata processing (attempt {self.request.retries + 1})")
+            raise self.retry(countdown=60 * (2 ** self.request.retries))
+
         return {'status': 'error', 'message': str(e)}
     finally:
         if source_cleanup_path and os.path.exists(source_cleanup_path):
@@ -461,37 +590,7 @@ def process_pdf_optimization(self, pdf_meta_id):
         # Generate thumbnail if not already present
         content_item = pdf_meta.content_item
         if not content_item.thumbnail:
-            try:
-                TaskMonitor.update_progress(self.request.id, 25, "Generating PDF thumbnail...", "Thumbnail")
-                thumb_filename = f"thumb_{pdf_meta_id}.jpg"
-                temp_thumb_path = os.path.join(tempfile.gettempdir(), thumb_filename)
-                
-                # Use PDFProcessor to generate thumbnail
-                processor.generate_thumbnail(input_path, temp_thumb_path)
-                
-                if os.path.exists(temp_thumb_path) and os.path.getsize(temp_thumb_path) > 0:
-                    from django.core.files import File
-                    with open(temp_thumb_path, 'rb') as f:
-                        content_item.thumbnail.save(thumb_filename, File(f), save=True)
-                    
-                    # Upload to R2 if storage is configured
-                    if getattr(settings, 'R2_ENABLED', False):
-                        try:
-                            from core.storage_backends import R2Service as DjangoR2Service
-                            r2_service = DjangoR2Service()
-                            r2_service.upload_thumbnail(content_item)
-                        except Exception as r2_err:
-                            logger.error(f"Failed to upload PDF thumbnail to R2: {r2_err}")
-                    
-                    logger.info(f"Generated and saved thumbnail for PDF: {content_item.title_ar}")
-                
-                # Clean up temp file
-                if os.path.exists(temp_thumb_path):
-                    os.remove(temp_thumb_path)
-                    
-            except Exception as thumb_err:
-                logger.error(f"Failed to generate PDF thumbnail: {thumb_err}")
-                TaskMonitor.update_progress(self.request.id, 25, f"Thumbnail generation failed: {thumb_err}", "Warning")
+            _generate_pdf_thumbnail(processor, input_path, pdf_meta_id, content_item)
 
         # Generate optimized filename
         original_name = pdf_meta.original_file.name
@@ -727,11 +826,7 @@ def upload_video_to_r2(self, video_meta_id):
                     content_item.is_active = True
                     content_item.save(update_fields=['is_active'])
                     logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-                job_advance(content_item.id, 'seo_generation')
-                
-                # Check for cleanup (both R2 and SEO must be done)
-                from apps.media_manager.tasks import finalize_media_processing
-                finalize_media_processing.delay(str(content_item.id))
+                generate_seo_metadata_task.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'failed'
                 video_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
@@ -749,11 +844,7 @@ def upload_video_to_r2(self, video_meta_id):
                     content_item.is_active = True
                     content_item.save(update_fields=['is_active'])
                     logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-                job_advance(content_item.id, 'seo_generation')
-
-                # Check for cleanup
-                from apps.media_manager.tasks import finalize_media_processing
-                finalize_media_processing.delay(str(content_item.id))
+                generate_seo_metadata_task.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'local_only'
                 video_meta.r2_upload_progress = 100  # Mark as complete for local-only storage
@@ -840,11 +931,7 @@ def upload_audio_to_r2(self, audio_meta_id):
                 content_item.is_active = True
                 content_item.save(update_fields=['is_active'])
                 logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-            job_advance(content_item.id, 'seo_generation')
-            
-            # Check for cleanup (both R2 and SEO must be done)
-            from apps.media_manager.tasks import finalize_media_processing
-            finalize_media_processing.delay(str(content_item.id))
+            generate_seo_metadata_task.delay(str(content_item.id))
         else:
             audio_meta.r2_upload_status = 'failed'
             audio_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
@@ -973,11 +1060,7 @@ def upload_pdf_to_r2(self, pdf_meta_id):
                     content_item.is_active = True
                     content_item.save(update_fields=['is_active'])
                     logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-                job_advance(content_item.id, 'seo_generation')
-                
-                # Check for cleanup (both R2 and SEO must be done)
-                from apps.media_manager.tasks import finalize_media_processing
-                finalize_media_processing.delay(str(content_item.id))
+                generate_seo_metadata_task.delay(str(content_item.id))
                 
                 return {'status': 'success', 'message': f'PDF {pdf_meta_id} uploaded to R2 successfully'}
             else:

@@ -37,6 +37,7 @@ from apps.media_manager.services.delete_service import MediaProcessingService
 from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.media_manager.services.unified_search_service import get_unified_search_service
 from apps.media_manager.services.upload_service import MediaUploadService
+from apps.media_manager.tasks import generate_seo_metadata_task
 from core.services.gemini_manager import get_gemini_manager
 from core.services.gemini_metadata_service import get_gemini_metadata_service
 from core.services.gemini_seo_service import get_gemini_seo_service
@@ -412,6 +413,103 @@ def handle_content_upload(request):
             
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def bulk_upload_page(request):
+    """Render the bulk upload page."""
+    return render(request, 'admin/bulk_upload.html', {
+        'current_language': get_language(),
+    })
+
+
+@login_required
+@csrf_exempt
+@require_POST
+def handle_bulk_upload(request):
+    """Handle multi-file bulk upload requests."""
+    try:
+        files = request.FILES.getlist('files')
+        if not files:
+            return JsonResponse({'success': False, 'error': _('No files provided')}, status=400)
+
+        titles_ar = request.POST.getlist('title_ar')
+        titles_en = request.POST.getlist('title_en')
+        tag_ids_raw = request.POST.get('tag_ids', '')
+        tag_ids = [tag_id.strip() for tag_id in tag_ids_raw.split(',') if tag_id.strip()]
+
+        upload_service = MediaUploadService()
+        results = []
+
+        for index, file_obj in enumerate(files):
+            title_ar = titles_ar[index] if index < len(titles_ar) else ''
+            title_en = titles_en[index] if index < len(titles_en) else ''
+
+            if not title_ar:
+                title_ar = ContentItem._clean_filename(file_obj.name)
+
+            result = upload_service.create_content_item(
+                file_obj=file_obj,
+                title_ar=title_ar,
+                title_en=title_en,
+                tag_ids=tag_ids or None,
+            )
+
+            if result.get('success'):
+                content_item = result['content_item']
+                results.append({
+                    'success': True,
+                    'content_id': str(content_item.id),
+                    'title': content_item.title_ar,
+                    'content_type': content_item.content_type,
+                    'filename': file_obj.name,
+                })
+            else:
+                results.append({
+                    'success': False,
+                    'filename': file_obj.name,
+                    'error': result.get('error', _('Upload failed')),
+                })
+
+        queued_count = sum(1 for result in results if result['success'])
+        return JsonResponse({
+            'success': True,
+            'total': len(files),
+            'queued': queued_count,
+            'failed': len(files) - queued_count,
+            'results': results,
+        })
+
+    except Exception as e:
+        logger.error(f"Bulk upload failed: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def bulk_upload_status(request):
+    """Return per-item processing status for bulk uploads."""
+    content_ids_raw = request.GET.get('ids', '')
+    content_ids = [content_id.strip() for content_id in content_ids_raw.split(',') if content_id.strip()][:50]
+
+    if not content_ids:
+        return JsonResponse({'success': False, 'error': _('ids is required')}, status=400)
+
+    jobs = ProcessingJob.objects.filter(content_item_id__in=content_ids).only(
+        'content_item_id', 'status', 'current_stage', 'failure_reason'
+    )
+    job_map = {str(job.content_item_id): job for job in jobs}
+
+    statuses = []
+    for content_id in content_ids:
+        job = job_map.get(content_id)
+        statuses.append({
+            'content_id': content_id,
+            'status': job.status if job else 'pending',
+            'stage': job.current_stage if job else 'file_processing',
+            'error': job.failure_reason if job else '',
+        })
+
+    return JsonResponse({'success': True, 'statuses': statuses})
 
 
 @login_required
@@ -2461,12 +2559,13 @@ def api_job_dispatch(request):
     payload = parse_request_payload(request)
     content_id = payload.get('content_id')
     stage = payload.get('stage', 'full')
+    force = str(payload.get('force', 'false')).lower() == 'true'
 
     if not content_id:
         return JsonResponse({'success': False, 'error': _('content_id is required')}, status=400)
 
     content_item = get_object_or_404(ContentItem, id=content_id)
-    task_id = dispatch_content_item_for_stage(content_item, stage)
+    task_id = dispatch_content_item_for_stage(content_item, stage, force=force)
 
     if not task_id:
         return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)

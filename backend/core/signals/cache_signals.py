@@ -124,18 +124,6 @@ def invalidate_user_cache_on_delete(sender, instance, **kwargs):
     # Use whole-view caching with @cache_page decorator instead
 
 
-# Bulk Operations Signals
-
-@receiver(pre_delete, sender=ContentItem)
-def prepare_content_deletion(sender, instance, **kwargs):
-    """Prepare for content deletion by storing related IDs"""
-    # Module functionality has been removed
-    # if instance.module:
-    #     instance._cached_module_id = instance.module.id
-    #     instance._cached_course_id = instance.module.course.id
-    pass
-
-
 # Custom signal for cache warming
 
 def warm_critical_caches():

@@ -1417,6 +1417,30 @@ class ContentItem(models.Model):
         
         return True
 
+    def update_combined_ai_data(self, combined_data):
+        """Update metadata and SEO fields from a combined Gemini response."""
+        if not combined_data:
+            return False
+
+        normalized = {}
+        for lang in ['en', 'ar']:
+            lang_data = combined_data.get(lang, {}) if isinstance(combined_data, dict) else {}
+            normalized[lang] = {
+                'title': lang_data.get('title') or (self.title_en if lang == 'en' else self.title_ar),
+                'description': lang_data.get('description') or (self.description_en if lang == 'en' else self.description_ar),
+                'tags': lang_data.get('tags') or [],
+                'seo_title': lang_data.get('meta_title') or (self.seo_title_en if lang == 'en' else self.seo_title_ar),
+                'seo_meta_description': lang_data.get('seo_description') or (self.seo_meta_description_en if lang == 'en' else self.seo_meta_description_ar),
+                'seo_keywords': lang_data.get('keywords') or [],
+                'structured_data': lang_data.get('structured_data', {}),
+            }
+
+        normalized['transcript'] = combined_data.get('transcript', '')
+        normalized['notes'] = combined_data.get('notes', '')
+        normalized['seo_title_suggestions'] = combined_data.get('seo_title_suggestions', [])
+
+        return self.update_seo_from_gemini(normalized)
+
 
 class ProcessingJob(models.Model):
     STAGE_CHOICES = [

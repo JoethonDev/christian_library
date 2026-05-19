@@ -107,22 +107,6 @@ class PdfProcessorService:
         start_total = time.perf_counter()
         self.logger.info(f"Starting text extraction for PDF: {self.content_item_id} ({page_count} pages)")
         
-        # # 1. Try PyMuPDF (usually best results for Arabic)
-        # text_fitz = self._extract_with_pymupdf(pdf_path)
-        # filtered_fitz = self._filter_arabic_text(text_fitz)
-        
-        # # 2. Try pdfminer
-        # text_miner = self._extract_with_pdfminer(pdf_path)
-        # filtered_miner = self._filter_arabic_text(text_miner)
-        
-        # # Pick the best of textual extraction
-        # if len(filtered_fitz) >= len(filtered_miner):
-        #     best_text = filtered_fitz
-        #     method_used = "PyMuPDF"
-        # else:
-        #     best_text = filtered_miner
-        #     method_used = "pdfminer"
-        
         # Apply comprehensive Arabic cleaning pipeline for search optimization
         final_text = ""
         text_miner = self._extract_with_ocr(pdf_path)

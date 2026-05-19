@@ -22,7 +22,7 @@ from core.storage_backends import R2Service
 from core.tasks.media_processing import (
     process_video_to_hls,
     process_audio_compression,
-    process_pdf_optimization
+    process_pdf_metadata
 )
 
 logger = logging.getLogger(__name__)
@@ -528,7 +528,7 @@ class MediaUploadService:
                     pdf_meta.save()
                 
                 # Queue for background processing after commit
-                transaction.on_commit(lambda: process_pdf_optimization.delay(str(pdf_meta.id)))
+                transaction.on_commit(lambda: process_pdf_metadata.delay(str(pdf_meta.id)))
                 
                 logger.info(f"PDF uploaded successfully: {content_item.id}")
                 return True, _("PDF uploaded and queued for processing"), content_item

@@ -9,7 +9,7 @@ from apps.media_manager.models import APIUploadQueue, ProcessingJob
 from apps.media_manager.tasks import extract_and_index_contentitem, generate_seo_metadata_task
 from core.tasks.media_processing import (
     process_audio_compression,
-    process_pdf_optimization,
+    process_pdf_metadata,
     process_video_to_hls,
     upload_audio_to_r2,
     upload_pdf_to_r2,
@@ -42,9 +42,41 @@ def job_status_filters(status_filter):
     }.get(status_filter, {'processing_job': ['processing'], 'api_queue': ['processing']})
 
 
-def dispatch_processing_task(content_item, stage='full'):
+def dispatch_processing_task(content_item, stage='full', force=False):
     meta = content_item.get_meta_object()
     normalized_stage = stage or 'full'
+
+    if force and normalized_stage == 'full':
+        if meta:
+            meta.r2_upload_status = 'pending'
+            if hasattr(meta, 'processing_status'):
+                meta.processing_status = 'pending'
+            if hasattr(meta, 'r2_upload_progress'):
+                meta.r2_upload_progress = 0
+            meta.save()
+
+        content_item.processing_status = 'pending'
+        content_item.seo_processing_status = 'pending'
+        content_item.seo_title_ar = ''
+        content_item.seo_title_en = ''
+        content_item.seo_meta_description_ar = ''
+        content_item.seo_meta_description_en = ''
+        content_item.seo_keywords_ar = ''
+        content_item.seo_keywords_en = ''
+        content_item.seo_title_suggestions = ''
+        content_item.structured_data = {}
+        content_item.save(update_fields=[
+            'processing_status',
+            'seo_processing_status',
+            'seo_title_ar',
+            'seo_title_en',
+            'seo_meta_description_ar',
+            'seo_meta_description_en',
+            'seo_keywords_ar',
+            'seo_keywords_en',
+            'seo_title_suggestions',
+            'structured_data',
+        ])
 
     if normalized_stage in ['seo_only', 'seo_generation']:
         return generate_seo_metadata_task.apply_async(
@@ -70,7 +102,7 @@ def dispatch_processing_task(content_item, stage='full'):
     if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'audio' and meta:
         return process_audio_compression.delay(str(meta.id))
     if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'pdf' and meta:
-        return process_pdf_optimization.delay(str(meta.id))
+        return process_pdf_metadata.delay(str(meta.id))
 
     return None
 

@@ -391,17 +391,3 @@ def quick_clean_and_search(text: str) -> Tuple[str, str]:
     processor = ArabicTextProcessor(max_workers=1)
     result = processor.process_single_document(text)
     return result['cleaned_text'], result['search_text']
-
-
-def estimate_processing_time(total_chars: int, chars_per_second: float = 50000) -> float:
-    """
-    Estimate processing time for a given amount of text.
-    
-    Args:
-        total_chars: Total characters to process
-        chars_per_second: Processing rate (default based on benchmarks)
-        
-    Returns:
-        Estimated time in seconds
-    """
-    return total_chars / chars_per_second

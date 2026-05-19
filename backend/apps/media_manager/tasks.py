@@ -8,7 +8,6 @@ from django.db.models import Count
 from django.utils import timezone
 from apps.health.task_monitor import TaskMonitor
 import logging
-from core.tasks.media_processing import delete_files_task
 from core.services.gemini_manager import get_gemini_manager
 from apps.media_manager.services.job_tracker import job_advance, job_complete, job_fail, job_start
 from apps.media_manager.models import ContentViewEvent, DailyContentViewSummary, APIUploadQueue
@@ -116,16 +115,25 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         extracted_length = len(item.book_content) if item.book_content else 0
         logger.info(f"Successfully completed extraction and indexing for ContentItem {contentitem_id}: {extracted_length} characters")
         
-        # Trigger SEO generation after extraction finishes.
-        if item.content_type in ['video', 'audio', 'pdf']:
+        # Trigger downstream work after extraction finishes.
+        if item.content_type in ['video', 'audio']:
             TaskMonitor.update_progress(
                 self.request.id, 
                 message="Starting AI enrichment and cloud delivery...", 
                 step="finalization"
             )
-            
-            # Trigger SEO generation.
-            generate_seo_metadata_task.delay(str(item.id))
+        elif item.content_type == 'pdf':
+            TaskMonitor.update_progress(
+                self.request.id,
+                message="Starting cloud delivery for extracted PDF...",
+                step="finalization"
+            )
+
+            from core.tasks.media_processing import upload_pdf_to_r2
+            meta = item.get_meta_object()
+            if meta:
+                upload_pdf_to_r2.delay(str(meta.id))
+                logger.info(f"Triggered R2 upload for PDF: {meta.id}")
         
         # Mark finalization as completed
         TaskMonitor.update_checklist_step(
@@ -294,23 +302,19 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
             'AI Service'
         )
         
-        # Generate SEO metadata
+        # Generate combined metadata + SEO in one Gemini call
         manager = get_gemini_manager()
-        is_seo_avail, _ = manager.check_seo_availability()
-        if not is_seo_avail:
-            logger.error("Gemini AI service not available")
-            raise Exception("Gemini AI service not available")
         
         TaskMonitor.update_progress(
             self.request.id, 
             50,
-            f'Generating SEO metadata with AI (attempt {self.request.retries + 1}/3)...', 
+            f'Generating combined metadata and SEO with AI (attempt {self.request.retries + 1}/3)...', 
             'AI Processing'
         )
         
-        success, seo_metadata = manager.generate_seo(file_path, item.content_type, context_text=context_text)
+        success, combined_data = manager.generate_combined_ai_data(file_path, item.content_type, context_text=context_text)
         
-        if success and seo_metadata:
+        if success and combined_data:
             TaskMonitor.update_progress(
                 self.request.id, 
                 80,
@@ -318,8 +322,8 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
                 'Saving'
             )
             
-            # Update the content item with SEO metadata
-            success_update = item.update_seo_from_gemini(seo_metadata)
+            # Update the content item with combined metadata + SEO
+            success_update = item.update_combined_ai_data(combined_data)
             
             if success_update:
                 # Mark SEO processing as completed
@@ -341,8 +345,6 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
                     'SUCCESS', 
                     {'message': 'AI SEO metadata generated successfully', 'progress': 100}
                 )
-                job_advance(contentitem_id, 'r2_upload')
-                
                 # Check for cleanup
                 finalize_media_processing.delay(str(item.id))
             else:
@@ -356,9 +358,9 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
                     {'message': 'Failed to save AI-generated metadata', 'progress': 100}
                 )
         else:
-            error_msg = seo_metadata.get('error', 'Unknown error') if isinstance(seo_metadata, dict) else 'Generation failed'
+            error_msg = combined_data.get('error', 'Unknown error') if isinstance(combined_data, dict) else 'Generation failed'
             logger.error(f"Failed to generate SEO metadata for ContentItem {contentitem_id}: {error_msg}")
-            raise Exception(f"SEO generation failed: {error_msg}")
+            raise Exception(f"Combined AI generation failed: {error_msg}")
         
     except ContentItem.DoesNotExist:
         logger.error(f"ContentItem {contentitem_id} not found")
@@ -520,7 +522,7 @@ def finalize_media_processing(contentitem_id):
             
         # Conditions for cleanup:
         # 1. R2 upload is completed (or not enabled)
-        r2_done = not getattr(settings, 'R2_ENABLED', False) or meta.r2_upload_status == 'completed'
+        r2_done = meta.r2_upload_status == 'completed'
         
         # 2. SEO generation is completed or failed (don't hang forever if AI fails)
         seo_done = item.seo_processing_status in ['completed', 'failed']
@@ -547,6 +549,7 @@ def finalize_media_processing(contentitem_id):
                         local_paths.append(str(meta.optimized_file.path))
                 
                 if local_paths and item.has_seo_metadata():
+                    from core.tasks.media_processing import delete_files_task
                     delete_files_task.delay(local_paths)
                     logger.info(f"Queued deletion for {len(local_paths)} paths for item {item.id}")
                 job_complete(contentitem_id)

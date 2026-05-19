@@ -59,6 +59,9 @@ urlpatterns = [
     # Upload functionality (at /en/dashboard/upload/)
     path('dashboard/upload/', admin_views.upload_content, name='upload_content'),
     path('dashboard/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
+    path('dashboard/upload/bulk/', admin_views.bulk_upload_page, name='bulk_upload_page'),
+    path('dashboard/upload/bulk/handle/', admin_views.handle_bulk_upload, name='handle_bulk_upload'),
+    path('dashboard/upload/bulk/status/', admin_views.bulk_upload_status, name='bulk_upload_status'),
     path('dashboard/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
     path('dashboard/upload/generate-from-file/', admin_views.generate_metadata_from_file, name='generate_metadata_from_file'),
     path('dashboard/upload/generate-metadata-only/', admin_views.generate_metadata_only, name='generate_metadata_only'),
