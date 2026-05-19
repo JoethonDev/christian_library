@@ -3,13 +3,14 @@ URLs for core functionality including monitoring and health checks.
 """
 
 from django.urls import path
-from .views import monitoring
+from .views import monitoring, database_health
 
 app_name = 'core'
 
 urlpatterns = [
     # Monitoring dashboard
     path('monitoring/', monitoring.MonitoringDashboardView.as_view(), name='monitoring_dashboard'),
+    path('database-health/', database_health.database_health_dashboard, name='database_health_dashboard'),
     
     # API endpoints for real-time data
     path('api/system-metrics/', monitoring.system_metrics_api, name='system_metrics_api'),

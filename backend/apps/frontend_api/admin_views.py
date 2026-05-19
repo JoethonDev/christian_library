@@ -9,6 +9,7 @@ import os
 import re
 import tempfile
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,6 +18,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -25,19 +27,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.frontend_api.admin_services import AdminService
-from apps.frontend_api.models import GoogleReindexingTask
-from apps.frontend_api.models_indexing import GoogleIndexingQueue, GoogleIndexingQuota
-from apps.frontend_api.services.google_indexing_queue_service import GoogleIndexingQueueService
-from apps.frontend_api.services.google_reindexing_service import GoogleReindexingService
-from apps.frontend_api.tasks import (
-    process_google_indexing_queue,
-    reindex_website_google,
-    revalidate_invalid_indexing_items,
-    retry_failed_indexing_items
-)
 from apps.media_manager.models import (
     APIUploadQueue, ContentItem, ContentViewEvent,
-    DailyContentViewSummary, Tag, VideoMeta, AudioMeta, PdfMeta,
+    DailyContentViewSummary, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
 )
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
 from apps.media_manager.services.content_service import ContentService
@@ -45,13 +37,25 @@ from apps.media_manager.services.delete_service import MediaProcessingService
 from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.media_manager.services.unified_search_service import get_unified_search_service
 from apps.media_manager.services.upload_service import MediaUploadService
-from apps.media_manager.tasks import generate_seo_metadata_task
 from core.services.gemini_manager import get_gemini_manager
 from core.services.gemini_metadata_service import get_gemini_metadata_service
 from core.services.gemini_seo_service import get_gemini_seo_service
 from core.services.r2_storage_service import get_r2_storage_service
 from core.storage_backends import R2Service
-from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
+from core.tasks.media_processing import (
+    upload_video_to_r2,
+    upload_audio_to_r2,
+    upload_pdf_to_r2,
+)
+from apps.frontend_api.utils.jobs_dashboard import (
+    dispatch_content_item_for_stage,
+    dispatch_processing_task,
+    ensure_staff,
+    get_all_jobs,
+    get_jobs_counts,
+    parse_request_payload,
+)
+from config import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -1961,260 +1965,6 @@ def test_search_sensitivity(request):
             'error': str(e)
         }, status=500)
 
-
-# ============================================================================
-# Google Re-indexing API Endpoints
-# ============================================================================
-
-@login_required
-@require_POST
-def initiate_google_reindexing(request):
-    """
-    Initiate Google Search Console re-indexing operation.
-    
-    POST Body:
-        content_type: 'all', 'video', 'audio', or 'pdf' (optional, default: 'all')
-        include_sitemap: boolean (optional, default: true)
-        force: boolean (optional, default: false) - Re-index all URLs even if already indexed
-    
-    Returns:
-        JSON with task_id, estimated_duration, and total_urls
-    """
-    # Check staff permission
-    if not request.user.is_staff:
-        return JsonResponse({
-            'success': False,
-            'error': _('Permission denied. Staff access required.')
-        }, status=403)
-    
-    try:
-        # Parse request body
-        data = json.loads(request.body) if request.body else {}
-        content_type = data.get('content_type', 'all')
-        include_sitemap = data.get('include_sitemap', True)
-        force = data.get('force', False)
-        
-        # Validate content_type
-        valid_types = ['all', 'video', 'audio', 'pdf']
-        if content_type not in valid_types:
-            return JsonResponse({
-                'success': False,
-                'error': f'Invalid content_type. Must be one of: {", ".join(valid_types)}'
-            }, status=400)
-        
-        # Initialize service
-        service = GoogleReindexingService()
-        
-        # Create task
-        try:
-            task_id = service.initiate_reindexing(
-                user=request.user,
-                content_type=content_type,
-                include_sitemap=include_sitemap,
-                force=force
-            )
-        except ValueError as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            }, status=400)
-        
-        # Get URL count for estimation
-        urls = service.get_active_urls(content_type)
-        estimated_duration = service.estimate_duration(len(urls))
-        
-        # Start Celery task asynchronously
-        reindex_website_google.delay(task_id, content_type, include_sitemap, force)
-        
-        logger.info(
-            f"User {request.user.username} initiated re-indexing task {task_id} "
-            f"for {len(urls)} URLs (content_type={content_type}, force={force})"
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'task_id': task_id,
-            'total_urls': len(urls),
-            'estimated_duration': estimated_duration,
-            'message': _('Re-indexing task initiated successfully')
-        })
-        
-    except Exception as e:
-        logger.exception(f"Error initiating re-indexing: {e}")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-@login_required
-def reindex_status(request, task_id):
-    """
-    Get real-time status of a re-indexing task.
-    
-    Returns:
-        JSON with task status, progress, and statistics
-    """
-    # Check staff permission
-    if not request.user.is_staff:
-        return JsonResponse({
-            'success': False,
-            'error': _('Permission denied. Staff access required.')
-        }, status=403)
-    
-    try:
-        service = GoogleReindexingService()
-        status_data = service.get_task_status(str(task_id))
-        
-        if 'error' in status_data:
-            return JsonResponse({
-                'success': False,
-                'error': status_data['error']
-            }, status=404)
-        
-        # Add error details if available
-        try:
-            task = GoogleReindexingTask.objects.get(id=task_id)
-            if task.error_log and task.error_log != '[]':
-                errors = json.loads(task.error_log)
-                status_data['errors'] = errors[-10:]  # Last 10 errors
-        except:
-            pass
-        
-        return JsonResponse({
-            'success': True,
-            **status_data
-        })
-        
-    except Exception as e:
-        logger.exception(f"Error getting task status: {e}")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-@login_required
-@require_POST
-def cancel_reindex(request, task_id):
-    """
-    Cancel a running re-indexing task.
-    
-    Returns:
-        JSON with cancellation status and partial results
-    """
-    # Check staff permission
-    if not request.user.is_staff:
-        return JsonResponse({
-            'success': False,
-            'error': _('Permission denied. Staff access required.')
-        }, status=403)
-    
-    try:
-        service = GoogleReindexingService()
-        cancelled = service.cancel_task(str(task_id))
-        
-        if not cancelled:
-            return JsonResponse({
-                'success': False,
-                'error': _('Task cannot be cancelled (already completed or not found)')
-            }, status=400)
-        
-        # Get final status
-        status_data = service.get_task_status(str(task_id))
-        
-        logger.info(f"User {request.user.username} cancelled re-indexing task {task_id}")
-        
-        return JsonResponse({
-            'success': True,
-            'cancelled': True,
-            'message': _('Re-indexing task cancelled successfully'),
-            'partial_results': {
-                'submitted': status_data.get('submitted', 0),
-                'successful': status_data.get('successful', 0),
-                'failed': status_data.get('failed', 0),
-            }
-        })
-        
-    except Exception as e:
-        logger.exception(f"Error cancelling task: {e}")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-@login_required
-def reindex_history(request):
-    """
-    Get history of past re-indexing operations.
-    
-    Query Parameters:
-        limit: Maximum number of tasks to return (default: 10, max: 50)
-    
-    Returns:
-        JSON with list of past re-indexing tasks
-    """
-    # Check staff permission
-    if not request.user.is_staff:
-        return JsonResponse({
-            'success': False,
-            'error': _('Permission denied. Staff access required.')
-        }, status=403)
-    
-    try:
-        # Get limit from query params
-        limit = min(int(request.GET.get('limit', 10)), 50)
-        
-        service = GoogleReindexingService()
-        tasks = service.get_reindexing_history(limit=limit)
-        
-        # Serialize tasks
-        tasks_data = []
-        for task in tasks:
-            tasks_data.append({
-                'task_id': str(task.id),
-                'status': task.status,
-                'content_type': task.content_type,
-                'total_urls': task.total_urls,
-                'successful_urls': task.successful_urls,
-                'failed_urls': task.failed_urls,
-                'success_rate': task.get_success_rate(),
-                'initiated_by': task.initiated_by.username if task.initiated_by else None,
-                'started_at': task.started_at.isoformat() if task.started_at else None,
-                'completed_at': task.completed_at.isoformat() if task.completed_at else None,
-                'created_at': task.created_at.isoformat(),
-            })
-        
-        return JsonResponse({
-            'success': True,
-            'tasks': tasks_data,
-            'count': len(tasks_data)
-        })
-        
-    except Exception as e:
-        logger.exception(f"Error getting re-indexing history: {e}")
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-@login_required
-def seo_reindex_page(request):
-    """
-    Render the Google re-indexing control panel page.
-    """
-    # Check staff permission
-    if not request.user.is_staff:
-        messages.error(request, _('Permission denied. Staff access required.'))
-        return redirect('frontend_api:admin_dashboard')
-    
-    return render(request, 'admin/seo_reindex.html', {
-        'current_language': get_language(),
-    })
-
-
 # ============================================================================
 # API Upload Queue Management Views
 # ============================================================================
@@ -2541,226 +2291,190 @@ def document_delete(request, content_id):
         }, status=500)
 
 
-# ============================================================================
-# Google Indexing Queue Management Views
-# ============================================================================
-
 @login_required
-def indexing_queue_dashboard(request):
-    """
-    Display Google Indexing Queue dashboard with statistics and recent items.
-    Shows queue status, quota usage, and allows manual processing/revalidation.
-    """
-    # Check staff permission
-    if not request.user.is_staff:
-        messages.error(request, _('Permission denied. Staff access required.'))
-        return redirect('frontend_api:admin_dashboard')
-    
-    # Get statistics
-    stats = GoogleIndexingQueueService.get_queue_statistics()
-    
-    # Get recent items by status
-    recent_pending = GoogleIndexingQueue.objects.filter(
-        status='pending'
-    ).select_related('content_item').order_by('-priority', 'created_at')[:10]
-    
-    recent_invalid = GoogleIndexingQueue.objects.filter(
-        status='invalid'
-    ).select_related('content_item').order_by('-created_at')[:10]
-    
-    recent_failed = GoogleIndexingQueue.objects.filter(
-        status='failed'
-    ).select_related('content_item').order_by('-processed_at')[:10]
-    
-    recent_success = GoogleIndexingQueue.objects.filter(
-        status='success'
-    ).select_related('content_item').order_by('-processed_at')[:10]
-    
-    # Format google_response as pretty JSON for display
-    import json
-    for item in list(recent_pending) + list(recent_invalid) + list(recent_failed) + list(recent_success):
-        if item.google_response:
-            try:
-                item.google_response = json.dumps(item.google_response, indent=2, ensure_ascii=False)
-            except:
-                pass
-    
+def jobs_dashboard(request):
+    """Unified dashboard for ProcessingJob and APIUploadQueue items."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
     context = {
-        'stats': stats,
-        'recent_pending': recent_pending,
-        'recent_invalid': recent_invalid,
-        'recent_failed': recent_failed,
-        'recent_success': recent_success,
-        'current_language': get_language(),
+        'status_counts': get_jobs_counts(),
+        'current_tab': request.GET.get('status', 'active'),
+        'content_type_filter': request.GET.get('type', 'all'),
+        'search_query': request.GET.get('search', '').strip(),
+        'per_page': int(request.GET.get('per_page', 20)),
     }
-    
-    return render(request, 'admin/indexing_queue_dashboard.html', context)
+    return render(request, 'admin/jobs_dashboard.html', context)
 
 
 @login_required
-def api_indexing_queue_stats(request):
-    """
-    API endpoint to get indexing queue statistics.
-    GET /dashboard/indexing-queue/stats/
-    """
-    try:
-        stats = GoogleIndexingQueueService.get_queue_statistics()
-        
-        return JsonResponse({
-            'success': True,
-            'stats': stats
-        })
-        
-    except Exception as e:
-        logger.error(f"Error getting indexing queue stats: {e}", exc_info=True)
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+def api_jobs_list(request):
+    """Return the merged job list as an HTMX partial."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    status_filter = request.GET.get('status', 'active')
+    content_type_filter = request.GET.get('type', 'all')
+    search_query = request.GET.get('search', '').strip()
+    per_page = max(1, int(request.GET.get('per_page', 20)))
+    page_number = max(1, int(request.GET.get('page', 1)))
+
+    page_obj = get_all_jobs(
+        status_filter=status_filter,
+        page=page_number,
+        per_page=per_page,
+        content_type=content_type_filter,
+        search_query=search_query,
+    )
+
+    context = {
+        'jobs': page_obj.object_list,
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'content_type_filter': content_type_filter,
+        'search_query': search_query,
+        'per_page': per_page,
+    }
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/jobs_table.html', context)
+
+    redirect_params = urlencode({
+        'status': status_filter,
+        'type': content_type_filter,
+        'search': search_query,
+        'per_page': per_page,
+        'page': page_number,
+    })
+    return redirect(
+        f"{reverse('frontend_api:jobs_dashboard')}?{redirect_params}"
+    )
 
 
 @login_required
-@require_POST
-def api_process_indexing_queue(request):
-    """
-    Manually trigger processing of indexing queue.
-    POST /dashboard/indexing-queue/process/
-    """
-    try:
-        batch_size = int(request.POST.get('batch_size', 10))
-        
-        # Trigger task
-        task = process_google_indexing_queue.delay(batch_size=batch_size)
-        
-        logger.info(f"Manually triggered indexing queue processing (batch_size={batch_size})")
-        
-        return JsonResponse({
-            'success': True,
-            'message': _('Queue processing started'),
-            'task_id': task.id
-        })
-        
-    except Exception as e:
-        logger.error(f"Error triggering indexing queue processing: {e}", exc_info=True)
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+def api_jobs_stats(request):
+    """Return aggregate job counts for dashboard badges."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
 
-
-@login_required
-@require_POST
-def api_revalidate_invalid_items(request):
-    """
-    Manually trigger revalidation of invalid items.
-    POST /dashboard/indexing-queue/revalidate/
-    """
-    try:
-        # Trigger task
-        task = revalidate_invalid_indexing_items.delay()
-        
-        logger.info("Manually triggered revalidation of invalid indexing items")
-        
-        return JsonResponse({
-            'success': True,
-            'message': _('Revalidation started'),
-            'task_id': task.id
-        })
-        
-    except Exception as e:
-        logger.error(f"Error triggering revalidation: {e}", exc_info=True)
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+    return JsonResponse(get_jobs_counts())
 
 
 @login_required
 @require_POST
-def api_retry_failed_items(request):
-    """
-    Manually trigger retry of failed items.
-    POST /dashboard/indexing-queue/retry-failed/
-    """
-    try:
-        limit = int(request.POST.get('limit', 50))
-        
-        # Trigger task
-        task = retry_failed_indexing_items.delay(limit=limit)
-        
-        logger.info(f"Manually triggered retry of failed items (limit={limit})")
-        
+def api_job_cancel(request):
+    """Cancel a ProcessingJob or APIUploadQueue item."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    payload = parse_request_payload(request)
+    job_id = payload.get('job_id')
+    source = payload.get('source')
+
+    if not job_id or not source:
+        return JsonResponse({'success': False, 'error': _('job_id and source are required')}, status=400)
+
+    if source == 'processing_job':
+        job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
+        if job.celery_task_id:
+            celery_app.control.revoke(job.celery_task_id, terminate=True)
+
+        job.status = 'canceled'
+        job.failure_stage = job.current_stage
+        job.failure_reason = _('Cancelled by admin')
+        job.save(update_fields=['status', 'failure_stage', 'failure_reason', 'updated_at'])
+
         return JsonResponse({
             'success': True,
-            'message': _('Retry started'),
-            'task_id': task.id
+            'message': _('Processing job cancelled successfully'),
         })
-        
-    except Exception as e:
-        logger.error(f"Error triggering retry: {e}", exc_info=True)
+
+    if source == 'api_queue':
+        queue_item = get_object_or_404(APIUploadQueue, id=job_id)
+        APIUploadQueueService.cancel_item(str(queue_item.id))
         return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+            'success': True,
+            'message': _('API queue item cancelled successfully'),
+        })
+
+    return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
 
 
 @login_required
-def api_indexing_queue_items(request):
-    """
-    API endpoint to get indexing queue items with filtering and pagination.
-    GET /dashboard/indexing-queue/items/
-    """
-    try:
-        # Get filters
-        status = request.GET.get('status', '')
-        page = int(request.GET.get('page', 1))
-        per_page = int(request.GET.get('per_page', 20))
-        
-        # Build queryset
-        queryset = GoogleIndexingQueue.objects.select_related('content_item').order_by('-priority', 'created_at')
-        
-        if status:
-            queryset = queryset.filter(status=status)
-        
-        # Paginate
-        paginator = Paginator(queryset, per_page)
-        page_obj = paginator.get_page(page)
-        
-       # Serialize items
-        items = []
-        for item in page_obj:
-            items.append({
-                'id': str(item.id),
-                'url': item.url,
-                'action': item.action,
-                'status': item.status,
-                'priority': item.priority,
-                'retry_count': item.retry_count,
-                'error_message': item.error_message,
-                'error_code': item.error_code,
-                'content_title': item.content_item.get_title() if item.content_item else 'N/A',
-                'content_type': item.content_item.content_type if item.content_item else 'N/A',
-                'created_at': item.created_at.isoformat() if item.created_at else None,
-                'processed_at': item.processed_at.isoformat() if item.processed_at else None,
-                'scheduled_for': item.scheduled_for.isoformat() if item.scheduled_for else None,
-            })
-        
+@require_POST
+def api_job_promote(request):
+    """Promote a pending job so it runs immediately."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    payload = parse_request_payload(request)
+    job_id = payload.get('job_id')
+    source = payload.get('source')
+
+    if not job_id or not source:
+        return JsonResponse({'success': False, 'error': _('job_id and source are required')}, status=400)
+
+    if source == 'processing_job':
+        job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
+        if job.status not in ['pending', 'failed']:
+            return JsonResponse({'success': False, 'error': _('Job is already running or completed')}, status=400)
+
+        selected_stage = job.failure_stage or job.current_stage or 'file_processing'
+        task = dispatch_processing_task(job.content_item, stage=selected_stage)
+        if not task:
+            return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+
+        job.status = 'processing'
+        job.celery_task_id = task.id
+        job.retry_count += 1
+        job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'updated_at'])
+
         return JsonResponse({
             'success': True,
-            'items': items,
-            'pagination': {
-                'page': page,
-                'per_page': per_page,
-                'total_pages': paginator.num_pages,
-                'total_items': paginator.count,
-                'has_previous': page_obj.has_previous(),
-                'has_next': page_obj.has_next(),
-            }
+            'message': _('Processing job promoted successfully'),
+            'task_id': task.id,
         })
-        
-    except Exception as e:
-        logger.error(f"Error getting indexing queue items: {e}", exc_info=True)
+
+    if source == 'api_queue':
+        queue_item = get_object_or_404(APIUploadQueue, id=job_id)
+        APIUploadQueueService.promote_item(str(queue_item.id))
         return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+            'success': True,
+            'message': _('API queue item promoted successfully'),
+        })
+
+    return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
+
+
+@login_required
+@require_POST
+def api_job_dispatch(request):
+    """Manually dispatch a processing job for a content item."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    payload = parse_request_payload(request)
+    content_id = payload.get('content_id')
+    stage = payload.get('stage', 'full')
+
+    if not content_id:
+        return JsonResponse({'success': False, 'error': _('content_id is required')}, status=400)
+
+    content_item = get_object_or_404(ContentItem, id=content_id)
+    task_id = dispatch_content_item_for_stage(content_item, stage)
+
+    if not task_id:
+        return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+
+    return JsonResponse({
+        'success': True,
+        'task_id': task_id,
+        'message': _('Job dispatched successfully'),
+    })
+
+

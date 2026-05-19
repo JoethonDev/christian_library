@@ -51,7 +51,7 @@ class GeminiManager:
             logger.error(f"Metadata generation failed: {e}")
             return False, {"error": str(e)}
     
-    def generate_seo(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
+    def generate_seo(self, file_path: str, content_type: str, context_text: str = None) -> Tuple[bool, Dict]:
         """
         Generate SEO metadata using Gemini 3 Flash with automatic fallback.
         
@@ -74,7 +74,7 @@ class GeminiManager:
                 logger.info(f"Will use fallback model: {fallback_model}")
         
         try:
-            return self.seo_service.generate_seo(file_path, content_type)
+            return self.seo_service.generate_seo(file_path, content_type, context_text=context_text)
         except Exception as e:
             logger.error(f"SEO generation failed: {e}")
             return False, {"error": str(e)}

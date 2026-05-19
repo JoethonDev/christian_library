@@ -1,7 +1,6 @@
 # SEO Analytics and Monitoring Views
 # Add to apps/frontend_api/views.py or create new apps/seo_dashboard/views.py
 
-from django.shortcuts import render
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
@@ -11,6 +10,9 @@ from django.views.generic import TemplateView
 from apps.media_manager.models import ContentItem, Tag, SiteConfiguration
 from collections import Counter
 import json
+
+
+from django.shortcuts import render
 
 
 @method_decorator(staff_member_required, name='dispatch')

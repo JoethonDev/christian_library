@@ -86,17 +86,13 @@ services:
           memory: 2048M
 
   #============================================================================
-  # Celery Workers (Background Tasks - Per Queue)
-  # Reorganized to prevent worker blocking:
-  # - Videos, audios, pdfs: sequential processing (concurrency=1) 
-  # - Gemini AI: parallel SEO generation (concurrency=4)
-  # - Uploads: parallel R2 uploads (concurrency=3)
-  # - Default: general background tasks (concurrency=2)
+  # Celery Workers (Background Tasks)
+  # Two single-concurrency workers listen on all queues.
   #============================================================================
-  celery_worker_videos:
+  celery_worker_primary:
     image: christian-library-app:latest
     restart: unless-stopped
-    command: ["worker", "-Q", "videos", "-c", "1", "-n", "videos@%h"]
+    command: ["worker", "-Q", "videos,audios,pdfs,gemini,uploads,default", "-c", "1", "-n", "primary@%h"]
     env_file: .env
     depends_on:
       db:
@@ -117,10 +113,10 @@ services:
           cpus: '1.0'
           memory: 2048M
 
-  celery_worker_audios:
+  celery_worker_secondary:
     image: christian-library-app:latest
     restart: unless-stopped
-    command: ["worker", "-Q", "audios", "-c", "1", "-n", "audios@%h"]
+    command: ["worker", "-Q", "videos,audios,pdfs,gemini,uploads,default", "-c", "1", "-n", "secondary@%h"]
     env_file: .env
     depends_on:
       db:
@@ -140,102 +136,6 @@ services:
         limits:
           cpus: '1.0'
           memory: 2048M
-
-  celery_worker_pdfs:
-    image: christian-library-app:latest
-    restart: unless-stopped
-    command: ["worker", "-Q", "pdfs", "-c", "1", "-n", "pdfs@%h"]
-    env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      app:
-        condition: service_healthy
-    volumes:
-      - media_data:/app/media
-      - logs_data:/app/logs
-    networks:
-      - backend
-      - frontend
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2048M
-
-  celery_worker_gemini:
-    image: christian-library-app:latest
-    restart: unless-stopped
-    command: ["worker", "-Q", "gemini", "-c", "4", "-n", "gemini@%h"]
-    env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      app:
-        condition: service_healthy
-    volumes:
-      - media_data:/app/media
-      - logs_data:/app/logs
-    networks:
-      - backend
-      - frontend
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1024M
-
-  celery_worker_uploads:
-    image: christian-library-app:latest
-    restart: unless-stopped
-    command: ["worker", "-Q", "uploads", "-c", "3", "-n", "uploads@%h"]
-    env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      app:
-        condition: service_healthy
-    volumes:
-      - media_data:/app/media
-      - logs_data:/app/logs
-    networks:
-      - backend
-      - frontend
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1024M
-
-  celery_worker_default:
-    image: christian-library-app:latest
-    restart: unless-stopped
-    command: ["worker", "-Q", "default", "-c", "2", "-n", "default@%h"]
-    env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      app:
-        condition: service_healthy
-    volumes:
-      - media_data:/app/media
-      - logs_data:/app/logs
-    networks:
-      - backend
-      - frontend
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 1024M
 
   #============================================================================
   # Celery Beat (Scheduler)

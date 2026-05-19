@@ -1,0 +1,49 @@
+<!-- templates/users/preferences.html - Coptic Orthodox Theme -->
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-lg-8">
+        <div class="card card-coptic">
+            <div class="card-body p-4 p-md-5">
+                <div class="text-center mb-4">
+                    <h3 class="heading-font text-maroon fw-bold mb-2">{% trans "Preferences" %}</h3>
+                    <p class="body-font text-muted mb-0">{% trans "These settings are placeholders for future personalization." %}</p>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="email-updates" checked>
+                                <label class="form-check-label fw-bold" for="email-updates">{% trans "Email Updates" %}</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="dark-reader">
+                                <label class="form-check-label fw-bold" for="dark-reader">{% trans "High Contrast Mode" %}</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label heading-font text-maroon fw-bold">{% trans "Default Language" %}</label>
+                            <select class="form-select form-select-lg" name="language" style="background: var(--color-golden-ochre-10); border-radius: 12px;">
+                                <option value="ar">{% trans "Arabic" %}</option>
+                                <option value="en">{% trans "English" %}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="text-center text-md-start mt-5">
+                        <button type="submit" class="btn btn-primary btn-lg rounded-pill px-5 py-3">
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>{% trans "Save Preferences" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

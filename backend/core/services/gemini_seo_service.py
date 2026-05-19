@@ -17,13 +17,19 @@ class GeminiSEOService(BaseGeminiService):
         """Initialize with Gemini 3 Flash as default model"""
         super().__init__(default_model=self.MODEL_3_FLASH)
     
-    def generate_seo(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
+    def generate_seo(
+        self,
+        file_path: str,
+        content_type: str,
+        context_text: str = None,
+    ) -> Tuple[bool, Dict]:
         """
         Generate SEO metadata for uploaded file using Gemini AI
         
         Args:
             file_path: Path to the uploaded file
             content_type: Type of content ('video', 'audio', 'pdf')
+            context_text: Optional extracted text to analyze instead of the raw file
             
         Returns:
             Tuple of (success: bool, seo_data: dict)
@@ -46,9 +52,19 @@ class GeminiSEOService(BaseGeminiService):
         if not self.is_available():
             return False, {"error": "Gemini AI service not available"}
             
+        uploaded_file = None
         try:
-            # Upload file to Gemini
-            uploaded_file = self._upload_file(file_path)
+            text_content = None
+            if context_text and context_text.strip():
+                text_content = context_text.strip()
+                logger.info(
+                    "Using extracted context text for SEO generation (%s, %d chars)",
+                    content_type,
+                    len(text_content),
+                )
+            else:
+                # Upload file to Gemini Files API
+                uploaded_file = self._upload_file(file_path)
             
             # Create SEO prompt
             prompt = self._create_seo_prompt(content_type)
@@ -112,10 +128,14 @@ class GeminiSEOService(BaseGeminiService):
             }
             
             # Generate content with Gemini
-            seo_data = self._generate_content(prompt, uploaded_file, response_schema)
-            
-            # Clean up uploaded file
-            self._cleanup_file(uploaded_file)
+            seo_data = self._generate_content(
+                prompt,
+                uploaded_file,
+                response_schema,
+                system_instruction=prompt,
+                cache_key=f"seo:{self.default_model}:{content_type}",
+                text_content=text_content,
+            )
             
             # Validate and clean response
             cleaned_seo = self._validate_seo(seo_data)
@@ -126,6 +146,9 @@ class GeminiSEOService(BaseGeminiService):
         except Exception as e:
             logger.error(f"Error generating SEO metadata: {e}")
             return False, {"error": f"AI generation failed: {str(e)}"}
+        finally:
+            if uploaded_file is not None:
+                self._cleanup_file(uploaded_file)
     
     def _create_seo_prompt(self, content_type: str) -> str:
         """

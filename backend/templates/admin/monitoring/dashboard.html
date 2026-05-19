@@ -1,0 +1,85 @@
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Monitoring Dashboard" %}{% endblock %}
+
+{% block admin_content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Monitoring Dashboard" %}</h1>
+        <p class="text-muted mb-0">{% trans "Application health, performance, and alert overview" %}</p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "CPU" %}</div>
+                <div class="display-6 fw-bold">{{ system_metrics.cpu_percent|default:"--" }}%</div>
+                <div class="text-muted small mt-2">{% trans "Memory" %}: {{ system_metrics.memory_percent|default:"--" }}%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "Disk" %}</div>
+                <div class="display-6 fw-bold">{{ system_metrics.disk_usage|default:"--" }}%</div>
+                <div class="text-muted small mt-2">{% trans "Processes" %}: {{ system_metrics.process_count|default:"--" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "Errors" %}</div>
+                <div class="display-6 fw-bold">{{ error_summary.errors_this_hour|default:"0" }}</div>
+                <div class="text-muted small mt-2">{% trans "Trending up" %}: {{ error_summary.trending_up|yesno:"Yes,No" }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="text-muted small text-uppercase fw-bold mb-2">{% trans "Operations / Min" %}</div>
+                <div class="display-6 fw-bold">{{ performance_metrics.operations_per_minute|default:"--" }}</div>
+                <div class="text-muted small mt-2">{% trans "Avg response" %}: {{ performance_metrics.avg_response_time|default:"--" }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">{% trans "Health Report" %}</h6>
+            </div>
+            <div class="card-body p-4">
+                <pre class="mb-0 small bg-light rounded-3 p-3">{{ health_report|default:"{}" }}</pre>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">{% trans "Recent Alerts" %}</h6>
+            </div>
+            <div class="card-body p-4">
+                {% if recent_alerts %}
+                    <ul class="list-group list-group-flush">
+                        {% for alert in recent_alerts %}
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
+                                <span>{{ alert }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">{% trans "No recent alerts." %}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

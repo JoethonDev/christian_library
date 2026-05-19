@@ -8,8 +8,9 @@ from django.db.models import Count
 from django.utils import timezone
 from apps.health.task_monitor import TaskMonitor
 import logging
-from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2, delete_files_task
+from core.tasks.media_processing import delete_files_task
 from core.services.gemini_manager import get_gemini_manager
+from apps.media_manager.services.job_tracker import job_advance, job_complete, job_fail, job_start
 from apps.media_manager.models import ContentViewEvent, DailyContentViewSummary, APIUploadQueue
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
 
@@ -35,6 +36,7 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         metadata={'content_id': contentitem_id, 'content_type': 'pdf'},
         checklist_steps=['text_extraction', 'search_indexing', 'finalization']
     )
+    job_start(contentitem_id, 'text_extraction', self.request.id)
     
     try:
         logger.info(f"Starting extraction and indexing for ContentItem {contentitem_id}")
@@ -44,6 +46,7 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
         # Only process PDFs
         if item.content_type != 'pdf':
             logger.warning(f"ContentItem {contentitem_id} is not a PDF, skipping extraction")
+            job_complete(contentitem_id)
             TaskMonitor.update_task_status(
                 self.request.id, 
                 'SUCCESS', 
@@ -108,11 +111,12 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
             completed=True,
             message='Search indexing completed successfully'
         )
+        job_advance(contentitem_id, 'r2_upload')
         
         extracted_length = len(item.book_content) if item.book_content else 0
         logger.info(f"Successfully completed extraction and indexing for ContentItem {contentitem_id}: {extracted_length} characters")
         
-        # Parallel Trigger: Trigger SEO generation and R2 upload at the same time
+        # Trigger SEO generation after extraction finishes.
         if item.content_type in ['video', 'audio', 'pdf']:
             TaskMonitor.update_progress(
                 self.request.id, 
@@ -120,20 +124,8 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
                 step="finalization"
             )
             
-            # 1. Trigger SEO generation
+            # Trigger SEO generation.
             generate_seo_metadata_task.delay(str(item.id))
-            
-            # 2. Trigger R2 upload
-            if getattr(settings, 'R2_ENABLED', False):
-                meta = item.get_meta_object()
-                if meta:
-                    if item.content_type == 'video':
-                        upload_video_to_r2.delay(str(meta.id))
-                    elif item.content_type == 'audio':
-                        upload_audio_to_r2.delay(str(meta.id))
-                    elif item.content_type == 'pdf':
-                        upload_pdf_to_r2.delay(str(meta.id))
-                    logger.info(f"Triggered parallel R2 upload for {item.content_type}: {meta.id}")
         
         # Mark finalization as completed
         TaskMonitor.update_checklist_step(
@@ -156,6 +148,7 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
     except ContentItem.DoesNotExist:
         error_msg = f"ContentItem {contentitem_id} not found"
         logger.error(error_msg)
+        job_fail(contentitem_id, 'text_extraction', error_msg)
         TaskMonitor.update_task_status(self.request.id, 'FAILURE', error=error_msg)
         # Don't retry for non-existent items
         return
@@ -163,6 +156,7 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
     except Exception as exc:
         error_msg = f"Error processing ContentItem {contentitem_id}: {str(exc)}"
         logger.error(error_msg, exc_info=True)
+        job_fail(contentitem_id, 'text_extraction', exc)
         
         TaskMonitor.update_task_status(
             self.request.id, 
@@ -214,6 +208,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         },
         checklist_steps=['validation', 'ai_generation', 'content_update']
     )
+    job_start(contentitem_id, 'seo_generation', self.request.id)
     
     try:
         logger.info(f"🔄 Starting SEO metadata generation for ContentItem {contentitem_id} (attempt {self.request.retries + 1}/{self.max_retries + 1}, force={force_regenerate})")
@@ -255,37 +250,42 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         # Update SEO status to processing
         item.seo_processing_status = 'processing'
         item.save(update_fields=['seo_processing_status'])
-        
+
         TaskMonitor.update_progress(
             self.request.id, 
             message='Preparing content for AI analysis...', 
             step='ai_generation'
         )
         
-        # Get the media file path
+        # Get the media file path, or fall back to extracted text if the file has already been cleaned up.
         meta = item.get_meta_object()
-        if not meta or not hasattr(meta, 'original_file') or not meta.original_file:
+        context_text = item.book_content if item.book_content else None
+        file_path = None
+
+        if meta and hasattr(meta, 'original_file') and meta.original_file:
+            file_path = meta.original_file.path
+            if not os.path.exists(file_path):
+                if not context_text:
+                    logger.warning(f"Media file not found at {file_path}")
+                    item.seo_processing_status = 'failed'
+                    item.save(update_fields=['seo_processing_status'])
+                    TaskMonitor.update_task_status(
+                        self.request.id,
+                        'FAILURE',
+                        {'message': 'Media file not found on disk', 'progress': 100}
+                    )
+                    return
+                file_path = None
+        elif not context_text:
             logger.warning(f"No media file found for ContentItem {contentitem_id}")
             item.seo_processing_status = 'failed'
             item.save(update_fields=['seo_processing_status'])
             TaskMonitor.update_task_status(
-                self.request.id, 
-                'FAILURE', 
+                self.request.id,
+                'FAILURE',
                 {'message': 'No media file found', 'progress': 100}
             )
             return
-        
-        file_path = meta.original_file.path
-        if not os.path.exists(file_path):
-             logger.warning(f"Media file not found at {file_path}")
-             item.seo_processing_status = 'failed'
-             item.save(update_fields=['seo_processing_status'])
-             TaskMonitor.update_task_status(
-                 self.request.id, 
-                 'FAILURE', 
-                 {'message': 'Media file not found on disk', 'progress': 100}
-             )
-             return
 
         TaskMonitor.update_progress(
             self.request.id, 
@@ -308,7 +308,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
             'AI Processing'
         )
         
-        success, seo_metadata = manager.generate_seo(file_path, item.content_type)
+        success, seo_metadata = manager.generate_seo(file_path, item.content_type, context_text=context_text)
         
         if success and seo_metadata:
             TaskMonitor.update_progress(
@@ -341,6 +341,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
                     'SUCCESS', 
                     {'message': 'AI SEO metadata generated successfully', 'progress': 100}
                 )
+                job_advance(contentitem_id, 'r2_upload')
                 
                 # Check for cleanup
                 finalize_media_processing.delay(str(item.id))
@@ -348,6 +349,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
                 logger.error(f"Failed to update SEO metadata for ContentItem {contentitem_id}")
                 item.seo_processing_status = 'failed'
                 item.save(update_fields=['seo_processing_status'])
+                job_fail(contentitem_id, 'seo_generation', 'Failed to save AI-generated metadata')
                 TaskMonitor.update_task_status(
                     self.request.id, 
                     'FAILURE', 
@@ -360,6 +362,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         
     except ContentItem.DoesNotExist:
         logger.error(f"ContentItem {contentitem_id} not found")
+        job_fail(contentitem_id, 'seo_generation', 'Content not found')
         TaskMonitor.update_task_status(
             self.request.id, 
             'FAILURE', 
@@ -369,6 +372,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         
     except Exception as exc:
         logger.error(f"💥 Error generating SEO metadata for ContentItem {contentitem_id}: {str(exc)}", exc_info=True)
+        job_fail(contentitem_id, 'seo_generation', exc)
         
         # Enhanced error detection
         is_rate_limit_error = _is_gemini_rate_limit_error(exc)
@@ -383,6 +387,8 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
             # This was the 3rd attempt (retries = 2)
             next_3am_delay = _calculate_next_3am_delay()
             logger.warning(f"❌ 3 attempts failed for ContentItem {contentitem_id}. Scheduling next attempt for 3:00 AM.")
+            item.seo_processing_status = 'failed'
+            item.save(update_fields=['seo_processing_status'])
             
             TaskMonitor.update_task_status(
                 self.request.id, 
@@ -543,6 +549,7 @@ def finalize_media_processing(contentitem_id):
                 if local_paths and item.has_seo_metadata():
                     delete_files_task.delay(local_paths)
                     logger.info(f"Queued deletion for {len(local_paths)} paths for item {item.id}")
+                job_complete(contentitem_id)
                     
             except Exception as e:
                 logger.warning(f"Error preparing local files for deletion for item {item.id}: {e}")
@@ -553,6 +560,10 @@ def finalize_media_processing(contentitem_id):
         pass
     except Exception as e:
         logger.error(f"Error in finalize_media_processing: {str(e)}")
+        try:
+            job_fail(contentitem_id, 'completed', e)
+        except Exception:
+            pass
 
 
 @shared_task
@@ -688,7 +699,7 @@ def aggregate_daily_content_views():
 # ============================================================================
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=300)
-def process_upload_queue_item(self, queue_item_id):
+def process_upload_queue_item(self, queue_item_id, trigger_next=True):
     """
     Process a queue item from the API upload queue.
     Creates ContentItem and triggers media processing pipeline.
@@ -709,9 +720,10 @@ def process_upload_queue_item(self, queue_item_id):
     
     try:
         # Process the queue item
-        content_item = APIUploadQueueService.process_queue_item(queue_item_id)
+        content_item = APIUploadQueueService.process_queue_item(queue_item_id, trigger_next=trigger_next)
         
         if content_item:
+            job_start(content_item.id, 'file_processing', self.request.id)
             logger.info(f'Successfully created ContentItem {content_item.id} from queue item {queue_item_id}')
         else:
             logger.warning(f'Failed to create ContentItem from queue item {queue_item_id}')
@@ -739,90 +751,47 @@ def process_upload_queue_item(self, queue_item_id):
 
 
 @shared_task
-def process_scheduled_queue_items():
+def process_pending_queue_items(include_rate_limited=False):
     """
     Periodic task to process items scheduled for current time.
-    Runs every hour via Celery Beat.
+    Runs every hour via Celery Beat, and again at 3:00 AM with rate-limited items.
     Respects content type concurrency limits.
     """
-    
+
     now = timezone.now()
-    logger.info(f'Processing scheduled queue items at {now}')
-    
-    # Find items scheduled for now or past
+    logger.info(
+        f'Processing pending queue items at {now} (include_rate_limited={include_rate_limited})'
+    )
+
+    status_filter = ['queued']
+    if include_rate_limited:
+        status_filter.append('rate_limited')
+
     scheduled_items = APIUploadQueue.objects.filter(
-        status__in=['queued', 'rate_limited'],
+        status__in=status_filter,
         scheduled_for__lte=now,
-        delay_count__lt=7
-    ).order_by('-priority', 'scheduled_for')
-    
+        delay_count__lt=7,
+    ).order_by('-priority', 'scheduled_for', 'created_at')
+
     processed_types = set()
     processed_count = 0
-    
+
     for item in scheduled_items:
-        # Only process one item per content type
         if item.content_type in processed_types:
             continue
-        
-        # Check if can process this type
+
         if APIUploadQueueService.can_process_type(item.content_type):
             item.queue_status = 'ready'
             item.status = 'queued'
             item.save(update_fields=['queue_status', 'status', 'updated_at'])
-            
-            # Trigger processing
+
             process_upload_queue_item.delay(str(item.id))
-            
+
             processed_types.add(item.content_type)
             processed_count += 1
-            logger.info(f'Triggered processing for scheduled item {item.id}')
-    
-    logger.info(f'Processed {processed_count} scheduled items')
-    return processed_count
+            logger.info(f'Triggered processing for pending item {item.id}')
 
-
-@shared_task
-def process_delayed_3am_queue():
-    """
-    Scheduled task to process items delayed for 3:00 AM.
-    Runs daily at 3:00 AM via Celery Beat.
-    Processes all items scheduled for current day.
-    """
-    
-    now = timezone.now()
-    logger.info(f'Processing 3:00 AM delayed queue at {now}')
-    
-    # Find items scheduled for today
-    today = now.date()
-    scheduled_items = APIUploadQueue.objects.filter(
-        status='rate_limited',
-        queue_status='delayed',
-        scheduled_for__date=today,
-        delay_count__lt=7
-    ).order_by('-priority', 'created_at')
-    
-    processed_types = set()
-    processed_count = 0
-    
-    for item in scheduled_items:
-        # Only process one item per content type at a time
-        if item.content_type in processed_types:
-            continue
-        
-        # Check if can process this type
-        if APIUploadQueueService.can_process_type(item.content_type):
-            item.queue_status = 'ready'
-            item.status = 'queued'
-            item.save(update_fields=['queue_status', 'status', 'updated_at'])
-            
-            # Trigger processing
-            process_upload_queue_item.delay(str(item.id))
-            
-            processed_types.add(item.content_type)
-            processed_count += 1
-            logger.info(f'Triggered 3 AM processing for item {item.id}')
-    
-    logger.info(f'Processed {processed_count} delayed items at 3:00 AM')
+    logger.info(f'Processed {processed_count} pending queue items')
     return processed_count
 
 
