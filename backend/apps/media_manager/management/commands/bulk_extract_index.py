@@ -3,7 +3,6 @@ Management command to extract text and update search index for all PDFs.
 Usage: python manage.py bulk_extract_index [--force] [--limit N] [--sync]
 """
 from django.core.management.base import BaseCommand
-from django.db import transaction
 from apps.media_manager.models import ContentItem
 from apps.media_manager.tasks import extract_and_index_contentitem
 import logging

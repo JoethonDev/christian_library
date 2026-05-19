@@ -248,6 +248,41 @@ function dispatchJob() {
     .catch(() => alert('{% trans "Dispatch failed" %}'));
 }
 
+function forceReprocessJob(contentId, itemTitle) {
+    if (!contentId) {
+        alert('{% trans "Please enter a Content ID" %}');
+        return;
+    }
+
+    const confirmed = confirm(`{% trans "Force re-process" %} "${itemTitle}"?\n{% trans "This will re-upload to R2 and regenerate AI metadata." %}`);
+    if (!confirmed) {
+        return;
+    }
+
+    fetch("{% url 'frontend_api:api_job_dispatch' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+            'HX-Request': 'true',
+        },
+        body: JSON.stringify({ content_id: contentId, stage: 'full', force: true })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            refreshJobsTable();
+            window.refreshBackgroundJobsBadge();
+            if (window.showToast) {
+                window.showToast('{% trans "Force re-process queued" %}', 'success');
+            }
+        } else {
+            alert(data.error || '{% trans "Dispatch failed" %}');
+        }
+    })
+    .catch(() => alert('{% trans "Dispatch failed" %}'));
+}
+
 function refreshJobStats() {
     fetch("{% url 'frontend_api:api_jobs_stats' %}", { headers: { 'HX-Request': 'true' } })
         .then(response => response.json())

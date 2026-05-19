@@ -61,6 +61,11 @@
                         </td>
                         <td class="pe-4 text-end">
                             <div class="d-flex gap-2 justify-content-end flex-wrap">
+                                {% if job.source == 'processing_job' %}
+                                <button type="button" class="btn btn-sm btn-warning rounded-pill" onclick="forceReprocessJob('{{ job.content_id }}', '{{ job.title|escapejs }}')">
+                                    {% trans "Force Re-Process" %}
+                                </button>
+                                {% endif %}
                                 {% if job.can_retry %}
                                 <button type="button" class="btn btn-sm btn-warning rounded-pill" onclick="runJobAction('retry', '{{ job.id }}', '{{ job.source }}')">
                                     {% trans "Retry" %}

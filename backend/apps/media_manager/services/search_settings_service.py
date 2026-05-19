@@ -5,7 +5,6 @@ Provides cached access to search threshold settings for optimal performance.
 import logging
 from django.core.cache import cache
 from django.db import transaction
-from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 

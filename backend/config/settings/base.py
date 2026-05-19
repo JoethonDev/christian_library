@@ -421,15 +421,6 @@ SECURE_HSTS_SECONDS = 31536000  # 1 year
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
-# CORS Settings
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:80",
-    "http://127.0.0.1:80",
-]
-
 # Logging Configuration
 LOGGING = {
     'version': 1,
@@ -489,8 +480,6 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^http://localhost:\d+$',
     r'^http://127\.0\.0\.1:\d+$',
 ]
-
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', 'AIzaSyB286GvUw1X1yl8cwjMbGIZkFv40BMttTk')
 
 # ============================================================================
 # API UPLOAD SETTINGS

@@ -178,15 +178,3 @@ USE_TZ = True
 
 # Performance optimizations can be added later if needed
 # For now, use the base template configuration to avoid conflicts
-
-# Media processing settings
-MEDIA_PROCESSING = {
-    'ENABLE_DEPENDENCY_CHECK': True,
-    'DEPENDENCY_CHECK_TIMEOUT': 30,
-    'VIDEO_FORMATS': ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'],
-    'AUDIO_FORMATS': ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'],
-    'DOCUMENT_FORMATS': ['pdf', 'doc', 'docx'],
-    'COMPRESSION_QUALITY': 85,
-    'THUMBNAIL_SIZE': (300, 300),
-    'MAX_FILE_SIZE': 5 * 1024 * 1024 * 1024,  # 5GB
-}

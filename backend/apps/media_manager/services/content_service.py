@@ -7,9 +7,7 @@ import uuid
 from django.db import transaction, models
 from django.db.models import Count, Q
 from django.core.exceptions import ValidationError
-from django.core.files.uploadedfile import UploadedFile
 from django.utils.translation import gettext_lazy as _
-from django.conf import settings
 import logging
 
 from ..models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag

@@ -29,13 +29,23 @@ def job_fail(content_item_id, stage, reason):
 
 
 def job_advance(content_item_id, next_stage):
-    ProcessingJob.objects.update_or_create(
+    updated = ProcessingJob.objects.filter(
         content_item_id=content_item_id,
-        defaults={
-            'current_stage': next_stage,
-            'status': 'pending',
-        },
+    ).exclude(
+        status__in=['completed', 'canceled'],
+    ).update(
+        current_stage=next_stage,
+        status='pending',
     )
+
+    if not updated:
+        ProcessingJob.objects.get_or_create(
+            content_item_id=content_item_id,
+            defaults={
+                'current_stage': next_stage,
+                'status': 'pending',
+            },
+        )
 
 
 def job_complete(content_item_id):

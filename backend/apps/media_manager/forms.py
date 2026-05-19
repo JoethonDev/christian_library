@@ -26,12 +26,7 @@ class ContentItemForm(forms.ModelForm):
             'seo_meta_description_en': forms.Textarea(attrs={'rows': 2}),
             'tags': forms.CheckboxSelectMultiple(),
             'structured_data': forms.Textarea(attrs={
-                'rows': 15, 
-                'class': 'vLargeTextField font-monospace',
-                'style': 'font-family: monospace;'
-            }),
-            'structured_data': forms.Textarea(attrs={
-                'rows': 10, 
+                'rows': 10,
                 'class': 'font-monospace',
                 'placeholder': '{ "@context": "https://schema.org", ... }'
             }),
@@ -55,34 +50,6 @@ class ContentItemForm(forms.ModelForm):
                     ensure_ascii=False
                 )
             except (ValueError, TypeError):
-                pass
-
-    def clean_structured_data(self):
-        data = self.cleaned_data.get('structured_data')
-        if not data:
-            return {}
-        
-        if isinstance(data, str):
-            try:
-                import json
-                parsed_data = json.loads(data)
-                if not isinstance(parsed_data, dict):
-                    raise ValidationError("Structured data must be a JSON object (dictionary)")
-                return parsed_data
-            except json.JSONDecodeError as e:
-                raise ValidationError(f"Invalid JSON format: {str(e)}")
-        return data
-        
-        # Pretty print JSON if it exists
-        if self.instance and self.instance.pk and self.instance.structured_data:
-            try:
-                import json
-                self.initial['structured_data'] = json.dumps(
-                    self.instance.structured_data, 
-                    ensure_ascii=False, 
-                    indent=2
-                )
-            except Exception:
                 pass
 
     def clean_structured_data(self):
