@@ -9,6 +9,7 @@ import os
 import re
 import tempfile
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,6 +18,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -27,7 +29,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from apps.frontend_api.admin_services import AdminService
 from apps.media_manager.models import (
     APIUploadQueue, ContentItem, ContentViewEvent,
-    DailyContentViewSummary, Tag, VideoMeta, AudioMeta, PdfMeta,
+    DailyContentViewSummary, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
 )
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
 from apps.media_manager.services.content_service import ContentService
@@ -35,13 +37,25 @@ from apps.media_manager.services.delete_service import MediaProcessingService
 from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.media_manager.services.unified_search_service import get_unified_search_service
 from apps.media_manager.services.upload_service import MediaUploadService
-from apps.media_manager.tasks import generate_seo_metadata_task
 from core.services.gemini_manager import get_gemini_manager
 from core.services.gemini_metadata_service import get_gemini_metadata_service
 from core.services.gemini_seo_service import get_gemini_seo_service
 from core.services.r2_storage_service import get_r2_storage_service
 from core.storage_backends import R2Service
-from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
+from core.tasks.media_processing import (
+    upload_video_to_r2,
+    upload_audio_to_r2,
+    upload_pdf_to_r2,
+)
+from apps.frontend_api.utils.jobs_dashboard import (
+    dispatch_content_item_for_stage,
+    dispatch_processing_task,
+    ensure_staff,
+    get_all_jobs,
+    get_jobs_counts,
+    parse_request_payload,
+)
+from config import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -2275,5 +2289,192 @@ def document_delete(request, content_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def jobs_dashboard(request):
+    """Unified dashboard for ProcessingJob and APIUploadQueue items."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    context = {
+        'status_counts': get_jobs_counts(),
+        'current_tab': request.GET.get('status', 'active'),
+        'content_type_filter': request.GET.get('type', 'all'),
+        'search_query': request.GET.get('search', '').strip(),
+        'per_page': int(request.GET.get('per_page', 20)),
+    }
+    return render(request, 'admin/jobs_dashboard.html', context)
+
+
+@login_required
+def api_jobs_list(request):
+    """Return the merged job list as an HTMX partial."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    status_filter = request.GET.get('status', 'active')
+    content_type_filter = request.GET.get('type', 'all')
+    search_query = request.GET.get('search', '').strip()
+    per_page = max(1, int(request.GET.get('per_page', 20)))
+    page_number = max(1, int(request.GET.get('page', 1)))
+
+    page_obj = get_all_jobs(
+        status_filter=status_filter,
+        page=page_number,
+        per_page=per_page,
+        content_type=content_type_filter,
+        search_query=search_query,
+    )
+
+    context = {
+        'jobs': page_obj.object_list,
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'content_type_filter': content_type_filter,
+        'search_query': search_query,
+        'per_page': per_page,
+    }
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/jobs_table.html', context)
+
+    redirect_params = urlencode({
+        'status': status_filter,
+        'type': content_type_filter,
+        'search': search_query,
+        'per_page': per_page,
+        'page': page_number,
+    })
+    return redirect(
+        f"{reverse('frontend_api:jobs_dashboard')}?{redirect_params}"
+    )
+
+
+@login_required
+def api_jobs_stats(request):
+    """Return aggregate job counts for dashboard badges."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    return JsonResponse(get_jobs_counts())
+
+
+@login_required
+@require_POST
+def api_job_cancel(request):
+    """Cancel a ProcessingJob or APIUploadQueue item."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    payload = parse_request_payload(request)
+    job_id = payload.get('job_id')
+    source = payload.get('source')
+
+    if not job_id or not source:
+        return JsonResponse({'success': False, 'error': _('job_id and source are required')}, status=400)
+
+    if source == 'processing_job':
+        job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
+        if job.celery_task_id:
+            celery_app.control.revoke(job.celery_task_id, terminate=True)
+
+        job.status = 'canceled'
+        job.failure_stage = job.current_stage
+        job.failure_reason = _('Cancelled by admin')
+        job.save(update_fields=['status', 'failure_stage', 'failure_reason', 'updated_at'])
+
+        return JsonResponse({
+            'success': True,
+            'message': _('Processing job cancelled successfully'),
+        })
+
+    if source == 'api_queue':
+        queue_item = get_object_or_404(APIUploadQueue, id=job_id)
+        APIUploadQueueService.cancel_item(str(queue_item.id))
+        return JsonResponse({
+            'success': True,
+            'message': _('API queue item cancelled successfully'),
+        })
+
+    return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
+
+
+@login_required
+@require_POST
+def api_job_promote(request):
+    """Promote a pending job so it runs immediately."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    payload = parse_request_payload(request)
+    job_id = payload.get('job_id')
+    source = payload.get('source')
+
+    if not job_id or not source:
+        return JsonResponse({'success': False, 'error': _('job_id and source are required')}, status=400)
+
+    if source == 'processing_job':
+        job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
+        if job.status not in ['pending', 'failed']:
+            return JsonResponse({'success': False, 'error': _('Job is already running or completed')}, status=400)
+
+        selected_stage = job.failure_stage or job.current_stage or 'file_processing'
+        task = dispatch_processing_task(job.content_item, stage=selected_stage)
+        if not task:
+            return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+
+        job.status = 'processing'
+        job.celery_task_id = task.id
+        job.retry_count += 1
+        job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'updated_at'])
+
+        return JsonResponse({
+            'success': True,
+            'message': _('Processing job promoted successfully'),
+            'task_id': task.id,
+        })
+
+    if source == 'api_queue':
+        queue_item = get_object_or_404(APIUploadQueue, id=job_id)
+        APIUploadQueueService.promote_item(str(queue_item.id))
+        return JsonResponse({
+            'success': True,
+            'message': _('API queue item promoted successfully'),
+        })
+
+    return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
+
+
+@login_required
+@require_POST
+def api_job_dispatch(request):
+    """Manually dispatch a processing job for a content item."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    payload = parse_request_payload(request)
+    content_id = payload.get('content_id')
+    stage = payload.get('stage', 'full')
+
+    if not content_id:
+        return JsonResponse({'success': False, 'error': _('content_id is required')}, status=400)
+
+    content_item = get_object_or_404(ContentItem, id=content_id)
+    task_id = dispatch_content_item_for_stage(content_item, stage)
+
+    if not task_id:
+        return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+
+    return JsonResponse({
+        'success': True,
+        'task_id': task_id,
+        'message': _('Job dispatched successfully'),
+    })
 
 

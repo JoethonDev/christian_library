@@ -165,14 +165,11 @@ R2_PUBLIC_MEDIA_URL = os.environ.get('R2_PUBLIC_MEDIA_URL', '')  # e.g., 'https:
 
 # Optional: Use a custom storage backend if R2 is enabled (to be implemented)
 MEDIA_STORAGE_BACKEND = 'django.core.files.storage.FileSystemStorage'
-if R2_ENABLED:
-    DEFAULT_FILE_STORAGE = 'core.storage_backends.R2MediaStorage'
-    MEDIA_STORAGE_BACKEND = 'core.storage_backends.R2MediaStorage'
-    # MEDIA_URL should point to the public R2 bucket URL if using public access
-    if os.environ.get('R2_PUBLIC_MEDIA_URL'):
-        MEDIA_URL = os.environ['R2_PUBLIC_MEDIA_URL']
-else:
-    DEFAULT_FILE_STORAGE = MEDIA_STORAGE_BACKEND
+
+# Keep Django's default file storage local so uploaded files remain accessible
+# on disk for processing tasks. R2 sync happens explicitly through the upload
+# service after processing completes.
+DEFAULT_FILE_STORAGE = MEDIA_STORAGE_BACKEND
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -276,7 +273,6 @@ CELERY_TASK_ROUTES = {
     # ========================================================================
     'apps.media_manager.tasks.generate_seo_metadata_task': {'queue': 'gemini'},
     'apps.media_manager.tasks.bulk_generate_seo_metadata': {'queue': 'gemini'},
-    'apps.media_manager.tasks.process_delayed_3am_queue': {'queue': 'gemini'},
     
     # ========================================================================
     # UPLOADS WORKER (queue: 'uploads')
@@ -312,7 +308,7 @@ CELERY_TASK_ROUTES = {
     # Maintenance, cleanup, and general background tasks
     # ========================================================================
     'apps.media_manager.tasks.cleanup_expired_queue_items': {'queue': 'default'},
-    'apps.media_manager.tasks.process_scheduled_queue_items': {'queue': 'default'},
+    'apps.media_manager.tasks.process_pending_queue_items': {'queue': 'default'},
     'core.tasks.media_processing.cleanup_failed_uploads': {'queue': 'default'},
     'core.tasks.media_processing.delete_files_task': {'queue': 'default'},
     'apps.media_manager.tasks.aggregate_daily_content_views': {'queue': 'default'},
@@ -364,13 +360,14 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=0, minute=0),  # Run daily at midnight
     },
     # API Upload Queue Management Tasks
-    'process-scheduled-queue-items': {
-        'task': 'apps.media_manager.tasks.process_scheduled_queue_items',
+    'process-pending-queue-items': {
+        'task': 'apps.media_manager.tasks.process_pending_queue_items',
         'schedule': 3600.0,  # Run every hour
     },
-    'process-delayed-3am-queue': {
-        'task': 'apps.media_manager.tasks.process_delayed_3am_queue',
+    'process-pending-rate-limited-queue-items': {
+        'task': 'apps.media_manager.tasks.process_pending_queue_items',
         'schedule': crontab(hour=3, minute=0),  # Run daily at 3:00 AM
+        'kwargs': {'include_rate_limited': True},
     },
     'cleanup-expired-queue-items': {
         'task': 'apps.media_manager.tasks.cleanup_expired_queue_items',

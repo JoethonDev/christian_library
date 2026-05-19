@@ -3,13 +3,14 @@ from django.dispatch import receiver
 from django.core.files.storage import default_storage
 import os
 
-from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta
+from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta, ProcessingJob
 
 
 @receiver(post_save, sender=ContentItem)
 def create_content_meta(sender, instance, created, **kwargs):
     """Create appropriate meta object when ContentItem is created"""
     if created:
+        ProcessingJob.objects.get_or_create(content_item=instance)
         if instance.content_type == 'video':
             VideoMeta.objects.get_or_create(content_item=instance)
         elif instance.content_type == 'audio':

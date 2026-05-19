@@ -304,11 +304,14 @@
                 <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-graph-up-arrow"/></svg>
                 {% trans "SEO Dashboard" %}
             </a>
-            
-            <a href="{% url 'frontend_api:indexing_queue_dashboard' %}" 
-               class="nav-link-admin {% if 'indexing-queue' in request.path %}active{% endif %}">
-                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-graph-up-arrow"/></svg>
-                {% trans "Google Index Dashboard" %}
+
+            <a href="{% url 'frontend_api:jobs_dashboard' %}" 
+               class="nav-link-admin {% if 'dashboard/jobs' in request.path %}active{% endif %}">
+                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-list-task"/></svg>
+                <span class="d-flex align-items-center justify-content-between w-100">
+                    <span>{% trans "Background Jobs" %}</span>
+                    <span id="jobs-sidebar-badge" class="badge rounded-pill text-bg-primary ms-2">--</span>
+                </span>
             </a>
             
             <a href="{% url 'frontend_api:system_monitor' %}" 
@@ -510,6 +513,31 @@
             
             modal.show();
         };
+
+        window.refreshBackgroundJobsBadge = function() {
+            const badge = document.getElementById('jobs-sidebar-badge');
+            if (!badge) {
+                return;
+            }
+
+            fetch('{% url "frontend_api:api_jobs_stats" %}', { headers: { 'HX-Request': 'true' } })
+                .then(response => response.ok ? response.json() : null)
+                .then(data => {
+                    if (!data) {
+                        return;
+                    }
+
+                    const total = (data.active ?? 0) + (data.failed ?? 0);
+                    badge.textContent = total;
+                    badge.className = total > 0 ? 'badge rounded-pill text-bg-danger ms-2' : 'badge rounded-pill text-bg-secondary ms-2';
+                })
+                .catch(() => {});
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            window.refreshBackgroundJobsBadge();
+            setInterval(window.refreshBackgroundJobsBadge, 15000);
+        });
 
         // Override default alert if we want to be aggressive, 
         // but it's better to explicitly use showToast in our code.

@@ -16,9 +16,6 @@
         <p class="text-muted mb-0">{% trans "Analyze and optimize content discoverability" %}</p>
     </div>
     <div class="col-auto d-flex gap-2">
-        <a href="{% url 'frontend_api:seo_reindex_page' %}" class="btn btn-success border shadow-sm rounded-pill">
-            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-repeat"/></svg>{% trans "Google Re-indexing" %}
-        </a>
         <button id="refresh-analysis" class="btn btn-white border shadow-sm rounded-pill">
             <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
         </button>

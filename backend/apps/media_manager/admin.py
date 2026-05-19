@@ -10,6 +10,14 @@ from django.conf import settings
 from django.db import transaction
 import logging
 
+from core.tasks.media_processing import (
+    process_audio_compression,
+    process_pdf_optimization,
+    process_video_to_hls,
+)
+
+from apps.media_manager.tasks import generate_seo_metadata_task
+
 from .models import (
     ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag, 
     ContentViewEvent, DailyContentViewSummary, SiteConfiguration
@@ -448,13 +456,10 @@ class ContentItemAdmin(admin.ModelAdmin):
 
         task = None
         if task_name == 'process_video_to_hls':
-            from core.tasks.media_processing import process_video_to_hls
             task = process_video_to_hls
         elif task_name == 'process_audio_compression':
-            from core.tasks.media_processing import process_audio_compression
             task = process_audio_compression
         elif task_name == 'process_pdf_optimization':
-            from core.tasks.media_processing import process_pdf_optimization
             task = process_pdf_optimization
 
         if task is None:
@@ -617,7 +622,6 @@ class ContentItemAdmin(admin.ModelAdmin):
     
     def force_regenerate_seo(self, request, queryset):
         """Force regenerate SEO metadata for selected items (even if they already have SEO data)"""
-        from apps.media_manager.tasks import generate_seo_metadata_task
         count = 0
         for obj in queryset:
             try:

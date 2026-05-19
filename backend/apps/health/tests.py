@@ -2,6 +2,7 @@
 Tests for R2 Storage Service and Task Progress Reporting
 """
 import json
+from types import SimpleNamespace
 from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase, RequestFactory
 from django.contrib.auth.models import User
@@ -637,6 +638,40 @@ class GeminiSEOServiceTest(TestCase):
         self.assertLessEqual(len(cleaned['en']['description']), 160)
         self.assertLessEqual(len(cleaned['ar']['meta_title']), 60)
         self.assertLessEqual(len(cleaned['ar']['description']), 160)
+
+
+class GeminiBaseServiceTest(TestCase):
+    """Test shared Gemini file handling"""
+
+    def setUp(self):
+        from core.services.gemini_seo_service import GeminiSEOService
+
+        self.service = GeminiSEOService()
+        self.service.client = SimpleNamespace(files=SimpleNamespace(get=Mock()))
+
+    @patch('core.services.gemini_base_service.time.sleep', return_value=None)
+    @patch('core.services.gemini_base_service.time.monotonic', return_value=0)
+    def test_wait_for_file_active_polls_until_active(self, mock_monotonic, mock_sleep):
+        """Test that Gemini files are polled until ACTIVE before use"""
+        processing_file = SimpleNamespace(
+            name='files/test-123',
+            state=SimpleNamespace(value='PROCESSING'),
+        )
+        active_file = SimpleNamespace(
+            name='files/test-123',
+            state=SimpleNamespace(value='ACTIVE'),
+        )
+        self.service.client.files.get = Mock(side_effect=[active_file])
+
+        result = self.service._wait_for_file_active(
+            processing_file,
+            timeout_seconds=10,
+            poll_interval_seconds=1,
+        )
+
+        self.assertIs(result, active_file)
+        self.service.client.files.get.assert_called_once_with(name='files/test-123')
+        mock_sleep.assert_called_once_with(1)
     
     def test_validate_seo_keyword_limits(self):
         """Test that keywords are limited to max 12"""

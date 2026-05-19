@@ -36,6 +36,7 @@ class GeminiMetadataService(BaseGeminiService):
         if not self.is_available():
             return False, {"error": "Gemini AI service not available"}
             
+        uploaded_file = None
         try:
             # Upload file to Gemini
             uploaded_file = self._upload_file(file_path)
@@ -78,10 +79,13 @@ class GeminiMetadataService(BaseGeminiService):
             }
             
             # Generate content with Gemini
-            metadata = self._generate_content(prompt, uploaded_file, response_schema)
-            
-            # Clean up uploaded file
-            self._cleanup_file(uploaded_file)
+            metadata = self._generate_content(
+                prompt,
+                uploaded_file,
+                response_schema,
+                system_instruction=prompt,
+                cache_key=f"metadata:{self.default_model}:{content_type}",
+            )
             
             # Validate and clean response
             cleaned_metadata = self._validate_metadata(metadata)
@@ -92,6 +96,9 @@ class GeminiMetadataService(BaseGeminiService):
         except Exception as e:
             logger.error(f"Error generating metadata: {e}")
             return False, {"error": f"AI generation failed: {str(e)}"}
+        finally:
+            if uploaded_file is not None:
+                self._cleanup_file(uploaded_file)
     
     def _create_metadata_prompt(self, content_type: str) -> str:
         """Create metadata generation prompt"""

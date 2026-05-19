@@ -1416,6 +1416,56 @@ class ContentItem(models.Model):
         ])
         
         return True
+
+
+class ProcessingJob(models.Model):
+    STAGE_CHOICES = [
+        ('file_processing', _('File Processing')),
+        ('text_extraction', _('Text Extraction')),
+        ('r2_upload', _('R2 Upload')),
+        ('seo_generation', _('SEO Generation')),
+        ('completed', _('Completed')),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', _('Pending')),
+        ('processing', _('Processing')),
+        ('canceled', _('Canceled')),
+        ('failed', _('Failed')),
+        ('completed', _('Completed')),
+    ]
+
+    content_item = models.OneToOneField(
+        'ContentItem',
+        on_delete=models.CASCADE,
+        related_name='processing_job'
+    )
+    current_stage = models.CharField(
+        max_length=30,
+        choices=STAGE_CHOICES,
+        default='file_processing'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        db_index=True,
+    )
+    failure_stage = models.CharField(max_length=30, blank=True)
+    failure_reason = models.TextField(blank=True)
+    retry_count = models.PositiveSmallIntegerField(default=0)
+    celery_task_id = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['status', 'current_stage']),
+            models.Index(fields=['status', 'updated_at']),
+        ]
+
+    def __str__(self):
+        return f"ProcessingJob({self.content_item_id}) [{self.status} / {self.current_stage}]"
     
 
 class VideoMetaQuerySet(models.QuerySet):

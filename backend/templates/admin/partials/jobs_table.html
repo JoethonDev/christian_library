@@ -1,0 +1,122 @@
+{% load i18n %}
+
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex align-items-center justify-content-between">
+        <h5 class="mb-0 fw-bold">{% trans "Job Queue" %}</h5>
+        <span class="text-muted small">{{ page_obj.paginator.count }} {% trans "records" %}</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-4">{% trans "Source" %}</th>
+                    <th>{% trans "Title" %}</th>
+                    <th>{% trans "Type" %}</th>
+                    <th>{% trans "Status" %}</th>
+                    <th>{% trans "Stage" %}</th>
+                    <th>{% trans "Retry" %}</th>
+                    <th>{% trans "Updated" %}</th>
+                    <th class="pe-4 text-end">{% trans "Actions" %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if jobs %}
+                    {% for job in jobs %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="badge rounded-pill text-bg-light border text-uppercase">{{ job.source }}</span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ job.title }}</div>
+                            <div class="text-muted small text-break">{{ job.content_id }}</div>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill text-bg-secondary-subtle text-secondary">{{ job.content_type|capfirst }}</span>
+                        </td>
+                        <td>
+                            {% if job.status == 'processing' %}
+                                <span class="badge rounded-pill text-bg-primary">{% trans "Processing" %}</span>
+                            {% elif job.status == 'pending' %}
+                                <span class="badge rounded-pill text-bg-warning">{% trans "Pending" %}</span>
+                            {% elif job.status == 'canceled' or job.status == 'cancelled' %}
+                                <span class="badge rounded-pill text-bg-secondary">{% trans "Canceled" %}</span>
+                            {% elif job.status == 'completed' %}
+                                <span class="badge rounded-pill text-bg-success">{% trans "Completed" %}</span>
+                            {% else %}
+                                <span class="badge rounded-pill text-bg-danger">{% trans "Failed" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="text-muted small">{{ job.stage }}</span>
+                            {% if job.failure_reason %}
+                                <div class="text-danger small text-truncate" style="max-width: 260px;">{{ job.failure_reason|truncatechars:90 }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="fw-semibold">{{ job.retry_count }}</span>
+                        </td>
+                        <td>
+                            <div class="small">{{ job.updated_at|date:"Y-m-d H:i" }}</div>
+                            <div class="text-muted small">{{ job.created_at|date:"Y-m-d H:i" }}</div>
+                        </td>
+                        <td class="pe-4 text-end">
+                            <div class="d-flex gap-2 justify-content-end flex-wrap">
+                                {% if job.can_retry %}
+                                <button type="button" class="btn btn-sm btn-warning rounded-pill" onclick="runJobAction('retry', '{{ job.id }}', '{{ job.source }}')">
+                                    {% trans "Retry" %}
+                                </button>
+                                {% elif job.can_promote %}
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill" onclick="runJobAction('promote', '{{ job.id }}', '{{ job.source }}')">
+                                    {% trans "Promote" %}
+                                </button>
+                                {% endif %}
+                                {% if job.can_cancel %}
+                                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" onclick="runJobAction('cancel', '{{ job.id }}', '{{ job.source }}')">
+                                    {% trans "Cancel" %}
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            {% trans "No jobs found for the selected filters." %}
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="card-footer bg-transparent border-0 py-3 px-4">
+        <nav aria-label="{% trans 'Job pagination' %}">
+            <ul class="pagination justify-content-center mb-0 gap-1">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <button class="page-link rounded-pill" hx-get="{% url 'frontend_api:api_jobs_list' %}?status={{ status_filter }}&type={{ content_type_filter }}&search={{ search_query|urlencode }}&per_page={{ per_page }}&page={{ page_obj.previous_page_number }}" hx-target="#jobs-table" hx-swap="innerHTML" hx-push-url="true">{% trans "Previous" %}</button>
+                </li>
+                {% endif %}
+
+                {% for page_number in page_obj.paginator.page_range %}
+                    {% if page_number == page_obj.number %}
+                    <li class="page-item active" aria-current="page"><span class="page-link rounded-pill">{{ page_number }}</span></li>
+                    {% elif page_number > page_obj.number|add:'-3' and page_number < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <button class="page-link rounded-pill" hx-get="{% url 'frontend_api:api_jobs_list' %}?status={{ status_filter }}&type={{ content_type_filter }}&search={{ search_query|urlencode }}&per_page={{ per_page }}&page={{ page_number }}" hx-target="#jobs-table" hx-swap="innerHTML" hx-push-url="true">{{ page_number }}</button>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <button class="page-link rounded-pill" hx-get="{% url 'frontend_api:api_jobs_list' %}?status={{ status_filter }}&type={{ content_type_filter }}&search={{ search_query|urlencode }}&per_page={{ per_page }}&page={{ page_obj.next_page_number }}" hx-target="#jobs-table" hx-swap="innerHTML" hx-push-url="true">{% trans "Next" %}</button>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>

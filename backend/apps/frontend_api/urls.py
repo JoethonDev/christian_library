@@ -72,6 +72,14 @@ urlpatterns = [
     # System management (at /en/dashboard/system/, etc.)
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
     path('dashboard/bulk/', admin_views.bulk_operations, name='bulk_operations'),
+
+    # Background Jobs dashboard (at /en/dashboard/jobs/)
+    path('dashboard/jobs/', admin_views.jobs_dashboard, name='jobs_dashboard'),
+    path('dashboard/jobs/api/list/', admin_views.api_jobs_list, name='api_jobs_list'),
+    path('dashboard/jobs/api/cancel/', admin_views.api_job_cancel, name='api_job_cancel'),
+    path('dashboard/jobs/api/promote/', admin_views.api_job_promote, name='api_job_promote'),
+    path('dashboard/jobs/api/dispatch/', admin_views.api_job_dispatch, name='api_job_dispatch'),
+    path('dashboard/jobs/api/stats/', admin_views.api_jobs_stats, name='api_jobs_stats'),
     
     # API Upload Queue Management (at /en/dashboard/api-queue/)
     path('dashboard/api-queue/', admin_views.api_queue_list, name='api_queue_list'),

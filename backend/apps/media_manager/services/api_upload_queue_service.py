@@ -234,7 +234,7 @@ class APIUploadQueueService:
                     break
     
     @classmethod
-    def process_queue_item(cls, queue_item_id):
+    def process_queue_item(cls, queue_item_id, trigger_next: bool = True):
         """
         Process a queue item by creating ContentItem and triggering pipeline.
         
@@ -386,8 +386,9 @@ class APIUploadQueueService:
             # Always release lock
             cls.release_processing_lock(queue_item.content_type)
             
-            # Trigger next item in queue
-            cls._trigger_next_in_queue()
+            # Only automatic queue workers should cascade to the next item.
+            if trigger_next:
+                cls._trigger_next_in_queue()
     
     @classmethod
     def _cleanup_temp_files(cls, queue_item):
@@ -410,12 +411,20 @@ class APIUploadQueueService:
         """
         try:
             queue_item = APIUploadQueue.objects.get(id=queue_item_id)
-            queue_item.promote_to_ready()
+            if queue_item.status == 'failed':
+                queue_item.status = 'pending'
+                queue_item.queue_status = 'ready'
+                queue_item.scheduled_for = timezone.now()
+                queue_item.error_message = ''
+                queue_item.gemini_attempts += 1
+                queue_item.save(update_fields=['status', 'queue_status', 'scheduled_for', 'error_message', 'gemini_attempts', 'updated_at'])
+            else:
+                queue_item.promote_to_ready()
             
             # Trigger processing if can acquire lock
             if cls.can_process_type(queue_item.content_type):
                 from apps.media_manager.tasks import process_upload_queue_item
-                process_upload_queue_item.delay(str(queue_item.id))
+                process_upload_queue_item.delay(str(queue_item.id), False)
             
             logger.info(f'Promoted queue item {queue_item.id}')
         except APIUploadQueue.DoesNotExist:
