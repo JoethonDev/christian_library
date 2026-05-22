@@ -4,7 +4,8 @@
     const emptyRow = document.getElementById('bulk-empty-row');
     const submitButton = document.getElementById('bulk-upload-submit');
     const clearButton = document.getElementById('bulk-clear-selection');
-    const uploadUrl = document.getElementById('bulk-upload-url').value;
+    const initUrl = document.getElementById('bulk-upload-init-url').value;
+    const chunkUrl = document.getElementById('bulk-upload-chunk-url').value;
     const statusUrl = document.getElementById('bulk-status-url').value;
     const tagsInput = document.getElementById('bulk-tags');
     const alertBox = document.getElementById('bulk-upload-alert');
@@ -13,6 +14,9 @@
     const selectedCount = document.getElementById('bulk-selected-count');
     const typeSummary = document.getElementById('bulk-type-summary');
     const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+    // Shared chunked uploader instance
+    const uploader = new ChunkedUploader({ initUrl, chunkUrl, csrfToken, chunkSize: 95 * 1024 * 1024 });
 
     const state = {
         entries: [],
@@ -332,64 +336,117 @@
             return;
         }
 
-        const formData = new FormData();
-        const tagIds = tagsInput.value.trim();
-
-        state.entries.forEach((entry) => {
-            formData.append('files', entry.file);
-            formData.append('title_ar', entry.titleAr.trim());
-            formData.append('title_en', entry.titleEn.trim());
-        });
-        formData.append('tag_ids', tagIds);
-        formData.append('csrfmiddlewaretoken', csrfToken);
-
         submitButton.disabled = true;
         submitButton.querySelector('.submit-label').textContent = 'Uploading...';
-        showAlert('Uploading files. Please keep this tab open while the queue is created.', 'info');
+        showAlert('Starting chunked uploads. Keep this tab open until uploads complete.', 'info');
+
+        // Concurrency: number of files uploading in parallel (each file's chunks are sequential)
+        const concurrency = 2; // safe default for high-throughput large files
+        const queue = state.entries.slice();
+        const tagIds = tagsInput.value.trim();
+
+        state.progressMap.clear();
+
+        async function uploadWorker() {
+            while (queue.length) {
+                const entry = queue.shift();
+                try {
+                    await uploadSingleEntry(entry, tagIds);
+                } catch (err) {
+                    console.error('File upload failed', err);
+                }
+            }
+        }
+
+        // Start workers
+        await Promise.all(Array.from({ length: concurrency }, () => uploadWorker()));
+
+        // After all workers complete, start polling for processing updates
+        startPolling();
+
+        submitButton.disabled = state.entries.length === 0;
+        submitButton.querySelector('.submit-label').textContent = state.entries.length === 0
+            ? 'Upload All'
+            : `Upload All (${state.entries.length})`;
+    }
+
+    async function uploadSingleEntry(entry, tagIds) {
+        // Initialize upload session on server
+        const initPayload = {
+            filename: entry.file.name,
+            total_size: entry.file.size,
+            title_ar: entry.titleAr || '',
+            title_en: entry.titleEn || '',
+            tag_ids: tagIds ? tagIds.split(',').map(s => s.trim()).filter(Boolean) : []
+        };
+
+        let initData;
+        try {
+            initData = await uploader.initSession(initPayload);
+        } catch (err) {
+            state.progressMap.set(entry.file.name, {
+                key: entry.file.name,
+                contentId: '',
+                name: entry.file.name,
+                type: entry.type,
+                status: 'failed',
+                statusLabel: 'Failed',
+                message: err.response?.error || err.message || 'Failed to initialize upload session'
+            });
+            renderProgressList();
+            return;
+        }
+
+        const sessionId = initData.session_id;
+        // Track progress by session id until we get a content_id
+        state.progressMap.set(sessionId, {
+            key: sessionId,
+            contentId: '',
+            name: entry.file.name,
+            type: entry.type,
+            status: 'uploading',
+            statusLabel: 'Uploading',
+            message: '0%'
+        });
+        renderProgressList();
 
         try {
-            const response = await fetch(uploadUrl, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: formData,
+            const lastResponse = await uploader.uploadChunks(entry.file, sessionId, (offset, total) => {
+                const percent = Math.min(100, Math.round((offset / total) * 100));
+                const row = state.progressMap.get(sessionId);
+                if (row) {
+                    row.message = `Uploading ${percent}%`;
+                    row.statusLabel = `${percent}%`;
+                    renderProgressList();
+                }
             });
 
-            const data = await response.json();
-            if (!response.ok || !data.success) {
-                throw new Error(data.error || 'Bulk upload failed');
+            // Finalize: server should respond with 'final' and content_id for the last chunk
+            if (lastResponse && lastResponse.final && lastResponse.content_id) {
+                const row = state.progressMap.get(sessionId);
+                row.contentId = lastResponse.content_id;
+                row.status = 'pending';
+                row.statusLabel = 'Queued';
+                row.message = lastResponse.message || 'Queued for processing';
+                renderProgressList();
+            } else {
+                const row = state.progressMap.get(sessionId);
+                row.status = 'pending';
+                row.statusLabel = 'Queued';
+                row.message = 'Queued for processing';
+                renderProgressList();
             }
 
-            state.progressMap.clear();
-            data.results.forEach((result) => {
-                const key = result.content_id || result.filename;
-                state.progressMap.set(key, {
-                    key,
-                    contentId: result.content_id || '',
-                    name: result.filename,
-                    type: result.content_type || fileTypeFromName(result.filename),
-                    status: result.success ? 'pending' : 'failed',
-                    statusLabel: result.success ? 'Queued' : 'Failed',
-                    message: result.success ? 'Queued for processing' : result.error,
-                });
-            });
-
+        } catch (err) {
+            console.error('Chunk upload error', err);
+            const row = state.progressMap.get(sessionId) || state.progressMap.get(entry.file.name);
+            if (row) {
+                row.status = 'failed';
+                row.statusLabel = 'Failed';
+                row.message = err.response?.error || err.message || 'Network error during chunk upload';
+            }
             renderProgressList();
-            updateSubmitState();
-            showAlert(`Queued ${data.queued} file(s) and failed ${data.failed}.`, data.failed ? 'warning' : 'success');
-
-            if (data.results.some((result) => result.success)) {
-                startPolling();
-            }
-        } catch (error) {
-            console.error('Bulk upload submit failed:', error);
-            showAlert(error.message || 'Bulk upload failed.', 'danger');
-        } finally {
-            submitButton.disabled = state.entries.length === 0;
-            submitButton.querySelector('.submit-label').textContent = state.entries.length === 0
-                ? 'Upload All'
-                : `Upload All (${state.entries.length})`;
+            return;
         }
     }
 

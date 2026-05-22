@@ -571,6 +571,168 @@ class MediaUploadService:
         
         logger.debug(f"File saved to {relative_path}")
         return relative_path
+
+    def create_content_item_from_path(self, local_path: str, original_filename: str, metadata: Optional[dict] = None) -> Dict:
+        """
+        Create a ContentItem from an already-assembled local file on disk.
+
+        This method performs an atomic move of the assembled file from the
+        staging area into the final `MEDIA_ROOT` location (so the operation is
+        an OS atomic rename when both paths are on the same filesystem), then
+        creates the appropriate meta object and queues background processing.
+
+        Args:
+            local_path: Absolute path to the assembled file (staging path).
+            original_filename: Original filename provided by the client (used for extension detection).
+            metadata: Optional dict containing title_ar, title_en, tag_ids, and other fields.
+
+        Returns:
+            Dict similar to `create_content_item` with keys 'success', 'content_item', 'message' or 'error'.
+        """
+        metadata = metadata or {}
+        try:
+            # Ensure file exists
+            if not os.path.exists(local_path):
+                return {'success': False, 'error': 'Assembled file not found on disk'}
+
+            file_size = os.path.getsize(local_path)
+            mime_type, _ = mimetypes.guess_type(original_filename)
+            file_ext = os.path.splitext(original_filename)[1].lower()
+
+            # Determine content type like the main upload path
+            if mime_type in self.ALLOWED_VIDEO_TYPES or file_ext in ['.mp4', '.mov', '.avi', '.mkv', '.webm']:
+                content_type = 'video'
+            elif mime_type in self.ALLOWED_AUDIO_TYPES or file_ext in ['.mp3', '.wav', '.m4a', '.aac', '.ogg']:
+                content_type = 'audio'
+            elif mime_type in self.ALLOWED_PDF_TYPES or file_ext == '.pdf':
+                content_type = 'pdf'
+            else:
+                return {'success': False, 'error': f'Unsupported file type: {mime_type} ({file_ext})'}
+
+            # Validate size against configured limits
+            max_size = {
+                'video': MediaUploadService.MAX_VIDEO_SIZE,
+                'audio': MediaUploadService.MAX_AUDIO_SIZE,
+                'pdf': MediaUploadService.MAX_PDF_SIZE
+            }.get(content_type)
+
+            if max_size and file_size > max_size:
+                return {'success': False, 'error': 'File size exceeds maximum allowed size'}
+
+            # Create content item record first so we can atomically move the file
+            title_ar = metadata.get('title_ar', '')
+            title_en = metadata.get('title_en', '')
+            tag_ids = metadata.get('tag_ids') if metadata.get('tag_ids') else None
+
+            with transaction.atomic():
+                content_item = ContentService.create_content_item(
+                    title_ar=title_ar or ContentItem._clean_filename(original_filename),
+                    content_type=content_type,
+                    description_ar=metadata.get('description_ar', ''),
+                    title_en=title_en,
+                    description_en=metadata.get('description_en', ''),
+                    tag_ids=tag_ids,
+                    thumbnail=metadata.get('thumbnail')
+                )
+
+                # Determine destination path under MEDIA_ROOT (atomic move target)
+                dest_subdir = {
+                    'video': 'original/videos',
+                    'audio': 'original/audio',
+                    'pdf': 'original/pdf'
+                }[content_type]
+
+                dest_dir = Path(settings.MEDIA_ROOT) / dest_subdir
+                dest_dir.mkdir(parents=True, exist_ok=True)
+
+                dest_filename = f"{content_item.id}{file_ext}"
+                dest_fullpath = dest_dir / dest_filename
+
+                # Atomic move: replace destination if it exists
+                try:
+                    os.replace(local_path, str(dest_fullpath))
+                except Exception as e:
+                    logger.error(f"Failed to move assembled file into media dir: {e}")
+                    # Try fallback copy (non-ideal) then remove staging
+                    try:
+                        with open(local_path, 'rb') as src, open(dest_fullpath, 'wb') as dst:
+                            for chunk in iter(lambda: src.read(64 * 1024), b''):
+                                dst.write(chunk)
+                        os.unlink(local_path)
+                    except Exception as ee:
+                        logger.error(f"Fallback copy also failed: {ee}")
+                        raise
+
+                relative_path = f"{dest_subdir}/{dest_filename}"
+
+                # Create or update meta object without re-copying the file
+                size_mb = round(file_size / (1024 * 1024), 2)
+                if content_type == 'video':
+                    video_meta, created = VideoMeta.objects.get_or_create(
+                        content_item=content_item,
+                        defaults={
+                            'original_file': relative_path,
+                            'file_size_mb': size_mb,
+                            'processing_status': 'pending',
+                            'r2_upload_status': 'pending' if getattr(settings, 'R2_ENABLED', False) else ''
+                        }
+                    )
+
+                    if not created:
+                        video_meta.original_file = relative_path
+                        video_meta.file_size_mb = size_mb
+                        video_meta.processing_status = 'pending'
+                        if getattr(settings, 'R2_ENABLED', False):
+                            video_meta.r2_upload_status = 'pending'
+                        video_meta.save()
+
+                    # Queue background processing
+                    transaction.on_commit(lambda: process_video_to_hls.delay(str(video_meta.id)))
+
+                elif content_type == 'audio':
+                    audio_meta, created = AudioMeta.objects.get_or_create(
+                        content_item=content_item,
+                        defaults={
+                            'original_file': relative_path,
+                            'file_size_mb': size_mb,
+                            'processing_status': 'pending',
+                            'r2_upload_status': 'pending' if getattr(settings, 'R2_ENABLED', False) else ''
+                        }
+                    )
+                    if not created:
+                        audio_meta.original_file = relative_path
+                        audio_meta.file_size_mb = size_mb
+                        audio_meta.processing_status = 'pending'
+                        if getattr(settings, 'R2_ENABLED', False):
+                            audio_meta.r2_upload_status = 'pending'
+                        audio_meta.save()
+                    transaction.on_commit(lambda: process_audio_compression.delay(str(audio_meta.id)))
+
+                elif content_type == 'pdf':
+                    pdf_meta, created = PdfMeta.objects.get_or_create(
+                        content_item=content_item,
+                        defaults={
+                            'original_file': relative_path,
+                            'file_size_mb': size_mb,
+                            'processing_status': 'pending',
+                            'r2_upload_status': 'pending' if getattr(settings, 'R2_ENABLED', False) else ''
+                        }
+                    )
+                    if not created:
+                        pdf_meta.original_file = relative_path
+                        pdf_meta.file_size_mb = size_mb
+                        pdf_meta.processing_status = 'pending'
+                        if getattr(settings, 'R2_ENABLED', False):
+                            pdf_meta.r2_upload_status = 'pending'
+                        pdf_meta.save()
+                    transaction.on_commit(lambda: process_pdf_metadata.delay(str(pdf_meta.id)))
+
+                logger.info(f"Assembled file moved and queued for processing: {content_item.id}")
+                return {'success': True, 'content_item': content_item, 'message': 'File assembled and queued for processing'}
+
+        except Exception as e:
+            logger.error(f"Error creating content item from path: {str(e)}", exc_info=True)
+            return {'success': False, 'error': str(e)}
     
     def _queue_r2_upload(self, meta_instance, content_type):
         """

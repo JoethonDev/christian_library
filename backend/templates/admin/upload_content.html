@@ -1,6 +1,6 @@
 <!-- templates/admin/upload_content.html -->
 {% extends "layouts/admin_base.html" %}
-{% load i18n %}
+{% load i18n static %}
 
 {% block admin_content %}
 <div class="row align-items-center mb-4">
@@ -19,8 +19,11 @@
     <div class="col-12 col-xl-10">
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-body p-4">
-                <form id="upload-form" method="post" enctype="multipart/form-data" action="{% url 'frontend_api:handle_upload' %}">
+                <form id="upload-form" method="post" enctype="multipart/form-data">
                     {% csrf_token %}
+                    <input type="hidden" id="single-upload-init-url" value="{% url 'frontend_api:bulk_upload_init' %}">
+                    <input type="hidden" id="single-upload-chunk-url" value="{% url 'frontend_api:bulk_upload_chunk' %}">
+                    <input type="hidden" id="single-generate-metadata-url" value="{% url 'frontend_api:generate_metadata_from_file' %}">
 
                     <!-- Progress Bar -->
                     <div id="progress-container" class="mb-4 d-none">
@@ -283,6 +286,7 @@
     }
 </style>
 
+<script src="{% static 'js/chunked_uploader.js' %}"></script>
 <script>
     // Dual-request workflow for parallel metadata and SEO generation
     function generateMetadataAndSEO() {
@@ -294,211 +298,47 @@
 
         const spinner = document.getElementById('magic-spinner');
         spinner.classList.remove('d-none');
-        
+
         const contentType = document.querySelector('input[name="content_type"]:checked')?.value || '';
-        
+
         // Create FormData for metadata request
         const metadataFormData = new FormData();
         metadataFormData.append('file', fileInput.files[0]);
         metadataFormData.append('content_type', contentType);
-        
-        // Create FormData for SEO request
-        const seoFormData = new FormData();
-        seoFormData.append('file', fileInput.files[0]);
-        seoFormData.append('content_type', contentType);
-        
-        // Track completion status
-        let metadataCompleted = false;
-        let seoCompleted = false;
-        
-        // Helper function to hide spinner when both requests complete
-        function hideSpinnerIfBothComplete() {
-            if (metadataCompleted && seoCompleted) {
+
+        // POST to the server-side metadata generator endpoint
+        (async function() {
+            const genUrl = document.getElementById('single-generate-metadata-url').value;
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            try {
+                const resp = await fetch(genUrl, {
+                    method: 'POST',
+                    body: metadataFormData,
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                });
+                const data = await resp.json();
+                if (data && data.success && data.metadata) {
+                    const m = data.metadata;
+                    // Populate known fields if provided
+                    if (m.title_ar) document.querySelector('input[name="title_ar"]').value = m.title_ar;
+                    if (m.title_en) document.querySelector('input[name="title_en"]').value = m.title_en;
+                    if (m.description_ar) document.querySelector('textarea[name="description_ar"]').value = m.description_ar;
+                    if (m.description_en) document.querySelector('textarea[name="description_en"]').value = m.description_en;
+                    showToast('{% trans "Metadata generated" %}', 'success');
+                } else {
+                    showToast(data.error || '{% trans "Metadata generation failed" %}', 'warning');
+                }
+            } catch (err) {
+                console.error('Metadata generation error', err);
+                showToast('{% trans "Metadata generation error" %}', 'danger');
+            } finally {
                 spinner.classList.add('d-none');
             }
-        }
-        
-        // Parallel request 1: Generate metadata
-        fetch('{% url "frontend_api:generate_metadata_only" %}', {
-            method: 'POST',
-            body: metadataFormData,
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            metadataCompleted = true;
-            if (data.success && data.metadata) {
-                // Populate metadata fields using standardized JSON format
-                const meta = data.metadata;
-                
-                // English metadata
-                if (meta.en && meta.en.title) {
-                    document.querySelector('input[name="title_en"]').value = meta.en.title;
-                }
-                if (meta.en && meta.en.description) {
-                    document.querySelector('textarea[name="description_en"]').value = meta.en.description;
-                }
-                
-                // Arabic metadata
-                if (meta.ar && meta.ar.title) {
-                    document.querySelector('input[name="title_ar"]').value = meta.ar.title;
-                }
-                if (meta.ar && meta.ar.description) {
-                    document.querySelector('textarea[name="description_ar"]').value = meta.ar.description;
-                }
-                
-                // Tags - merge both languages
-                const tagsEn = (meta.en && meta.en.tags && Array.isArray(meta.en.tags)) ? meta.en.tags : [];
-                const tagsAr = (meta.ar && meta.ar.tags && Array.isArray(meta.ar.tags)) ? meta.ar.tags : [];
-                const allTags = [...tagsEn, ...tagsAr];
-                if (allTags.length > 0) {
-                    document.querySelector('input[name="tags"]').value = allTags.join(', ');
-                }
-                
-                showToast('{% trans "Metadata generated successfully!" %}', 'success');
-            } else {
-                showToast(data.error || '{% trans "Failed to generate metadata" %}', 'danger');
-            }
-            
-            hideSpinnerIfBothComplete();
-        })
-        .catch(error => {
-            metadataCompleted = true;
-            console.error('Metadata generation error:', error);
-            showToast('{% trans "An error occurred while generating metadata" %}', 'danger');
-            hideSpinnerIfBothComplete();
-        });
-        
-        // Parallel request 2: Generate SEO
-        fetch('{% url "frontend_api:generate_seo_only" %}', {
-            method: 'POST',
-            body: seoFormData,
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            seoCompleted = true;
-            if (data.success && data.seo) {
-                // Populate SEO fields using standardized JSON format
-                const seo = data.seo;
-                
-                // English SEO
-                if (seo.en && seo.en.meta_title) {
-                    document.querySelector('input[name="seo_title_en"]').value = seo.en.meta_title;
-                }
-                if (seo.en && seo.en.description) {
-                    document.querySelector('textarea[name="seo_description_en"]').value = seo.en.description;
-                }
-                if (seo.en && seo.en.keywords && Array.isArray(seo.en.keywords)) {
-                    document.querySelector('input[name="seo_keywords_en"]').value = seo.en.keywords.join(', ');
-                }
-                
-                // Arabic SEO
-                if (seo.ar && seo.ar.meta_title) {
-                    document.querySelector('input[name="seo_title_ar"]').value = seo.ar.meta_title;
-                }
-                if (seo.ar && seo.ar.description) {
-                    document.querySelector('textarea[name="seo_description_ar"]').value = seo.ar.description;
-                }
-                if (seo.ar && seo.ar.keywords && Array.isArray(seo.ar.keywords)) {
-                    document.querySelector('input[name="seo_keywords_ar"]').value = seo.ar.keywords.join(', ');
-                }
-                
-                // Transcript and Notes
-                if (seo.transcript) {
-                    document.querySelector('textarea[name="transcript"]').value = seo.transcript;
-                }
-                if (seo.notes) {
-                    document.querySelector('textarea[name="notes"]').value = seo.notes;
-                }
-                
-                // Structured Data - combine both English and Arabic into a single JSON object
-                if ((seo.en && seo.en.structured_data) || (seo.ar && seo.ar.structured_data)) {
-                    const combinedStructuredData = {
-                        en: seo.en?.structured_data || {},
-                        ar: seo.ar?.structured_data || {}
-                    };
-                    document.getElementById('seo_structured_data').value = JSON.stringify(combinedStructuredData, null, 2);
-                }
-                
-                showToast('{% trans "SEO metadata generated successfully!" %}', 'success');
-            } else {
-                showToast(data.error || '{% trans "Failed to generate SEO metadata" %}', 'danger');
-            }
-            
-            hideSpinnerIfBothComplete();
-        })
-        .catch(error => {
-            seoCompleted = true;
-            console.error('SEO generation error:', error);
-            showToast('{% trans "An error occurred while generating SEO metadata" %}', 'danger');
-            hideSpinnerIfBothComplete();
-        });
-    }
-    
-    // Keep backward compatibility with old function name
-    function generateMetadata() {
-        generateMetadataAndSEO();
-    }
-
-    function updateFileName(input) {
-        const displayContainer = document.getElementById('file-name-display');
-        const nameSpan = document.getElementById('selected-file-name');
-        const titleArInput = document.querySelector('input[name="title_ar"]');
-        
-        if (input.files && input.files[0]) {
-            const fileName = input.files[0].name;
-            nameSpan.textContent = fileName;
-            displayContainer.classList.remove('d-none');
-            
-            // Populate Arabic title if empty
-            if (titleArInput && !titleArInput.value) {
-                // Remove extension and replace separators with spaces
-                let defaultName = fileName.split('.').slice(0, -1).join('.');
-                defaultName = defaultName.replace(/[_-]/g, ' ').trim();
-                titleArInput.value = defaultName;
-            }
-            
-            // Auto Select Type Attempt
-            const ext = fileName.split('.').pop().toLowerCase();
-            if(['mp4','avi','mov'].includes(ext)) document.getElementById('video-type').click();
-            if(['mp3','wav'].includes(ext)) document.getElementById('audio-type').click();
-            if(['pdf'].includes(ext)) document.getElementById('pdf-type').click();
-        } else {
-            displayContainer.classList.add('d-none');
-        }
-    }
-
-    function updateDocumentFileName(input) {
-        const displayContainer = document.getElementById('document-name-display');
-        const nameSpan = document.getElementById('selected-document-name');
-        
-        if (input.files && input.files[0]) {
-            const fileName = input.files[0].name;
-            nameSpan.textContent = fileName;
-            displayContainer.classList.remove('d-none');
-        } else {
-            displayContainer.classList.add('d-none');
-        }
-    }
-
-    function previewThumbnail(input) {
-        const previewContainer = document.getElementById('thumbnail-preview-container');
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewContainer.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
-                previewContainer.style.border = 'none';
-            }
-            reader.readAsDataURL(input.files[0]);
-        } else {
-            previewContainer.innerHTML = '<svg class="bi text-muted fs-3" aria-hidden="true" focusable="false"><use href="#bi-camera"/></svg>';
-            previewContainer.style.border = '1px dashed #dee2e6';
-        }
+        })();
     }
 
     function clearDocument(event) {
@@ -510,58 +350,173 @@
         displayContainer.classList.add('d-none');
     }
     
-    document.getElementById('upload-form').addEventListener('submit', function(e) {
+    // Update selected file UI and infer content type
+    function updateFileName(input) {
+        const file = input && input.files && input.files[0];
+        const display = document.getElementById('file-name-display');
+        const nameEl = document.getElementById('selected-file-name');
+        if (!file) {
+            if (display) display.classList.add('d-none');
+            if (nameEl) nameEl.textContent = '';
+            return;
+        }
+        if (nameEl) nameEl.textContent = file.name;
+        if (display) display.classList.remove('d-none');
+
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        const videoExts = ['mp4','avi','mov','wmv','mkv','webm'];
+        const audioExts = ['mp3','wav','m4a','aac','ogg','flac'];
+        if (videoExts.includes(ext)) {
+            const el = document.getElementById('video-type'); if (el) el.checked = true;
+        } else if (audioExts.includes(ext)) {
+            const el = document.getElementById('audio-type'); if (el) el.checked = true;
+        } else if (ext === 'pdf') {
+            const el = document.getElementById('pdf-type'); if (el) el.checked = true;
+        }
+    }
+
+    // Update supplementary document UI
+    function updateDocumentFileName(input) {
+        const file = input && input.files && input.files[0];
+        const display = document.getElementById('document-name-display');
+        const nameEl = document.getElementById('selected-document-name');
+        if (!file) {
+            if (display) display.classList.add('d-none');
+            if (nameEl) nameEl.textContent = '';
+            return;
+        }
+        if (nameEl) nameEl.textContent = file.name;
+        if (display) display.classList.remove('d-none');
+    }
+
+    // Preview thumbnail image in the UI
+    function previewThumbnail(input) {
+        const file = input && input.files && input.files[0];
+        const previewContainer = document.getElementById('thumbnail-preview-container');
+        if (!previewContainer) return;
+        if (!file) {
+            previewContainer.innerHTML = '<svg class="bi text-muted fs-3" aria-hidden="true" focusable="false"><use href="#bi-camera"/></svg>';
+            previewContainer.style.border = '1px dashed #dee2e6';
+            return;
+        }
+        if (!file.type || !file.type.startsWith('image/')) {
+            previewContainer.innerHTML = '<svg class="bi text-muted fs-3" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg>';
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewContainer.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            previewContainer.style.border = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    document.getElementById('upload-form').addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const form = this;
         const submitBtn = form.querySelector('button[type="submit"]');
         const progressContainer = document.getElementById('progress-container');
         const progressBar = document.getElementById('progress-bar');
         const progressStatus = document.getElementById('progress-status');
-        
+
         progressContainer.classList.remove('d-none');
         submitBtn.disabled = true;
-        
-        const formData = new FormData(form);
-        const xhr = new XMLHttpRequest();
-        
-        xhr.upload.addEventListener('progress', function(e) {
-            if (e.lengthComputable) {
-                const percent = Math.round((e.loaded / e.total) * 100);
-                progressBar.style.width = percent + '%';
-                progressStatus.textContent = percent + '% ' + '{% trans "uploaded" %}';
-            }
-        });
-        
-        xhr.addEventListener('load', function() {
-            if (xhr.status === 200) {
-                const response = JSON.parse(xhr.responseText);
-                if (response.success) {
-                    progressStatus.textContent = '{% trans "Upload complete! Redirecting..." %}';
-                    showToast('{% trans "Upload successful!" %}', 'success');
-                    setTimeout(() => {
-                        window.location.href = '{% url "frontend_api:admin_dashboard" %}';
-                    }, 1000);
-                } else {
-                    showToast(response.error || '{% trans "Upload failed" %}', 'danger');
-                    submitBtn.disabled = false;
-                    progressContainer.classList.add('d-none');
-                }
-            } else {
-                showToast('{% trans "An error occurred during upload" %}', 'danger');
-                submitBtn.disabled = false;
-                progressContainer.classList.add('d-none');
-            }
-        });
-        
-        xhr.addEventListener('error', function() {
-            showToast('{% trans "Network error during upload" %}', 'danger');
+
+        const fileInput = document.getElementById('file-input');
+        if (!fileInput.files || !fileInput.files[0]) {
+            showToast('{% trans "Please select a file first" %}', 'warning');
             submitBtn.disabled = false;
             progressContainer.classList.add('d-none');
-        });
-        
-        xhr.open('POST', form.action, true);
-        xhr.send(formData);
+            return;
+        }
+
+        const file = fileInput.files[0];
+
+        // Chunked upload flow (single, unified flow for all file sizes)
+        const initUrl = document.getElementById('single-upload-init-url').value;
+        const chunkUrl = document.getElementById('single-upload-chunk-url').value;
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
+        // Build metadata payload from form fields
+        const payload = {
+            filename: file.name,
+            total_size: file.size,
+            title_ar: form.querySelector('input[name="title_ar"]').value || '',
+            title_en: form.querySelector('input[name="title_en"]').value || '',
+            description_ar: form.querySelector('textarea[name="description_ar"]').value || '',
+            description_en: form.querySelector('textarea[name="description_en"]').value || '',
+            tag_ids: (form.querySelector('input[name="tags"]').value || '').split(',').map(s => s.trim()).filter(Boolean),
+            seo_title_en: form.querySelector('input[name="seo_title_en"]').value || '',
+            seo_title_ar: form.querySelector('input[name="seo_title_ar"]').value || '',
+            seo_description_en: form.querySelector('textarea[name="seo_description_en"]').value || '',
+            seo_description_ar: form.querySelector('textarea[name="seo_description_ar"]').value || '',
+            seo_keywords_en: form.querySelector('input[name="seo_keywords_en"]').value || '',
+            seo_keywords_ar: form.querySelector('input[name="seo_keywords_ar"]').value || '',
+            transcript: form.querySelector('textarea[name="transcript"]').value || '',
+            notes: form.querySelector('textarea[name="notes"]').value || '',
+            seo_structured_data: document.getElementById('seo_structured_data').value || ''
+        };
+
+        try {
+            const uploader = new ChunkedUploader({ initUrl, chunkUrl, csrfToken, chunkSize: 95 * 1024 * 1024 });
+
+            // Initialize session (metadata saved server-side)
+            const initData = await uploader.initSession(payload);
+            const sessionId = initData.session_id;
+
+            // Upload chunks sequentially and update UI
+            progressBar.style.width = '0%';
+            progressStatus.textContent = '0% {% trans "uploaded" %}';
+
+            const lastResponse = await uploader.uploadChunks(file, sessionId, (offset, total) => {
+                const percent = Math.round((offset / total) * 100);
+                progressBar.style.width = percent + '%';
+                progressStatus.textContent = percent + '% ' + '{% trans "uploaded" %}';
+            });
+
+            const finalData = lastResponse || {};
+            if (finalData.final && finalData.content_id) {
+                // Attach thumbnail if provided
+                const thumbnailInput = document.getElementById('thumbnail-input');
+                if (thumbnailInput && thumbnailInput.files && thumbnailInput.files[0] && finalData.thumbnail_upload_url) {
+                    const tfd = new FormData();
+                    tfd.append('thumbnail', thumbnailInput.files[0]);
+                    tfd.append('csrfmiddlewaretoken', csrfToken);
+                    try {
+                        await fetch(finalData.thumbnail_upload_url, { method: 'POST', headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'}, body: tfd, credentials: 'same-origin' });
+                    } catch (err) { console.error('Thumbnail attach failed', err); }
+                }
+
+                // Attach supplementary document if provided
+                const documentInput = document.getElementById('document-input');
+                if (documentInput && documentInput.files && documentInput.files[0] && finalData.document_upload_url) {
+                    const dfd = new FormData();
+                    dfd.append('document', documentInput.files[0]);
+                    dfd.append('csrfmiddlewaretoken', csrfToken);
+                    try {
+                        await fetch(finalData.document_upload_url, { method: 'POST', headers: {'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest'}, body: dfd, credentials: 'same-origin' });
+                    } catch (err) { console.error('Document attach failed', err); }
+                }
+
+                const dest = finalData.content_detail_url || '{% url "frontend_api:admin_dashboard" %}';
+                showToast('{% trans "Upload complete! Redirecting..." %}', 'success');
+                setTimeout(() => { window.location.href = dest; }, 900);
+                return;
+            } else {
+                showToast('{% trans "Upload finished but no content id returned" %}', 'warning');
+                submitBtn.disabled = false;
+                progressContainer.classList.add('d-none');
+                return;
+            }
+
+        } catch (err) {
+            console.error(err);
+            showToast('{% trans "An error occurred during chunked upload" %}', 'danger');
+            submitBtn.disabled = false;
+            progressContainer.classList.add('d-none');
+            return;
+        }
     });
 </script>
 {% endblock %}

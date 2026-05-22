@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import tempfile
+import mimetypes
 from datetime import date, timedelta
 from urllib.parse import urlencode
 
@@ -25,12 +26,15 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
+import io
+from django.http.multipartparser import MultiPartParser
 
 from apps.frontend_api.admin_services import AdminService
 from apps.media_manager.models import (
     APIUploadQueue, ContentItem, ContentViewEvent,
     DailyContentViewSummary, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
 )
+from apps.media_manager.models import ChunkedUploadSession
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
 from apps.media_manager.services.content_service import ContentService
 from apps.media_manager.services.delete_service import MediaProcessingService
@@ -339,80 +343,9 @@ def upload_content(request):
     })
 
 
-@login_required
-@csrf_exempt
-def handle_content_upload(request):
-    """Handle content upload using existing service"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
-    try:
-        upload_service = MediaUploadService()
-        
-        # Process upload using existing service
-        file_obj = request.FILES.get('file')
-        if not file_obj:
-            return JsonResponse({'success': False, 'error': _('No file provided')})
-        
-        # Get document file if provided
-        document_file = request.FILES.get('document')
-        
-        # Get thumbnail file if provided
-        thumbnail_file = request.FILES.get('thumbnail_file')
-        
-        # Get metadata from request (all fields from template)
-        title_ar = request.POST.get('title_ar', '')
-        title_en = request.POST.get('title_en', '')
-        description_ar = request.POST.get('description_ar', '')
-        description_en = request.POST.get('description_en', '')
-        tags = request.POST.get('tags', '').split(',') if request.POST.get('tags') else []
-        
-        # Get SEO fields from template
-        seo_title_en = request.POST.get('seo_title_en', '')
-        seo_title_ar = request.POST.get('seo_title_ar', '')
-        seo_description_en = request.POST.get('seo_description_en', '')
-        seo_description_ar = request.POST.get('seo_description_ar', '')
-        seo_keywords_en = request.POST.get('seo_keywords_en', '')
-        seo_keywords_ar = request.POST.get('seo_keywords_ar', '')
-        transcript = request.POST.get('transcript', '')
-        notes = request.POST.get('notes', '')
-        seo_structured_data = request.POST.get('seo_structured_data', '')
-        
-        # Create content item using upload service
-        result = upload_service.create_content_item(
-            file_obj=file_obj,
-            title_ar=title_ar,
-            title_en=title_en,
-            description_ar=description_ar,
-            description_en=description_en,
-            tag_ids=tags,
-            seo_title_en=seo_title_en,
-            seo_title_ar=seo_title_ar,
-            seo_description_en=seo_description_en,
-            seo_description_ar=seo_description_ar,
-            seo_keywords_en=seo_keywords_en,
-            seo_keywords_ar=seo_keywords_ar,
-            transcript=transcript,
-            notes=notes,
-            seo_structured_data=seo_structured_data,
-            document_file=document_file,  # Pass document file
-            thumbnail_file=thumbnail_file  # Pass thumbnail file
-        )
-        
-        if result['success']:
-            return JsonResponse({
-                'success': True,
-                'content_id': str(result['content_item'].id),
-                'message': _('Content uploaded successfully')
-            })
-        else:
-            return JsonResponse({
-                'success': False,
-                'error': result.get('error', _('Upload failed'))
-            })
-            
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+# Legacy monolithic single-upload handler removed. Use chunked upload endpoints:
+# - POST to {% url 'frontend_api:bulk_upload_init' %} to create session
+# - PATCH to {% url 'frontend_api:bulk_upload_chunk' %} to upload chunks
 
 
 @login_required
@@ -425,64 +358,185 @@ def bulk_upload_page(request):
 
 @login_required
 @csrf_exempt
-@require_POST
-def handle_bulk_upload(request):
-    """Handle multi-file bulk upload requests."""
+@require_http_methods(["POST"])
+def bulk_upload_init(request):
+    """
+    Initialize a chunked upload session.
+
+    Expected JSON body: { filename: str, total_size: int, title_ar: str, title_en: str, tag_ids: [..] }
+    Returns: { success: True, session_id: <uuid>, chunk_url: <url> }
+    """
     try:
-        files = request.FILES.getlist('files')
-        if not files:
-            return JsonResponse({'success': False, 'error': _('No files provided')}, status=400)
+        try:
+            payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+        except Exception:
+            return JsonResponse({'success': False, 'error': _('Invalid JSON')}, status=400)
 
-        titles_ar = request.POST.getlist('title_ar')
-        titles_en = request.POST.getlist('title_en')
-        tag_ids_raw = request.POST.get('tag_ids', '')
-        tag_ids = [tag_id.strip() for tag_id in tag_ids_raw.split(',') if tag_id.strip()]
+        filename = payload.get('filename')
+        total_size = int(payload.get('total_size', 0))
 
-        upload_service = MediaUploadService()
-        results = []
+        if not filename or total_size <= 0:
+            return JsonResponse({'success': False, 'error': _('filename and total_size are required')}, status=400)
 
-        for index, file_obj in enumerate(files):
-            title_ar = titles_ar[index] if index < len(titles_ar) else ''
-            title_en = titles_en[index] if index < len(titles_en) else ''
+        # Collect canonical metadata fields from payload. Store these on session
+        # so the finalization step can create the ContentItem with the provided
+        # metadata (title, description, tags, seo, transcript, notes, etc.).
+        metadata = {
+            'title_ar': payload.get('title_ar', ''),
+            'title_en': payload.get('title_en', ''),
+            'description_ar': payload.get('description_ar', ''),
+            'description_en': payload.get('description_en', ''),
+            'tag_ids': payload.get('tag_ids', []) or [],
+            'seo_title_en': payload.get('seo_title_en', ''),
+            'seo_title_ar': payload.get('seo_title_ar', ''),
+            'seo_description_en': payload.get('seo_description_en', ''),
+            'seo_description_ar': payload.get('seo_description_ar', ''),
+            'seo_keywords_en': payload.get('seo_keywords_en', ''),
+            'seo_keywords_ar': payload.get('seo_keywords_ar', ''),
+            'transcript': payload.get('transcript', ''),
+            'notes': payload.get('notes', ''),
+            'seo_structured_data': payload.get('seo_structured_data', ''),
+        }
 
-            if not title_ar:
-                title_ar = ContentItem._clean_filename(file_obj.name)
+        session = ChunkedUploadSession.objects.create(
+            filename=filename,
+            total_size=total_size,
+            current_offset=0,
+            metadata=metadata
+        )
 
-            result = upload_service.create_content_item(
-                file_obj=file_obj,
-                title_ar=title_ar,
-                title_en=title_en,
-                tag_ids=tag_ids or None,
-            )
+        # Ensure staging directory is under MEDIA_ROOT so os.replace remains atomic
+        staging_dir = os.path.join(settings.MEDIA_ROOT, 'chunked_uploads')
+        os.makedirs(staging_dir, exist_ok=True)
+        staging_path = os.path.join(staging_dir, f"{session.id}.part")
+        session.staging_path = staging_path
+        session.save(update_fields=['staging_path'])
 
-            if result.get('success'):
-                content_item = result['content_item']
-                results.append({
-                    'success': True,
-                    'content_id': str(content_item.id),
-                    'title': content_item.title_ar,
-                    'content_type': content_item.content_type,
-                    'filename': file_obj.name,
-                })
-            else:
-                results.append({
-                    'success': False,
-                    'filename': file_obj.name,
-                    'error': result.get('error', _('Upload failed')),
-                })
-
-        queued_count = sum(1 for result in results if result['success'])
         return JsonResponse({
             'success': True,
-            'total': len(files),
-            'queued': queued_count,
-            'failed': len(files) - queued_count,
-            'results': results,
+            'session_id': str(session.id),
+            'chunk_url': reverse('frontend_api:bulk_upload_chunk')
         })
 
     except Exception as e:
-        logger.error(f"Bulk upload failed: {e}", exc_info=True)
+        logger.error(f"bulk_upload_init failed: {e}", exc_info=True)
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(["PATCH", "POST"])
+def bulk_upload_chunk(request):
+    """
+    Accept a single file chunk (sent as multipart/form-data with field 'chunk').
+
+    Expects: form field 'session_id' and file field 'chunk'.
+    Returns: { success: True, offset: int, final: bool, content_id: <uuid> (if final) }
+    """
+    try:
+        # For non-POST methods ensure Django parses POST and FILES
+        if request.method != 'POST':
+            # Try the regular internal loader first (may not parse multipart for PATCH)
+            try:
+                request._load_post_and_files()
+            except Exception:
+                # Fallback: for PATCH multipart requests Django may not populate
+                # request.POST/FILES automatically. Try parsing manually with
+                # MultiPartParser using the raw body.
+                try:
+                    content_type = request.META.get('CONTENT_TYPE', '')
+                    if content_type.startswith('multipart/'):
+                        parser = MultiPartParser(request.META, io.BytesIO(request.body), request.upload_handlers)
+                        post, files = parser.parse()
+                        # Assign parsed data back to request for downstream code
+                        request.POST = post
+                        request._files = files
+                except Exception as e:
+                    logger.debug(f"Manual multipart parse failed: {e}")
+
+        session_id = request.POST.get('session_id') or request.GET.get('session_id')
+        if not session_id:
+            return JsonResponse({'success': False, 'error': _('session_id is required')}, status=400)
+
+        try:
+            session = ChunkedUploadSession.objects.get(id=session_id)
+        except ChunkedUploadSession.DoesNotExist:
+            return JsonResponse({'success': False, 'error': _('session not found')}, status=404)
+
+        # Expect multipart file field named 'chunk'
+        chunk_file = request.FILES.get('chunk')
+        if not chunk_file:
+            return JsonResponse({'success': False, 'error': _('chunk file required (multipart/form-data)')}, status=400)
+
+        # Append chunk to staging file using UploadedFile.chunks() to avoid high RAM usage
+        os.makedirs(os.path.dirname(session.staging_path), exist_ok=True)
+        with open(session.staging_path, 'ab') as dest:
+            for chunk in chunk_file.chunks():
+                dest.write(chunk)
+
+        # Update offset
+        current_size = os.path.getsize(session.staging_path)
+        session.current_offset = current_size
+        session.save(update_fields=['current_offset', 'updated_at'])
+
+        response = {'success': True, 'offset': session.current_offset, 'session_id': str(session.id)}
+
+        # If we've reached or exceeded expected size, finalize and hand off to service
+        if session.current_offset >= session.total_size:
+            upload_service = MediaUploadService()
+            try:
+                # This method will atomically move the assembled file into MEDIA_ROOT
+                result = upload_service.create_content_item_from_path(
+                    session.staging_path,
+                    session.filename,
+                    session.metadata
+                )
+
+                if result.get('success') and result.get('content_item'):
+                    content_item = result['content_item']
+                    session.is_complete = True
+                    session.save(update_fields=['is_complete'])
+
+                    # Provide helpful URLs in the response so the client can attach
+                    # supplementary files (thumbnail/document) and navigate.
+                    try:
+                        content_detail_url = reverse('frontend_api:admin_content_detail', args=[str(content_item.id)])
+                    except Exception:
+                        content_detail_url = ''
+                    try:
+                        document_upload_url = reverse('frontend_api:document_upload', args=[str(content_item.id)])
+                    except Exception:
+                        document_upload_url = ''
+                    try:
+                        thumbnail_upload_url = reverse('frontend_api:thumbnail_upload', args=[str(content_item.id)])
+                    except Exception:
+                        thumbnail_upload_url = ''
+
+                    response.update({
+                        'final': True,
+                        'content_id': str(content_item.id),
+                        'message': result.get('message', 'Queued for processing'),
+                        'content_detail_url': content_detail_url,
+                        'document_upload_url': document_upload_url,
+                        'thumbnail_upload_url': thumbnail_upload_url,
+                    })
+                else:
+                    response.update({'final': True, 'error': result.get('error', 'Failed to process assembled file')})
+
+            except Exception as e:
+                logger.error(f"Error finalizing chunked upload {session.id}: {e}", exc_info=True)
+                return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+        return JsonResponse(response)
+
+    except Exception as e:
+        logger.error(f"bulk_upload_chunk failed: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+# Legacy monolithic bulk upload handler removed. Use chunked endpoints instead:
+# - POST to {% url 'frontend_api:bulk_upload_init' %} to create per-file sessions
+# - PATCH to {% url 'frontend_api:bulk_upload_chunk' %} to stream chunks for each session
 
 
 @login_required
@@ -2387,6 +2441,65 @@ def document_delete(request, content_id):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def thumbnail_upload(request, content_id):
+    """
+    AJAX endpoint to upload/replace a thumbnail for an existing ContentItem.
+    POST /dashboard/content/<content_id>/thumbnail/upload/
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': _('Method not allowed')}, status=405)
+
+    try:
+        content_item = get_object_or_404(ContentItem, id=content_id)
+        thumbnail_file = request.FILES.get('thumbnail') or request.FILES.get('thumbnail_file')
+        if not thumbnail_file:
+            return JsonResponse({'success': False, 'error': _('No thumbnail file provided')}, status=400)
+
+        # Validate MIME
+        mime_type, _ = mimetypes.guess_type(thumbnail_file.name)
+        if not mime_type or not mime_type.startswith('image/'):
+            return JsonResponse({'success': False, 'error': _('Thumbnail must be an image file')}, status=400)
+
+        # Clean up old thumbnail if present
+        try:
+            if content_item.thumbnail and hasattr(content_item.thumbnail, 'path'):
+                if os.path.exists(content_item.thumbnail.path):
+                    os.remove(content_item.thumbnail.path)
+                    logger.info(f"Deleted old local thumbnail: {content_item.thumbnail.path}")
+            if content_item.r2_thumbnail_url:
+                r2 = R2Service()
+                if r2.use_r2:
+                    r2_key = content_item.thumbnail.name if content_item.thumbnail else None
+                    if r2_key:
+                        try:
+                            r2._r2_service.delete_file(r2_key)
+                        except Exception:
+                            pass
+        except Exception as e:
+            logger.warning(f"Error while cleaning up old thumbnail: {e}")
+
+        # Attach new thumbnail
+        content_item.thumbnail = thumbnail_file
+        content_item.r2_thumbnail_url = ''
+        content_item.save(update_fields=['thumbnail', 'r2_thumbnail_url'])
+
+        # Optionally upload to R2
+        if getattr(settings, 'R2_ENABLED', False):
+            try:
+                r2 = R2Service()
+                if r2.use_r2:
+                    r2.upload_thumbnail(content_item)
+            except Exception as e:
+                logger.error(f"Failed to upload thumbnail to R2 for content {content_id}: {e}")
+
+        return JsonResponse({'success': True, 'message': _('Thumbnail uploaded successfully')})
+
+    except Exception as e:
+        logger.error(f"Error uploading thumbnail for {content_id}: {e}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @login_required

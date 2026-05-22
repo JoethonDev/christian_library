@@ -309,7 +309,8 @@
         <div class="col-12 col-xxl-8">
             <form id="bulk-upload-form" class="bulk-upload-panel" autocomplete="off">
                 {% csrf_token %}
-                <input type="hidden" id="bulk-upload-url" value="{% url 'frontend_api:handle_bulk_upload' %}">
+                <input type="hidden" id="bulk-upload-init-url" value="{% url 'frontend_api:bulk_upload_init' %}">
+                <input type="hidden" id="bulk-upload-chunk-url" value="{% url 'frontend_api:bulk_upload_chunk' %}">
                 <input type="hidden" id="bulk-status-url" value="{% url 'frontend_api:bulk_upload_status' %}">
 
                 <div class="bulk-upload-panel__header">
@@ -434,5 +435,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/chunked_uploader.js' %}"></script>
 <script src="{% static 'js/admin/bulk_upload.js' %}"></script>
 {% endblock %}
