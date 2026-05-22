@@ -55,12 +55,15 @@ urlpatterns = [
     path('dashboard/content/<uuid:content_id>/document/upload/', admin_views.document_upload, name='document_upload'),
     path('dashboard/content/<uuid:content_id>/document/download/', admin_views.document_download, name='document_download'),
     path('dashboard/content/<uuid:content_id>/document/delete/', admin_views.document_delete, name='document_delete'),
+    path('dashboard/content/<uuid:content_id>/thumbnail/upload/', admin_views.thumbnail_upload, name='thumbnail_upload'),
     
     # Upload functionality (at /en/dashboard/upload/)
     path('dashboard/upload/', admin_views.upload_content, name='upload_content'),
-    path('dashboard/upload/handle/', admin_views.handle_content_upload, name='handle_upload'),
     path('dashboard/upload/bulk/', admin_views.bulk_upload_page, name='bulk_upload_page'),
-    path('dashboard/upload/bulk/handle/', admin_views.handle_bulk_upload, name='handle_bulk_upload'),
+    # Chunked upload endpoints (initiate session, upload chunks)
+    path('dashboard/upload/bulk/init/', admin_views.bulk_upload_init, name='bulk_upload_init'),
+    path('dashboard/upload/bulk/chunk/', admin_views.bulk_upload_chunk, name='bulk_upload_chunk'),
+    # Legacy monolithic handler removed; use chunked endpoints instead
     path('dashboard/upload/bulk/status/', admin_views.bulk_upload_status, name='bulk_upload_status'),
     path('dashboard/upload/generate/', admin_views.generate_content_metadata, name='generate_content_metadata'),
     path('dashboard/upload/generate-from-file/', admin_views.generate_metadata_from_file, name='generate_metadata_from_file'),

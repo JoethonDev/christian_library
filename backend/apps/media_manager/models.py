@@ -32,6 +32,8 @@ Verification:
 
 See tests.py for FTS/Arabic search tests.
 """
+from datetime import timedelta
+import datetime
 import os
 import logging
 import re
@@ -1490,6 +1492,62 @@ class ProcessingJob(models.Model):
 
     def __str__(self):
         return f"ProcessingJob({self.content_item_id}) [{self.status} / {self.current_stage}]"
+    
+
+class ChunkedUploadSession(models.Model):
+    """
+    Tracks in-progress chunked uploads initiated from the admin bulk UI.
+
+    - Stores a UUID session id which the client uses when uploading chunks.
+    - `staging_path` is an absolute path under `MEDIA_ROOT` where partial chunks are appended.
+    - `metadata` holds the user's per-file metadata (titles, tags, etc.) until assembly.
+
+    Cleanup: a periodic management command or cron job should call
+    `ChunkedUploadSession.cleanup_abandoned()` to remove partial files and stale DB rows
+    older than 24 hours.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    filename = models.CharField(max_length=255)
+    total_size = models.BigIntegerField()
+    current_offset = models.BigIntegerField(default=0)
+    is_complete = models.BooleanField(default=False, db_index=True)
+    # Stores JSON like {"title_ar": "...", "title_en": "...", "tag_ids": ["..."]}
+    metadata = models.JSONField(default=dict, blank=True)
+    # Absolute staging path on disk (should live under MEDIA_ROOT/chunked_uploads/)
+    staging_path = models.CharField(max_length=1000, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['is_complete', 'updated_at']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"ChunkedUploadSession({self.id}) {self.filename} [{self.current_offset}/{self.total_size}]"
+
+    @classmethod
+    def cleanup_abandoned(cls, older_than_hours: int = 24):
+        """
+        Cleanup helper to remove abandoned sessions and their partial files.
+        Intended to be called from a management command or cron job.
+        """
+        cutoff = timezone.now() - timedelta(hours=older_than_hours)
+        stale = cls.objects.filter(is_complete=False, updated_at__lt=cutoff)
+        removed = 0
+        for s in stale:
+            try:
+                if s.staging_path and os.path.exists(s.staging_path):
+                    os.unlink(s.staging_path)
+            except Exception:
+                pass
+            try:
+                s.delete()
+                removed += 1
+            except Exception:
+                pass
+        return removed
     
 
 class VideoMetaQuerySet(models.QuerySet):
