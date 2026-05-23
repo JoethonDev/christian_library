@@ -256,9 +256,9 @@ class APIUploadQueueService:
         
         try:
             # Update status
-            queue_item.status = 'processing'
+            queue_item.transition_to('processing', source='system:queue_worker')
             queue_item.processing_started_at = timezone.now()
-            queue_item.save(update_fields=['status', 'processing_started_at', 'updated_at'])
+            queue_item.save(update_fields=['status', 'processing_started_at', 'last_action_source', 'updated_at'])
             
             # Create ContentItem using upload service
             from apps.media_manager.services.upload_service import MediaUploadService
@@ -363,9 +363,9 @@ class APIUploadQueueService:
             
             # Update queue item
             queue_item.content_item = content_item
-            queue_item.status = 'completed'
+            queue_item.transition_to('completed', source='system:queue_worker')
             queue_item.completed_at = timezone.now()
-            queue_item.save(update_fields=['content_item', 'status', 'completed_at', 'updated_at'])
+            queue_item.save(update_fields=['content_item', 'status', 'completed_at', 'last_action_source', 'updated_at'])
             
             # Clean up temp files
             cls._cleanup_temp_files(queue_item)
@@ -376,10 +376,10 @@ class APIUploadQueueService:
             
         except Exception as e:
             logger.error(f'Error processing queue item {queue_item.id}: {e}', exc_info=True)
-            queue_item.status = 'failed'
+            queue_item.transition_to('failed', reason=str(e), source='system:queue_worker')
             queue_item.error_message = str(e)
             queue_item.gemini_attempts += 1
-            queue_item.save(update_fields=['status', 'error_message', 'gemini_attempts', 'updated_at'])
+            queue_item.save(update_fields=['status', 'error_message', 'gemini_attempts', 'last_action_source', 'updated_at'])
             return None
         finally:
             # Always release lock
@@ -401,7 +401,7 @@ class APIUploadQueueService:
             logger.error(f'Error cleaning up temp files: {e}')
     
     @classmethod
-    def promote_item(cls, queue_item_id):
+    def promote_item(cls, queue_item_id, action_source='admin:jobs_api'):
         """
         Admin action to promote a queue item to process immediately.
         
@@ -410,15 +410,19 @@ class APIUploadQueueService:
         """
         try:
             queue_item = APIUploadQueue.objects.get(id=queue_item_id)
-            if queue_item.status == 'failed':
-                queue_item.status = 'pending'
+            if queue_item.can_retry():
+                queue_item.transition_to('pending', source=action_source)
                 queue_item.queue_status = 'ready'
                 queue_item.scheduled_for = timezone.now()
                 queue_item.error_message = ''
                 queue_item.gemini_attempts += 1
-                queue_item.save(update_fields=['status', 'queue_status', 'scheduled_for', 'error_message', 'gemini_attempts', 'updated_at'])
+                queue_item.save(update_fields=['status', 'queue_status', 'scheduled_for', 'error_message', 'gemini_attempts', 'last_action_source', 'updated_at'])
             else:
+                if not queue_item.can_promote():
+                    raise ValueError(f'Queue item cannot be promoted from status: {queue_item.status}')
                 queue_item.promote_to_ready()
+                queue_item.last_action_source = action_source
+                queue_item.save(update_fields=['last_action_source', 'updated_at'])
             
             # Trigger processing if can acquire lock
             if cls.can_process_type(queue_item.content_type):
@@ -428,9 +432,10 @@ class APIUploadQueueService:
             logger.info(f'Promoted queue item {queue_item.id}')
         except APIUploadQueue.DoesNotExist:
             logger.error(f'Queue item {queue_item_id} not found')
+            raise
     
     @classmethod
-    def cancel_item(cls, queue_item_id):
+    def cancel_item(cls, queue_item_id, action_source='admin:jobs_api'):
         """
         Admin action to cancel a queue item.
         
@@ -439,8 +444,12 @@ class APIUploadQueueService:
         """
         try:
             queue_item = APIUploadQueue.objects.get(id=queue_item_id)
-            queue_item.status = 'cancelled'
-            queue_item.save(update_fields=['status', 'updated_at'])
+            if not queue_item.can_cancel():
+                raise ValueError(f'Queue item cannot be cancelled from status: {queue_item.status}')
+
+            queue_item.transition_to('cancelled', reason='Cancelled by admin', source=action_source)
+            queue_item.queue_status = 'ready'
+            queue_item.save(update_fields=['status', 'queue_status', 'error_message', 'last_action_source', 'updated_at'])
             
             # Clean up temp files
             cls._cleanup_temp_files(queue_item)
@@ -448,6 +457,7 @@ class APIUploadQueueService:
             logger.info(f'Cancelled queue item {queue_item.id}')
         except APIUploadQueue.DoesNotExist:
             logger.error(f'Queue item {queue_item_id} not found')
+            raise
     
     @classmethod
     def get_queue_dashboard_data(cls):

@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
@@ -63,6 +63,11 @@ from apps.frontend_api.utils.jobs_dashboard import (
 from config import celery_app
 
 logger = logging.getLogger(__name__)
+
+staff_member_required = user_passes_test(
+    lambda u: u.is_active and u.is_staff,
+    login_url='frontend_api:admin_login',
+)
 
 # Initialize services
 content_service = ContentService()
@@ -1067,136 +1072,6 @@ def get_r2_storage_usage(request):
         })
 
 
-@staff_member_required
-def r2_status_dashboard(request):
-    """
-    R2 Upload Status Dashboard - Shows detailed R2 upload status for all content items.
-    Provides retry functionality and bulk operations for failed uploads.
-    """
-    if not request.user.is_staff:
-        return JsonResponse({'error': _('Permission denied')}, status=403)
-    
-    try:
-        # Get filter parameters
-        status_filter = request.GET.get('status', 'all')  # all, pending, uploading, completed, failed
-        content_type = request.GET.get('type', 'all')  # all, video, audio, pdf
-        
-        # Build status data
-        status_data = {}
-        
-        # Video content R2 status
-        if content_type in ['all', 'video']:
-            video_queryset = VideoMeta.objects.select_related('content_item').only(
-                'id', 'r2_upload_status', 'r2_upload_progress', 
-                'content_item__title_ar', 'content_item__created_at',
-                'content_item__id'
-            )
-            if status_filter == 'all':
-                # Show only failed and pending items by default
-                video_queryset = video_queryset.filter(
-                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
-                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
-                )
-            else:
-                video_queryset = video_queryset.filter(r2_upload_status=status_filter)
-            
-            status_data['videos'] = [
-                {
-                    'id': vm.id,
-                    'content_id': vm.content_item.id,
-                    'title': vm.content_item.title_ar,
-                    'status': vm.r2_upload_status or 'pending',
-                    'progress': vm.r2_upload_progress or 0,
-                    'created_at': vm.content_item.created_at.isoformat(),
-                    'type': 'video'
-                }
-                for vm in video_queryset[:100]  # Limit to 100 items
-            ]
-        
-        # Audio content R2 status  
-        if content_type in ['all', 'audio']:
-            audio_queryset = AudioMeta.objects.select_related('content_item').only(
-                'id', 'r2_upload_status', 'r2_upload_progress',
-                'content_item__title_ar', 'content_item__created_at',
-                'content_item__id'
-            )
-            if status_filter == 'all':
-                # Show only failed and pending items by default
-                audio_queryset = audio_queryset.filter(
-                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
-                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
-                )
-            else:
-                audio_queryset = audio_queryset.filter(r2_upload_status=status_filter)
-            
-            status_data['audios'] = [
-                {
-                    'id': am.id,
-                    'content_id': am.content_item.id,
-                    'title': am.content_item.title_ar,
-                    'status': am.r2_upload_status or 'pending',
-                    'progress': am.r2_upload_progress or 0,
-                    'created_at': am.content_item.created_at.isoformat(),
-                    'type': 'audio'
-                }
-                for am in audio_queryset[:100]  # Limit to 100 items
-            ]
-        
-        # PDF content R2 status
-        if content_type in ['all', 'pdf']:
-            pdf_queryset = PdfMeta.objects.select_related('content_item').only(
-                'id', 'r2_upload_status', 'r2_upload_progress',
-                'content_item__title_ar', 'content_item__created_at',
-                'content_item__id'
-            )
-            if status_filter == 'all':
-                # Show only failed and pending items by default
-                pdf_queryset = pdf_queryset.filter(
-                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
-                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
-                )
-            else:
-                pdf_queryset = pdf_queryset.filter(r2_upload_status=status_filter)
-            
-            status_data['pdfs'] = [
-                {
-                    'id': pm.id,
-                    'content_id': pm.content_item.id,
-                    'title': pm.content_item.title_ar,
-                    'status': pm.r2_upload_status or 'pending',
-                    'progress': pm.r2_upload_progress or 0,
-                    'created_at': pm.content_item.created_at.isoformat(),
-                    'type': 'pdf'
-                }
-                for pm in pdf_queryset[:100]  # Limit to 100 items
-            ]
-        
-        # Get summary statistics
-        status_summary = get_r2_sync_status_data()
-        
-        context = {
-            'status_data': status_data,
-            'status_summary': status_summary,
-            'current_filter': {
-                'status': status_filter,
-                'type': content_type
-            }
-        }
-        
-        if request.headers.get('Accept') == 'application/json':
-            return JsonResponse(context)
-        
-        # HTMX partial support
-        if request.headers.get('HX-Request') == 'true':
-            return render(request, 'admin/partials/r2_status_table.html', context)
-            
-        return render(request, 'admin/r2_status_dashboard.html', context)
-        
-    except Exception as e:
-        logger.error(f"R2 status dashboard error: {e}", exc_info=True)
-        return JsonResponse({'error': str(e)}, status=500)
-
-
 @staff_member_required 
 @require_POST
 def retry_r2_upload(request, content_type, meta_id):
@@ -2094,116 +1969,6 @@ def test_search_sensitivity(request):
             'error': str(e)
         }, status=500)
 
-# ============================================================================
-# API Upload Queue Management Views
-# ============================================================================
-
-@staff_member_required
-def api_queue_list(request):
-    """
-    Display and manage API upload queue items.
-    Supports filtering by status, content type, and pagination.
-    """
-    # Get filter parameters
-    status_filter = request.GET.get('status', '')
-    content_type_filter = request.GET.get('content_type', '')
-    page_number = request.GET.get('page', 1)
-    
-    # Build queryset with filters
-    queryset = APIUploadQueue.objects.select_related('content_item').order_by('-priority', '-created_at')
-    
-    if status_filter:
-        queryset = queryset.filter(status=status_filter)
-    
-    if content_type_filter:
-        queryset = queryset.filter(content_type=content_type_filter)
-    
-    # Get statistics
-    stats = {
-        'total': APIUploadQueue.objects.count(),
-        'pending': APIUploadQueue.objects.filter(status='pending').count(),
-        'queued': APIUploadQueue.objects.filter(status='queued').count(),
-        'processing': APIUploadQueue.objects.filter(status='processing').count(),
-        'completed': APIUploadQueue.objects.filter(status='completed').count(),
-        'failed': APIUploadQueue.objects.filter(status='failed').count(),
-        'rate_limited': APIUploadQueue.objects.filter(status='rate_limited').count(),
-        'cancelled': APIUploadQueue.objects.filter(status='cancelled').count(),
-    }
-    
-    # Get items by content type
-    type_stats = {
-        'video': APIUploadQueue.objects.filter(content_type='video', status__in=['pending', 'queued', 'processing']).count(),
-        'audio': APIUploadQueue.objects.filter(content_type='audio', status__in=['pending', 'queued', 'processing']).count(),
-        'pdf': APIUploadQueue.objects.filter(content_type='pdf', status__in=['pending', 'queued', 'processing']).count(),
-    }
-    
-    # Paginate results
-    paginator = Paginator(queryset, 20)
-    page_obj = paginator.get_page(page_number)
-    
-    # Calculate queue positions for items
-    for item in page_obj:
-        item.calculated_position = item.get_queue_position()
-    
-    context = {
-        'page_obj': page_obj,
-        'stats': stats,
-        'type_stats': type_stats,
-        'status_filter': status_filter,
-        'content_type_filter': content_type_filter,
-        'status_choices': [
-            ('', 'All'),
-            ('pending', 'Pending'),
-            ('queued', 'Queued'),
-            ('processing', 'Processing'),
-            ('completed', 'Completed'),
-            ('failed', 'Failed'),
-            ('rate_limited', 'Rate Limited'),
-            ('cancelled', 'Cancelled'),
-        ],
-        'content_type_choices': [
-            ('', 'All Types'),
-            ('video', 'Video'),
-            ('audio', 'Audio'),
-            ('pdf', 'PDF'),
-        ],
-    }
-    
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        html = render_to_string('admin/partials/api_queue_list.html', context, request=request)
-        
-        # Render just the pagination portion
-        pagination_html = render_to_string('admin/api_queue_list.html', context, request=request)
-        # Extract pagination part from the full template (coarse but effective if partial doesn't include it)
-        # Better: render a small snippet for pagination
-        pagination_match = re.search(r'<nav aria-label="Page navigation".*?</nav>', pagination_html, re.DOTALL)
-        pagination_snippet = pagination_match.group(0) if pagination_match else ""
-        
-        return JsonResponse({
-            'html': html,
-            'pagination_html': pagination_snippet,
-            'total_count': paginator.count
-        })
-
-    return render(request, 'admin/api_queue_list.html', context)
-
-
-@staff_member_required
-def api_queue_detail(request, queue_id):
-    """Display detailed information about a queue item."""
-    queue_item = get_object_or_404(
-        APIUploadQueue.objects.select_related('content_item'), 
-        id=queue_id
-    )
-    
-    context = {
-        'queue_item': queue_item,
-        'queue_position': queue_item.get_queue_position(),
-    }
-    
-    return render(request, 'admin/api_queue_detail.html', context)
-
-
 @staff_member_required
 @require_POST
 def api_queue_promote(request, queue_id):
@@ -2227,7 +1992,7 @@ def api_queue_promote(request, queue_id):
             })
         
         # Redirect for regular requests
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
         
     except Exception as e:
         logger.error(f"Error promoting queue item {queue_id}: {e}", exc_info=True)
@@ -2239,7 +2004,7 @@ def api_queue_promote(request, queue_id):
             }, status=400)
         
         messages.error(request, _('Error promoting item: %(error)s') % {'error': str(e)})
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
 
 
 @staff_member_required
@@ -2265,7 +2030,7 @@ def api_queue_cancel(request, queue_id):
             })
         
         # Redirect for regular requests
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
         
     except Exception as e:
         logger.error(f"Error cancelling queue item {queue_id}: {e}", exc_info=True)
@@ -2277,7 +2042,7 @@ def api_queue_cancel(request, queue_id):
             }, status=400)
         
         messages.error(request, _('Error cancelling item: %(error)s') % {'error': str(e)})
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
 
 
 @staff_member_required
@@ -2567,13 +2332,15 @@ def api_job_cancel(request):
 
     if source == 'processing_job':
         job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
+        if not job.can_cancel():
+            return JsonResponse({'success': False, 'error': _('Job cannot be cancelled from its current status')}, status=400)
+
         if job.celery_task_id:
             celery_app.control.revoke(job.celery_task_id, terminate=True)
 
-        job.status = 'canceled'
+        job.transition_to('canceled', reason=_('Cancelled by admin'), source='admin:jobs_api')
         job.failure_stage = job.current_stage
-        job.failure_reason = _('Cancelled by admin')
-        job.save(update_fields=['status', 'failure_stage', 'failure_reason', 'updated_at'])
+        job.save(update_fields=['status', 'failure_stage', 'failure_reason', 'last_action_source', 'updated_at'])
 
         return JsonResponse({
             'success': True,
@@ -2582,7 +2349,11 @@ def api_job_cancel(request):
 
     if source == 'api_queue':
         queue_item = get_object_or_404(APIUploadQueue, id=job_id)
-        APIUploadQueueService.cancel_item(str(queue_item.id))
+        try:
+            APIUploadQueueService.cancel_item(str(queue_item.id), action_source='admin:jobs_api')
+        except ValueError as exc:
+            return JsonResponse({'success': False, 'error': str(exc)}, status=400)
+
         return JsonResponse({
             'success': True,
             'message': _('API queue item cancelled successfully'),
@@ -2608,7 +2379,7 @@ def api_job_promote(request):
 
     if source == 'processing_job':
         job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
-        if job.status not in ['pending', 'failed']:
+        if not job.can_promote() and not job.can_retry():
             return JsonResponse({'success': False, 'error': _('Job is already running or completed')}, status=400)
 
         selected_stage = job.failure_stage or job.current_stage or 'file_processing'
@@ -2616,10 +2387,13 @@ def api_job_promote(request):
         if not task:
             return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
 
-        job.status = 'processing'
+        if job.can_retry():
+            job.transition_to('pending', reason=_('Retry requested by admin'), source='admin:jobs_api')
+            job.retry_count += 1
+
+        job.transition_to('processing', source='admin:jobs_api')
         job.celery_task_id = task.id
-        job.retry_count += 1
-        job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'updated_at'])
+        job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
 
         return JsonResponse({
             'success': True,
@@ -2629,7 +2403,11 @@ def api_job_promote(request):
 
     if source == 'api_queue':
         queue_item = get_object_or_404(APIUploadQueue, id=job_id)
-        APIUploadQueueService.promote_item(str(queue_item.id))
+        try:
+            APIUploadQueueService.promote_item(str(queue_item.id), action_source='admin:jobs_api')
+        except ValueError as exc:
+            return JsonResponse({'success': False, 'error': str(exc)}, status=400)
+
         return JsonResponse({
             'success': True,
             'message': _('API queue item promoted successfully'),
@@ -2655,7 +2433,7 @@ def api_job_dispatch(request):
         return JsonResponse({'success': False, 'error': _('content_id is required')}, status=400)
 
     content_item = get_object_or_404(ContentItem, id=content_id)
-    task_id = dispatch_content_item_for_stage(content_item, stage, force=force)
+    task_id = dispatch_content_item_for_stage(content_item, stage, force=force, action_source='admin:jobs_api')
 
     if not task_id:
         return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)

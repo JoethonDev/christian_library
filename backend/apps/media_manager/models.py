@@ -1455,6 +1455,14 @@ class ProcessingJob(models.Model):
         ('completed', _('Completed')),
     ]
 
+    TRANSITION_RULES = {
+        'pending': {'processing', 'canceled'},
+        'processing': {'completed', 'failed'},
+        'failed': {'pending'},
+        'completed': set(),
+        'canceled': set(),
+    }
+
     content_item = models.OneToOneField(
         'ContentItem',
         on_delete=models.CASCADE,
@@ -1475,6 +1483,7 @@ class ProcessingJob(models.Model):
     failure_reason = models.TextField(blank=True)
     retry_count = models.PositiveSmallIntegerField(default=0)
     celery_task_id = models.CharField(max_length=255, blank=True)
+    last_action_source = models.CharField(max_length=64, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1486,6 +1495,28 @@ class ProcessingJob(models.Model):
 
     def __str__(self):
         return f"ProcessingJob({self.content_item_id}) [{self.status} / {self.current_stage}]"
+
+    def can_transition_to(self, new_status):
+        return new_status in self.TRANSITION_RULES.get(self.status, set())
+
+    def transition_to(self, new_status, reason='', source=''):
+        if not self.can_transition_to(new_status):
+            raise ValueError(f'Invalid ProcessingJob transition: {self.status} -> {new_status}')
+
+        self.status = new_status
+        if new_status in ['failed', 'canceled'] and reason:
+            self.failure_reason = reason
+        if source:
+            self.last_action_source = source
+
+    def can_promote(self):
+        return self.status == 'pending'
+
+    def can_retry(self):
+        return self.status == 'failed'
+
+    def can_cancel(self):
+        return self.status == 'pending'
     
 
 class ChunkedUploadSession(models.Model):
@@ -2639,6 +2670,16 @@ class APIUploadQueue(models.Model):
         ('rate_limited', _('Rate Limited')),
         ('cancelled', _('Cancelled')),
     ]
+
+    PENDING_LIKE_STATUSES = {'pending', 'queued', 'rate_limited'}
+
+    TRANSITION_RULES = {
+        'pending': {'processing', 'cancelled'},
+        'processing': {'completed', 'failed'},
+        'failed': {'pending'},
+        'completed': set(),
+        'cancelled': set(),
+    }
     
     QUEUE_STATUS_CHOICES = [
         ('waiting', _('Waiting')),
@@ -2712,6 +2753,13 @@ class APIUploadQueue(models.Model):
         verbose_name=_('Gemini Attempts'),
         help_text=_('Number of attempts to generate metadata with Gemini')
     )
+    last_action_source = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name=_('Last Action Source'),
+        help_text=_('Origin of last status mutation, such as admin API or queue worker')
+    )
     content_item = models.ForeignKey(
         ContentItem,
         on_delete=models.SET_NULL,
@@ -2750,6 +2798,34 @@ class APIUploadQueue(models.Model):
     
     def __str__(self):
         return f"{self.file_name} - {self.status}"
+
+    def _normalized_status(self):
+        if self.status in self.PENDING_LIKE_STATUSES:
+            return 'pending'
+        return self.status
+
+    def can_transition_to(self, new_status):
+        current = self._normalized_status()
+        return new_status in self.TRANSITION_RULES.get(current, set())
+
+    def transition_to(self, new_status, reason='', source=''):
+        if not self.can_transition_to(new_status):
+            raise ValueError(f'Invalid APIUploadQueue transition: {self.status} -> {new_status}')
+
+        self.status = new_status
+        if new_status in ['failed', 'cancelled'] and reason:
+            self.error_message = reason
+        if source:
+            self.last_action_source = source
+
+    def can_promote(self):
+        return self.status in self.PENDING_LIKE_STATUSES
+
+    def can_retry(self):
+        return self.status == 'failed'
+
+    def can_cancel(self):
+        return self.status in self.PENDING_LIKE_STATUSES
     
     def can_process(self):
         """

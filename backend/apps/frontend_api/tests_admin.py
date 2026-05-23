@@ -3,11 +3,13 @@ Tests for Admin Service, Admin views, and Gemini services.
 Moved from apps/health/tests.py (was misplaced there).
 """
 import json
+import time
 from types import SimpleNamespace
 from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.urls import resolve, Resolver404
 from apps.media_manager.models import APIUploadQueue, ContentItem, ProcessingJob
 
 
@@ -240,6 +242,238 @@ class JobsDashboardEndpointsTestCase(TestCase):
         self.client.force_login(self.non_staff_user)
         response = self.client.get('/en/dashboard/jobs/api/list/', HTTP_HX_REQUEST='true')
         self.assertEqual(response.status_code, 302)
+
+
+class JobsTransitionGuardTestCase(TestCase):
+    """Phase 3 transition guard tests for jobs dashboard action APIs."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.staff_user = User.objects.create_user(
+            username='phase3_staff',
+            email='phase3_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.content_item = ContentItem.objects.create(
+            title_ar='وظيفة انتقال',
+            title_en='Transition Job',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+
+    @patch('apps.frontend_api.admin_views.dispatch_processing_task')
+    def test_promote_failed_processing_job_retries_then_processes(self, mock_dispatch):
+        from apps.frontend_api.admin_views import api_job_promote
+
+        mock_dispatch.return_value = SimpleNamespace(id='task-123')
+        job = ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='failed',
+            current_stage='file_processing',
+            failure_stage='file_processing',
+            retry_count=0,
+        )
+
+        request = self.factory.post(
+            '/ar/dashboard/jobs/api/promote/',
+            data=json.dumps({'job_id': str(job.id), 'source': 'processing_job'}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        response = api_job_promote(request)
+
+        self.assertEqual(response.status_code, 200)
+        job.refresh_from_db()
+        self.assertEqual(job.status, 'processing')
+        self.assertEqual(job.retry_count, 1)
+        self.assertEqual(job.celery_task_id, 'task-123')
+        self.assertEqual(job.last_action_source, 'admin:jobs_api')
+
+    def test_cancel_processing_job_rejects_processing_status(self):
+        from apps.frontend_api.admin_views import api_job_cancel
+
+        job = ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='processing',
+            current_stage='file_processing',
+        )
+
+        request = self.factory.post(
+            '/ar/dashboard/jobs/api/cancel/',
+            data=json.dumps({'job_id': str(job.id), 'source': 'processing_job'}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        response = api_job_cancel(request)
+
+        self.assertEqual(response.status_code, 400)
+        job.refresh_from_db()
+        self.assertEqual(job.status, 'processing')
+
+    def test_cancel_api_queue_rejects_completed_status(self):
+        from apps.frontend_api.admin_views import api_job_cancel
+
+        queue_item = APIUploadQueue.objects.create(
+            file_name='completed_queue.mp4',
+            file_path='tmp/completed_queue.mp4',
+            content_type='video',
+            file_size_mb=10.0,
+            status='completed',
+            queue_status='ready',
+        )
+
+        request = self.factory.post(
+            '/ar/dashboard/jobs/api/cancel/',
+            data=json.dumps({'job_id': str(queue_item.id), 'source': 'api_queue'}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        response = api_job_cancel(request)
+
+        self.assertEqual(response.status_code, 400)
+        queue_item.refresh_from_db()
+        self.assertEqual(queue_item.status, 'completed')
+
+
+class JobsDispatchPipelineTestCase(TestCase):
+    """Phase 3 dispatch and aggregation behavior tests."""
+
+    def setUp(self):
+        self.content_item = ContentItem.objects.create(
+            title_ar='وظيفة خطوط الانابيب',
+            title_en='Pipeline Job',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+
+    @patch('apps.frontend_api.utils.jobs_dashboard.dispatch_processing_task')
+    def test_dispatch_content_item_blocks_duplicate_processing_job(self, mock_dispatch):
+        from apps.frontend_api.utils.jobs_dashboard import dispatch_content_item_for_stage
+
+        ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='processing',
+            current_stage='file_processing',
+            celery_task_id='existing-task-id',
+        )
+
+        task_id = dispatch_content_item_for_stage(self.content_item, stage='file_processing')
+
+        self.assertEqual(task_id, '')
+        mock_dispatch.assert_not_called()
+
+    @patch('apps.frontend_api.utils.jobs_dashboard.dispatch_processing_task')
+    def test_dispatch_content_item_persists_action_source(self, mock_dispatch):
+        from apps.frontend_api.utils.jobs_dashboard import dispatch_content_item_for_stage
+
+        mock_dispatch.return_value = SimpleNamespace(id='task-xyz')
+
+        task_id = dispatch_content_item_for_stage(
+            self.content_item,
+            stage='file_processing',
+            action_source='admin:jobs_api',
+        )
+
+        self.assertEqual(task_id, 'task-xyz')
+        job = ProcessingJob.objects.get(content_item=self.content_item)
+        self.assertEqual(job.last_action_source, 'admin:jobs_api')
+
+    @patch('apps.media_manager.services.api_upload_queue_service.APIUploadQueueService.can_process_type')
+    def test_api_queue_promote_persists_action_source(self, mock_can_process_type):
+        from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+
+        mock_can_process_type.return_value = False
+        queue_item = APIUploadQueue.objects.create(
+            file_name='source_queue.mp4',
+            file_path='tmp/source_queue.mp4',
+            content_type='video',
+            file_size_mb=5.0,
+            status='pending',
+            queue_status='waiting',
+        )
+
+        APIUploadQueueService.promote_item(str(queue_item.id), action_source='admin:jobs_api')
+
+        queue_item.refresh_from_db()
+        self.assertEqual(queue_item.last_action_source, 'admin:jobs_api')
+
+    def test_get_jobs_counts_uses_canonical_api_queue_statuses(self):
+        from apps.frontend_api.utils.jobs_dashboard import get_jobs_counts
+
+        ContentItem.objects.create(
+            title_ar='وظيفة مكتملة',
+            title_en='Completed Job',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='audio',
+            is_active=True,
+        )
+
+        APIUploadQueue.objects.create(
+            file_name='queued_item.mp4',
+            file_path='tmp/queued_item.mp4',
+            content_type='video',
+            file_size_mb=5.0,
+            status='queued',
+            queue_status='ready',
+        )
+        APIUploadQueue.objects.create(
+            file_name='cancelled_item.mp4',
+            file_path='tmp/cancelled_item.mp4',
+            content_type='video',
+            file_size_mb=5.0,
+            status='cancelled',
+            queue_status='ready',
+        )
+
+        counts = get_jobs_counts()
+
+        self.assertGreaterEqual(counts['pending'], 1)
+        self.assertGreaterEqual(counts['canceled'], 1)
+
+
+class RemovedStandaloneDashboardRoutesTestCase(TestCase):
+    """Phase 2 hard-removal tests for deprecated standalone dashboard pages."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='phase2_staff',
+            email='phase2_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.queue_item = APIUploadQueue.objects.create(
+            file_name='phase2_queue_video.mp4',
+            file_path='tmp/phase2_queue_video.mp4',
+            content_type='video',
+            file_size_mb=8.0,
+            status='pending',
+            queue_status='waiting',
+        )
+
+    def test_removed_routes_do_not_resolve_and_fail_fast(self):
+        removed_urls = [
+            '/ar/dashboard/api-queue/',
+            f'/ar/dashboard/api-queue/{self.queue_item.id}/',
+            '/ar/dashboard/r2/',
+            '/ar/dashboard/seo/',
+        ]
+
+        for url in removed_urls:
+            start = time.monotonic()
+            with self.assertRaises(Resolver404, msg=f'Expected unresolved route for {url}'):
+                resolve(url)
+            elapsed = time.monotonic() - start
+            self.assertLess(
+                elapsed,
+                1.0,
+                msg=f'URL resolution took too long for removed route {url}: {elapsed:.3f}s',
+            )
 
 
 class GeminiMetadataServiceTest(TestCase):
