@@ -262,20 +262,20 @@
                 {% trans "All Content" %}
             </a>
             
-            <a href="{% url 'frontend_api:video_management' %}" 
-               class="nav-link-admin {% if 'videos' in request.path %}active{% endif %}">
+                <a href="{% url 'frontend_api:media_management' media_type='video' %}" 
+                    class="nav-link-admin {% if '/dashboard/video/' in request.path %}active{% endif %}">
                 <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-camera-video"/></svg>
                 {% trans "Videos" %}
             </a>
             
-            <a href="{% url 'frontend_api:audio_management' %}" 
-               class="nav-link-admin {% if 'audios' in request.path %}active{% endif %}">
+                <a href="{% url 'frontend_api:media_management' media_type='audio' %}" 
+                    class="nav-link-admin {% if '/dashboard/audio/' in request.path %}active{% endif %}">
                 <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
                 {% trans "Audio" %}
             </a>
             
-            <a href="{% url 'frontend_api:pdf_management' %}" 
-               class="nav-link-admin {% if 'pdfs' in request.path %}active{% endif %}">
+                <a href="{% url 'frontend_api:media_management' media_type='pdf' %}" 
+                    class="nav-link-admin {% if '/dashboard/pdf/' in request.path %}active{% endif %}">
                 <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
                 {% trans "PDFs" %}
             </a>

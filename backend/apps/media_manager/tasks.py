@@ -54,7 +54,7 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
             return
         
         # Update task status to indicate processing has started (only if not already completed)
-        # For PDFs, the file processing (optimization) completes first, then text extraction happens
+        # For PDFs, file processing completes first, then text extraction happens.
         # We don't want to overwrite 'completed' status from file processing
         if item.processing_status != 'completed':
             item.processing_status = 'processing'
@@ -545,8 +545,7 @@ def finalize_media_processing(contentitem_id):
                     if hasattr(meta, 'compressed_file') and meta.compressed_file and os.path.exists(meta.compressed_file.path):
                         local_paths.append(str(meta.compressed_file.path))
                 elif item.content_type == 'pdf':
-                    if hasattr(meta, 'optimized_file') and meta.optimized_file and os.path.exists(meta.optimized_file.path):
-                        local_paths.append(str(meta.optimized_file.path))
+                    pass
                 
                 if local_paths and item.has_seo_metadata():
                     from core.tasks.media_processing import delete_files_task
@@ -637,26 +636,19 @@ def aggregate_daily_content_views():
         
         logger.info(f"Aggregating view events for {yesterday}")
         
-        # Get events from yesterday grouped by content_type and content_id
+        # Aggregate total and unique views in one grouped query.
         events = ContentViewEvent.objects.filter(
             timestamp__gte=start_datetime,
             timestamp__lte=end_datetime
         ).values('content_type', 'content_id').annotate(
-            count=Count('id')
+            count=Count('id'),
+            unique_views=Count('ip_address', distinct=True),
         )
         
         aggregated_count = 0
         for event_data in events:
-            # Count total views
             total_views = event_data['count']
-            
-            # Count unique views (distinct IP addresses)
-            unique_views = ContentViewEvent.objects.filter(
-                timestamp__gte=start_datetime,
-                timestamp__lte=end_datetime,
-                content_type=event_data['content_type'],
-                content_id=event_data['content_id']
-            ).values('ip_address').distinct().count()
+            unique_views = event_data['unique_views']
             
             # Update or create summary record
             summary, created = DailyContentViewSummary.objects.update_or_create(

@@ -6,11 +6,12 @@ import json
 from types import SimpleNamespace
 from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase, RequestFactory
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
+from apps.media_manager.models import APIUploadQueue, ContentItem, ProcessingJob
 
-from apps.frontend_api.admin_services import AdminService
+
+User = get_user_model()
 
 
 class R2StorageAPIEndpointTestCase(TestCase):
@@ -21,6 +22,7 @@ class R2StorageAPIEndpointTestCase(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testuser',
+            email='testuser@example.com',
             password='testpass',
             is_staff=True
         )
@@ -63,6 +65,7 @@ class R2StorageAPIEndpointTestCase(TestCase):
 
         non_staff_user = User.objects.create_user(
             username='regularuser',
+            email='regularuser@example.com',
             password='testpass',
             is_staff=False
         )
@@ -72,10 +75,8 @@ class R2StorageAPIEndpointTestCase(TestCase):
 
         response = get_r2_storage_usage(request)
 
-        self.assertEqual(response.status_code, 403)
-        data = json.loads(response.content)
-        self.assertFalse(data['success'])
-        self.assertIn('Permission denied', data['error'])
+        # staff_member_required redirects non-staff users to the admin login page.
+        self.assertEqual(response.status_code, 302)
 
 
 class SystemMonitorTestCase(TestCase):
@@ -109,10 +110,9 @@ class SystemMonitorTestCase(TestCase):
 
         self.assertIn('original', breakdown)
         self.assertIn('hls', breakdown)
-        self.assertIn('optimized', breakdown)
         self.assertIn('compressed', breakdown)
 
-        for category in ['original', 'hls', 'optimized', 'compressed']:
+        for category in ['original', 'hls', 'compressed']:
             self.assertIn('size', breakdown[category])
             self.assertIn('count', breakdown[category])
             self.assertIsInstance(breakdown[category]['size'], int)
@@ -130,7 +130,7 @@ class SystemMonitorTestCase(TestCase):
         self.assertIn('total', stats)
         self.assertIn('storage', stats)
 
-    @patch('apps.frontend_api.admin_services.get_r2_storage_service')
+    @patch('core.services.r2_storage_service.get_r2_storage_service')
     @patch('apps.frontend_api.admin_services.settings')
     def test_r2_stats_enabled(self, mock_settings, mock_r2_service):
         """Test R2 stats when R2 is enabled"""
@@ -175,6 +175,71 @@ class SystemMonitorTestCase(TestCase):
         self.assertIn('active_tasks', data['task_monitor'])
         self.assertIn('task_stats', data['task_monitor'])
         self.assertIn('has_tasks', data['task_monitor'])
+
+
+class JobsDashboardEndpointsTestCase(TestCase):
+    """Regression tests for admin jobs API endpoints."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='jobs_staff',
+            email='jobs_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.non_staff_user = User.objects.create_user(
+            username='jobs_regular',
+            email='jobs_regular@example.com',
+            password='testpass123',
+            is_staff=False,
+        )
+
+        self.content_item = ContentItem.objects.create(
+            title_ar='محتوى الوظائف',
+            title_en='Jobs Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+        ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='pending',
+            current_stage='file_processing',
+        )
+        APIUploadQueue.objects.create(
+            file_name='queue_video.mp4',
+            file_path='tmp/queue_video.mp4',
+            content_type='video',
+            file_size_mb=12.0,
+            status='pending',
+            queue_status='waiting',
+        )
+
+    def test_api_jobs_list_htmx_returns_partial(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/list/', HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Job Queue')
+
+    def test_api_jobs_list_non_htmx_redirects_dashboard(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/list/?status=pending&type=all')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/dashboard/jobs/', response.url)
+
+    def test_api_jobs_stats_returns_expected_keys(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/stats/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        for key in ['active', 'pending', 'canceled', 'completed', 'failed']:
+            self.assertIn(key, data)
+
+    def test_api_jobs_list_non_staff_redirected(self):
+        self.client.force_login(self.non_staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/list/', HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 302)
 
 
 class GeminiMetadataServiceTest(TestCase):
@@ -402,39 +467,37 @@ class MetadataEndpointTest(TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
+        self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testuser',
+            email='metadata@example.com',
             password='testpass123',
             is_staff=True
         )
 
     def test_endpoint_requires_post(self):
         """Test that endpoint requires POST method"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_metadata_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_metadata_only')
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertFalse(data['success'])
-        self.assertIn('POST method required', data['error'])
+        request = self.factory.get('/api/admin/generate-metadata-only/')
+        request.user = self.user
+        response = generate_metadata_only(request)
+        self.assertEqual(response.status_code, 405)
 
     def test_endpoint_requires_file(self):
         """Test that endpoint requires file parameter"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_metadata_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_metadata_only')
-        response = client.post(url, {})
+        request = self.factory.post('/api/admin/generate-metadata-only/', {})
+        request.user = self.user
+        request._dont_enforce_csrf_checks = True
+        response = generate_metadata_only(request)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
+        data = json.loads(response.content)
         self.assertFalse(data['success'])
-        self.assertIn('File required', data['error'])
+        self.assertTrue(
+            ('File required' in data['error']) or ('الملف مطلوب' in data['error'])
+        )
 
 
 class SEOEndpointTest(TestCase):
@@ -442,36 +505,34 @@ class SEOEndpointTest(TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
+        self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testuser',
+            email='seo@example.com',
             password='testpass123',
             is_staff=True
         )
 
     def test_endpoint_requires_post(self):
         """Test that endpoint requires POST method"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_seo_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_seo_only')
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertFalse(data['success'])
-        self.assertIn('POST method required', data['error'])
+        request = self.factory.get('/api/admin/generate-seo-only/')
+        request.user = self.user
+        response = generate_seo_only(request)
+        self.assertEqual(response.status_code, 405)
 
     def test_endpoint_requires_file(self):
         """Test that endpoint requires file parameter"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_seo_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_seo_only')
-        response = client.post(url, {})
+        request = self.factory.post('/api/admin/generate-seo-only/', {})
+        request.user = self.user
+        request._dont_enforce_csrf_checks = True
+        response = generate_seo_only(request)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
+        data = json.loads(response.content)
         self.assertFalse(data['success'])
-        self.assertIn('File required', data['error'])
+        self.assertTrue(
+            ('File required' in data['error']) or ('الملف مطلوب' in data['error'])
+        )

@@ -155,7 +155,8 @@
 
     {% if pagination and pagination.has_pagination %}
     <div class="card-footer bg-white border-0 py-4">
-        {% include "admin/partials/pagination.html" with baseUrl="/api/admin/audio-management/" hxTarget="#audio-table-container" extraParams="&status="|add:filters.status|add:"&search="|add:filters.search|add:"&missing_data="|add:filters.missing_data %}
+        {% url 'frontend_api:media_management' media_type='audio' as audio_base_url %}
+        {% include "admin/partials/pagination.html" with baseUrl=audio_base_url hxTarget="#media-table-container" extraParams="&status="|add:filters.status|add:"&search="|add:filters.search|add:"&missing_data="|add:filters.missing_data %}
     </div>
     {% endif %}
 </div>

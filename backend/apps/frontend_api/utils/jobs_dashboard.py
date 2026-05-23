@@ -1,7 +1,8 @@
 import json
 
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import BooleanField, Case, CharField, F, Q, Value, When
+from django.db.models.functions import Cast, Coalesce
 from django.http import HttpResponseForbidden
 from django.utils.translation import gettext_lazy as _
 
@@ -9,7 +10,7 @@ from apps.media_manager.models import APIUploadQueue, ProcessingJob
 from apps.media_manager.tasks import extract_and_index_contentitem, generate_seo_metadata_task
 from core.tasks.media_processing import (
     process_audio_compression,
-    process_pdf_metadata,
+    process_pdf,
     process_video_to_hls,
     upload_audio_to_r2,
     upload_pdf_to_r2,
@@ -102,58 +103,9 @@ def dispatch_processing_task(content_item, stage='full', force=False):
     if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'audio' and meta:
         return process_audio_compression.delay(str(meta.id))
     if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'pdf' and meta:
-        return process_pdf_metadata.delay(str(meta.id))
+        return process_pdf.delay(str(meta.id))
 
     return None
-
-
-def serialize_processing_job(job):
-    content_item = job.content_item
-    return {
-        'id': str(job.id),
-        'source': 'processing_job',
-        'content_id': str(content_item.id),
-        'title': content_item.get_title(),
-        'content_type': content_item.content_type,
-        'status': job.status,
-        'stage': job.current_stage,
-        'celery_task_id': job.celery_task_id,
-        'retry_count': job.retry_count,
-        'failure_reason': job.failure_reason,
-        'created_at': job.created_at,
-        'updated_at': job.updated_at,
-        'can_cancel': job.status in ['pending', 'processing'],
-        'can_promote': job.status == 'pending',
-        'can_retry': job.status == 'failed',
-    }
-
-
-def serialize_api_queue_item(queue_item):
-    content_item = queue_item.content_item
-    title = queue_item.file_name
-    content_id = str(queue_item.id)
-
-    if content_item:
-        title = content_item.get_title()
-        content_id = str(content_item.id)
-
-    return {
-        'id': str(queue_item.id),
-        'source': 'api_queue',
-        'content_id': content_id,
-        'title': title,
-        'content_type': queue_item.content_type,
-        'status': queue_item.status,
-        'stage': queue_item.queue_status,
-        'celery_task_id': '',
-        'retry_count': queue_item.gemini_attempts,
-        'failure_reason': queue_item.error_message or '',
-        'created_at': queue_item.created_at,
-        'updated_at': queue_item.updated_at,
-        'can_cancel': queue_item.status not in ['completed', 'cancelled'],
-        'can_promote': queue_item.status in ['pending', 'queued', 'rate_limited'],
-        'can_retry': queue_item.status == 'failed',
-    }
 
 
 def get_jobs_counts():
@@ -192,12 +144,138 @@ def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all'
     processing_jobs = processing_jobs.filter(status__in=filters['processing_job'])
     api_queue_items = api_queue_items.filter(status__in=filters['api_queue'])
 
-    jobs = [serialize_processing_job(job) for job in processing_jobs]
-    jobs.extend(serialize_api_queue_item(item) for item in api_queue_items)
-    jobs.sort(key=lambda job: job['updated_at'] or job['created_at'], reverse=True)
+    # Clear model default ordering so SQLite allows compound UNION queries.
+    processing_jobs = processing_jobs.order_by()
+    api_queue_items = api_queue_items.order_by()
 
-    paginator = Paginator(jobs, per_page)
-    return paginator.get_page(page)
+    processing_rows = processing_jobs.annotate(
+        row_id=Cast('id', output_field=CharField()),
+        source=Value('processing_job', output_field=CharField()),
+        content_id_value=Cast('content_item_id', output_field=CharField()),
+        title_value=Coalesce(
+            'content_item__title_ar',
+            'content_item__title_en',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        content_type_value=F('content_item__content_type'),
+        stage_value=F('current_stage'),
+        retry_count_value=F('retry_count'),
+        failure_reason_value=Coalesce(
+            'failure_reason',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        can_cancel_value=Case(
+            When(status__in=['pending', 'processing'], then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+        can_promote_value=Case(
+            When(status='pending', then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+        can_retry_value=Case(
+            When(status='failed', then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+    ).values(
+        'row_id',
+        'source',
+        'content_id_value',
+        'title_value',
+        'content_type_value',
+        'status',
+        'stage_value',
+        'retry_count_value',
+        'failure_reason_value',
+        'created_at',
+        'updated_at',
+        'can_cancel_value',
+        'can_promote_value',
+        'can_retry_value',
+    )
+
+    api_queue_rows = api_queue_items.annotate(
+        row_id=Cast('id', output_field=CharField()),
+        source=Value('api_queue', output_field=CharField()),
+        content_id_value=Coalesce(
+            Cast('content_item_id', output_field=CharField()),
+            Cast('id', output_field=CharField()),
+        ),
+        title_value=Coalesce(
+            'content_item__title_ar',
+            'content_item__title_en',
+            'file_name',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        content_type_value=F('content_type'),
+        stage_value=F('queue_status'),
+        retry_count_value=F('gemini_attempts'),
+        failure_reason_value=Coalesce(
+            'error_message',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        can_cancel_value=Case(
+            When(status__in=['completed', 'cancelled'], then=Value(False)),
+            default=Value(True),
+            output_field=BooleanField(),
+        ),
+        can_promote_value=Case(
+            When(status__in=['pending', 'queued', 'rate_limited'], then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+        can_retry_value=Case(
+            When(status='failed', then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+    ).values(
+        'row_id',
+        'source',
+        'content_id_value',
+        'title_value',
+        'content_type_value',
+        'status',
+        'stage_value',
+        'retry_count_value',
+        'failure_reason_value',
+        'created_at',
+        'updated_at',
+        'can_cancel_value',
+        'can_promote_value',
+        'can_retry_value',
+    )
+
+    merged_rows = processing_rows.union(api_queue_rows, all=True).order_by('-updated_at', '-created_at')
+
+    paginator = Paginator(merged_rows, per_page)
+    page_obj = paginator.get_page(page)
+    page_obj.object_list = [
+        {
+            'id': row['row_id'],
+            'source': row['source'],
+            'content_id': row['content_id_value'],
+            'title': row['title_value'] or _('Untitled'),
+            'content_type': row['content_type_value'],
+            'status': row['status'],
+            'stage': row['stage_value'],
+            'retry_count': row['retry_count_value'],
+            'failure_reason': row['failure_reason_value'],
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at'],
+            'can_cancel': row['can_cancel_value'],
+            'can_promote': row['can_promote_value'],
+            'can_retry': row['can_retry_value'],
+        }
+        for row in page_obj.object_list
+    ]
+    return page_obj
 
 
 def dispatch_content_item_for_stage(content_item, stage):

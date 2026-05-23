@@ -13,8 +13,8 @@ from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse
@@ -24,7 +24,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods, require_POST
 import io
 from django.http.multipartparser import MultiPartParser
@@ -69,7 +69,7 @@ content_service = ContentService()
 admin_service = AdminService()
 
 
-@login_required
+@staff_member_required
 def admin_dashboard(request):
     """Main admin dashboard - Optimized to 4 queries total"""
     # Get all dashboard data with optimized service
@@ -78,7 +78,7 @@ def admin_dashboard(request):
     return render(request, 'admin/dashboard.html', dashboard_data)
 
 
-@login_required
+@staff_member_required
 def content_list(request):
     """List all content - Optimized to 1-2 queries total"""
     # Get filters from request
@@ -113,7 +113,7 @@ def content_list(request):
     return render(request, 'admin/content_list.html', context)
 
 
-@login_required
+@staff_member_required
 def content_detail(request, content_id):
     """Content detail page - Single optimized query"""
     try:
@@ -241,7 +241,7 @@ def content_detail(request, content_id):
         raise Http404(_("Content not found"))
 
 
-@login_required
+@staff_member_required
 def content_delete_confirm(request, content_id):
     """Handle content deletion - Optimized with single query check"""
     try:
@@ -281,7 +281,7 @@ def content_delete_confirm(request, content_id):
         return redirect('frontend_api:admin_content_detail', content_id=content_id)
 
 
-@login_required
+@staff_member_required
 def delete_local_confirm(request, content_id):
     """Handle local file deletion only, preserving R2 and DB record."""
     try:
@@ -304,11 +304,11 @@ def delete_local_confirm(request, content_id):
                 messages.success(request, message)
                 # Redirect to management list based on type
                 if content.content_type == 'video':
-                    return redirect('frontend_api:video_management')
+                    return redirect('frontend_api:media_management', media_type='video')
                 elif content.content_type == 'audio':
-                    return redirect('frontend_api:audio_management')
+                    return redirect('frontend_api:media_management', media_type='audio')
                 elif content.content_type == 'pdf':
-                    return redirect('frontend_api:pdf_management')
+                    return redirect('frontend_api:media_management', media_type='pdf')
                 return redirect('frontend_api:admin_content_list')
             else:
                 messages.error(request, message)
@@ -335,7 +335,7 @@ def delete_local_confirm(request, content_id):
         return redirect('frontend_api:admin_content_list')
 
 
-@login_required
+@staff_member_required
 def upload_content(request):
     """Upload content page"""
     return render(request, 'admin/upload_content.html', {
@@ -348,7 +348,7 @@ def upload_content(request):
 # - PATCH to {% url 'frontend_api:bulk_upload_chunk' %} to upload chunks
 
 
-@login_required
+@staff_member_required
 def bulk_upload_page(request):
     """Render the bulk upload page."""
     return render(request, 'admin/bulk_upload.html', {
@@ -356,8 +356,8 @@ def bulk_upload_page(request):
     })
 
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@csrf_protect
 @require_http_methods(["POST"])
 def bulk_upload_init(request):
     """
@@ -423,8 +423,8 @@ def bulk_upload_init(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@csrf_protect
 @require_http_methods(["PATCH", "POST"])
 def bulk_upload_chunk(request):
     """
@@ -539,7 +539,7 @@ def bulk_upload_chunk(request):
 # - PATCH to {% url 'frontend_api:bulk_upload_chunk' %} to stream chunks for each session
 
 
-@login_required
+@staff_member_required
 def bulk_upload_status(request):
     """Return per-item processing status for bulk uploads."""
     content_ids_raw = request.GET.get('ids', '')
@@ -566,13 +566,11 @@ def bulk_upload_status(request):
     return JsonResponse({'success': True, 'statuses': statuses})
 
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_content_metadata(request):
     """Generate content metadata using Gemini AI"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         content_id = request.POST.get('content_id')
         if not content_id:
@@ -608,122 +606,110 @@ def generate_content_metadata(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
-def video_management(request):
-    """Video management page - Optimized queries"""
+def _render_media_management(request, media_type):
+    """Render a media management page/partial for the requested media type."""
+    media_configs = {
+        'video': {
+            'title': _('Video Manager'),
+            'subtitle': _('Manage video sermons, teachings, and spiritual content'),
+            'add_label': _('Add Video'),
+            'add_icon': 'bi-camera-video',
+            'add_button_class': 'btn-danger text-white',
+            'search_placeholder': _('Search videos...'),
+            'empty_kind_label': _('video'),
+            'bulk_generate_label': _('Generate SEO metadata for selected videos?'),
+            'single_generate_label': _('Generate SEO metadata for this video?'),
+            'delete_confirm_label': _('Delete selected videos?'),
+            'delete_success_label': _('Videos deleted successfully'),
+            'delete_failure_label': _('Failed to delete videos'),
+            'partial': 'admin/partials/video_table.html',
+            'context_key': 'videos',
+            'extra_filters': {'processing_status': request.GET.get('processing_status', '')},
+        },
+        'audio': {
+            'title': _('Audio Manager'),
+            'subtitle': _('Manage audio messages, sermons, and spiritual teachings'),
+            'add_label': _('Add Audio'),
+            'add_icon': 'bi-mic',
+            'add_button_class': 'btn-warning text-white',
+            'search_placeholder': _('Search audio...'),
+            'empty_kind_label': _('audio file'),
+            'bulk_generate_label': _('Generate SEO metadata for selected audio files?'),
+            'single_generate_label': _('Generate SEO metadata for this audio file?'),
+            'delete_confirm_label': _('Delete selected audio files?'),
+            'delete_success_label': _('Audio files deleted successfully'),
+            'delete_failure_label': _('Failed to delete audio files'),
+            'partial': 'admin/partials/audio_table.html',
+            'context_key': 'audios',
+            'extra_filters': {},
+        },
+        'pdf': {
+            'title': _('PDF Manager'),
+            'subtitle': _('Manage books, documents, and sacred texts'),
+            'add_label': _('Add PDF'),
+            'add_icon': 'bi-plus-lg',
+            'add_button_class': 'btn-primary',
+            'search_placeholder': _('Search in titles, descriptions, and content...'),
+            'empty_kind_label': _('PDF'),
+            'bulk_generate_label': _('Generate SEO metadata for selected PDFs?'),
+            'single_generate_label': _('Generate SEO metadata for this PDF?'),
+            'delete_confirm_label': _('Delete selected PDFs?'),
+            'delete_success_label': _('PDFs deleted successfully'),
+            'delete_failure_label': _('Failed to delete PDFs'),
+            'partial': 'admin/partials/pdf_table.html',
+            'context_key': 'pdfs',
+            'extra_filters': {},
+        },
+    }
+
+    config = media_configs.get(media_type)
+    if not config:
+        raise Http404(_('Unsupported media type'))
+
     page = int(request.GET.get('page', 1))
     per_page = int(request.GET.get('limit', 20))
     ordering = request.GET.get('sort', '-created_at')
-    
-    filters = {
-        'status': request.GET.get('status', ''),
-        'processing_status': request.GET.get('processing_status', ''),
-        'search': request.GET.get('search', '').strip(),
-        'missing_data': request.GET.get('missing_data', '')
-    }
-    
-    # Get video data using optimized service
-    video_data = admin_service.get_type_specific_content(
-        content_type='video',
-        page=page,
-        per_page=per_page,
-        filters=filters,
-        ordering=ordering
-    )
-    
-    context = {
-        'content_type': 'video',
-        'filters': filters,
-        'videos': video_data.get('content_items', []),
-        'pagination': video_data.get('pagination'),
-        'current_language': get_language(),
-        'ordering': ordering,
-        'per_page': per_page,
-    }
-    
-    if request.headers.get('HX-Request') == 'true':
-        return render(request, 'admin/partials/video_table.html', context)
-        
-    return render(request, 'admin/video_management.html', context)
 
-
-@login_required
-def audio_management(request):
-    """Audio management page - Optimized queries"""
-    page = int(request.GET.get('page', 1))
-    per_page = int(request.GET.get('limit', 20))
-    ordering = request.GET.get('sort', '-created_at')
-    
-    filters = {
-        'status': request.GET.get('status', ''),
-        'search': request.GET.get('search', '').strip(),
-        'missing_data': request.GET.get('missing_data', '')
-    }
-    
-    # Get audio data using optimized service
-    audio_data = admin_service.get_type_specific_content(
-        content_type='audio',
-        page=page,
-        per_page=per_page,
-        filters=filters,
-        ordering=ordering
-    )
-    
-    context = {
-        'content_type': 'audio',
-        'filters': filters,
-        'audios': audio_data.get('content_items', []),
-        'pagination': audio_data.get('pagination'),
-        'current_language': get_language(),
-        'ordering': ordering,
-        'per_page': per_page,
-    }
-    
-    if request.headers.get('HX-Request') == 'true':
-        return render(request, 'admin/partials/audio_table.html', context)
-        
-    return render(request, 'admin/audio_management.html', context)
-
-
-@login_required
-def pdf_management(request):
-    """PDF management page - Optimized queries"""
-    page = int(request.GET.get('page', 1))
-    per_page = int(request.GET.get('limit', 20))
-    ordering = request.GET.get('sort', '-created_at')
-    
     filters = {
         'status': request.GET.get('status', ''),
         'search': request.GET.get('search', '').strip(),
         'missing_data': request.GET.get('missing_data', '')
     }
-    
-    # Get PDF data using optimized service
-    pdf_data = admin_service.get_type_specific_content(
-        content_type='pdf',
+    filters.update(config['extra_filters'])
+
+    media_data = admin_service.get_type_specific_content(
+        content_type=media_type,
         page=page,
         per_page=per_page,
         filters=filters,
         ordering=ordering
     )
-    
+
     context = {
-        'content_type': 'pdf',
+        'content_type': media_type,
+        'management_ui': config,
+        'partial_template': config['partial'],
         'filters': filters,
-        'pdfs': pdf_data.get('content_items', []),
-        'pagination': pdf_data.get('pagination'),
+        config['context_key']: media_data.get('content_items', []),
+        'pagination': media_data.get('pagination'),
         'current_language': get_language(),
         'ordering': ordering,
         'per_page': per_page,
     }
-    
+
     if request.headers.get('HX-Request') == 'true':
-        return render(request, 'admin/partials/pdf_table.html', context)
-        
-    return render(request, 'admin/pdf_management.html', context)
+        return render(request, config['partial'], context)
+
+    return render(request, 'admin/media_management_base.html', context)
 
 
-@login_required
+@staff_member_required
+def media_management(request, media_type):
+    """Unified media management controller for video, audio, and pdf pages."""
+    return _render_media_management(request, media_type)
+
+
+@staff_member_required
 def system_monitor(request):
     """System monitoring dashboard - Optimized queries"""
     # Get all system data with optimized service
@@ -737,7 +723,7 @@ def system_monitor(request):
     return render(request, 'admin/system_monitor.html', context)
 
 
-@login_required
+@staff_member_required
 def bulk_operations(request):
     """Bulk operations page - Optimized queries"""
     if request.method == 'POST':
@@ -766,16 +752,16 @@ def bulk_operations(request):
                     try:
                         # Fetch the content item first as delete_content expects an object
                         content = admin_service.get_content_detail(cid)
-                        success, _ = processing_service.delete_content(content)
+                        success, _delete_message = processing_service.delete_content(content)
                         if success:
                             success_count += 1
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("Bulk delete failed for content %s: %s", cid, exc)
                 
                 if success_count > 0:
                     messages.success(request, _(f"Successfully deleted {success_count} item(s)"))
                 if success_count < len(content_ids):
-                    messages.warning(request, _(f"Failed to delete some item(s). Check if IDs are correct."))
+                    messages.warning(request, _("Failed to delete some item(s). Check if IDs are correct."))
             
             return redirect('frontend_api:bulk_operations')
 
@@ -790,7 +776,7 @@ def bulk_operations(request):
     return render(request, 'admin/bulk_operations.html', context)
 
 
-@login_required
+@staff_member_required
 @require_http_methods(["POST"])
 def api_toggle_content_status(request):
     """API endpoint to toggle content status - Supports single and bulk operations"""
@@ -849,9 +835,9 @@ def api_toggle_content_status(request):
 
 
 # Bulk operation API endpoints
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_bulk_generate_seo(request):
     """Bulk SEO generation API endpoint"""
     try:
@@ -900,9 +886,9 @@ def api_bulk_generate_seo(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_bulk_toggle_status(request):
     """Bulk status toggle API endpoint"""
     try:
@@ -930,9 +916,9 @@ def api_bulk_toggle_status(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_bulk_delete(request):
     """Bulk delete API endpoint"""
     try:
@@ -983,13 +969,11 @@ def api_bulk_delete(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_metadata_from_file(request):
     """Generate metadata from uploaded file (before content creation)"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         file_obj = request.FILES.get('file')
         if not file_obj:
@@ -1010,9 +994,9 @@ def generate_metadata_from_file(request):
                 return JsonResponse({'success': False, 'error': _('Unsupported file type')})
         
         # Use Gemini manager to generate metadata from file
-        is_seo_avail, _ = get_gemini_manager().check_seo_availability()
+        is_seo_avail, seo_availability_message = get_gemini_manager().check_seo_availability()
         if not is_seo_avail:
-            return JsonResponse({'success': False, 'error': _('AI service not available')})
+            return JsonResponse({'success': False, 'error': seo_availability_message or _('AI service not available')})
         
         # Save file temporarily for processing
         file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
@@ -1038,14 +1022,14 @@ def generate_metadata_from_file(request):
             # Clean up temporary file
             try:
                 os.unlink(temp_file_path)
-            except:
+            except OSError:
                 pass
                 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 def get_r2_storage_usage(request):
     """
     Get R2 bucket storage usage statistics for admin dashboard.
@@ -1083,7 +1067,7 @@ def get_r2_storage_usage(request):
         })
 
 
-@login_required
+@staff_member_required
 def r2_status_dashboard(request):
     """
     R2 Upload Status Dashboard - Shows detailed R2 upload status for all content items.
@@ -1213,7 +1197,7 @@ def r2_status_dashboard(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@login_required 
+@staff_member_required 
 @require_POST
 def retry_r2_upload(request, content_type, meta_id):
     """
@@ -1270,7 +1254,7 @@ def retry_r2_upload(request, content_type, meta_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@login_required
+@staff_member_required
 @require_POST  
 def bulk_retry_r2_uploads(request):
     """
@@ -1355,7 +1339,7 @@ def bulk_retry_r2_uploads(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@login_required
+@staff_member_required
 def get_r2_sync_status(request):
     """
     Get detailed R2 sync status statistics for monitoring dashboard.
@@ -1410,9 +1394,9 @@ def get_r2_sync_status_data():
     }
 
 
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_auto_fill_metadata(request):
     """
     Trigger auto-fill action for content item(s) (SEO metadata generation).
@@ -1431,7 +1415,7 @@ def api_auto_fill_metadata(request):
             for cid in content_ids:
                 try:
                     # Verify content exists
-                    content = ContentItem.objects.get(id=cid)
+                    ContentItem.objects.get(id=cid)
                     task = generate_seo_metadata_task.delay(str(cid))
                     task_ids.append(task.id)
                     success_count += 1
@@ -1452,9 +1436,7 @@ def api_auto_fill_metadata(request):
             return JsonResponse({'success': False, 'error': _('No content ID provided')})
         
         # Get the content item
-        try:
-            content = ContentItem.objects.get(id=content_id)
-        except ContentItem.DoesNotExist:
+        if not ContentItem.objects.filter(id=content_id).exists():
             return JsonResponse({'success': False, 'error': _('Content not found')})
         
         # Trigger the background task
@@ -1508,11 +1490,11 @@ def _determine_content_type(file_obj, content_type_param):
         return None, _('Unsupported file type')
 
 
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_metadata_only(request):
     """Generate metadata only from uploaded file (new separated endpoint)"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         file_obj = request.FILES.get('file')
         if not file_obj:
@@ -1551,11 +1533,11 @@ def generate_metadata_only(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_seo_only(request):
     """Generate SEO metadata only from uploaded file (new separated endpoint)"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         file_obj = request.FILES.get('file')
         if not file_obj:
@@ -1595,7 +1577,7 @@ def generate_seo_only(request):
 
 
 
-@login_required
+@staff_member_required
 def api_content_seo(request, content_id):
     """API endpoint to get or update SEO metadata for a content item"""
     try:
@@ -1659,7 +1641,7 @@ def api_content_seo(request, content_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 def api_gemini_rate_limits(request):
     """API endpoint to get Gemini rate limit information"""
     try:
@@ -1693,7 +1675,7 @@ def api_gemini_rate_limits(request):
         })
 
 
-@login_required
+@staff_member_required
 def analytics_dashboard(request):
     """
     Analytics dashboard showing content viewing statistics.
@@ -1730,17 +1712,16 @@ def analytics_dashboard(request):
         today_events = ContentViewEvent.objects.filter(timestamp__gte=today_start)
         
         today_stats = today_events.values('content_type').annotate(
-            total_views=Count('id')
+            total_views=Count('id'),
+            unique_views=Count('ip_address', distinct=True),
         )
-        
-        # Calculate unique views for today (distinct IPs per content type)
-        today_unique_stats = {}
-        for content_type in ['video', 'audio', 'pdf', 'static']:
-            unique_count = today_events.filter(
-                content_type=content_type
-            ).values('ip_address').distinct().count()
-            if unique_count > 0:
-                today_unique_stats[content_type] = unique_count
+        today_stats_by_type = {
+            stat['content_type']: {
+                'total_views': stat['total_views'],
+                'unique_views': stat['unique_views'],
+            }
+            for stat in today_stats
+        }
         
         # Add today's stats to daily_stats_list
         for stat in today_stats:
@@ -1748,7 +1729,7 @@ def analytics_dashboard(request):
                 'content_type': stat['content_type'],
                 'date': end_date.isoformat(),  # Convert date to ISO string
                 'total_views': stat['total_views'],
-                'unique_views': today_unique_stats.get(stat['content_type'], 0)
+                'unique_views': stat['unique_views']
             })
         
         # Sort combined list by date and content_type
@@ -1769,25 +1750,22 @@ def analytics_dashboard(request):
         }
         
         # Get today's counts
-        today_top_qs = today_events.values('content_type', 'content_id').annotate(total_views=Count('id'))
+        today_top_qs = today_events.values('content_type', 'content_id').annotate(
+            total_views=Count('id'),
+            unique_views=Count('ip_address', distinct=True),
+        )
         
         # Combine
         combined_top_map = hist_top.copy()
         for item in today_top_qs:
             key = (item['content_type'], str(item['content_id']))
-            # Count unique IPs for this content today
-            unique_today = today_events.filter(
-                content_type=item['content_type'],
-                content_id=item['content_id']
-            ).values('ip_address').distinct().count()
-            
             if key in combined_top_map:
                 combined_top_map[key]['total_views'] += item['total_views']
-                combined_top_map[key]['unique_views'] += unique_today
+                combined_top_map[key]['unique_views'] += item['unique_views']
             else:
                 combined_top_map[key] = {
                     'total_views': item['total_views'],
-                    'unique_views': unique_today
+                    'unique_views': item['unique_views']
                 }
         
         # Convert back to list and sort
@@ -1832,15 +1810,14 @@ def analytics_dashboard(request):
                 'unique_views': t['unique_views']
             }
         
-        for t in today_stats:
-            content_type = t['content_type']
+        for content_type, stats in today_stats_by_type.items():
             if content_type in combined_totals_map:
-                combined_totals_map[content_type]['total_views'] += t['total_views']
-                combined_totals_map[content_type]['unique_views'] += today_unique_stats.get(content_type, 0)
+                combined_totals_map[content_type]['total_views'] += stats['total_views']
+                combined_totals_map[content_type]['unique_views'] += stats['unique_views']
             else:
                 combined_totals_map[content_type] = {
-                    'total_views': t['total_views'],
-                    'unique_views': today_unique_stats.get(content_type, 0)
+                    'total_views': stats['total_views'],
+                    'unique_views': stats['unique_views']
                 }
             
         totals_by_type = [
@@ -1893,7 +1870,7 @@ def analytics_dashboard(request):
         })
 
 
-@login_required
+@staff_member_required
 def api_analytics_views(request):
     """
     API endpoint for analytics data in JSON format.
@@ -1967,7 +1944,7 @@ def api_analytics_views(request):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 def get_search_sensitivity(request):
     """Get current search sensitivity settings"""
     try:
@@ -2005,7 +1982,7 @@ def get_search_sensitivity(request):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def update_search_sensitivity(request):
     """Update search sensitivity settings"""
@@ -2053,7 +2030,7 @@ def update_search_sensitivity(request):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def test_search_sensitivity(request):
     """Test search with a specific sensitivity setting using UnifiedSearchService"""
@@ -2121,7 +2098,7 @@ def test_search_sensitivity(request):
 # API Upload Queue Management Views
 # ============================================================================
 
-@login_required
+@staff_member_required
 def api_queue_list(request):
     """
     Display and manage API upload queue items.
@@ -2211,7 +2188,7 @@ def api_queue_list(request):
     return render(request, 'admin/api_queue_list.html', context)
 
 
-@login_required
+@staff_member_required
 def api_queue_detail(request, queue_id):
     """Display detailed information about a queue item."""
     queue_item = get_object_or_404(
@@ -2227,7 +2204,7 @@ def api_queue_detail(request, queue_id):
     return render(request, 'admin/api_queue_detail.html', context)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_queue_promote(request, queue_id):
     """Promote a queue item to process immediately."""
@@ -2265,7 +2242,7 @@ def api_queue_promote(request, queue_id):
         return redirect('frontend_api:api_queue_list')
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_queue_cancel(request, queue_id):
     """Cancel a queue item."""
@@ -2303,7 +2280,7 @@ def api_queue_cancel(request, queue_id):
         return redirect('frontend_api:api_queue_list')
 
 
-@login_required
+@staff_member_required
 def document_upload(request, content_id):
     """
     Upload supplementary document to existing ContentItem.
@@ -2318,8 +2295,8 @@ def document_upload(request, content_id):
         }, status=405)
     
     try:
-        # Get content item
-        content_item = get_object_or_404(ContentItem, id=content_id)
+        # Ensure content item exists before attaching document
+        get_object_or_404(ContentItem, id=content_id)
         
         # Get document file
         document_file = request.FILES.get('document')
@@ -2363,7 +2340,7 @@ def document_upload(request, content_id):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 def document_download(request, content_id):
     """
     Download supplementary document.
@@ -2397,7 +2374,7 @@ def document_download(request, content_id):
         return redirect('frontend_api:content_detail', content_id=content_id)
 
 
-@login_required
+@staff_member_required
 def document_delete(request, content_id):
     """
     Delete supplementary document.
@@ -2443,7 +2420,7 @@ def document_delete(request, content_id):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 def thumbnail_upload(request, content_id):
     """
     AJAX endpoint to upload/replace a thumbnail for an existing ContentItem.
@@ -2459,7 +2436,7 @@ def thumbnail_upload(request, content_id):
             return JsonResponse({'success': False, 'error': _('No thumbnail file provided')}, status=400)
 
         # Validate MIME
-        mime_type, _ = mimetypes.guess_type(thumbnail_file.name)
+        mime_type, guessed_encoding = mimetypes.guess_type(thumbnail_file.name)
         if not mime_type or not mime_type.startswith('image/'):
             return JsonResponse({'success': False, 'error': _('Thumbnail must be an image file')}, status=400)
 
@@ -2502,7 +2479,7 @@ def thumbnail_upload(request, content_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-@login_required
+@staff_member_required
 def jobs_dashboard(request):
     """Unified dashboard for ProcessingJob and APIUploadQueue items."""
     staff_guard = ensure_staff(request)
@@ -2519,7 +2496,7 @@ def jobs_dashboard(request):
     return render(request, 'admin/jobs_dashboard.html', context)
 
 
-@login_required
+@staff_member_required
 def api_jobs_list(request):
     """Return the merged job list as an HTMX partial."""
     staff_guard = ensure_staff(request)
@@ -2563,7 +2540,7 @@ def api_jobs_list(request):
     )
 
 
-@login_required
+@staff_member_required
 def api_jobs_stats(request):
     """Return aggregate job counts for dashboard badges."""
     staff_guard = ensure_staff(request)
@@ -2573,7 +2550,7 @@ def api_jobs_stats(request):
     return JsonResponse(get_jobs_counts())
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_job_cancel(request):
     """Cancel a ProcessingJob or APIUploadQueue item."""
@@ -2614,7 +2591,7 @@ def api_job_cancel(request):
     return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_job_promote(request):
     """Promote a pending job so it runs immediately."""
@@ -2661,7 +2638,7 @@ def api_job_promote(request):
     return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_job_dispatch(request):
     """Manually dispatch a processing job for a content item."""

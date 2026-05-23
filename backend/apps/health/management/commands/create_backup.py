@@ -5,7 +5,6 @@ Backup management command for Christian Library project.
 import os
 import subprocess
 import tarfile
-import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 

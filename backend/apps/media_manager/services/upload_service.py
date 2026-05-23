@@ -22,7 +22,7 @@ from core.storage_backends import R2Service
 from core.tasks.media_processing import (
     process_video_to_hls,
     process_audio_compression,
-    process_pdf_metadata
+    process_pdf
 )
 
 logger = logging.getLogger(__name__)
@@ -528,7 +528,7 @@ class MediaUploadService:
                     pdf_meta.save()
                 
                 # Queue for background processing after commit
-                transaction.on_commit(lambda: process_pdf_metadata.delay(str(pdf_meta.id)))
+                transaction.on_commit(lambda: process_pdf.delay(str(pdf_meta.id)))
                 
                 logger.info(f"PDF uploaded successfully: {content_item.id}")
                 return True, _("PDF uploaded and queued for processing"), content_item
@@ -725,7 +725,7 @@ class MediaUploadService:
                         if getattr(settings, 'R2_ENABLED', False):
                             pdf_meta.r2_upload_status = 'pending'
                         pdf_meta.save()
-                    transaction.on_commit(lambda: process_pdf_metadata.delay(str(pdf_meta.id)))
+                    transaction.on_commit(lambda: process_pdf.delay(str(pdf_meta.id)))
 
                 logger.info(f"Assembled file moved and queued for processing: {content_item.id}")
                 return {'success': True, 'content_item': content_item, 'message': 'File assembled and queued for processing'}
@@ -946,10 +946,8 @@ class MediaUploadService:
             elif content_item.content_type == 'pdf':
                 if meta.original_file:
                     files_to_delete.append(meta.original_file.path)
-                if meta.optimized_file:
-                    files_to_delete.append(meta.optimized_file.path)
                 # Delete R2 files
-                for url_field in ['r2_original_file_url', 'r2_optimized_file_url']:
+                for url_field in ['r2_original_file_url']:
                     if hasattr(meta, url_field):
                         url = getattr(meta, url_field)
                         if url:

@@ -260,9 +260,22 @@ CELERY_TASK_ALWAYS_EAGER = False
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_ACKS_LATE = True
+CELERY_RESULT_EXPIRES = int(os.environ.get('CELERY_RESULT_EXPIRES', '86400'))
+CELERY_TASK_IGNORE_RESULT = os.environ.get('CELERY_TASK_IGNORE_RESULT', 'False').lower() == 'true'
+CELERY_TASK_STORE_ERRORS_EVEN_IF_IGNORED = True
 
 # Celery 6.0+ compatibility: retry broker connection on startup
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# Keep task results only where needed; maintenance jobs can skip backend writes.
+CELERY_TASK_ANNOTATIONS = {
+    'apps.media_manager.tasks.cleanup_expired_queue_items': {'ignore_result': True},
+    'apps.media_manager.tasks.process_pending_queue_items': {'ignore_result': True},
+    'apps.media_manager.tasks.aggregate_daily_content_views': {'ignore_result': True},
+    'apps.media_manager.tasks.finalize_media_processing': {'ignore_result': True},
+    'core.tasks.media_processing.cleanup_failed_uploads': {'ignore_result': True},
+    'core.tasks.media_processing.delete_files_task': {'ignore_result': True},
+}
 
 # Celery Task Routing Configuration
 # Reorganized to prevent worker blocking and improve parallel processing
@@ -299,7 +312,7 @@ CELERY_TASK_ROUTES = {
     # PDFS WORKER (queue: 'pdfs')
     # PDF-specific processing: optimization, text extraction, indexing
     # ========================================================================
-    'core.tasks.media_processing.process_pdf_optimization': {'queue': 'pdfs'},
+    'core.tasks.media_processing.process_pdf': {'queue': 'pdfs'},
     'apps.media_manager.tasks.extract_and_index_contentitem': {'queue': 'pdfs'},
     'apps.media_manager.tasks.extract_document_text': {'queue': 'pdfs'},
     

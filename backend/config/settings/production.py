@@ -94,9 +94,21 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes
 CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.getenv('CELERY_PREFETCH_MULTIPLIER', '1'))
 CELERY_WORKER_MAX_TASKS_PER_CHILD = int(os.getenv('CELERY_MAX_TASKS_PER_CHILD', '1000'))
+CELERY_RESULT_EXPIRES = int(os.getenv('CELERY_RESULT_EXPIRES', '86400'))
+CELERY_TASK_IGNORE_RESULT = os.getenv('CELERY_TASK_IGNORE_RESULT', 'False').lower() == 'true'
+CELERY_TASK_STORE_ERRORS_EVEN_IF_IGNORED = True
 
 # Celery 6.0+ compatibility: retry broker connection on startup
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+CELERY_TASK_ANNOTATIONS = {
+    'apps.media_manager.tasks.cleanup_expired_queue_items': {'ignore_result': True},
+    'apps.media_manager.tasks.process_pending_queue_items': {'ignore_result': True},
+    'apps.media_manager.tasks.aggregate_daily_content_views': {'ignore_result': True},
+    'apps.media_manager.tasks.finalize_media_processing': {'ignore_result': True},
+    'core.tasks.media_processing.cleanup_failed_uploads': {'ignore_result': True},
+    'core.tasks.media_processing.delete_files_task': {'ignore_result': True},
+}
 
 # Static and media files
 STATIC_URL = '/static/'

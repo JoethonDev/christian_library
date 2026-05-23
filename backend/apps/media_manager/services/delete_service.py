@@ -98,8 +98,6 @@ class MediaProcessingService:
                         return False, "Cannot delete local file: Not yet uploaded to R2."
                     if meta.original_file:
                         files_to_delete.append(meta.original_file.path)
-                    if meta.optimized_file:
-                        files_to_delete.append(meta.optimized_file.path)
 
             if not files_to_delete:
                 return False, "No local files found to delete."
@@ -115,7 +113,6 @@ class MediaProcessingService:
                     meta.original_file.name = ''
                 elif content_item.content_type == 'pdf':
                     meta.original_file.name = ''
-                    meta.optimized_file.name = ''
                 meta.save()
 
             # Schedule physical deletion

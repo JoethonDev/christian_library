@@ -9,7 +9,6 @@ from apps.frontend_api.schema_generators import (
     generate_breadcrumb_schema,
     schema_to_json_ld
 )
-import json
 
 register = template.Library()
 

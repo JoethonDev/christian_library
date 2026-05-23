@@ -82,12 +82,10 @@
                         <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
                             <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check2"/></svg>{{ pdf.indexed_char_count|floatformat:0 }}
                         </span>
-                    {% elif pdf.content_type == 'pdf' %}
+                    {% else %}
                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
                             {% trans "Pending" %}
                         </span>
-                    {% else %}
-                        <span class="text-muted small">-</span>
                     {% endif %}
                 </td>
                 <td>
@@ -167,7 +165,8 @@
 
     {% if pagination and pagination.has_pagination %}
     <div class="card-footer bg-white border-0 py-4">
-        {% include "admin/partials/pagination.html" with baseUrl="/api/admin/pdf-management/" hxTarget="#pdf-table-container" extraParams="&status="|add:filters.status|add:"&search="|add:filters.search|add:"&missing_data="|add:filters.missing_data %}
+        {% url 'frontend_api:media_management' media_type='pdf' as pdf_base_url %}
+        {% include "admin/partials/pagination.html" with baseUrl=pdf_base_url hxTarget="#media-table-container" extraParams="&status="|add:filters.status|add:"&search="|add:filters.search|add:"&missing_data="|add:filters.missing_data %}
     </div>
     {% endif %}
 </div>

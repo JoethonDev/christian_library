@@ -244,12 +244,6 @@ class ContentItemQuerySet(models.QuerySet):
         
         return qs.prefetch_related('tags')
     
-    def with_full_meta(self):
-        """Return content with all possible meta relationships optimized"""
-        return self.select_related(
-            'videometa', 'audiometa', 'pdfmeta'
-        ).prefetch_related('tags')
-    
     def with_meta(self):
         """Optimized method to fetch content with appropriate meta - eliminates N+1 queries"""
         return self.select_related(
@@ -2143,9 +2137,7 @@ class PdfMetaQuerySet(models.QuerySet):
     
     def ready_for_viewing(self):
         """Return PDFs ready for viewing"""
-        return self.filter(processing_status='completed').filter(
-            models.Q(optimized_file__isnull=False) | models.Q(original_file__isnull=False)
-        )
+        return self.filter(processing_status='completed').filter(original_file__isnull=False)
     
     def for_viewer(self):
         """Optimized for PDF viewer - includes content item"""
@@ -2161,10 +2153,6 @@ class PdfMetaQuerySet(models.QuerySet):
         """Always include related content item"""
         return self.select_related('content_item')
     
-    def with_optimized(self):
-        """Return PDFs with optimized versions available"""
-        return self.filter(optimized_file__isnull=False)
-    
     def r2_uploaded(self):
         """Return PDFs uploaded to R2"""
         return self.filter(r2_upload_status='completed')
@@ -2179,7 +2167,6 @@ class PdfMetaQuerySet(models.QuerySet):
             total_pdfs=models.Count('id'),
             ready_pdfs=models.Count('id', filter=models.Q(processing_status='completed')),
             processing_pdfs=models.Count('id', filter=models.Q(processing_status__in=['pending', 'processing'])),
-            optimized_count=models.Count('id', filter=models.Q(optimized_file__isnull=False)),
             searchable_count=models.Count('id', filter=models.Q(
                 content_item__book_content__isnull=False,
                 content_item__book_content__gt=''
@@ -2228,11 +2215,6 @@ class PdfMeta(models.Model):
         blank=True, 
         verbose_name=_('Original File')
     )
-    optimized_file = models.FileField(
-        upload_to='optimized/pdf/', 
-        blank=True, 
-        verbose_name=_('Optimized File')
-    )
     file_size_mb = models.PositiveIntegerField(
         null=True, 
         blank=True, 
@@ -2259,12 +2241,6 @@ class PdfMeta(models.Model):
         blank=True,
         verbose_name=_('R2 Original File URL'),
         help_text=_('Cloudflare R2 URL for the original PDF file (if uploaded)')
-    )
-    r2_optimized_file_url = models.URLField(
-        max_length=1000,
-        blank=True,
-        verbose_name=_('R2 Optimized File URL'),
-        help_text=_('Cloudflare R2 URL for the optimized PDF file (if uploaded)')
     )
     r2_upload_status = models.CharField(
         max_length=32,
@@ -2309,8 +2285,7 @@ class PdfMeta(models.Model):
     
     def is_ready_for_viewing(self):
         """Check if PDF is ready for viewing"""
-        return (self.processing_status == 'completed' and 
-                (self.optimized_file or self.original_file))
+        return self.processing_status == 'completed' and bool(self.original_file)
 
     def get_safe_file_size(self):
         """Safely get file size in bytes, handling missing files and R2 storage"""
@@ -2327,8 +2302,8 @@ class PdfMeta(models.Model):
         return 0
     
     def get_viewing_file(self):
-        """Get the best file for viewing (optimized if available, otherwise original)"""
-        return self.optimized_file if self.optimized_file else self.original_file
+        """Get the file for viewing (original PDF only)."""
+        return self.original_file
     
     def get_original_file(self):
         """Get the original PDF file for download"""
@@ -2342,14 +2317,10 @@ class PdfMeta(models.Model):
         """Get the direct download URL (R2 if available, otherwise local)"""
         if self.r2_original_file_url:
             return self.r2_original_file_url
-        if self.r2_optimized_file_url:
-            return self.r2_optimized_file_url
         return self.original_file.url if self.original_file else None
     
     def get_direct_viewing_url(self):
         """Get the direct viewing URL (R2 if available, otherwise local)"""
-        if self.r2_optimized_file_url:
-            return self.r2_optimized_file_url
         if self.r2_original_file_url:
             return self.r2_original_file_url
         file_obj = self.get_viewing_file()
@@ -2358,7 +2329,7 @@ class PdfMeta(models.Model):
     # --- R2 Helper Methods ---
     def has_r2_files(self):
         """Check if any R2 files are available"""
-        return bool(self.r2_original_file_url or self.r2_optimized_file_url)
+        return bool(self.r2_original_file_url)
     
     def get_r2_status_display(self):
         """Get human-readable R2 upload status"""
@@ -2373,8 +2344,6 @@ class PdfMeta(models.Model):
     
     def get_pdf_url(self):
         """Get the best available viewing URL (R2 URL if available)"""
-        if self.r2_optimized_file_url:
-            return self.r2_optimized_file_url
         if self.r2_original_file_url:
             return self.r2_original_file_url
             

@@ -6,7 +6,7 @@ Also notifies Google of sitemap updates via ping
 Note: Google Indexing API notifications are handled by apps.media_manager.signals_seo
 which only triggers when SEO metadata actually changes (not on every save)
 """
-from django.db.models.signals import post_save, post_delete, pre_delete
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.core.cache import cache
 from apps.media_manager.models import ContentItem

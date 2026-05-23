@@ -4,10 +4,10 @@
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Count, Q, Avg, Max, Min
+from django.db.models import Count, Q
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
-from apps.media_manager.models import ContentItem, Tag, SiteConfiguration
+from apps.media_manager.models import ContentItem, SiteConfiguration
 from collections import Counter
 import json
 

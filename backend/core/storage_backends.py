@@ -263,20 +263,18 @@ class R2Service:
             bool: Success status
         """
         try:
-            # Upload optimized or original PDF file
+            # Upload original PDF file only.
             file_path = None
-            if pdf_meta.optimized_file and pdf_meta.optimized_file.name:
-                file_path = os.path.join(settings.MEDIA_ROOT, pdf_meta.optimized_file.name)
-            elif pdf_meta.original_file and pdf_meta.original_file.name:
+            if pdf_meta.original_file and pdf_meta.original_file.name:
                 file_path = os.path.join(settings.MEDIA_ROOT, pdf_meta.original_file.name)
             
             if file_path and os.path.exists(file_path):
                 # Use local relative path as R2 key for consistent nginx mapping
-                rel_path = pdf_meta.optimized_file.name if pdf_meta.optimized_file and pdf_meta.optimized_file.name else pdf_meta.original_file.name
+                rel_path = pdf_meta.original_file.name
                 r2_key = rel_path
                 
-                # Determine which field to update based on file type
-                field_name = 'r2_optimized_file_url' if pdf_meta.optimized_file and pdf_meta.optimized_file.name else 'r2_original_file_url'
+                # Always update original file URL.
+                field_name = 'r2_original_file_url'
                 success, message = self.upload_file_with_progress(
                     file_path, r2_key, pdf_meta, field_name
                 )

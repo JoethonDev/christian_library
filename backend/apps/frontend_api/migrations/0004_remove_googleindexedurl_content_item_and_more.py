@@ -9,24 +9,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="googleindexedurl",
-            name="content_item",
-        ),
-        migrations.RemoveField(
-            model_name="googleindexedurl",
-            name="tag",
-        ),
-        migrations.RemoveField(
-            model_name="googleindexingqueue",
-            name="content_item",
-        ),
         migrations.DeleteModel(
             name="GoogleIndexingQuota",
-        ),
-        migrations.RemoveField(
-            model_name="googlereindexingtask",
-            name="initiated_by",
         ),
         migrations.DeleteModel(
             name="GoogleIndexedUrl",

@@ -503,7 +503,6 @@ class AdminService:
             breakdown = {
                 'original': {'size': 0, 'count': 0},
                 'hls': {'size': 0, 'count': 0},
-                'optimized': {'size': 0, 'count': 0},
                 'compressed': {'size': 0, 'count': 0},
             }
             
@@ -523,15 +522,6 @@ class AdminService:
                 breakdown['hls']['size'] = size
                 breakdown['hls']['count'] = count
             
-            # Calculate optimized files
-            optimized_dirs = ['optimized/pdf']
-            for dir_path in optimized_dirs:
-                full_path = media_root / dir_path
-                if full_path.exists():
-                    size, count = self._get_directory_size_and_count(full_path)
-                    breakdown['optimized']['size'] += size
-                    breakdown['optimized']['count'] += count
-            
             # Calculate compressed files
             compressed_dirs = ['compressed/audio']
             for dir_path in compressed_dirs:
@@ -549,7 +539,6 @@ class AdminService:
             return {
                 'original': {'size': 0, 'count': 0},
                 'hls': {'size': 0, 'count': 0},
-                'optimized': {'size': 0, 'count': 0},
                 'compressed': {'size': 0, 'count': 0},
             }
     

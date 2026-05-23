@@ -70,10 +70,8 @@ urlpatterns = [
     path('dashboard/upload/generate-metadata-only/', admin_views.generate_metadata_only, name='generate_metadata_only'),
     path('dashboard/upload/generate-seo-only/', admin_views.generate_seo_only, name='generate_seo_only'),
     
-    # Content type specific management (at /en/dashboard/videos/, etc.)
-    path('dashboard/videos/', admin_views.video_management, name='video_management'),
-    path('dashboard/audios/', admin_views.audio_management, name='audio_management'),
-    path('dashboard/pdfs/', admin_views.pdf_management, name='pdf_management'),
+    # Unified content type management
+    path('dashboard/<str:media_type>/', admin_views.media_management, name='media_management'),
     
     # System management (at /en/dashboard/system/, etc.)
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
@@ -114,7 +112,7 @@ urlpatterns = [
     path('dashboard/r2/', admin_views.r2_status_dashboard, name='r2_status_dashboard'),
     path('dashboard/r2/status/', admin_views.get_r2_sync_status, name='r2_sync_status'),
 
-    
+
     # Legacy admin interfaces (redirects to dashboard for backward compatibility)
     path('admin/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_redirect'),
     path('admin-dashboard/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_dashboard_legacy'),

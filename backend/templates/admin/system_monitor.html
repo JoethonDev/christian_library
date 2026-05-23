@@ -65,13 +65,6 @@
                     </div>
                     <div class="col-md-3">
                         <div class="p-3 bg-light rounded-3 text-center">
-                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Optimized" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.optimized.size|filesizeformat }}</div>
-                            <small class="text-muted">{{ storage_breakdown.optimized.count }} {% trans "files" %}</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-light rounded-3 text-center">
                             <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Compressed" %}</div>
                             <div class="fw-bold text-dark">{{ storage_breakdown.compressed.size|filesizeformat }}</div>
                             <small class="text-muted">{{ storage_breakdown.compressed.count }} {% trans "files" %}</small>

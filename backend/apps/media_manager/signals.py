@@ -59,11 +59,6 @@ def delete_pdf_files(sender, instance, **kwargs):
     if instance.original_file:
         if default_storage.exists(instance.original_file.name):
             default_storage.delete(instance.original_file.name)
-    
-    # Delete optimized file
-    if instance.optimized_file:
-        if default_storage.exists(instance.optimized_file.name):
-            default_storage.delete(instance.optimized_file.name)
 
 
 @receiver(post_delete, sender=ContentItem)
