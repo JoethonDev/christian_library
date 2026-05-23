@@ -282,28 +282,10 @@
 
             <div class="admin-section-label">{% trans "Analytics & System" %}</div>
             
-            <a href="{% url 'frontend_api:api_queue_list' %}" 
-               class="nav-link-admin {% if 'api-queue' in request.path %}active{% endif %}">
-                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-list-task"/></svg>
-                {% trans "API Upload Queue" %}
-            </a>
-            
-            <a href="{% url 'frontend_api:r2_status_dashboard' %}" 
-               class="nav-link-admin {% if 'dashboard/r2' in request.path %}active{% endif %}">
-                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-cloud-check"/></svg>
-                {% trans "R2 Sync Status" %}
-            </a>
-            
             <a href="{% url 'frontend_api:analytics_dashboard' %}" 
                class="nav-link-admin {% if 'analytics' in request.path %}active{% endif %}">
                 <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-bar-chart"/></svg>
                 {% trans "Content Analytics" %}
-            </a>
-            
-            <a href="{% url 'frontend_api:seo_dashboard' %}" 
-               class="nav-link-admin {% if 'seo' in request.path %}active{% endif %}">
-                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-graph-up-arrow"/></svg>
-                {% trans "SEO Dashboard" %}
             </a>
 
             <a href="{% url 'frontend_api:jobs_dashboard' %}" 

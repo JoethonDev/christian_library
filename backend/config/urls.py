@@ -45,7 +45,7 @@ urlpatterns = [
     path('admin/tasks/', include('apps.admin_django.urls', namespace='admin_django')),
 
     # Authentication redirects
-    path('accounts/login/', RedirectView.as_view(url='/ar/users/login/', permanent=False), name='login_redirect'),
+    path('accounts/login/', RedirectView.as_view(pattern_name='frontend_api:admin_login', permanent=False), name='login_redirect'),
     path('accounts/logout/', RedirectView.as_view(url='/ar/users/logout/', permanent=False), name='logout_redirect'),
 
     # API endpoints (non-internationalized for consistency)

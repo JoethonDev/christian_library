@@ -9,8 +9,8 @@
         <p class="text-muted mb-0">{% trans "Overview of your library performance" %}</p>
     </div>
     <div class="col-auto d-flex gap-2">
-        <a href="{% url 'frontend_api:r2_status_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
-            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-cloud-check"/></svg>{% trans "R2 Sync Status" %}
+        <a href="{% url 'frontend_api:jobs_dashboard' %}" class="btn btn-outline-primary rounded-pill px-4 shadow-sm">
+            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-list-task"/></svg>{% trans "Background Jobs" %}
         </a>
         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary rounded-pill px-4 shadow-sm">
             <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-cloud-upload"/></svg>{% trans "Upload Content" %}

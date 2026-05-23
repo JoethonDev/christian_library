@@ -182,7 +182,7 @@ function runAction(action) {
             {% trans "Active Tasks" %}
         </h6>
         <div class="d-flex align-items-center gap-3">
-            <a href="{% url 'frontend_api:api_queue_list' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-medium">
+            <a href="{% url 'frontend_api:jobs_dashboard' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-medium">
                 {% trans "View History" %} <svg class="bi ms-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
             </a>
             <span class="badge bg-light text-secondary border rounded-pill">{{ task_monitor.task_stats.total_registered|default:0 }}</span>

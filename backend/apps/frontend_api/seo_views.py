@@ -1,68 +1,18 @@
 # SEO Analytics and Monitoring Views
 # Add to apps/frontend_api/views.py or create new apps/seo_dashboard/views.py
 
-from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q
-from django.utils.decorators import method_decorator
-from django.views.generic import TemplateView
 from apps.media_manager.models import ContentItem, SiteConfiguration
 from collections import Counter
 import json
 
-
-from django.shortcuts import render
-
-
-@method_decorator(staff_member_required, name='dispatch')
-class SEODashboardView(TemplateView):
-    """SEO Analytics Dashboard for Administrators"""
-    template_name = 'admin/seo_dashboard.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Basic SEO coverage statistics
-        total_content = ContentItem.objects.filter(is_active=True).count()
-        seo_complete = ContentItem.objects.filter(
-            is_active=True
-        ).exclude(
-            Q(seo_keywords_ar__isnull=True) | Q(seo_keywords_ar=''),
-            Q(seo_keywords_en__isnull=True) | Q(seo_keywords_en=''),
-            Q(seo_meta_description_ar='') | Q(seo_meta_description_ar__isnull=True),
-            Q(seo_meta_description_en='') | Q(seo_meta_description_en__isnull=True)
-        ).count()
-        
-        context.update({
-            'total_content': total_content,
-            'seo_complete': seo_complete,
-            'seo_coverage_percent': round((seo_complete / total_content * 100) if total_content > 0 else 0, 1),
-            'seo_pending': total_content - seo_complete,
-            'site_config': SiteConfiguration.objects.first(),
-        })
-        
-        # Content type breakdown
-        content_types = ContentItem.objects.filter(is_active=True).values('content_type').annotate(
-            total=Count('id'),
-            seo_ready=Count('id', filter=~Q(seo_keywords_ar__isnull=True) & ~Q(seo_keywords_ar=''))
-        )
-        context['content_types'] = list(content_types)
-        
-        # Recent SEO updates
-        recent_seo_updates = ContentItem.objects.filter(
-            is_active=True
-        ).exclude(
-            Q(seo_keywords_ar__isnull=True) | Q(seo_keywords_ar='')
-        ).order_by('-updated_at')[:10]
-        context['recent_seo_updates'] = recent_seo_updates
-        
-        # HTMX partial support
-        if self.request.headers.get('HX-Request') == 'true':
-            # Note: We need to handle this specially if it's just the table
-            return render(self.request, 'admin/partials/seo_analysis_table.html', context)
-            
-        return context
+staff_member_required = user_passes_test(
+    lambda u: u.is_active and u.is_staff,
+    login_url='frontend_api:admin_login',
+)
 
 
 @staff_member_required
