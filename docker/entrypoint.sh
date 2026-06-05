@@ -27,12 +27,6 @@ case "$1" in
         echo "�📦 Collecting static files..."
         python manage.py collectstatic --noinput --clear
 
-        echo "🗃️  Checking migrations..."
-        # In production, automated migrations can be risky. 
-        # Uncomment next line if you want auto-migrations on startup.
-        python manage.py makemigrations --merge --noinput
-        python manage.py migrate --noinput
-        
         echo "🚀 Starting Gunicorn (Gevent)..."
         exec gunicorn config.wsgi:application \
             --bind 0.0.0.0:8000 \

@@ -1,0 +1,30 @@
+services:
+  app_blue:
+    image: christian-library-app:${IMAGE_TAG:-latest}
+    container_name: app_blue
+    restart: unless-stopped
+    command: ["web"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+      - logs_data:/app/logs
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2048M
