@@ -85,6 +85,7 @@ echo "upstream active_backend { server app_${NEW}:8000; keepalive 32; }" \
 docker exec nginx nginx -t
 docker exec nginx nginx -s reload
 
+mkdir -p "$(dirname "$ACTIVE_SLOT_FILE")"
 echo "$NEW" > "$ACTIVE_SLOT_FILE"
 
 sleep 3
