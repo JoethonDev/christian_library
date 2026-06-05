@@ -2,7 +2,7 @@
 set -euo pipefail
 
 IMAGE_TAG=${1:?Usage: deploy.sh <image-tag>}
-ACTIVE_SLOT_FILE=/etc/deploy/active_slot
+ACTIVE_SLOT_FILE=~/active_slot
 ACTIVE=$(cat "$ACTIVE_SLOT_FILE" 2>/dev/null || echo "blue")
 NEW=$([ "$ACTIVE" = "blue" ] && echo "green" || echo "blue")
 
