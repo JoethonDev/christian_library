@@ -2683,7 +2683,7 @@ class SiteConfiguration(models.Model):
             'custom': self.search_custom_threshold
         }
         return threshold_map.get(self.search_sensitivity_mode, 0.1)
-    
+
     def get_mode_description(self):
         """Get human-readable description of current search mode"""
         descriptions = {
@@ -2694,6 +2694,74 @@ class SiteConfiguration(models.Model):
             'custom': f'Custom threshold set to {self.search_custom_threshold}. Lower values (closer to 0.0) return more results but may include less relevant matches.'
         }
         return descriptions.get(self.search_sensitivity_mode, descriptions['normal'])
+
+
+class GeminiModelSetting(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    model_key = models.CharField(max_length=64, unique=True, db_index=True)
+    display_name = models.CharField(max_length=128)
+    provider = models.CharField(max_length=32, default='google')
+    is_enabled = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False, db_index=True)
+    fallback_priority = models.IntegerField(default=0)
+    limit_per_minute = models.IntegerField(default=5)
+    limit_per_day = models.IntegerField(default=20)
+    limit_per_month = models.IntegerField(null=True, blank=True)
+    request_timeout_seconds = models.IntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Gemini Model Setting'
+        verbose_name_plural = 'Gemini Model Settings'
+        ordering = ['fallback_priority', 'model_key']
+
+    def __str__(self):
+        return self.display_name
+
+
+class GeminiGenerationAttempt(models.Model):
+    class OperationType(models.TextChoices):
+        COMBINED = 'combined', 'Combined (Metadata + SEO)'
+        METADATA = 'metadata', 'Metadata Only'
+        SEO = 'seo', 'SEO Only'
+
+    class Status(models.TextChoices):
+        STARTED = 'started', 'Started'
+        SUCCESS = 'success', 'Success'
+        FAILURE = 'failure', 'Failure'
+        TIMEOUT = 'timeout', 'Timeout'
+        BLOCKED = 'blocked', 'Blocked'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content_item = models.ForeignKey(
+        'ContentItem', on_delete=models.CASCADE, db_index=True
+    )
+    requested_model_key = models.CharField(max_length=64, db_index=True)
+    resolved_model_key = models.CharField(max_length=64, db_index=True, null=True)
+    operation_type = models.CharField(
+        max_length=16, choices=OperationType.choices, db_index=True
+    )
+    status = models.CharField(
+        max_length=16, choices=Status.choices, db_index=True
+    )
+    success = models.BooleanField(null=True)
+    error_message = models.TextField(null=True, blank=True)
+    response_time_ms = models.IntegerField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Gemini Generation Attempt'
+        verbose_name_plural = 'Gemini Generation Attempts'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['content_item', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.operation_type} - {self.status} ({self.content_item_id})"
 
 
 class APIUploadQueue(models.Model):
@@ -2788,11 +2856,6 @@ class APIUploadQueue(models.Model):
         default=0,
         verbose_name=_('Priority'),
         help_text=_('Higher values = higher priority')
-    )
-    gemini_attempts = models.IntegerField(
-        default=0,
-        verbose_name=_('Gemini Attempts'),
-        help_text=_('Number of attempts to generate metadata with Gemini')
     )
     last_action_source = models.CharField(
         max_length=64,

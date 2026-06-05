@@ -20,7 +20,8 @@ from apps.media_manager.tasks import generate_seo_metadata_task
 
 from .models import (
     ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag, 
-    ContentViewEvent, DailyContentViewSummary, SiteConfiguration
+    ContentViewEvent, DailyContentViewSummary, SiteConfiguration,
+    GeminiModelSetting, GeminiGenerationAttempt
 )
 from .forms import ContentItemForm
 
@@ -740,4 +741,102 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         # Don't allow deletion
+        return False
+
+
+@admin.register(GeminiModelSetting)
+class GeminiModelSettingAdmin(admin.ModelAdmin):
+    list_display = ['model_key', 'display_name', 'is_enabled', 'is_default', 'fallback_priority', 'limit_per_minute', 'limit_per_day']
+    list_filter = ['is_enabled', 'is_default', 'provider']
+    search_fields = ['model_key', 'display_name', 'notes']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        (_('Model Identity'), {
+            'fields': ('model_key', 'display_name', 'provider', 'notes')
+        }),
+        (_('Availability'), {
+            'fields': ('is_enabled', 'is_default', 'archived_at')
+        }),
+        (_('Rate Limits'), {
+            'fields': ('limit_per_minute', 'limit_per_day', 'limit_per_month', 'request_timeout_seconds')
+        }),
+        (_('Fallback'), {
+            'fields': ('fallback_priority',)
+        }),
+        (_('System Information'), {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    actions = ['enable_selected', 'disable_selected', 'archive_selected']
+
+    def enable_selected(self, request, queryset):
+        count = queryset.update(is_enabled=True)
+        messages.success(request, _(f'{count} model(s) enabled.'))
+    enable_selected.short_description = _('Enable selected models')
+
+    def disable_selected(self, request, queryset):
+        count = queryset.update(is_enabled=False)
+        messages.success(request, _(f'{count} model(s) disabled.'))
+    disable_selected.short_description = _('Disable selected models')
+
+    def archive_selected(self, request, queryset):
+        count = queryset.update(archived_at=timezone.now())
+        messages.success(request, _(f'{count} model(s) archived.'))
+    archive_selected.short_description = _('Archive selected models')
+
+    def save_model(self, request, obj, form, change):
+        if obj.is_default:
+            GeminiModelSetting.objects.filter(is_default=True).exclude(pk=obj.pk).update(is_default=False)
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(GeminiGenerationAttempt)
+class GeminiGenerationAttemptAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'content_item_link', 'requested_model_key', 'resolved_model_key', 'operation_type', 'status', 'success', 'response_time_ms']
+    list_filter = ['operation_type', 'status', 'success', 'requested_model_key']
+    search_fields = ['content_item__id', 'error_message']
+    date_hierarchy = 'created_at'
+    readonly_fields = ['id', 'content_item', 'requested_model_key', 'resolved_model_key', 'operation_type', 'status', 'success', 'error_message', 'response_time_ms', 'created_at']
+    ordering = ['-created_at']
+
+    fieldsets = (
+        (_('Identity'), {
+            'fields': ('id', 'content_item')
+        }),
+        (_('Model'), {
+            'fields': ('requested_model_key', 'resolved_model_key')
+        }),
+        (_('Operation'), {
+            'fields': ('operation_type', 'status', 'success')
+        }),
+        (_('Response'), {
+            'fields': ('response_time_ms',)
+        }),
+        (_('Error Details'), {
+            'fields': ('error_message',),
+            'classes': ('collapse',),
+        }),
+        (_('Timing'), {
+            'fields': ('created_at',),
+        }),
+    )
+
+    def content_item_link(self, obj):
+        if obj.content_item_id:
+            link = reverse('admin:media_manager_contentitem_change', args=[obj.content_item_id])
+            return format_html('<a href="{}">{}</a>', link, str(obj.content_item)[:50])
+        return '-'
+    content_item_link.short_description = _('Content Item')
+    content_item_link.admin_order_field = 'content_item'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False
