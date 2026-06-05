@@ -23,8 +23,11 @@ COMPOSE_OLD="-f ${PROJECT_DIR}/docker-compose.${ACTIVE}.yml"
 # Handles first-time deploy where no shared stack exists yet.
 echo "[1/11] Ensuring shared services are running..."
 if ! docker compose $COMPOSE_SHARED ps --status running 2>/dev/null | grep -q "redis"; then
-  echo "      Shared stack not detected. Starting shared services..."
-  docker compose $COMPOSE_SHARED up -d --wait db redis
+  echo "      Shared stack not detected. Starting all shared services..."
+  docker compose $COMPOSE_SHARED up -d
+else
+  echo "      Shared stack detected. Restarting shared services..."
+  docker compose $COMPOSE_SHARED restart
 fi
 echo "      Shared services OK"
 
