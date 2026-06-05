@@ -14,8 +14,8 @@ class GeminiSEOService(BaseGeminiService):
     """Service for generating SEO metadata using Gemini 3 Flash"""
     
     def __init__(self):
-        """Initialize with Gemini 3 Flash as default model"""
-        super().__init__(default_model=self.MODEL_3_FLASH)
+        """Initialize with DB-configured default model"""
+        super().__init__()
     
     def generate_seo(
         self,

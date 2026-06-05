@@ -14,8 +14,8 @@ class GeminiMetadataService(BaseGeminiService):
     """Service for generating content metadata using Gemini 2.5 Flash"""
     
     def __init__(self):
-        """Initialize with Gemini 2.5 Flash as default model"""
-        super().__init__(default_model=self.MODEL_2_5_FLASH)
+        """Initialize with DB-configured default model"""
+        super().__init__()
     
     def generate_metadata(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
         """
