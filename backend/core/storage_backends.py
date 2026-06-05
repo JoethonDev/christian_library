@@ -78,6 +78,18 @@ class R2Service:
             return False, "R2 not enabled"
         
         try:
+            from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
+
+            LifecycleAuditService.log_event(
+                content_item=getattr(meta_instance, 'content_item', None),
+                action_type='r2_upload_attempted',
+                source='system:r2_storage',
+                previous_state=getattr(meta_instance, 'r2_upload_status', ''),
+                new_state='uploading',
+                message='R2 upload started',
+                payload={'local_file_path': local_file_path, 'r2_key': r2_key, 'field_name': field_name},
+            )
+
             # Update status to uploading
             meta_instance.r2_upload_status = 'uploading'
             meta_instance.r2_upload_progress = 0
@@ -106,6 +118,16 @@ class R2Service:
                 meta_instance.r2_upload_status = 'completed'
                 meta_instance.r2_upload_progress = 100
                 meta_instance.save(update_fields=[field_name, 'r2_upload_status', 'r2_upload_progress'])
+
+                LifecycleAuditService.log_event(
+                    content_item=getattr(meta_instance, 'content_item', None),
+                    action_type='r2_upload_completed',
+                    source='system:r2_storage',
+                    previous_state='uploading',
+                    new_state='completed',
+                    message='R2 upload completed',
+                    payload={'local_file_path': local_file_path, 'r2_key': r2_key, 'field_name': field_name},
+                )
                 
                 logger.info(f"Successfully uploaded {local_file_path} to R2: {r2_key}")
                 return True, "Upload completed successfully"
@@ -263,20 +285,18 @@ class R2Service:
             bool: Success status
         """
         try:
-            # Upload optimized or original PDF file
+            # Upload original PDF file only.
             file_path = None
-            if pdf_meta.optimized_file and pdf_meta.optimized_file.name:
-                file_path = os.path.join(settings.MEDIA_ROOT, pdf_meta.optimized_file.name)
-            elif pdf_meta.original_file and pdf_meta.original_file.name:
+            if pdf_meta.original_file and pdf_meta.original_file.name:
                 file_path = os.path.join(settings.MEDIA_ROOT, pdf_meta.original_file.name)
             
             if file_path and os.path.exists(file_path):
                 # Use local relative path as R2 key for consistent nginx mapping
-                rel_path = pdf_meta.optimized_file.name if pdf_meta.optimized_file and pdf_meta.optimized_file.name else pdf_meta.original_file.name
+                rel_path = pdf_meta.original_file.name
                 r2_key = rel_path
                 
-                # Determine which field to update based on file type
-                field_name = 'r2_optimized_file_url' if pdf_meta.optimized_file and pdf_meta.optimized_file.name else 'r2_original_file_url'
+                # Always update original file URL.
+                field_name = 'r2_original_file_url'
                 success, message = self.upload_file_with_progress(
                     file_path, r2_key, pdf_meta, field_name
                 )
@@ -312,6 +332,18 @@ class R2Service:
             if local_path and os.path.exists(local_path):
                 # Use local relative path as R2 key
                 r2_key = content_item.thumbnail.name
+
+                from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
+
+                LifecycleAuditService.log_event(
+                    content_item=content_item,
+                    action_type='r2_upload_attempted',
+                    source='system:r2_storage',
+                    previous_state='',
+                    new_state='uploading',
+                    message='Thumbnail R2 upload started',
+                    payload={'local_file_path': local_path, 'r2_key': r2_key, 'field_name': 'r2_thumbnail_url'},
+                )
                 
                 # Simple upload for small thumbnail
                 success, result = self._r2_service.upload_file(local_path, r2_key)
@@ -319,6 +351,16 @@ class R2Service:
                 if success:
                     content_item.r2_thumbnail_url = result
                     content_item.save(update_fields=['r2_thumbnail_url'])
+
+                    LifecycleAuditService.log_event(
+                        content_item=content_item,
+                        action_type='r2_upload_completed',
+                        source='system:r2_storage',
+                        previous_state='uploading',
+                        new_state='completed',
+                        message='Thumbnail R2 upload completed',
+                        payload={'local_file_path': local_path, 'r2_key': r2_key, 'field_name': 'r2_thumbnail_url'},
+                    )
                     logger.info(f"Successfully uploaded thumbnail for {content_item.id} to R2")
                     return True
                 

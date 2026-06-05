@@ -1,0 +1,16 @@
+{% load i18n %}
+<thead>
+    <tr>
+        {% if show_select %}
+        <th class="admin-checkbox-col ps-4 py-3 border-0">
+            <input type="checkbox" class="form-check-input" id="{{ select_id|default:'selectAll' }}" {% if select_onchange %}onchange="{{ select_onchange }}"{% endif %}>
+        </th>
+        {% endif %}
+        {% for col in columns %}
+        <th class="admin-table-thead {% if col.align == 'end' %}text-end pe-4{% elif col.align == 'center' %}text-center{% endif %} {% if col.width %}admin-checkbox-col{% endif %}"
+            {% if col.width %}style="width: {{ col.width }};"{% endif %}>
+            {% trans col.label %}
+        </th>
+        {% endfor %}
+    </tr>
+</thead>

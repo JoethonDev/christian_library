@@ -1,0 +1,22 @@
+{% load i18n %}
+
+<div class="status-badge-line d-flex flex-wrap gap-1">
+    {% if content_item.seo_processing_status %}
+        {% with seo_status=content_item.seo_processing_status %}
+        <span class="badge rounded-pill d-inline-flex align-items-center gap-1 {% if seo_status == 'completed' %}bg-success-subtle text-success border border-success-subtle{% elif seo_status == 'processing' %}bg-primary-subtle text-primary border border-primary-subtle{% elif seo_status == 'failed' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-warning-subtle text-warning border border-warning-subtle{% endif %}">
+            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-stars"/></svg>
+            {% trans "SEO" %}: {{ content_item.get_seo_status_display }}
+        </span>
+        {% endwith %}
+
+    {% endif %}
+
+    {% if meta and meta.r2_upload_status %}
+        {% with r2_status=meta.r2_upload_status %}
+        <span class="badge rounded-pill d-inline-flex align-items-center gap-1 {% if r2_status == 'completed' %}bg-success-subtle text-success border border-success-subtle{% elif r2_status == 'uploading' %}bg-primary-subtle text-primary border border-primary-subtle{% elif r2_status == 'failed' %}bg-danger-subtle text-danger border border-danger-subtle{% else %}bg-warning-subtle text-warning border border-warning-subtle{% endif %}">
+            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-cloud-arrow-up"/></svg>
+            {% trans "R2" %}: {{ meta.get_r2_status_display }}
+        </span>
+        {% endwith %}
+    {% endif %}
+</div>

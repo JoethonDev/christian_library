@@ -12,7 +12,7 @@ import logging
 
 from core.tasks.media_processing import (
     process_audio_compression,
-    process_pdf_optimization,
+    process_pdf,
     process_video_to_hls,
 )
 
@@ -203,26 +203,13 @@ class PdfMetaInline(admin.StackedInline):
     model = PdfMeta
     extra = 0
     fields = [
-        'original_file', 'optimization_display', 'file_info_display', 
+        'original_file', 'file_info_display', 
         'processing_status', 'r2_status_display', 'r2_files_display'
     ]
     readonly_fields = [
-        'optimization_display', 'file_info_display', 'processing_status',
+        'file_info_display', 'processing_status',
         'r2_status_display', 'r2_files_display'
     ]
-    
-    def optimization_display(self, obj):
-        """Display optimization status"""
-        if obj.optimized_file:
-            return format_html(
-                '<span style="color: green;">✓ {}</span>',
-                _('Optimized')
-            )
-        return format_html(
-            '<span style="color: orange;">⚠ {}</span>',
-            _('Original only')
-        )
-    optimization_display.short_description = _('Optimization Status')
     
     def r2_status_display(self, obj):
         """Display R2 upload status"""
@@ -234,8 +221,6 @@ class PdfMetaInline(admin.StackedInline):
         files = []
         if obj.r2_original_file_url:
             files.append(f"<strong>Original:</strong> ✓")
-        if obj.r2_optimized_file_url:
-            files.append(f"<strong>Optimized:</strong> ✓")
         return mark_safe("<br>".join(files)) if files else "No R2 files"
     r2_files_display.short_description = _('R2 Files')
     
@@ -448,7 +433,7 @@ class ContentItemAdmin(admin.ModelAdmin):
         task_map = {
             VideoMeta: 'process_video_to_hls',
             AudioMeta: 'process_audio_compression',
-            PdfMeta: 'process_pdf_optimization',
+            PdfMeta: 'process_pdf',
         }
         task_name = task_map.get(getattr(formset, 'model', None))
         if not task_name:
@@ -459,8 +444,8 @@ class ContentItemAdmin(admin.ModelAdmin):
             task = process_video_to_hls
         elif task_name == 'process_audio_compression':
             task = process_audio_compression
-        elif task_name == 'process_pdf_optimization':
-            task = process_pdf_optimization
+        elif task_name == 'process_pdf':
+            task = process_pdf
 
         if task is None:
             return
@@ -588,8 +573,8 @@ class ContentItemAdmin(admin.ModelAdmin):
                         from core.tasks.media_processing import process_audio_compression
                         process_audio_compression.delay(str(obj.id))
                     elif obj.content_type == 'pdf':
-                        from core.tasks.media_processing import process_pdf_optimization
-                        process_pdf_optimization.delay(str(obj.id))
+                        from core.tasks.media_processing import process_pdf
+                        process_pdf.delay(str(obj.id))
                     count += 1
             except Exception as e:
                 logger.error(f"Error reprocessing {obj.id}: {str(e)}")

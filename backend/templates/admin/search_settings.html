@@ -1,0 +1,339 @@
+<!-- templates/admin/search_settings.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "Search Settings" %} | Admin{% endblock %}
+
+{% block admin_content %}
+<div x-data="searchSettings()">
+    <div class="row align-items-center mb-4">
+        <div class="col">
+            <h1 class="h3 fw-bold text-dark mb-1">{% trans "Search Settings" %}</h1>
+            <p class="text-muted mb-0">{% trans "Configure search sensitivity, test queries, and manage search behavior" %}</p>
+        </div>
+        <div class="col-auto">
+            <button class="btn btn-outline-secondary rounded-pill" onclick="window.location.reload()">
+                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Mode Selection -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-transparent border-0 py-3 px-4">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-sliders"/></svg>
+                        {% trans "Sensitivity Mode" %}
+                    </h6>
+                </div>
+                <div class="card-body p-4 pt-0">
+                    <div class="row g-3">
+                        {% for mode in available_modes %}
+                        <div class="col-md-6">
+                            <label class="d-block p-3 rounded-3 border cursor-pointer hover-border-primary {% if mode.is_active %}border-primary bg-primary-subtle{% else %}bg-light border-light{% endif %}" style="cursor: pointer;" @click="selectMode('{{ mode.key }}')">
+                                <div class="d-flex align-items-center mb-2">
+                                    <input type="radio" name="search_mode" value="{{ mode.key }}" class="form-check-input me-2"
+                                           x-model="selectedMode" @change="selectMode('{{ mode.key }}')"
+                                           {% if mode.is_active %}checked{% endif %}>
+                                    <span class="fw-bold text-dark">{{ mode.label }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary ms-auto rounded-pill">{{ mode.threshold }}</span>
+                                </div>
+                                <p class="small text-muted mb-0 ps-4">{{ mode.description }}</p>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom Threshold (only visible when Custom mode is selected) -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4" x-show="selectedMode === 'custom'" x-cloak>
+                <div class="card-header bg-transparent border-0 py-3 px-4">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-thermometer-half"/></svg>
+                        {% trans "Custom Threshold" %}
+                    </h6>
+                </div>
+                <div class="card-body p-4 pt-0">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted fw-semibold">{% trans "Threshold Value" %}</label>
+                        <div class="d-flex align-items-center gap-3">
+                            <input type="range" class="form-range flex-grow-1" min="0" max="100" step="1"
+                                   x-model="customThreshold"
+                                   @input="customThreshold = $event.target.value">
+                            <input type="number" class="form-control form-control-sm" style="width: 80px;"
+                                   x-model="customThreshold" min="0" max="100" step="1">
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3" x-text="(customThreshold / 100).toFixed(2)"></span>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
+                            {% trans "Lower values return more results but may include less relevant matches. Higher values return fewer, more precise results." %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Search -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-transparent border-0 py-3 px-4">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+                        {% trans "Test Search" %}
+                    </h6>
+                </div>
+                <div class="card-body p-4 pt-0">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="text" class="form-control bg-light border-0 rounded-start-3" 
+                                   x-model="testQuery" placeholder="{% trans 'Enter a search query to test...' %}"
+                                   @keydown.enter="runTest">
+                            <button class="btn btn-primary rounded-end-3" @click="runTest" :disabled="!testQuery.trim()">
+                                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+                                {% trans "Test" %}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div x-show="testing" x-cloak class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="small text-muted mt-2">{% trans "Searching..." %}</p>
+                    </div>
+
+                    <div x-show="testResults !== null && !testing" x-cloak>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted">
+                                {% trans "Results" %}: <strong x-text="testResults.total_results"></strong>
+                                {% trans "for" %} "<strong x-text="testResults.query"></strong>"
+                                (<span x-text="testResults.mode"></span>, <span x-text="testResults.threshold"></span>)
+                            </span>
+                            <button class="btn btn-sm btn-link text-decoration-none text-danger" @click="clearTest">
+                                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>
+                            </button>
+                        </div>
+                        <div class="list-group list-group-flush small" x-show="testResults.results.length > 0">
+                            <template x-for="(result, idx) in testResults.results" :key="idx">
+                                <div class="list-group-item px-3 py-2 bg-light rounded-3 mb-1 border-0">
+                                    <div class="fw-semibold text-dark" x-text="result.title"></div>
+                                    <div class="small text-muted" x-show="result.description" x-text="result.description"></div>
+                                    <div class="d-flex gap-2 mt-1">
+                                        <span class="badge bg-secondary-subtle text-secondary" x-text="result.content_type"></span>
+                                        <span class="badge bg-info-subtle text-info" x-text="result.similarity"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                        <div x-show="testResults.results.length === 0" class="text-center py-3 text-muted">
+                            <svg class="bi fs-2 mb-2" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
+                            <p class="mb-0">{% trans "No results found for this query" %}</p>
+                        </div>
+                    </div>
+
+                    <div x-show="testError" x-cloak class="alert alert-danger rounded-3 py-2 small mb-0">
+                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
+                        <span x-text="testError"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Settings Sidebar -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-transparent border-0 py-3 px-4">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-gear"/></svg>
+                        {% trans "Current Configuration" %}
+                    </h6>
+                </div>
+                <div class="card-body p-4 pt-0">
+                    <div class="p-3 bg-light rounded-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted text-uppercase fw-semibold">{% trans "Active Mode" %}</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2" x-text="currentModeLabel"></span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-light rounded-3 mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted text-uppercase fw-semibold">{% trans "Threshold" %}</span>
+                            <span class="fw-bold text-dark" x-text="currentThreshold"></span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-light rounded-3 mb-3">
+                        <div class="small text-muted text-uppercase fw-semibold mb-1">{% trans "Description" %}</div>
+                        <p class="small mb-0" x-text="currentModeDescription"></p>
+                    </div>
+                    <div class="p-3 bg-light rounded-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small text-muted text-uppercase fw-semibold">{% trans "Last Updated" %}</span>
+                            <span class="small text-muted" x-text="lastUpdated"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4">
+                    <button class="btn btn-primary w-100 rounded-pill shadow-sm fw-bold py-2" @click="saveSettings" :disabled="saving">
+                        <span x-show="!saving">
+                            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-lg"/></svg>{% trans "Save Settings" %}
+                        </span>
+                        <span x-show="saving" x-cloak>
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>{% trans "Saving..." %}
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-header bg-transparent border-0 py-3 px-4">
+                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                        <svg class="bi me-2 text-muted" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
+                        {% trans "About Search Modes" %}
+                    </h6>
+                </div>
+                <div class="card-body p-4 pt-0">
+                    <div class="small text-muted">
+                        <p class="mb-2">{% trans "Search sensitivity controls how closely search terms must match content in the library." %}</p>
+                        <ul class="mb-0 ps-3">
+                            <li class="mb-1"><strong>{% trans "Exact" %}</strong> — {% trans "Only exact or near-exact matches" %}</li>
+                            <li class="mb-1"><strong>{% trans "Strict" %}</strong> — {% trans "High relevance threshold" %}</li>
+                            <li class="mb-1"><strong>{% trans "Normal" %}</strong> — {% trans "Balanced for daily use" %}</li>
+                            <li class="mb-1"><strong>{% trans "Relaxed" %}</strong> — {% trans "Includes partial matches" %}</li>
+                            <li class="mb-1"><strong>{% trans "Custom" %}</strong> — {% trans "Fine-tuned threshold control" %}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function searchSettings() {
+    return {
+        selectedMode: '{{ current_settings.mode }}',
+        customThreshold: {{ current_settings.custom_threshold|default:0.1|floatformat:'2'|cut:',' }} * 100,
+        testQuery: '',
+        testing: false,
+        testResults: null,
+        testError: null,
+        saving: false,
+
+        get currentModeLabel() {
+            const labels = {
+                'exact': '{% trans "Exact Match" %}',
+                'strict': '{% trans "Strict" %}',
+                'normal': '{% trans "Normal" %}',
+                'relaxed': '{% trans "Relaxed" %}',
+                'custom': '{% trans "Custom" %}',
+            };
+            return labels[this.selectedMode] || this.selectedMode;
+        },
+
+        get currentThreshold() {
+            if (this.selectedMode === 'custom') {
+                return (this.customThreshold / 100).toFixed(2);
+            }
+            const thresholds = {
+                'exact': '0.50',
+                'strict': '0.30',
+                'normal': '0.10',
+                'relaxed': '0.05',
+            };
+            return thresholds[this.selectedMode] || '0.10';
+        },
+
+        get currentModeDescription() {
+            const descs = {
+                'exact': '{% trans "Returns only results where the search term appears exactly or with 1 character difference." %}',
+                'strict': '{% trans "Only shows highly relevant matches with strong semantic similarity." %}',
+                'normal': '{% trans "Balanced approach returning relevant results with good precision." %}',
+                'relaxed': '{% trans "More inclusive results, catching partial matches and words with 1-2 character differences." %}',
+                'custom': '{% trans "Custom threshold allows fine-tuned control." %}',
+            };
+            return descs[this.selectedMode] || descs['normal'];
+        },
+
+        get lastUpdated() {
+            return '{{ current_settings.updated_at|default:"--" }}';
+        },
+
+        selectMode(mode) {
+            this.selectedMode = mode;
+            this.testResults = null;
+            this.testError = null;
+        },
+
+        async saveSettings() {
+            this.saving = true;
+            try {
+                const payload = { mode: this.selectedMode };
+                if (this.selectedMode === 'custom') {
+                    payload.custom_threshold = (this.customThreshold / 100).toFixed(2);
+                }
+                const resp = await fetch('{% url "frontend_api:update_search_sensitivity" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('{% trans "Settings saved successfully" %}', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(data.error || '{% trans "Failed to save settings" %}', 'danger');
+                }
+            } catch (e) {
+                showToast('{% trans "Network error" %}', 'danger');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async runTest() {
+            if (!this.testQuery.trim()) return;
+            this.testing = true;
+            this.testResults = null;
+            this.testError = null;
+            try {
+                const payload = { query: this.testQuery, mode: this.selectedMode };
+                if (this.selectedMode === 'custom') {
+                    payload.custom_threshold = (this.customThreshold / 100).toFixed(2);
+                }
+                const resp = await fetch('{% url "frontend_api:test_search_sensitivity" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    this.testResults = data;
+                } else {
+                    this.testError = data.error;
+                }
+            } catch (e) {
+                this.testError = '{% trans "Network error during test" %}';
+            } finally {
+                this.testing = false;
+            }
+        },
+
+        clearTest() {
+            this.testResults = null;
+            this.testError = null;
+            this.testQuery = '';
+        }
+    };
+}
+</script>
+{% endblock %}

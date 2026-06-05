@@ -2,219 +2,527 @@
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
+{% block title %}{% trans "System Monitor" %} | Admin{% endblock %}
+
 {% block admin_content %}
 <div class="row align-items-center mb-4">
     <div class="col">
         <h1 class="h3 fw-bold text-dark mb-1">{% trans "System Monitor" %}</h1>
-        <p class="text-muted mb-0">{% trans "Real-time system performance and resource usage metrics" %}</p>
+        <p class="text-muted mb-0">{% trans "Live CPU, memory, disk, database, cache, and task activity" %}</p>
     </div>
-    <div class="col-auto">
-        <button class="btn btn-white border shadow-sm rounded-pill" onclick="window.location.reload()">
+    <div class="col-auto d-flex flex-wrap gap-2 align-items-center">
+        <div class="input-group input-group-sm align-items-center unit-select-group bg-light rounded-pill px-2 border shadow-sm">
+            <span class="input-group-text bg-transparent border-0 text-muted fw-semibold small pe-1">{% trans "Units" %}</span>
+            <select id="sizeUnitSelect" class="form-select form-select-sm border-0 bg-transparent ps-1 pe-3 fw-medium text-dark" style="cursor: pointer;">
+                <option value="auto">{% trans "Auto" %}</option>
+                <option value="bytes">B</option>
+                <option value="kb">KB</option>
+                <option value="mb">MB</option>
+                <option value="gb">GB</option>
+                <option value="tb">TB</option>
+            </select>
+        </div>
+        <a href="{% url 'frontend_api:file_manager' %}" class="btn btn-outline-primary rounded-pill shadow-sm">
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-folder"/></svg>{% trans "File Manager" %}
+        </a>
+        <button class="btn btn-outline-secondary rounded-pill" onclick="window.location.reload()">
             <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
         </button>
     </div>
 </div>
 
-<div class="row g-4 mb-4">
-    <!-- Storage Usage -->
-    <div class="col-lg-12">
+<ul class="nav nav-pills mb-4 gap-1 flex-wrap">
+    <li class="nav-item"><a class="nav-link active" href="{% url 'frontend_api:system_monitor' %}">{% trans "Overview" %}</a></li>
+    <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:file_manager' %}">{% trans "File Manager" %}</a></li>
+    <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:orphaned_files' %}">{% trans "Orphaned Files" %}</a></li>
+    <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:cache_manager' %}">{% trans "Cache" %}</a></li>
+    <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:get_search_sensitivity' %}">{% trans "Search Settings" %}</a></li>
+</ul>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
         <div class="card border-0 shadow-sm rounded-4 h-100">
-            <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
-                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
-                    {% trans "Local Storage" %}
-                </h6>
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-light rounded-pill px-3 dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-gear"/></svg> {% trans "Maintenance Actions" %}
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('clear_cache')"><svg class="bi me-2 text-danger" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg> {% trans "Clear Temporary Cache" %}</a></li>
-                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('cleanup_orphaned')"><svg class="bi me-2 text-warning" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-x"/></svg> {% trans "Cleanup Orphaned Files" %}</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item py-2" href="#" onclick="runAction('reindex_search')"><svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg> {% trans "Rebuild Search Index" %}</a></li>
-                    </ul>
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2">
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-cpu"/></svg>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill">{{ system_stats.cpu.percent|default:0 }}%</span>
+                </div>
+                <h2 class="fw-bold text-dark mb-1">{{ system_stats.cpu.percent|default:0 }}%</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "CPU Usage" %}</p>
+                <div class="progress admin-progress-thin mt-3">
+                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ system_stats.cpu.percent|default:0 }}%"></div>
+                </div>
+                <div class="small text-muted mt-2">
+                    {{ system_stats.cpu.count|default:"--" }} {% trans "cores" %} ·
+                    {% trans "load" %} {{ system_stats.cpu.load.0|default:0 }}, {{ system_stats.cpu.load.1|default:0 }}, {{ system_stats.cpu.load.2|default:0 }}
                 </div>
             </div>
-            <div class="card-body p-4 pt-0">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                    <span class="fw-bold display-6 text-dark">{{ disk_usage.percentage }}%</span>
-                    <span class="text-muted small">{{ disk_usage.free|filesizeformat }} {% trans "Free" %}</span>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-success bg-opacity-10 text-success rounded-3 p-2">
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-memory"/></svg>
+                    </div>
+                    <span class="badge bg-success-subtle text-success rounded-pill">{{ system_stats.memory.percent|default:0 }}%</span>
                 </div>
-                
-                <div class="progress mb-4" style="height: 8px; border-radius: 4px;">
-                    <div class="progress-bar {% if disk_usage.percentage > 80 %}bg-danger{% elif disk_usage.percentage > 60 %}bg-warning{% else %}bg-success{% endif %}" 
-                         role="progressbar" 
-                         style="width: {{ disk_usage.percentage }}%"></div>
+                <h2 class="fw-bold text-dark mb-1 js-bytes" data-bytes="{{ system_stats.memory.used_bytes|default:0 }}">0 B</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "Memory Used" %}</p>
+                <div class="progress admin-progress-thin mt-3">
+                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ system_stats.memory.percent|default:0 }}%"></div>
                 </div>
-                
-                <div class="row g-3 mb-3">
-                    <div class="col-md-3">
-                        <div class="p-3 bg-light rounded-3 text-center">
-                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Originals" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.original.size|filesizeformat }}</div>
-                            <small class="text-muted">{{ storage_breakdown.original.count }} {% trans "files" %}</small>
-                        </div>
+                <div class="small text-muted mt-2">{% trans "Available" %}: <span class="js-bytes" data-bytes="{{ system_stats.memory.available_bytes|default:0 }}">0 B</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2">
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
                     </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-light rounded-3 text-center">
-                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "HLS Media" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.hls.size|filesizeformat }}</div>
-                            <small class="text-muted">{{ storage_breakdown.hls.count }} {% trans "files" %}</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-light rounded-3 text-center">
-                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Optimized" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.optimized.size|filesizeformat }}</div>
-                            <small class="text-muted">{{ storage_breakdown.optimized.count }} {% trans "files" %}</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="p-3 bg-light rounded-3 text-center">
-                            <div class="d-block text-secondary small text-uppercase fw-bold mb-1">{% trans "Compressed" %}</div>
-                            <div class="fw-bold text-dark">{{ storage_breakdown.compressed.size|filesizeformat }}</div>
-                            <small class="text-muted">{{ storage_breakdown.compressed.count }} {% trans "files" %}</small>
-                        </div>
-                    </div>
+                    <span class="badge bg-warning-subtle text-warning rounded-pill">{{ system_stats.disk.percent|default:0 }}%</span>
                 </div>
-                
-                <div class="text-center text-muted small">
-                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
-                    {% trans "Total disk usage:" %} {{ disk_usage.used|filesizeformat }} / {{ disk_usage.total|filesizeformat }}
+                <h2 class="fw-bold text-dark mb-1 js-bytes" data-bytes="{{ system_stats.disk.used_bytes|default:0 }}">0 B</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "Disk Used" %}</p>
+                <div class="progress admin-progress-thin mt-3">
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ system_stats.disk.percent|default:0 }}%"></div>
+                </div>
+                <div class="small text-muted mt-2">{% trans "Free" %}: <span class="js-bytes" data-bytes="{{ system_stats.disk.free_bytes|default:0 }}">0 B</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="bg-info bg-opacity-10 text-info rounded-3 p-2">
+                        <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#bi-collection"/></svg>
+                    </div>
+                    <span class="badge bg-info-subtle text-info rounded-pill">{{ media_counts.active_items|default:0 }} {% trans "active" %}</span>
+                </div>
+                <h2 class="fw-bold text-dark mb-1">{{ media_counts.content_items|default:0 }}</h2>
+                <p class="small text-muted mb-0 fw-medium text-uppercase ls-1">{% trans "Content Items" %}</p>
+                <div class="d-flex flex-wrap gap-2 mt-3 small text-muted">
+                    <span class="badge text-bg-light border">{{ media_counts.videos|default:0 }} {% trans "Videos" %}</span>
+                    <span class="badge text-bg-light border">{{ media_counts.audios|default:0 }} {% trans "Audio" %}</span>
+                    <span class="badge text-bg-light border">{{ media_counts.pdfs|default:0 }} {% trans "PDFs" %}</span>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-function runAction(action) {
-    if(!confirm('{% trans "Are you sure you want to run this maintenance action?" %}')) return;
-    
-    // In a real implementation, this would hit an API endpoint
-    showToast('{% trans "Maintenance action started: " %}' + action, 'info');
-    
-    // Example fetch:
-    /*
-    fetch('/api/system/action/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-        body: JSON.stringify({ action: action })
-    }).then(r => r.json()).then(data => showToast(data.message, data.success ? 'success' : 'danger'));
-    */
-}
-</script>
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-speedometer2"/></svg>
+                    {% trans "System Details" %}
+                </h6>
+            </div>
+            <div class="card-body px-4 pt-0 pb-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 text-center h-100">
+                            <div class="text-uppercase text-muted small fw-semibold mb-1">{% trans "CPU" %}</div>
+                            <div class="fw-bold text-dark">{{ system_stats.cpu.percent|default:0 }}%</div>
+                            <small class="text-muted">{{ system_stats.cpu.count|default:"--" }} {% trans "cores" %}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 text-center h-100">
+                            <div class="text-uppercase text-muted small fw-semibold mb-1">{% trans "Memory" %}</div>
+                                    <div class="fw-bold text-dark js-bytes" data-bytes="{{ system_stats.memory.used_bytes|default:0 }}">0 B</div>
+                                    <small class="text-muted"><span class="js-bytes" data-bytes="{{ system_stats.memory.available_bytes|default:0 }}">0 B</span> {% trans "available" %}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 text-center h-100">
+                            <div class="text-uppercase text-muted small fw-semibold mb-1">{% trans "Disk" %}</div>
+                                    <div class="fw-bold text-dark js-bytes" data-bytes="{{ system_stats.disk.used_bytes|default:0 }}">0 B</div>
+                                    <small class="text-muted"><span class="js-bytes" data-bytes="{{ system_stats.disk.free_bytes|default:0 }}">0 B</span> {% trans "free" %}</small>
+                        </div>
+                    </div>
+                </div>
 
-<!-- R2 Storage Section -->
-{% if r2_enabled %}
-{% include "admin/partials/r2_storage_info.html" with section_id="monitor" extra_card_class="mb-4" %}
-{% endif %}
+                <div class="mt-3 p-3 bg-light rounded-3">
+                    <div class="small text-muted fw-semibold mb-2">{% trans "Load Average" %}</div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="badge bg-primary-subtle text-primary">1m: {{ system_stats.cpu.load.0|default:0 }}</span>
+                        <span class="badge bg-primary-subtle text-primary">5m: {{ system_stats.cpu.load.1|default:0 }}</span>
+                        <span class="badge bg-primary-subtle text-primary">15m: {{ system_stats.cpu.load.2|default:0 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<!-- Gemini AI Rate Limits Section -->
-{% include "admin/partials/gemini_rate_limits.html" with section_id="monitor" layout="wide" extra_card_class="mb-4" refresh_interval=120000 %}
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                    <svg class="bi me-2 text-warning" aria-hidden="true" focusable="false"><use href="#bi-hdd-stack"/></svg>
+                    {% trans "Volumes" %}
+                </h6>
+            </div>
+            <div class="card-body px-4 pt-0 pb-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="admin-table-thead ps-0 border-0">{% trans "Base" %}</th>
+                                <th class="admin-table-thead border-0">{% trans "Size" %}</th>
+                                <th class="admin-table-thead border-0">{% trans "Files" %}</th>
+                                <th class="admin-table-thead border-0 text-end">{% trans "Usage" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for volume in system_stats.volumes %}
+                            <tr>
+                                <td class="ps-0">
+                                    <div class="fw-semibold text-dark">{{ volume.name }}</div>
+                                    <div class="small text-muted text-truncate admin-truncate-sm">{{ volume.path }}</div>
+                                </td>
+                                <td class="text-muted small js-bytes" data-bytes="{{ volume.size_bytes|default:0 }}">0 B</td>
+                                <td class="text-muted small">{{ volume.file_count|default:"--" }}</td>
+                                <td class="text-end">
+                                    {% if volume.exists %}
+                                    <div class="progress admin-progress-xs ms-auto" style="width: 120px;">
+                                        <div class="progress-bar {% if volume.disk_percent > 80 %}bg-danger{% elif volume.disk_percent > 60 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ volume.disk_percent }}%"></div>
+                                    </div>
+                                    <div class="small text-muted mt-1">{{ volume.disk_percent }}%</div>
+                                    {% else %}
+                                    <span class="text-muted small">{% trans "Unavailable" %}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-<!-- Search Configuration Section -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-database"/></svg>
+                    {% trans "Database" %}
+                </h6>
+            </div>
+            <div class="card-body px-4 pt-0 pb-4">
+                {% if database_stats.error %}
+                <div class="alert alert-warning rounded-3 mb-0">{{ database_stats.error }}</div>
+                {% else %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Database" %}</div>
+                            <div class="fw-bold text-dark">{{ database_stats.name|default:"--" }}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Size" %}</div>
+                            <div class="fw-bold text-dark js-bytes" data-bytes="{{ database_stats.size_bytes|default:0 }}">0 B</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 h-100">
+                            <div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Connections" %}</div>
+                            <div class="fw-bold text-dark">{{ database_stats.connections|default:0 }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-0">{% trans "Top Tables" %}</th>
+                                <th>{% trans "Size" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for table in database_stats.tables %}
+                            <tr>
+                                <td class="ps-0">
+                                    <div class="fw-semibold">{{ table.label|default:table.table }}</div>
+                                </td>
+                                <td class="text-muted small js-bytes" data-bytes="{{ table.size_bytes|default:0 }}">0 B</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                    <svg class="bi me-2 text-success" aria-hidden="true" focusable="false"><use href="#bi-lightning-charge"/></svg>
+                    {% trans "Redis" %}
+                </h6>
+            </div>
+            <div class="card-body px-4 pt-0 pb-4">
+                {% if redis_stats.error %}
+                <div class="alert alert-warning rounded-3 mb-0">{{ redis_stats.error }}</div>
+                {% else %}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4"><div class="p-3 bg-light rounded-3 h-100"><div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Memory Used" %}</div><div class="fw-bold text-dark js-bytes" data-bytes="{{ redis_stats.used_memory_bytes|default:0 }}">0 B</div></div></div>
+                    <div class="col-md-4"><div class="p-3 bg-light rounded-3 h-100"><div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Peak" %}</div><div class="fw-bold text-dark js-bytes" data-bytes="{{ redis_stats.used_memory_peak_bytes|default:0 }}">0 B</div></div></div>
+                    <div class="col-md-4"><div class="p-3 bg-light rounded-3 h-100"><div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Keys" %}</div><div class="fw-bold text-dark">{{ redis_stats.total_keys|default:0 }}</div></div></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100 text-center"><div class="fw-bold text-dark">{{ redis_stats.connected_clients|default:0 }}</div><div class="text-muted small">{% trans "Clients" %}</div></div></div>
+                    <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100 text-center"><div class="fw-bold text-dark">{{ redis_stats.keyspace_hits|default:0 }}</div><div class="text-muted small">{% trans "Hits" %}</div></div></div>
+                    <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100 text-center"><div class="fw-bold text-dark">{{ redis_stats.keyspace_misses|default:0 }}</div><div class="text-muted small">{% trans "Misses" %}</div></div></div>
+                    <div class="col-md-3"><div class="p-3 bg-light rounded-3 h-100 text-center"><div class="fw-bold text-dark">{{ redis_stats.redis_version|default:"--" }}</div><div class="text-muted small">{% trans "Version" %}</div></div></div>
+                </div>
+                <div class="mt-3 small text-muted">{% trans "Uptime" %}: {{ redis_stats.uptime_in_seconds|default:0 }} {% trans "seconds" %}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm rounded-4 mb-4">
     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark">
-            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
-            {% trans "Search Configuration" %}
+        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-graph-up"/></svg>
+            {% trans "Storage Breakdown" %}
         </h6>
-        <a href="{% url 'frontend_api:admin_dashboard' %}#search-sensitivity-widget" class="btn btn-sm btn-outline-primary rounded-pill">
-            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-gear"/></svg> {% trans "Configure" %}
-        </a>
+        <span class="badge bg-light text-secondary border rounded-pill">
+            <span class="js-bytes" data-bytes="{{ disk_usage.used|default:0 }}">0 B</span>
+            /
+            <span class="js-bytes" data-bytes="{{ disk_usage.total|default:0 }}">0 B</span>
+        </span>
     </div>
     <div class="card-body p-4">
-        <div class="row align-items-center" id="search-config-display">
+        <div class="row g-3">
             <div class="col-md-4">
-                <div class="text-center p-3">
-                    <div class="display-6 fw-bold text-primary mb-2" id="current-threshold-value">--</div>
-                    <small class="text-muted text-uppercase fw-bold">{% trans "Current Threshold" %}</small>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="text-center p-3 border-start border-end">
-                    <span class="badge rounded-pill fs-6 px-3 py-2" id="current-mode-display">--</span>
-                    <small class="text-muted text-uppercase fw-bold d-block mt-2">{% trans "Active Mode" %}</small>
+                <div class="p-3 bg-light rounded-3 h-100">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Originals" %}</div>
+                    <div class="fw-bold text-dark js-bytes" data-bytes="{{ storage_breakdown.original.size|default:0 }}">0 B</div>
+                    <small class="text-muted">{{ storage_breakdown.original.count }} {% trans "files" %}</small>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="text-center p-3">
-                    <small class="text-muted d-block mb-1">{% trans "Last Updated" %}</small>
-                    <div class="fw-semibold" id="search-last-updated">--</div>
+                <div class="p-3 bg-light rounded-3 h-100">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "HLS Media" %}</div>
+                    <div class="fw-bold text-dark js-bytes" data-bytes="{{ storage_breakdown.hls.size|default:0 }}">0 B</div>
+                    <small class="text-muted">{{ storage_breakdown.hls.count }} {% trans "files" %}</small>
                 </div>
             </div>
-        </div>
-        
-        <div class="mt-3 p-3 bg-light rounded-3">
-            <small class="text-muted fw-medium d-block mb-1">{% trans "Current Behavior:" %}</small>
-            <small id="search-mode-description" class="text-dark">--</small>
-        </div>
-        
-        <div class="row mt-3 g-2">
-            <div class="col-6 col-md-3">
-                <div class="text-center p-2 bg-danger bg-opacity-10 rounded">
-                    <small class="text-danger fw-bold">0.5</small>
-                    <small class="d-block text-muted">{% trans "Exact" %}</small>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="text-center p-2 bg-warning bg-opacity-10 rounded">
-                    <small class="text-warning fw-bold">0.3</small>
-                    <small class="d-block text-muted">{% trans "Strict" %}</small>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="text-center p-2 bg-success bg-opacity-10 rounded">
-                    <small class="text-success fw-bold">0.1</small>
-                    <small class="d-block text-muted">{% trans "Normal" %}</small>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="text-center p-2 bg-info bg-opacity-10 rounded">
-                    <small class="text-info fw-bold">0.05</small>
-                    <small class="d-block text-muted">{% trans "Relaxed" %}</small>
+            <div class="col-md-4">
+                <div class="p-3 bg-light rounded-3 h-100">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1">{% trans "Compressed" %}</div>
+                    <div class="fw-bold text-dark js-bytes" data-bytes="{{ storage_breakdown.compressed.size|default:0 }}">0 B</div>
+                    <small class="text-muted">{{ storage_breakdown.compressed.count }} {% trans "files" %}</small>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Active Tasks -->
+{% if r2_enabled %}
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-cloud"/></svg>
+            {% trans "R2 Storage" %}
+        </h6>
+        <span class="badge bg-light text-secondary border rounded-pill">{{ r2_stats.storage.total_size_gb|default:0 }} GB</span>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3"><div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ r2_stats.storage.object_count|default:0 }}</div><div class="text-muted small">{% trans "Objects" %}</div></div></div>
+            <div class="col-md-3"><div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ r2_stats.total.completed|default:0 }}</div><div class="text-muted small">{% trans "Completed" %}</div></div></div>
+            <div class="col-md-3"><div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ r2_stats.total.pending|default:0 }}</div><div class="text-muted small">{% trans "Pending" %}</div></div></div>
+            <div class="col-md-3"><div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ r2_stats.total.failed|default:0 }}</div><div class="text-muted small">{% trans "Failed" %}</div></div></div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-0">{% trans "Type" %}</th>
+                        <th>{% trans "Completed" %}</th>
+                        <th>{% trans "Pending" %}</th>
+                        <th>{% trans "Uploading" %}</th>
+                        <th>{% trans "Failed" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="ps-0">{% trans "Video" %}</td>
+                        <td>{{ r2_stats.video.completed|default:0 }}</td>
+                        <td>{{ r2_stats.video.pending|default:0 }}</td>
+                        <td>{{ r2_stats.video.uploading|default:0 }}</td>
+                        <td>{{ r2_stats.video.failed|default:0 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="ps-0">{% trans "Audio" %}</td>
+                        <td>{{ r2_stats.audio.completed|default:0 }}</td>
+                        <td>{{ r2_stats.audio.pending|default:0 }}</td>
+                        <td>{{ r2_stats.audio.uploading|default:0 }}</td>
+                        <td>{{ r2_stats.audio.failed|default:0 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="ps-0">{% trans "PDF" %}</td>
+                        <td>{{ r2_stats.pdf.completed|default:0 }}</td>
+                        <td>{{ r2_stats.pdf.pending|default:0 }}</td>
+                        <td>{{ r2_stats.pdf.uploading|default:0 }}</td>
+                        <td>{{ r2_stats.pdf.failed|default:0 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-clock-history"/></svg>
+            {% trans "Recent Activity" %}
+        </h6>
+        <span class="badge bg-light text-secondary border rounded-pill">{{ recent_activity|length|default:0 }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if recent_activity %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th class="admin-table-thead ps-4 border-0">{% trans "Content" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Type" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Status" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Date" %}</th>
+                        <th class="admin-table-thead text-end pe-4 border-0">{% trans "ID" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in recent_activity %}
+                    <tr>
+                        <td class="ps-4 py-3">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded p-2 me-3 {% if item.content_type == 'video' %}bg-danger-subtle text-danger{% elif item.content_type == 'audio' %}bg-warning-subtle text-warning{% else %}bg-info-subtle text-info{% endif %}">
+                                    {% if item.content_type == 'video' %}
+                                        <svg class="bi fs-5" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
+                                    {% elif item.content_type == 'audio' %}
+                                        <svg class="bi fs-5" aria-hidden="true" focusable="false"><use href="#bi-mic"/></svg>
+                                    {% else %}
+                                        <svg class="bi fs-5" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-dark">
+                                        {% if current_language == 'ar' %}{{ item.title_ar }}{% else %}{{ item.title_en }}{% endif %}
+                                    </div>
+                                    <div class="small text-muted">{{ item.updated_at|default:item.created_at }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="text-capitalize small fw-medium">{{ item.content_type }}</span></td>
+                        <td>
+                            {% if item.live_task %}
+                                <div class="d-flex align-items-center text-primary">
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span class="small">{{ item.live_task.progress }}%</span>
+                                </div>
+                            {% elif item.processing_status == 'completed' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">{% trans "Ready" %}</span>
+                            {% elif item.processing_status == 'processing' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">{% trans "Processing" %}</span>
+                            {% elif item.processing_status == 'failed' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2">{% trans "Error" %}</span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">{{ item.processing_status }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ item.updated_at|default:item.created_at }}</td>
+                        <td class="pe-4 text-end text-muted small">{{ item.id }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <svg class="bi fs-1 mb-2" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
+            <p class="mb-0">{% trans "No recent activity available" %}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
             <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-list-task"/></svg>
-            {% trans "Active Tasks" %}
+            {% trans "Task Monitor" %}
         </h6>
-        <div class="d-flex align-items-center gap-3">
-            <a href="{% url 'frontend_api:api_queue_list' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-medium">
-                {% trans "View History" %} <svg class="bi ms-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
-            </a>
-            <span class="badge bg-light text-secondary border rounded-pill">{{ task_monitor.task_stats.total_registered|default:0 }}</span>
-        </div>
+        <a href="{% url 'frontend_api:jobs_dashboard' %}" class="btn btn-sm btn-link text-primary text-decoration-none fw-medium">
+            {% trans "View Jobs" %} <svg class="bi ms-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-right"/></svg>
+        </a>
     </div>
-    <div class="card-body p-0">
+    <div class="card-body p-4">
+        <div class="row g-3 mb-4">
+            <div class="col-sm-6 col-lg-2">
+                <div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ task_monitor.task_stats.total_registered|default:0 }}</div><div class="text-muted small">{% trans "Total" %}</div></div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ task_monitor.task_stats.active_tasks|default:0 }}</div><div class="text-muted small">{% trans "Active" %}</div></div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ task_monitor.task_stats.pending_tasks|default:0 }}</div><div class="text-muted small">{% trans "Pending" %}</div></div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ task_monitor.task_stats.running_tasks|default:0 }}</div><div class="text-muted small">{% trans "Running" %}</div></div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ task_monitor.task_stats.recent_success|default:0 }}</div><div class="text-muted small">{% trans "Success" %}</div></div>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <div class="p-3 bg-light rounded-3 text-center h-100"><div class="fw-bold text-dark">{{ task_monitor.task_stats.recent_failures|default:0 }}</div><div class="text-muted small">{% trans "Failures" %}</div></div>
+            </div>
+        </div>
+
         {% if task_monitor.has_tasks %}
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
+                <thead>
                     <tr>
-                        <th class="ps-4 border-0 text-secondary text-uppercase small fw-bold" style="width: 30px;"></th>
-                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Task" %}</th>
-                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Progress" %}</th>
-                        <th class="border-0 text-secondary text-uppercase small fw-bold">{% trans "Status" %}</th>
-                        <th class="pe-4 border-0 text-end text-secondary text-uppercase small fw-bold">{% trans "Updated" %}</th>
+                        <th class="admin-table-thead ps-4 border-0" style="width: 30px;"></th>
+                        <th class="admin-table-thead border-0">{% trans "Task" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Progress" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Status" %}</th>
+                        <th class="admin-table-thead pe-4 border-0 text-end">{% trans "Updated" %}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for task in task_monitor.active_tasks %}
-                    <tr class="task-row" data-task-id="{{ forloop.counter }}">
+                    <tr>
                         <td class="ps-4">
-                            <button class="btn btn-sm btn-light rounded-circle toggle-logs" 
-                                    onclick="toggleTaskLogs('{{ forloop.counter }}')"
-                                    title="{% trans 'Show/Hide Logs' %}">
+                            <button class="btn btn-sm btn-light rounded-circle toggle-logs" onclick="toggleTaskLogs('{{ forloop.counter }}')" title="{% trans 'Show/Hide Logs' %}">
                                 <svg class="bi" id="icon-{{ forloop.counter }}" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                             </button>
                         </td>
@@ -224,106 +532,58 @@ function runAction(action) {
                         </td>
                         <td>
                             <div class="d-flex align-items-center" style="width: 150px;">
-                                <div class="progress flex-grow-1 me-2" style="height: 6px;">
-                                    <div class="progress-bar 
-                                        {% if task.progress >= 100 %}bg-success
-                                        {% elif task.progress >= 50 %}bg-info
-                                        {% else %}bg-primary{% endif %}" 
-                                        style="width: {{ task.progress|default:0 }}%"></div>
+                                <div class="progress flex-grow-1 me-2 admin-progress-xs">
+                                    <div class="progress-bar {% if task.progress >= 100 %}bg-success{% elif task.progress >= 50 %}bg-info{% else %}bg-primary{% endif %}" style="width: {{ task.progress|default:0 }}%"></div>
                                 </div>
                                 <span class="small fw-bold">{{ task.progress|default:0 }}%</span>
                             </div>
-                            {% if task.current_step %}
-                            <small class="text-muted d-block mt-1">{{ task.current_step }}</small>
-                            {% endif %}
+                            {% if task.current_step %}<small class="text-muted d-block mt-1">{{ task.current_step }}</small>{% endif %}
                         </td>
                         <td>
                             {% if task.current_status == 'STARTED' or task.status == 'STARTED' %}
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>Running
-                                </span>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>{% trans "Running" %}</span>
                             {% elif task.current_status == 'SUCCESS' or task.status == 'SUCCESS' %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>Success
-                                </span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>{% trans "Success" %}</span>
                             {% elif task.current_status == 'FAILURE' or task.status == 'FAILURE' %}
-                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>Failed
-                                </span>
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>{% trans "Failed" %}</span>
                             {% elif task.current_status == 'RETRY' or task.status == 'RETRY' %}
-                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
-                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>Retry
-                                </span>
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Retry" %}</span>
                             {% else %}
-                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">
-                                    {{ task.current_status|default:task.status }}
-                                </span>
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">{{ task.current_status|default:task.status }}</span>
                             {% endif %}
                         </td>
-                        <td class="pe-4 text-end text-muted small">
-                            {% if task.updated_at %}
-                                {{ task.updated_at }}
-                            {% elif task.date_done %}
-                                {{ task.date_done|time:"H:i" }}
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
+                        <td class="pe-4 text-end text-muted small">{% if task.updated_at %}{{ task.updated_at }}{% elif task.date_done %}{{ task.date_done|time:"H:i" }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
                     </tr>
-                    <!-- Expandable Log Row -->
                     <tr class="task-logs-row" id="logs-{{ forloop.counter }}" style="display: none;">
                         <td colspan="5" class="p-0">
-                            <div class="bg-dark text-light p-4" style="font-family: 'Courier New', monospace; font-size: 0.85rem;">
+                            <div class="bg-dark text-light p-4 admin-log-font">
                                 <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div>
-                                        <svg class="bi text-warning me-2" aria-hidden="true" focusable="false"><use href="#bi-journal-code"/></svg>
-                                        <span class="text-warning fw-bold">{% trans "Task Logs" %}</span>
-                                    </div>
+                                    <div><svg class="bi text-warning me-2" aria-hidden="true" focusable="false"><use href="#bi-journal-code"/></svg><span class="text-warning fw-bold">{% trans "Task Logs" %}</span></div>
                                     <small class="text-muted">Task ID: {{ task.task_id }}</small>
                                 </div>
-                                
                                 {% if task.logs %}
-                                    <div class="logs-content" style="max-height: 300px; overflow-y: auto;">
-                                        {% for log in task.logs %}
-                                        <div class="log-entry mb-2 pb-2 border-bottom border-secondary">
-                                            <div class="d-flex justify-content-between align-items-start">
-                                                <div class="flex-grow-1">
-                                                    <span class="text-info">[{{ log.timestamp|default:"N/A" }}]</span>
-                                                    {% if log.step %}
-                                                    <span class="badge bg-primary-subtle text-primary mx-2">{{ log.step }}</span>
-                                                    {% endif %}
-                                                    {% if log.progress %}
-                                                    <span class="text-success">({{ log.progress }}%)</span>
-                                                    {% endif %}
-                                                </div>
+                                <div class="logs-content admin-scroll-container">
+                                    {% for log in task.logs %}
+                                    <div class="log-entry mb-2 pb-2 border-bottom border-secondary">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <span class="text-info">[{{ log.timestamp|default:"N/A" }}]</span>
+                                                {% if log.step %}<span class="badge bg-primary-subtle text-primary mx-2">{{ log.step }}</span>{% endif %}
+                                                {% if log.progress %}<span class="text-success">({{ log.progress }}%)</span>{% endif %}
                                             </div>
-                                            <div class="mt-1 text-light">{{ log.message }}</div>
                                         </div>
-                                        {% endfor %}
+                                        <div class="mt-1 text-light">{{ log.message }}</div>
                                     </div>
+                                    {% endfor %}
+                                </div>
                                 {% else %}
-                                    <div class="text-muted text-center py-3">
-                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
-                                        {% trans "No logs available yet..." %}
-                                    </div>
+                                <div class="text-muted text-center py-3"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>{% trans "No logs available yet..." %}</div>
                                 {% endif %}
-                                
                                 {% if task.error %}
-                                <div class="mt-3 p-3 bg-danger bg-opacity-25 rounded">
-                                    <div class="text-danger fw-bold mb-1">
-                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>Error:
-                                    </div>
-                                    <div class="text-light">{{ task.error }}</div>
-                                </div>
+                                <div class="mt-3 p-3 bg-danger bg-opacity-25 rounded"><div class="text-danger fw-bold mb-1"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>{% trans "Error" %}:</div><div class="text-light">{{ task.error }}</div></div>
                                 {% endif %}
-                                
                                 {% if task.result %}
-                                <div class="mt-3 p-3 bg-success bg-opacity-25 rounded">
-                                    <div class="text-success fw-bold mb-1">
-                                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>Result:
-                                    </div>
-                                    <div class="text-light">{{ task.result.message|default:task.result }}</div>
-                                </div>
+                                <div class="mt-3 p-3 bg-success bg-opacity-25 rounded"><div class="text-success fw-bold mb-1"><svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>{% trans "Result" %}:</div><div class="text-light">{{ task.result.message|default:task.result }}</div></div>
                                 {% endif %}
                             </div>
                         </td>
@@ -333,19 +593,61 @@ function runAction(action) {
             </table>
         </div>
         {% else %}
-        <div class="text-center py-5">
-            <div class="text-muted mb-2"><svg class="bi fs-1" aria-hidden="true" focusable="false"><use href="#bi-check2-circle"/></svg></div>
-            <p class="text-muted mb-0">{% trans "No active background tasks" %}</p>
+        <div class="text-center py-5 text-muted">
+            <svg class="bi fs-1 mb-2" aria-hidden="true" focusable="false"><use href="#bi-check2-circle"/></svg>
+            <p class="mb-0">{% trans "No active background tasks" %}</p>
         </div>
         {% endif %}
     </div>
 </div>
 
 <script>
+function formatBytes(bytes, unit) {
+    const value = Number(bytes || 0);
+    if (Number.isNaN(value)) {
+        return '--';
+    }
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    const selected = (unit || 'auto').toLowerCase();
+
+    if (selected === 'bytes') {
+        return `${value.toLocaleString()} B`;
+    }
+
+    if (selected !== 'auto') {
+        const index = Math.max(0, units.indexOf(selected.toUpperCase()));
+        const divisor = Math.pow(1024, index);
+        return `${(value / divisor).toFixed(index === 0 ? 0 : 2)} ${units[index]}`;
+    }
+
+    let scaled = value;
+    let unitIndex = 0;
+    while (scaled >= 1024 && unitIndex < units.length - 1) {
+        scaled /= 1024;
+        unitIndex += 1;
+    }
+    return `${scaled.toFixed(unitIndex === 0 ? 0 : 2)} ${units[unitIndex]}`;
+}
+
+function applySizeUnit(unit) {
+    document.querySelectorAll('.js-bytes').forEach((el) => {
+        el.textContent = formatBytes(el.dataset.bytes, unit);
+    });
+    localStorage.setItem('system-monitor-size-unit', unit);
+}
+
+const sizeUnitSelect = document.getElementById('sizeUnitSelect');
+if (sizeUnitSelect) {
+    const savedUnit = localStorage.getItem('system-monitor-size-unit') || 'auto';
+    sizeUnitSelect.value = savedUnit;
+    applySizeUnit(savedUnit);
+    sizeUnitSelect.addEventListener('change', (event) => applySizeUnit(event.target.value));
+}
+
 function toggleTaskLogs(taskId) {
     const logsRow = document.getElementById('logs-' + taskId);
     const icon = document.getElementById('icon-' + taskId);
-    
     if (logsRow.style.display === 'none') {
         logsRow.style.display = 'table-row';
         icon.classList.remove('bi-chevron-right');
@@ -356,78 +658,5 @@ function toggleTaskLogs(taskId) {
         icon.classList.add('bi-chevron-right');
     }
 }
-
-// Load Search Configuration Display
-document.addEventListener('DOMContentLoaded', function() {
-    const searchConfigDisplay = document.getElementById('search-config-display');
-    
-    if (searchConfigDisplay) {
-        loadSearchConfiguration();
-        
-        // Refresh every 5 minutes
-        setInterval(loadSearchConfiguration, 300000);
-    }
-    
-    function loadSearchConfiguration() {
-        fetch('{% url "frontend_api:get_search_sensitivity" %}')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    updateSearchDisplay(data.current_settings);
-                }
-            })
-            .catch(error => console.error('Error loading search config:', error));
-    }
-    
-    function updateSearchDisplay(settings) {
-        // Update threshold value
-        document.getElementById('current-threshold-value').textContent = settings.threshold.toFixed(2);
-        
-        // Update mode display
-        const modeLabels = {
-            'exact': '{% trans "Exact Match" %}',
-            'strict': '{% trans "Strict" %}',
-            'normal': '{% trans "Normal" %}',
-            'relaxed': '{% trans "Relaxed" %}',
-            'custom': '{% trans "Custom" %}'
-        };
-        const badgeClasses = {
-            'exact': 'bg-danger-subtle text-danger',
-            'strict': 'bg-warning-subtle text-warning',
-            'normal': 'bg-success-subtle text-success',
-            'relaxed': 'bg-info-subtle text-info',
-            'custom': 'bg-secondary-subtle text-secondary'
-        };
-        
-        const modeDisplay = document.getElementById('current-mode-display');
-        modeDisplay.textContent = modeLabels[settings.mode] || settings.mode;
-        modeDisplay.className = 'badge rounded-pill fs-6 px-3 py-2 ' + (badgeClasses[settings.mode] || 'bg-secondary');
-        
-        // Update description
-        document.getElementById('search-mode-description').textContent = settings.description;
-        
-        // Update last updated time
-        if (settings.updated_at) {
-            const updatedDate = new Date(settings.updated_at);
-            const now = new Date();
-            const diffMinutes = Math.floor((now - updatedDate) / 60000);
-            
-            let timeText;
-            if (diffMinutes < 1) {
-                timeText = '{% trans "Just now" %}';
-            } else if (diffMinutes < 60) {
-                timeText = diffMinutes + ' {% trans "minutes ago" %}';
-            } else if (diffMinutes < 1440) {
-                const hours = Math.floor(diffMinutes / 60);
-                timeText = hours + ' {% trans "hours ago" %}';
-            } else {
-                timeText = updatedDate.toLocaleDateString();
-            }
-            
-            document.getElementById('search-last-updated').textContent = timeText;
-        }
-    }
-});
-
 </script>
 {% endblock %}

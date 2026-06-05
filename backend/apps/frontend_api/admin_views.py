@@ -9,12 +9,14 @@ import os
 import re
 import tempfile
 import mimetypes
-from datetime import date, timedelta
+import zipfile
+from datetime import date, datetime, time, timedelta
+from types import SimpleNamespace
 from urllib.parse import urlencode
 
 from django.conf import settings
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.http import FileResponse, Http404, JsonResponse
@@ -24,20 +26,21 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import get_language
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods, require_POST
 import io
 from django.http.multipartparser import MultiPartParser
 
 from apps.frontend_api.admin_services import AdminService
 from apps.media_manager.models import (
-    APIUploadQueue, ContentItem, ContentViewEvent,
+    APIUploadQueue, ContentItem, ContentLifecycleAuditLog, ContentViewEvent,
     DailyContentViewSummary, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
 )
 from apps.media_manager.models import ChunkedUploadSession
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
 from apps.media_manager.services.content_service import ContentService
 from apps.media_manager.services.delete_service import MediaProcessingService
+from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
 from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.media_manager.services.unified_search_service import get_unified_search_service
 from apps.media_manager.services.upload_service import MediaUploadService
@@ -64,12 +67,17 @@ from config import celery_app
 
 logger = logging.getLogger(__name__)
 
+staff_member_required = user_passes_test(
+    lambda u: u.is_active and u.is_staff,
+    login_url='frontend_api:admin_login',
+)
+
 # Initialize services
 content_service = ContentService()
 admin_service = AdminService()
 
 
-@login_required
+@staff_member_required
 def admin_dashboard(request):
     """Main admin dashboard - Optimized to 4 queries total"""
     # Get all dashboard data with optimized service
@@ -78,7 +86,7 @@ def admin_dashboard(request):
     return render(request, 'admin/dashboard.html', dashboard_data)
 
 
-@login_required
+@staff_member_required
 def content_list(request):
     """List all content - Optimized to 1-2 queries total"""
     # Get filters from request
@@ -113,7 +121,7 @@ def content_list(request):
     return render(request, 'admin/content_list.html', context)
 
 
-@login_required
+@staff_member_required
 def content_detail(request, content_id):
     """Content detail page - Single optimized query"""
     try:
@@ -126,10 +134,36 @@ def content_detail(request, content_id):
             if 'toggle_active' in request.POST:
                 success, message = admin_service.toggle_content_status(str(content_id))
                 if success:
+                    refreshed_content = admin_service.get_content_detail(str(content_id))
+                    LifecycleAuditService.log_event(
+                        content_item=refreshed_content,
+                        action_type='content_status_toggled',
+                        actor=request.user,
+                        source='admin:content_detail',
+                        previous_state='active' if not refreshed_content.is_active else 'inactive',
+                        new_state='active' if refreshed_content.is_active else 'inactive',
+                        message='Content active status toggled from admin content detail',
+                        payload={'content_id': str(refreshed_content.id), 'is_active': refreshed_content.is_active},
+                    )
                     messages.success(request, message)
                 else:
                     messages.error(request, message)
             else:
+                previous_snapshot = {
+                    'title_ar': content.title_ar,
+                    'title_en': content.title_en,
+                    'description_ar': content.description_ar,
+                    'description_en': content.description_en,
+                    'seo_title_ar': content.seo_title_ar,
+                    'seo_title_en': content.seo_title_en,
+                    'seo_keywords_ar': content.seo_keywords_ar,
+                    'seo_keywords_en': content.seo_keywords_en,
+                    'seo_meta_description_ar': content.seo_meta_description_ar,
+                    'seo_meta_description_en': content.seo_meta_description_en,
+                    'structured_data': content.structured_data,
+                    'notes': content.notes,
+                    'transcript': content.transcript,
+                }
                 # Handle general metadata updates
                 title_ar = request.POST.get('title_ar')
                 title_en = request.POST.get('title_en')
@@ -139,6 +173,11 @@ def content_detail(request, content_id):
                 transcript = request.POST.get('transcript', '')
                 seo_title_ar = request.POST.get('seo_title_ar', '')
                 seo_title_en = request.POST.get('seo_title_en', '')
+                seo_meta_description_ar = request.POST.get('seo_meta_description_ar', '')
+                seo_meta_description_en = request.POST.get('seo_meta_description_en', '')
+                seo_keywords_ar = request.POST.get('seo_keywords_ar', '')
+                seo_keywords_en = request.POST.get('seo_keywords_en', '')
+                structured_data = request.POST.get('structured_data', '')
                 tags_input = request.POST.get('tags', '')
                 thumbnail_file = request.FILES.get('thumbnail')
                 
@@ -151,10 +190,17 @@ def content_detail(request, content_id):
                 content.transcript = transcript
                 content.seo_title_ar = seo_title_ar
                 content.seo_title_en = seo_title_en
+                content.seo_meta_description_ar = seo_meta_description_ar
+                content.seo_meta_description_en = seo_meta_description_en
+                content.seo_keywords_ar = seo_keywords_ar
+                content.seo_keywords_en = seo_keywords_en
+                content.structured_data = structured_data if structured_data else None
                 
                 update_fields = [
                     'title_ar', 'title_en', 'description_ar', 'description_en',
-                    'notes', 'transcript', 'seo_title_ar', 'seo_title_en', 'updated_at'
+                    'notes', 'transcript', 'seo_title_ar', 'seo_title_en',
+                    'seo_meta_description_ar', 'seo_meta_description_en',
+                    'seo_keywords_ar', 'seo_keywords_en', 'structured_data', 'updated_at'
                 ]
                 
                 if thumbnail_file:
@@ -217,6 +263,48 @@ def content_detail(request, content_id):
                     # Update the tags relationship
                     content.tags.set(tag_objects)
                     logger.info(f"Updated tags for content {content_id}: {tag_names}")
+
+                LifecycleAuditService.log_event(
+                    content_item=content,
+                    action_type='content_manual_edit',
+                    actor=request.user,
+                    source='admin:content_detail',
+                    previous_state='metadata_saved',
+                    new_state='metadata_saved',
+                    message='Content metadata manually edited from admin content detail',
+                    payload={
+                        'content_id': str(content.id),
+                        'fields_before': previous_snapshot,
+                        'fields_after': {
+                            'title_ar': content.title_ar,
+                            'title_en': content.title_en,
+                            'description_ar': content.description_ar,
+                            'description_en': content.description_en,
+                            'seo_title_ar': content.seo_title_ar,
+                            'seo_title_en': content.seo_title_en,
+                            'seo_keywords_ar': content.seo_keywords_ar,
+                            'seo_keywords_en': content.seo_keywords_en,
+                            'seo_meta_description_ar': content.seo_meta_description_ar,
+                            'seo_meta_description_en': content.seo_meta_description_en,
+                            'structured_data': content.structured_data,
+                            'notes': content.notes,
+                            'transcript': content.transcript,
+                        },
+                        'tags_input': tags_input,
+                        'thumbnail_updated': bool(thumbnail_file),
+                    },
+                )
+                
+                # Compute SEO processing status from field presence
+                has_ar = bool(content.seo_title_ar or content.seo_meta_description_ar or content.seo_keywords_ar)
+                has_en = bool(content.seo_title_en or content.seo_meta_description_en or content.seo_keywords_en)
+                if has_ar and has_en:
+                    content.seo_processing_status = 'completed'
+                elif has_ar or has_en:
+                    content.seo_processing_status = 'processing' if content.seo_processing_status != 'completed' else 'completed'
+                else:
+                    content.seo_processing_status = 'pending'
+                update_fields.append('seo_processing_status')
                 
                 messages.success(request, _("Sacred metadata updated successfully"))
             
@@ -241,7 +329,7 @@ def content_detail(request, content_id):
         raise Http404(_("Content not found"))
 
 
-@login_required
+@staff_member_required
 def content_delete_confirm(request, content_id):
     """Handle content deletion - Optimized with single query check"""
     try:
@@ -281,7 +369,7 @@ def content_delete_confirm(request, content_id):
         return redirect('frontend_api:admin_content_detail', content_id=content_id)
 
 
-@login_required
+@staff_member_required
 def delete_local_confirm(request, content_id):
     """Handle local file deletion only, preserving R2 and DB record."""
     try:
@@ -304,11 +392,11 @@ def delete_local_confirm(request, content_id):
                 messages.success(request, message)
                 # Redirect to management list based on type
                 if content.content_type == 'video':
-                    return redirect('frontend_api:video_management')
+                    return redirect('frontend_api:media_management', media_type='video')
                 elif content.content_type == 'audio':
-                    return redirect('frontend_api:audio_management')
+                    return redirect('frontend_api:media_management', media_type='audio')
                 elif content.content_type == 'pdf':
-                    return redirect('frontend_api:pdf_management')
+                    return redirect('frontend_api:media_management', media_type='pdf')
                 return redirect('frontend_api:admin_content_list')
             else:
                 messages.error(request, message)
@@ -335,7 +423,7 @@ def delete_local_confirm(request, content_id):
         return redirect('frontend_api:admin_content_list')
 
 
-@login_required
+@staff_member_required
 def upload_content(request):
     """Upload content page"""
     return render(request, 'admin/upload_content.html', {
@@ -348,7 +436,7 @@ def upload_content(request):
 # - PATCH to {% url 'frontend_api:bulk_upload_chunk' %} to upload chunks
 
 
-@login_required
+@staff_member_required
 def bulk_upload_page(request):
     """Render the bulk upload page."""
     return render(request, 'admin/bulk_upload.html', {
@@ -356,8 +444,8 @@ def bulk_upload_page(request):
     })
 
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@csrf_protect
 @require_http_methods(["POST"])
 def bulk_upload_init(request):
     """
@@ -389,13 +477,13 @@ def bulk_upload_init(request):
             'tag_ids': payload.get('tag_ids', []) or [],
             'seo_title_en': payload.get('seo_title_en', ''),
             'seo_title_ar': payload.get('seo_title_ar', ''),
-            'seo_description_en': payload.get('seo_description_en', ''),
-            'seo_description_ar': payload.get('seo_description_ar', ''),
+            'seo_description_en': payload.get('seo_meta_description_en') or payload.get('seo_description_en', ''),
+            'seo_description_ar': payload.get('seo_meta_description_ar') or payload.get('seo_description_ar', ''),
             'seo_keywords_en': payload.get('seo_keywords_en', ''),
             'seo_keywords_ar': payload.get('seo_keywords_ar', ''),
             'transcript': payload.get('transcript', ''),
             'notes': payload.get('notes', ''),
-            'seo_structured_data': payload.get('seo_structured_data', ''),
+            'seo_structured_data': payload.get('structured_data') or payload.get('seo_structured_data', ''),
         }
 
         session = ChunkedUploadSession.objects.create(
@@ -403,6 +491,21 @@ def bulk_upload_init(request):
             total_size=total_size,
             current_offset=0,
             metadata=metadata
+        )
+
+        LifecycleAuditService.log_event(
+            content_item=None,
+            action_type='upload_initiated',
+            actor=request.user,
+            source='admin:bulk_upload_init',
+            previous_state='',
+            new_state='pending',
+            message='Chunked upload session created from admin upload page',
+            payload={
+                'session_id': str(session.id),
+                'filename': filename,
+                'total_size': total_size,
+            },
         )
 
         # Ensure staging directory is under MEDIA_ROOT so os.replace remains atomic
@@ -423,8 +526,8 @@ def bulk_upload_init(request):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@csrf_protect
 @require_http_methods(["PATCH", "POST"])
 def bulk_upload_chunk(request):
     """
@@ -539,7 +642,7 @@ def bulk_upload_chunk(request):
 # - PATCH to {% url 'frontend_api:bulk_upload_chunk' %} to stream chunks for each session
 
 
-@login_required
+@staff_member_required
 def bulk_upload_status(request):
     """Return per-item processing status for bulk uploads."""
     content_ids_raw = request.GET.get('ids', '')
@@ -566,13 +669,11 @@ def bulk_upload_status(request):
     return JsonResponse({'success': True, 'statuses': statuses})
 
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_content_metadata(request):
     """Generate content metadata using Gemini AI"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         content_id = request.POST.get('content_id')
         if not content_id:
@@ -585,6 +686,18 @@ def generate_content_metadata(request):
         meta_obj = content.get_meta_object()
         if not meta_obj or not meta_obj.original_file:
             return JsonResponse({'success': False, 'error': _('No media file found for content')})
+
+        LifecycleAuditService.log_event(
+            content_item=content,
+            action_type='gemini_processing_started',
+            actor=request.user,
+            source='admin:generate_content_metadata',
+            previous_state='pending',
+            new_state='processing',
+            message='Gemini metadata generation started from admin content API',
+            payload={'content_id': str(content.id), 'content_type': content.content_type},
+        )
+
         success, metadata = get_gemini_manager().generate_metadata(
             meta_obj.original_file.path, content.content_type
         )
@@ -592,6 +705,17 @@ def generate_content_metadata(request):
         if success:
             # Update content with generated metadata
             content.update_seo_from_gemini(metadata)
+
+            LifecycleAuditService.log_event(
+                content_item=content,
+                action_type='gemini_processing_completed',
+                actor=request.user,
+                source='admin:generate_content_metadata',
+                previous_state='processing',
+                new_state='completed',
+                message='Gemini metadata generation completed from admin content API',
+                payload={'content_id': str(content.id), 'content_type': content.content_type},
+            )
             
             return JsonResponse({
                 'success': True,
@@ -608,136 +732,283 @@ def generate_content_metadata(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
-def video_management(request):
-    """Video management page - Optimized queries"""
+def _render_media_management(request, media_type):
+    """Render a media management page/partial for the requested media type."""
+    media_configs = {
+        'video': {
+            'title': _('Video Manager'),
+            'subtitle': _('Manage video sermons, teachings, and spiritual content'),
+            'add_label': _('Add Video'),
+            'add_icon': 'bi-camera-video',
+            'add_button_class': 'btn-danger text-white',
+            'search_placeholder': _('Search videos...'),
+            'empty_kind_label': _('video'),
+            'bulk_generate_label': _('Generate SEO metadata for selected videos?'),
+            'single_generate_label': _('Generate SEO metadata for this video?'),
+            'delete_confirm_label': _('Delete selected videos?'),
+            'delete_success_label': _('Videos deleted successfully'),
+            'delete_failure_label': _('Failed to delete videos'),
+            'partial': 'admin/partials/video_table.html',
+            'context_key': 'videos',
+            'extra_filters': {'processing_status': request.GET.get('processing_status', '')},
+        },
+        'audio': {
+            'title': _('Audio Manager'),
+            'subtitle': _('Manage audio messages, sermons, and spiritual teachings'),
+            'add_label': _('Add Audio'),
+            'add_icon': 'bi-mic',
+            'add_button_class': 'btn-warning text-white',
+            'search_placeholder': _('Search audio...'),
+            'empty_kind_label': _('audio file'),
+            'bulk_generate_label': _('Generate SEO metadata for selected audio files?'),
+            'single_generate_label': _('Generate SEO metadata for this audio file?'),
+            'delete_confirm_label': _('Delete selected audio files?'),
+            'delete_success_label': _('Audio files deleted successfully'),
+            'delete_failure_label': _('Failed to delete audio files'),
+            'partial': 'admin/partials/audio_table.html',
+            'context_key': 'audios',
+            'extra_filters': {},
+        },
+        'pdf': {
+            'title': _('PDF Manager'),
+            'subtitle': _('Manage books, documents, and sacred texts'),
+            'add_label': _('Add PDF'),
+            'add_icon': 'bi-plus-lg',
+            'add_button_class': 'btn-primary',
+            'search_placeholder': _('Search in titles, descriptions, and content...'),
+            'empty_kind_label': _('PDF'),
+            'bulk_generate_label': _('Generate SEO metadata for selected PDFs?'),
+            'single_generate_label': _('Generate SEO metadata for this PDF?'),
+            'delete_confirm_label': _('Delete selected PDFs?'),
+            'delete_success_label': _('PDFs deleted successfully'),
+            'delete_failure_label': _('Failed to delete PDFs'),
+            'partial': 'admin/partials/pdf_table.html',
+            'context_key': 'pdfs',
+            'extra_filters': {},
+        },
+    }
+
+    config = media_configs.get(media_type)
+    if not config:
+        raise Http404(_('Unsupported media type'))
+
     page = int(request.GET.get('page', 1))
     per_page = int(request.GET.get('limit', 20))
     ordering = request.GET.get('sort', '-created_at')
-    
-    filters = {
-        'status': request.GET.get('status', ''),
-        'processing_status': request.GET.get('processing_status', ''),
-        'search': request.GET.get('search', '').strip(),
-        'missing_data': request.GET.get('missing_data', '')
-    }
-    
-    # Get video data using optimized service
-    video_data = admin_service.get_type_specific_content(
-        content_type='video',
-        page=page,
-        per_page=per_page,
-        filters=filters,
-        ordering=ordering
-    )
-    
-    context = {
-        'content_type': 'video',
-        'filters': filters,
-        'videos': video_data.get('content_items', []),
-        'pagination': video_data.get('pagination'),
-        'current_language': get_language(),
-        'ordering': ordering,
-        'per_page': per_page,
-    }
-    
-    if request.headers.get('HX-Request') == 'true':
-        return render(request, 'admin/partials/video_table.html', context)
-        
-    return render(request, 'admin/video_management.html', context)
 
-
-@login_required
-def audio_management(request):
-    """Audio management page - Optimized queries"""
-    page = int(request.GET.get('page', 1))
-    per_page = int(request.GET.get('limit', 20))
-    ordering = request.GET.get('sort', '-created_at')
-    
-    filters = {
-        'status': request.GET.get('status', ''),
-        'search': request.GET.get('search', '').strip(),
-        'missing_data': request.GET.get('missing_data', '')
-    }
-    
-    # Get audio data using optimized service
-    audio_data = admin_service.get_type_specific_content(
-        content_type='audio',
-        page=page,
-        per_page=per_page,
-        filters=filters,
-        ordering=ordering
-    )
-    
-    context = {
-        'content_type': 'audio',
-        'filters': filters,
-        'audios': audio_data.get('content_items', []),
-        'pagination': audio_data.get('pagination'),
-        'current_language': get_language(),
-        'ordering': ordering,
-        'per_page': per_page,
-    }
-    
-    if request.headers.get('HX-Request') == 'true':
-        return render(request, 'admin/partials/audio_table.html', context)
-        
-    return render(request, 'admin/audio_management.html', context)
-
-
-@login_required
-def pdf_management(request):
-    """PDF management page - Optimized queries"""
-    page = int(request.GET.get('page', 1))
-    per_page = int(request.GET.get('limit', 20))
-    ordering = request.GET.get('sort', '-created_at')
-    
     filters = {
         'status': request.GET.get('status', ''),
         'search': request.GET.get('search', '').strip(),
         'missing_data': request.GET.get('missing_data', '')
     }
-    
-    # Get PDF data using optimized service
-    pdf_data = admin_service.get_type_specific_content(
-        content_type='pdf',
+    filters.update(config['extra_filters'])
+
+    media_data = admin_service.get_type_specific_content(
+        content_type=media_type,
         page=page,
         per_page=per_page,
         filters=filters,
         ordering=ordering
     )
-    
+
     context = {
-        'content_type': 'pdf',
+        'content_type': media_type,
+        'management_ui': config,
+        'partial_template': config['partial'],
         'filters': filters,
-        'pdfs': pdf_data.get('content_items', []),
-        'pagination': pdf_data.get('pagination'),
+        config['context_key']: media_data.get('content_items', []),
+        'pagination': media_data.get('pagination'),
         'current_language': get_language(),
         'ordering': ordering,
         'per_page': per_page,
     }
-    
+
     if request.headers.get('HX-Request') == 'true':
-        return render(request, 'admin/partials/pdf_table.html', context)
-        
-    return render(request, 'admin/pdf_management.html', context)
+        return render(request, config['partial'], context)
+
+    return render(request, 'admin/media_management_base.html', context)
 
 
-@login_required
+@staff_member_required
+def media_management(request, media_type):
+    """Unified media management controller for video, audio, and pdf pages."""
+    return _render_media_management(request, media_type)
+
+
+@staff_member_required
 def system_monitor(request):
     """System monitoring dashboard - Optimized queries"""
-    # Get all system data with optimized service
+    from apps.admin_django.views_system import (
+        get_database_stats,
+        get_media_counts,
+        get_redis_stats,
+        get_system_stats,
+    )
+
     system_data = admin_service.get_system_monitor_data()
     
     context = {
         **system_data,
+        'system_stats': get_system_stats(),
+        'database_stats': get_database_stats(),
+        'redis_stats': get_redis_stats(),
+        'media_counts': get_media_counts(),
         'current_language': get_language(),
     }
     
     return render(request, 'admin/system_monitor.html', context)
 
 
-@login_required
+# ──────────────────────────────────────────────────────────────────
+# FILE MANAGER — custom admin dashboard at /dashboard/system/files/
+# ──────────────────────────────────────────────────────────────────
+
+@staff_member_required
+def file_manager(request):
+    """Browse and manage files in media / static / logs directories."""
+    from apps.admin_django.views_system import (
+        ALLOWED_BASES,
+        list_directory,
+    )
+    base_key = request.GET.get("base", "media")
+    rel_path = request.GET.get("path", "")
+    if base_key not in ALLOWED_BASES:
+        base_key = "media"
+
+    listing = list_directory(base_key, rel_path)
+    context = {
+        "base_key": base_key,
+        "rel_path": rel_path,
+        "entries": listing["entries"],
+        "crumbs": listing["crumbs"],
+        "bases": list(ALLOWED_BASES.keys()),
+        "is_root": listing["is_root"],
+        "list_error": listing.get("error"),
+        "current_language": get_language(),
+    }
+    return render(request, "admin/file_manager.html", context)
+
+
+@staff_member_required
+@csrf_protect
+@require_POST
+def file_manager_action(request):
+    """AJAX endpoint for file operations (mkdir / delete / rename / move)."""
+    from apps.admin_django.views_system import execute_file_action, ALLOWED_BASES
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    action = data.get("action", "")
+    base_key = data.get("base", "media")
+    rel_path = data.get("path", "")
+
+    if base_key not in ALLOWED_BASES:
+        return JsonResponse({"ok": False, "error": "Invalid base"}, status=400)
+
+    result = execute_file_action(
+        action,
+        base_key,
+        rel_path,
+        name=data.get("name", ""),
+        new_name=data.get("new_name", ""),
+        dest_path=data.get("dest_path", ""),
+    )
+    status = 200 if result.get("ok") else 400
+    return JsonResponse(result, status=status)
+
+
+@staff_member_required
+def file_manager_download(request):
+    """Download a file directly or zip a folder before downloading it."""
+    from apps.admin_django.views_system import ALLOWED_BASES, resolve_safe_path
+
+    base_key = request.GET.get("base", "media")
+    rel_path = request.GET.get("path", "")
+
+    if base_key not in ALLOWED_BASES:
+        raise Http404("Invalid base")
+
+    target = resolve_safe_path(base_key, rel_path)
+    if target is None or not target.exists():
+        raise Http404("File not found")
+
+    if target.is_dir():
+        if not rel_path.strip():
+            raise Http404("Root directory download is not supported")
+
+        archive_name = f"{target.name}.zip"
+        buffer = tempfile.SpooledTemporaryFile(max_size=10 * 1024 * 1024, mode="w+b")
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+            for item in target.rglob("*"):
+                if item.is_file():
+                    archive.write(item, arcname=item.relative_to(target).as_posix())
+        buffer.seek(0)
+
+        response = FileResponse(buffer, as_attachment=True, filename=archive_name)
+        response["Content-Type"] = "application/zip"
+        return response
+
+    download_name = target.name
+    response = FileResponse(target.open("rb"), as_attachment=True, filename=download_name)
+    response["Content-Type"] = mimetypes.guess_type(download_name)[0] or "application/octet-stream"
+    response["Content-Length"] = str(target.stat().st_size)
+    return response
+
+
+@staff_member_required
+def orphaned_files(request):
+    """Find files on disk that have no matching DB record."""
+    from apps.admin_django.views_system import scan_orphaned_files, delete_orphan
+
+    message = None
+    if request.method == "POST":
+        rel_path = request.POST.get("rel_path", "")
+        res = delete_orphan(rel_path)
+        if res.get("ok"):
+            messages.success(request, res["message"])
+        else:
+            messages.error(request, res.get("error", "Delete failed"))
+        return redirect("frontend_api:orphaned_files")
+
+    scan = scan_orphaned_files()
+    context = {
+        "orphans": scan["orphans"],
+        "orphan_count": scan["orphan_count"],
+        "orphan_size": scan["orphan_size"],
+        "total_files": scan["total_files"],
+        "elapsed": scan["elapsed"],
+        "current_language": get_language(),
+    }
+    return render(request, "admin/orphaned_files.html", context)
+
+
+@staff_member_required
+def cache_manager(request):
+    """View and manage the Redis / Django cache."""
+    from apps.admin_django.views_system import get_cache_stats, execute_cache_action
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        pattern = request.POST.get("pattern", "").strip()
+        res = execute_cache_action(action, pattern or None)
+        if res.get("ok"):
+            messages.success(request, res["message"])
+        else:
+            messages.error(request, res.get("error", "Action failed"))
+        return redirect("frontend_api:cache_manager")
+
+    stats = get_cache_stats()
+    context = {
+        "cache_stats": stats,
+        "current_language": get_language(),
+    }
+    return render(request, "admin/cache_manager.html", context)
+
+
+@staff_member_required
 def bulk_operations(request):
     """Bulk operations page - Optimized queries"""
     if request.method == 'POST':
@@ -766,16 +1037,16 @@ def bulk_operations(request):
                     try:
                         # Fetch the content item first as delete_content expects an object
                         content = admin_service.get_content_detail(cid)
-                        success, _ = processing_service.delete_content(content)
+                        success, _delete_message = processing_service.delete_content(content)
                         if success:
                             success_count += 1
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("Bulk delete failed for content %s: %s", cid, exc)
                 
                 if success_count > 0:
                     messages.success(request, _(f"Successfully deleted {success_count} item(s)"))
                 if success_count < len(content_ids):
-                    messages.warning(request, _(f"Failed to delete some item(s). Check if IDs are correct."))
+                    messages.warning(request, _("Failed to delete some item(s). Check if IDs are correct."))
             
             return redirect('frontend_api:bulk_operations')
 
@@ -790,7 +1061,7 @@ def bulk_operations(request):
     return render(request, 'admin/bulk_operations.html', context)
 
 
-@login_required
+@staff_member_required
 @require_http_methods(["POST"])
 def api_toggle_content_status(request):
     """API endpoint to toggle content status - Supports single and bulk operations"""
@@ -849,9 +1120,9 @@ def api_toggle_content_status(request):
 
 
 # Bulk operation API endpoints
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_bulk_generate_seo(request):
     """Bulk SEO generation API endpoint"""
     try:
@@ -900,9 +1171,9 @@ def api_bulk_generate_seo(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_bulk_toggle_status(request):
     """Bulk status toggle API endpoint"""
     try:
@@ -930,9 +1201,9 @@ def api_bulk_toggle_status(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_bulk_delete(request):
     """Bulk delete API endpoint"""
     try:
@@ -983,13 +1254,11 @@ def api_bulk_delete(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
-@login_required
-@csrf_exempt
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_metadata_from_file(request):
     """Generate metadata from uploaded file (before content creation)"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         file_obj = request.FILES.get('file')
         if not file_obj:
@@ -1010,9 +1279,9 @@ def generate_metadata_from_file(request):
                 return JsonResponse({'success': False, 'error': _('Unsupported file type')})
         
         # Use Gemini manager to generate metadata from file
-        is_seo_avail, _ = get_gemini_manager().check_seo_availability()
+        is_seo_avail, seo_availability_message = get_gemini_manager().check_seo_availability()
         if not is_seo_avail:
-            return JsonResponse({'success': False, 'error': _('AI service not available')})
+            return JsonResponse({'success': False, 'error': seo_availability_message or _('AI service not available')})
         
         # Save file temporarily for processing
         file_extension = file_obj.name.lower().split('.')[-1] if '.' in file_obj.name else 'tmp'
@@ -1038,14 +1307,14 @@ def generate_metadata_from_file(request):
             # Clean up temporary file
             try:
                 os.unlink(temp_file_path)
-            except:
+            except OSError:
                 pass
                 
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 def get_r2_storage_usage(request):
     """
     Get R2 bucket storage usage statistics for admin dashboard.
@@ -1083,137 +1352,7 @@ def get_r2_storage_usage(request):
         })
 
 
-@login_required
-def r2_status_dashboard(request):
-    """
-    R2 Upload Status Dashboard - Shows detailed R2 upload status for all content items.
-    Provides retry functionality and bulk operations for failed uploads.
-    """
-    if not request.user.is_staff:
-        return JsonResponse({'error': _('Permission denied')}, status=403)
-    
-    try:
-        # Get filter parameters
-        status_filter = request.GET.get('status', 'all')  # all, pending, uploading, completed, failed
-        content_type = request.GET.get('type', 'all')  # all, video, audio, pdf
-        
-        # Build status data
-        status_data = {}
-        
-        # Video content R2 status
-        if content_type in ['all', 'video']:
-            video_queryset = VideoMeta.objects.select_related('content_item').only(
-                'id', 'r2_upload_status', 'r2_upload_progress', 
-                'content_item__title_ar', 'content_item__created_at',
-                'content_item__id'
-            )
-            if status_filter == 'all':
-                # Show only failed and pending items by default
-                video_queryset = video_queryset.filter(
-                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
-                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
-                )
-            else:
-                video_queryset = video_queryset.filter(r2_upload_status=status_filter)
-            
-            status_data['videos'] = [
-                {
-                    'id': vm.id,
-                    'content_id': vm.content_item.id,
-                    'title': vm.content_item.title_ar,
-                    'status': vm.r2_upload_status or 'pending',
-                    'progress': vm.r2_upload_progress or 0,
-                    'created_at': vm.content_item.created_at.isoformat(),
-                    'type': 'video'
-                }
-                for vm in video_queryset[:100]  # Limit to 100 items
-            ]
-        
-        # Audio content R2 status  
-        if content_type in ['all', 'audio']:
-            audio_queryset = AudioMeta.objects.select_related('content_item').only(
-                'id', 'r2_upload_status', 'r2_upload_progress',
-                'content_item__title_ar', 'content_item__created_at',
-                'content_item__id'
-            )
-            if status_filter == 'all':
-                # Show only failed and pending items by default
-                audio_queryset = audio_queryset.filter(
-                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
-                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
-                )
-            else:
-                audio_queryset = audio_queryset.filter(r2_upload_status=status_filter)
-            
-            status_data['audios'] = [
-                {
-                    'id': am.id,
-                    'content_id': am.content_item.id,
-                    'title': am.content_item.title_ar,
-                    'status': am.r2_upload_status or 'pending',
-                    'progress': am.r2_upload_progress or 0,
-                    'created_at': am.content_item.created_at.isoformat(),
-                    'type': 'audio'
-                }
-                for am in audio_queryset[:100]  # Limit to 100 items
-            ]
-        
-        # PDF content R2 status
-        if content_type in ['all', 'pdf']:
-            pdf_queryset = PdfMeta.objects.select_related('content_item').only(
-                'id', 'r2_upload_status', 'r2_upload_progress',
-                'content_item__title_ar', 'content_item__created_at',
-                'content_item__id'
-            )
-            if status_filter == 'all':
-                # Show only failed and pending items by default
-                pdf_queryset = pdf_queryset.filter(
-                    Q(r2_upload_status='failed') | Q(r2_upload_status='pending') | 
-                    Q(r2_upload_status='') | Q(r2_upload_status__isnull=True)
-                )
-            else:
-                pdf_queryset = pdf_queryset.filter(r2_upload_status=status_filter)
-            
-            status_data['pdfs'] = [
-                {
-                    'id': pm.id,
-                    'content_id': pm.content_item.id,
-                    'title': pm.content_item.title_ar,
-                    'status': pm.r2_upload_status or 'pending',
-                    'progress': pm.r2_upload_progress or 0,
-                    'created_at': pm.content_item.created_at.isoformat(),
-                    'type': 'pdf'
-                }
-                for pm in pdf_queryset[:100]  # Limit to 100 items
-            ]
-        
-        # Get summary statistics
-        status_summary = get_r2_sync_status_data()
-        
-        context = {
-            'status_data': status_data,
-            'status_summary': status_summary,
-            'current_filter': {
-                'status': status_filter,
-                'type': content_type
-            }
-        }
-        
-        if request.headers.get('Accept') == 'application/json':
-            return JsonResponse(context)
-        
-        # HTMX partial support
-        if request.headers.get('HX-Request') == 'true':
-            return render(request, 'admin/partials/r2_status_table.html', context)
-            
-        return render(request, 'admin/r2_status_dashboard.html', context)
-        
-    except Exception as e:
-        logger.error(f"R2 status dashboard error: {e}", exc_info=True)
-        return JsonResponse({'error': str(e)}, status=500)
-
-
-@login_required 
+@staff_member_required 
 @require_POST
 def retry_r2_upload(request, content_type, meta_id):
     """
@@ -1235,27 +1374,50 @@ def retry_r2_upload(request, content_type, meta_id):
         
         if content_type == 'video':
             video_meta = get_object_or_404(VideoMeta, id=meta_id)
+            if video_meta.r2_upload_status != 'failed':
+                return JsonResponse({'error': _('R2 upload can only be retried after a failed upload.')}, status=400)
+            previous_state = video_meta.r2_upload_status
             video_meta.r2_upload_status = 'pending'  # Reset status
             video_meta.r2_upload_progress = 0
             video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
             task_result = upload_video_to_r2.delay(str(meta_id))
             task_id = task_result.id
+            content_item = video_meta.content_item
             
         elif content_type == 'audio':
             audio_meta = get_object_or_404(AudioMeta, id=meta_id)
+            if audio_meta.r2_upload_status != 'failed':
+                return JsonResponse({'error': _('R2 upload can only be retried after a failed upload.')}, status=400)
+            previous_state = audio_meta.r2_upload_status
             audio_meta.r2_upload_status = 'pending'  # Reset status
             audio_meta.r2_upload_progress = 0
             audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
             task_result = upload_audio_to_r2.delay(str(meta_id))
             task_id = task_result.id
+            content_item = audio_meta.content_item
             
         elif content_type == 'pdf':
             pdf_meta = get_object_or_404(PdfMeta, id=meta_id)
+            if pdf_meta.r2_upload_status != 'failed':
+                return JsonResponse({'error': _('R2 upload can only be retried after a failed upload.')}, status=400)
+            previous_state = pdf_meta.r2_upload_status
             pdf_meta.r2_upload_status = 'pending'  # Reset status
             pdf_meta.r2_upload_progress = 0
             pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
             task_result = upload_pdf_to_r2.delay(str(meta_id))
             task_id = task_result.id
+            content_item = pdf_meta.content_item
+
+        LifecycleAuditService.log_event(
+            content_item=content_item,
+            action_type='r2_upload_retry_requested',
+            actor=request.user,
+            source='admin:r2_retry',
+            previous_state=previous_state,
+            new_state='pending',
+            message='Single-item R2 upload retry triggered from admin API',
+            payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_id},
+        )
         
         logger.info(f"Triggered R2 upload retry for {content_type} {meta_id} (task: {task_id})")
         
@@ -1270,7 +1432,7 @@ def retry_r2_upload(request, content_type, meta_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@login_required
+@staff_member_required
 @require_POST  
 def bulk_retry_r2_uploads(request):
     """
@@ -1307,6 +1469,16 @@ def bulk_retry_r2_uploads(request):
                     video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
                     task_result = upload_video_to_r2.delay(str(meta_id))
                     results['task_ids'].append(task_result.id)
+                    LifecycleAuditService.log_event(
+                        content_item=video_meta.content_item,
+                        action_type='r2_upload_retry_requested',
+                        actor=request.user,
+                        source='admin:r2_bulk_retry',
+                        previous_state='failed',
+                        new_state='pending',
+                        message='Bulk R2 retry triggered for video item',
+                        payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_result.id},
+                    )
                     
                 elif content_type == 'audio':
                     audio_meta = AudioMeta.objects.get(id=meta_id)
@@ -1315,6 +1487,16 @@ def bulk_retry_r2_uploads(request):
                     audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
                     task_result = upload_audio_to_r2.delay(str(meta_id))
                     results['task_ids'].append(task_result.id)
+                    LifecycleAuditService.log_event(
+                        content_item=audio_meta.content_item,
+                        action_type='r2_upload_retry_requested',
+                        actor=request.user,
+                        source='admin:r2_bulk_retry',
+                        previous_state='failed',
+                        new_state='pending',
+                        message='Bulk R2 retry triggered for audio item',
+                        payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_result.id},
+                    )
                     
                 elif content_type == 'pdf':
                     pdf_meta = PdfMeta.objects.get(id=meta_id)
@@ -1323,6 +1505,16 @@ def bulk_retry_r2_uploads(request):
                     pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
                     task_result = upload_pdf_to_r2.delay(str(meta_id))
                     results['task_ids'].append(task_result.id)
+                    LifecycleAuditService.log_event(
+                        content_item=pdf_meta.content_item,
+                        action_type='r2_upload_retry_requested',
+                        actor=request.user,
+                        source='admin:r2_bulk_retry',
+                        previous_state='failed',
+                        new_state='pending',
+                        message='Bulk R2 retry triggered for pdf item',
+                        payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_result.id},
+                    )
                     
                 else:
                     results['errors'].append(
@@ -1355,7 +1547,7 @@ def bulk_retry_r2_uploads(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-@login_required
+@staff_member_required
 def get_r2_sync_status(request):
     """
     Get detailed R2 sync status statistics for monitoring dashboard.
@@ -1410,9 +1602,9 @@ def get_r2_sync_status_data():
     }
 
 
-@login_required
+@staff_member_required
 @require_POST
-@csrf_exempt
+@csrf_protect
 def api_auto_fill_metadata(request):
     """
     Trigger auto-fill action for content item(s) (SEO metadata generation).
@@ -1431,10 +1623,23 @@ def api_auto_fill_metadata(request):
             for cid in content_ids:
                 try:
                     # Verify content exists
-                    content = ContentItem.objects.get(id=cid)
+                    content_item = ContentItem.objects.get(id=cid)
+                    previous_state = content_item.seo_processing_status or 'pending'
+                    content_item.seo_processing_status = 'pending'
+                    content_item.save(update_fields=['seo_processing_status', 'updated_at'])
                     task = generate_seo_metadata_task.delay(str(cid))
                     task_ids.append(task.id)
                     success_count += 1
+                    LifecycleAuditService.log_event(
+                        content_item=content_item,
+                        action_type='seo_generation_requested',
+                        actor=request.user,
+                        source='admin:seo_bulk_request',
+                        previous_state=previous_state,
+                        new_state='pending',
+                        message='Bulk SEO generation requested from admin API',
+                        payload={'content_id': str(content_item.id), 'task_id': task.id},
+                    )
                 except ContentItem.DoesNotExist:
                     logger.warning(f"Content {cid} not found for bulk SEO generation")
                     continue
@@ -1452,13 +1657,33 @@ def api_auto_fill_metadata(request):
             return JsonResponse({'success': False, 'error': _('No content ID provided')})
         
         # Get the content item
-        try:
-            content = ContentItem.objects.get(id=content_id)
-        except ContentItem.DoesNotExist:
+        content_item = ContentItem.objects.filter(id=content_id).first()
+        if not content_item:
             return JsonResponse({'success': False, 'error': _('Content not found')})
+
+        force_regenerate = bool(data.get('force'))
+        if content_item.has_seo_metadata() and content_item.seo_processing_status == 'completed' and not force_regenerate:
+            return JsonResponse({
+                'success': False,
+                'error': _('SEO metadata already exists for this item.')
+            }, status=400)
+
+        previous_state = content_item.seo_processing_status or 'pending'
+        content_item.seo_processing_status = 'pending'
+        content_item.save(update_fields=['seo_processing_status', 'updated_at'])
         
         # Trigger the background task
         task = generate_seo_metadata_task.delay(str(content_id))
+        LifecycleAuditService.log_event(
+            content_item=content_item,
+            action_type='seo_generation_requested',
+            actor=request.user,
+            source='admin:seo_request',
+            previous_state=previous_state,
+            new_state='pending',
+            message='SEO generation requested from admin API',
+            payload={'content_id': str(content_item.id), 'task_id': task.id},
+        )
         
         logger.info(f"Auto-fill triggered for content {content_id}, task ID: {task.id}")
         
@@ -1508,11 +1733,11 @@ def _determine_content_type(file_obj, content_type_param):
         return None, _('Unsupported file type')
 
 
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_metadata_only(request):
     """Generate metadata only from uploaded file (new separated endpoint)"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         file_obj = request.FILES.get('file')
         if not file_obj:
@@ -1551,11 +1776,11 @@ def generate_metadata_only(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+@staff_member_required
+@require_POST
+@csrf_protect
 def generate_seo_only(request):
     """Generate SEO metadata only from uploaded file (new separated endpoint)"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': _('POST method required')})
-    
     try:
         file_obj = request.FILES.get('file')
         if not file_obj:
@@ -1595,7 +1820,7 @@ def generate_seo_only(request):
 
 
 
-@login_required
+@staff_member_required
 def api_content_seo(request, content_id):
     """API endpoint to get or update SEO metadata for a content item"""
     try:
@@ -1659,7 +1884,7 @@ def api_content_seo(request, content_id):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-@login_required
+@staff_member_required
 def api_gemini_rate_limits(request):
     """API endpoint to get Gemini rate limit information"""
     try:
@@ -1693,7 +1918,7 @@ def api_gemini_rate_limits(request):
         })
 
 
-@login_required
+@staff_member_required
 def analytics_dashboard(request):
     """
     Analytics dashboard showing content viewing statistics.
@@ -1730,17 +1955,16 @@ def analytics_dashboard(request):
         today_events = ContentViewEvent.objects.filter(timestamp__gte=today_start)
         
         today_stats = today_events.values('content_type').annotate(
-            total_views=Count('id')
+            total_views=Count('id'),
+            unique_views=Count('ip_address', distinct=True),
         )
-        
-        # Calculate unique views for today (distinct IPs per content type)
-        today_unique_stats = {}
-        for content_type in ['video', 'audio', 'pdf', 'static']:
-            unique_count = today_events.filter(
-                content_type=content_type
-            ).values('ip_address').distinct().count()
-            if unique_count > 0:
-                today_unique_stats[content_type] = unique_count
+        today_stats_by_type = {
+            stat['content_type']: {
+                'total_views': stat['total_views'],
+                'unique_views': stat['unique_views'],
+            }
+            for stat in today_stats
+        }
         
         # Add today's stats to daily_stats_list
         for stat in today_stats:
@@ -1748,7 +1972,7 @@ def analytics_dashboard(request):
                 'content_type': stat['content_type'],
                 'date': end_date.isoformat(),  # Convert date to ISO string
                 'total_views': stat['total_views'],
-                'unique_views': today_unique_stats.get(stat['content_type'], 0)
+                'unique_views': stat['unique_views']
             })
         
         # Sort combined list by date and content_type
@@ -1769,25 +1993,22 @@ def analytics_dashboard(request):
         }
         
         # Get today's counts
-        today_top_qs = today_events.values('content_type', 'content_id').annotate(total_views=Count('id'))
+        today_top_qs = today_events.values('content_type', 'content_id').annotate(
+            total_views=Count('id'),
+            unique_views=Count('ip_address', distinct=True),
+        )
         
         # Combine
         combined_top_map = hist_top.copy()
         for item in today_top_qs:
             key = (item['content_type'], str(item['content_id']))
-            # Count unique IPs for this content today
-            unique_today = today_events.filter(
-                content_type=item['content_type'],
-                content_id=item['content_id']
-            ).values('ip_address').distinct().count()
-            
             if key in combined_top_map:
                 combined_top_map[key]['total_views'] += item['total_views']
-                combined_top_map[key]['unique_views'] += unique_today
+                combined_top_map[key]['unique_views'] += item['unique_views']
             else:
                 combined_top_map[key] = {
                     'total_views': item['total_views'],
-                    'unique_views': unique_today
+                    'unique_views': item['unique_views']
                 }
         
         # Convert back to list and sort
@@ -1832,15 +2053,14 @@ def analytics_dashboard(request):
                 'unique_views': t['unique_views']
             }
         
-        for t in today_stats:
-            content_type = t['content_type']
+        for content_type, stats in today_stats_by_type.items():
             if content_type in combined_totals_map:
-                combined_totals_map[content_type]['total_views'] += t['total_views']
-                combined_totals_map[content_type]['unique_views'] += today_unique_stats.get(content_type, 0)
+                combined_totals_map[content_type]['total_views'] += stats['total_views']
+                combined_totals_map[content_type]['unique_views'] += stats['unique_views']
             else:
                 combined_totals_map[content_type] = {
-                    'total_views': t['total_views'],
-                    'unique_views': today_unique_stats.get(content_type, 0)
+                    'total_views': stats['total_views'],
+                    'unique_views': stats['unique_views']
                 }
             
         totals_by_type = [
@@ -1893,7 +2113,7 @@ def analytics_dashboard(request):
         })
 
 
-@login_required
+@staff_member_required
 def api_analytics_views(request):
     """
     API endpoint for analytics data in JSON format.
@@ -1967,9 +2187,39 @@ def api_analytics_views(request):
         }, status=500)
 
 
-@login_required
+@staff_member_required
+def search_settings_page(request):
+    """Render the search settings admin page"""
+    search_service = get_search_settings_service()
+    settings = search_service.get_all_settings()
+    
+    modes = []
+    for mode_key, mode_label in [
+        ('exact', 'Exact Match'),
+        ('strict', 'Strict'),
+        ('normal', 'Normal'),
+        ('relaxed', 'Relaxed'),
+        ('custom', 'Custom'),
+    ]:
+        modes.append({
+            'key': mode_key,
+            'label': mode_label,
+            'threshold': search_service.get_threshold_for_mode(mode_key),
+            'description': search_service.get_mode_description(mode_key),
+            'is_active': settings['mode'] == mode_key
+        })
+    
+    context = {
+        'current_settings': settings,
+        'available_modes': modes,
+        'current_language': get_language(),
+    }
+    return render(request, 'admin/search_settings.html', context)
+
+
+@staff_member_required
 def get_search_sensitivity(request):
-    """Get current search sensitivity settings"""
+    """Get current search sensitivity settings (JSON API)"""
     try:
         search_service = get_search_settings_service()
         settings = search_service.get_all_settings()
@@ -2005,7 +2255,7 @@ def get_search_sensitivity(request):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def update_search_sensitivity(request):
     """Update search sensitivity settings"""
@@ -2053,7 +2303,7 @@ def update_search_sensitivity(request):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def test_search_sensitivity(request):
     """Test search with a specific sensitivity setting using UnifiedSearchService"""
@@ -2117,117 +2367,7 @@ def test_search_sensitivity(request):
             'error': str(e)
         }, status=500)
 
-# ============================================================================
-# API Upload Queue Management Views
-# ============================================================================
-
-@login_required
-def api_queue_list(request):
-    """
-    Display and manage API upload queue items.
-    Supports filtering by status, content type, and pagination.
-    """
-    # Get filter parameters
-    status_filter = request.GET.get('status', '')
-    content_type_filter = request.GET.get('content_type', '')
-    page_number = request.GET.get('page', 1)
-    
-    # Build queryset with filters
-    queryset = APIUploadQueue.objects.select_related('content_item').order_by('-priority', '-created_at')
-    
-    if status_filter:
-        queryset = queryset.filter(status=status_filter)
-    
-    if content_type_filter:
-        queryset = queryset.filter(content_type=content_type_filter)
-    
-    # Get statistics
-    stats = {
-        'total': APIUploadQueue.objects.count(),
-        'pending': APIUploadQueue.objects.filter(status='pending').count(),
-        'queued': APIUploadQueue.objects.filter(status='queued').count(),
-        'processing': APIUploadQueue.objects.filter(status='processing').count(),
-        'completed': APIUploadQueue.objects.filter(status='completed').count(),
-        'failed': APIUploadQueue.objects.filter(status='failed').count(),
-        'rate_limited': APIUploadQueue.objects.filter(status='rate_limited').count(),
-        'cancelled': APIUploadQueue.objects.filter(status='cancelled').count(),
-    }
-    
-    # Get items by content type
-    type_stats = {
-        'video': APIUploadQueue.objects.filter(content_type='video', status__in=['pending', 'queued', 'processing']).count(),
-        'audio': APIUploadQueue.objects.filter(content_type='audio', status__in=['pending', 'queued', 'processing']).count(),
-        'pdf': APIUploadQueue.objects.filter(content_type='pdf', status__in=['pending', 'queued', 'processing']).count(),
-    }
-    
-    # Paginate results
-    paginator = Paginator(queryset, 20)
-    page_obj = paginator.get_page(page_number)
-    
-    # Calculate queue positions for items
-    for item in page_obj:
-        item.calculated_position = item.get_queue_position()
-    
-    context = {
-        'page_obj': page_obj,
-        'stats': stats,
-        'type_stats': type_stats,
-        'status_filter': status_filter,
-        'content_type_filter': content_type_filter,
-        'status_choices': [
-            ('', 'All'),
-            ('pending', 'Pending'),
-            ('queued', 'Queued'),
-            ('processing', 'Processing'),
-            ('completed', 'Completed'),
-            ('failed', 'Failed'),
-            ('rate_limited', 'Rate Limited'),
-            ('cancelled', 'Cancelled'),
-        ],
-        'content_type_choices': [
-            ('', 'All Types'),
-            ('video', 'Video'),
-            ('audio', 'Audio'),
-            ('pdf', 'PDF'),
-        ],
-    }
-    
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        html = render_to_string('admin/partials/api_queue_list.html', context, request=request)
-        
-        # Render just the pagination portion
-        pagination_html = render_to_string('admin/api_queue_list.html', context, request=request)
-        # Extract pagination part from the full template (coarse but effective if partial doesn't include it)
-        # Better: render a small snippet for pagination
-        pagination_match = re.search(r'<nav aria-label="Page navigation".*?</nav>', pagination_html, re.DOTALL)
-        pagination_snippet = pagination_match.group(0) if pagination_match else ""
-        
-        return JsonResponse({
-            'html': html,
-            'pagination_html': pagination_snippet,
-            'total_count': paginator.count
-        })
-
-    return render(request, 'admin/api_queue_list.html', context)
-
-
-@login_required
-def api_queue_detail(request, queue_id):
-    """Display detailed information about a queue item."""
-    queue_item = get_object_or_404(
-        APIUploadQueue.objects.select_related('content_item'), 
-        id=queue_id
-    )
-    
-    context = {
-        'queue_item': queue_item,
-        'queue_position': queue_item.get_queue_position(),
-    }
-    
-    return render(request, 'admin/api_queue_detail.html', context)
-
-
-@login_required
+@staff_member_required
 @require_POST
 def api_queue_promote(request, queue_id):
     """Promote a queue item to process immediately."""
@@ -2250,7 +2390,7 @@ def api_queue_promote(request, queue_id):
             })
         
         # Redirect for regular requests
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
         
     except Exception as e:
         logger.error(f"Error promoting queue item {queue_id}: {e}", exc_info=True)
@@ -2262,10 +2402,10 @@ def api_queue_promote(request, queue_id):
             }, status=400)
         
         messages.error(request, _('Error promoting item: %(error)s') % {'error': str(e)})
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_queue_cancel(request, queue_id):
     """Cancel a queue item."""
@@ -2288,7 +2428,7 @@ def api_queue_cancel(request, queue_id):
             })
         
         # Redirect for regular requests
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
         
     except Exception as e:
         logger.error(f"Error cancelling queue item {queue_id}: {e}", exc_info=True)
@@ -2300,10 +2440,10 @@ def api_queue_cancel(request, queue_id):
             }, status=400)
         
         messages.error(request, _('Error cancelling item: %(error)s') % {'error': str(e)})
-        return redirect('frontend_api:api_queue_list')
+        return redirect('frontend_api:jobs_dashboard')
 
 
-@login_required
+@staff_member_required
 def document_upload(request, content_id):
     """
     Upload supplementary document to existing ContentItem.
@@ -2318,8 +2458,8 @@ def document_upload(request, content_id):
         }, status=405)
     
     try:
-        # Get content item
-        content_item = get_object_or_404(ContentItem, id=content_id)
+        # Ensure content item exists before attaching document
+        get_object_or_404(ContentItem, id=content_id)
         
         # Get document file
         document_file = request.FILES.get('document')
@@ -2347,7 +2487,9 @@ def document_upload(request, content_id):
                 'message': result.get('message'),
                 'document_name': result.get('document_name'),
                 'document_size': result.get('document_size'),
-                'status': result.get('status')
+                'document_path': result.get('document_path'),
+                'status': result.get('status'),
+                'extraction_async': True,
             })
         else:
             return JsonResponse({
@@ -2363,7 +2505,7 @@ def document_upload(request, content_id):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 def document_download(request, content_id):
     """
     Download supplementary document.
@@ -2397,7 +2539,7 @@ def document_download(request, content_id):
         return redirect('frontend_api:content_detail', content_id=content_id)
 
 
-@login_required
+@staff_member_required
 def document_delete(request, content_id):
     """
     Delete supplementary document.
@@ -2443,7 +2585,7 @@ def document_delete(request, content_id):
         }, status=500)
 
 
-@login_required
+@staff_member_required
 def thumbnail_upload(request, content_id):
     """
     AJAX endpoint to upload/replace a thumbnail for an existing ContentItem.
@@ -2459,7 +2601,7 @@ def thumbnail_upload(request, content_id):
             return JsonResponse({'success': False, 'error': _('No thumbnail file provided')}, status=400)
 
         # Validate MIME
-        mime_type, _ = mimetypes.guess_type(thumbnail_file.name)
+        mime_type, guessed_encoding = mimetypes.guess_type(thumbnail_file.name)
         if not mime_type or not mime_type.startswith('image/'):
             return JsonResponse({'success': False, 'error': _('Thumbnail must be an image file')}, status=400)
 
@@ -2502,7 +2644,7 @@ def thumbnail_upload(request, content_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-@login_required
+@staff_member_required
 def jobs_dashboard(request):
     """Unified dashboard for ProcessingJob and APIUploadQueue items."""
     staff_guard = ensure_staff(request)
@@ -2519,7 +2661,7 @@ def jobs_dashboard(request):
     return render(request, 'admin/jobs_dashboard.html', context)
 
 
-@login_required
+@staff_member_required
 def api_jobs_list(request):
     """Return the merged job list as an HTMX partial."""
     staff_guard = ensure_staff(request)
@@ -2563,7 +2705,114 @@ def api_jobs_list(request):
     )
 
 
-@login_required
+def _parse_admin_log_date(raw_value, end_of_day=False):
+    if not raw_value:
+        return None
+
+    try:
+        parsed_date = date.fromisoformat(raw_value)
+    except ValueError:
+        return None
+
+    boundary = datetime.combine(parsed_date, time.max if end_of_day else time.min)
+    if timezone.is_naive(boundary):
+        boundary = timezone.make_aware(boundary, timezone.get_current_timezone())
+    return boundary
+
+
+@staff_member_required
+def lifecycle_audit_logs(request):
+    """Staff-only audit log browser with server-side filtering and pagination."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    action_filter = request.GET.get('action', '').strip()
+    actor_filter = request.GET.get('actor', '').strip()
+    state_filter = request.GET.get('state', '').strip()
+    search_query = request.GET.get('q', '').strip()
+    created_from = request.GET.get('from', '').strip()
+    created_to = request.GET.get('to', '').strip()
+    per_page = min(max(1, int(request.GET.get('per_page', 20))), 100)
+    page_number = max(1, int(request.GET.get('page', 1)))
+
+    audit_logs = ContentLifecycleAuditLog.objects.select_related('content_item', 'actor').all()
+
+    if action_filter:
+        audit_logs = audit_logs.filter(action_type__icontains=action_filter)
+
+    if actor_filter:
+        actor_query = Q(actor__username__icontains=actor_filter) | Q(actor__email__icontains=actor_filter)
+        if actor_filter.isdigit():
+            actor_query |= Q(actor_id=int(actor_filter))
+        audit_logs = audit_logs.filter(actor_query)
+
+    if state_filter:
+        audit_logs = audit_logs.filter(Q(previous_state__icontains=state_filter) | Q(new_state__icontains=state_filter))
+
+    if search_query:
+        audit_logs = audit_logs.filter(
+            Q(message__icontains=search_query)
+            | Q(action_type__icontains=search_query)
+            | Q(source__icontains=search_query)
+            | Q(content_item__title_ar__icontains=search_query)
+            | Q(content_item__title_en__icontains=search_query)
+            | Q(actor__username__icontains=search_query)
+            | Q(actor__email__icontains=search_query)
+        )
+
+    created_from_boundary = _parse_admin_log_date(created_from)
+    created_to_boundary = _parse_admin_log_date(created_to, end_of_day=True)
+    if created_from_boundary:
+        audit_logs = audit_logs.filter(created_at__gte=created_from_boundary)
+    if created_to_boundary:
+        audit_logs = audit_logs.filter(created_at__lte=created_to_boundary)
+
+    page_obj = Paginator(audit_logs, per_page).get_page(page_number)
+    pagination = SimpleNamespace(
+        has_pagination=page_obj.paginator.num_pages > 1,
+        has_previous=page_obj.has_previous(),
+        previous_page_number=page_obj.previous_page_number() if page_obj.has_previous() else None,
+        has_next=page_obj.has_next(),
+        next_page_number=page_obj.next_page_number() if page_obj.has_next() else None,
+        page_range=page_obj.paginator.page_range,
+        page=page_obj,
+    )
+
+    query_params = {
+        'action': action_filter,
+        'actor': actor_filter,
+        'state': state_filter,
+        'q': search_query,
+        'from': created_from,
+        'to': created_to,
+        'per_page': per_page,
+    }
+    extra_params = urlencode({key: value for key, value in query_params.items() if value not in ('', None)})
+
+    context = {
+        'page_obj': page_obj,
+        'pagination': pagination,
+        'audit_logs': page_obj.object_list,
+        'action_filter': action_filter,
+        'actor_filter': actor_filter,
+        'state_filter': state_filter,
+        'search_query': search_query,
+        'created_from': created_from,
+        'created_to': created_to,
+        'per_page': per_page,
+        'baseUrl': reverse('frontend_api:admin_lifecycle_audit_logs'),
+        'hxTarget': '#lifecycle-audit-log-table',
+        'extraParams': f'&{extra_params}' if extra_params else '',
+    }
+
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/lifecycle_audit_log_table.html', context)
+
+    return render(request, 'admin/lifecycle_audit_logs.html', context)
+
+
+@staff_member_required
 def api_jobs_stats(request):
     """Return aggregate job counts for dashboard badges."""
     staff_guard = ensure_staff(request)
@@ -2573,7 +2822,7 @@ def api_jobs_stats(request):
     return JsonResponse(get_jobs_counts())
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_job_cancel(request):
     """Cancel a ProcessingJob or APIUploadQueue item."""
@@ -2590,13 +2839,41 @@ def api_job_cancel(request):
 
     if source == 'processing_job':
         job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
+
+        # Allow cancellation of stale jobs (processing > 5 h) even though the
+        # normal state machine doesn't permit processing → canceled.
+        from datetime import timedelta
+        stale_cutoff = timezone.now() - timedelta(hours=5)
+        is_stale = (job.status == 'processing' and job.updated_at < stale_cutoff)
+
+        if not job.can_cancel() and not is_stale:
+            return JsonResponse({'success': False, 'error': _('Job cannot be cancelled from its current status')}, status=400)
+        previous_status = job.status
+
         if job.celery_task_id:
             celery_app.control.revoke(job.celery_task_id, terminate=True)
 
-        job.status = 'canceled'
-        job.failure_stage = job.current_stage
-        job.failure_reason = _('Cancelled by admin')
-        job.save(update_fields=['status', 'failure_stage', 'failure_reason', 'updated_at'])
+        # For stale jobs we bypass transition_to() because the state machine
+        # only permits pending → canceled.
+        if is_stale:
+            job.status = 'canceled'
+            job.failure_stage = job.current_stage
+            job.failure_reason = str(_('Cancelled by admin (stale job)'))
+            job.last_action_source = 'admin:jobs_api'
+        else:
+            job.transition_to('canceled', reason=_('Cancelled by admin'), source='admin:jobs_api')
+            job.failure_stage = job.current_stage
+        job.save(update_fields=['status', 'failure_stage', 'failure_reason', 'last_action_source', 'updated_at'])
+        LifecycleAuditService.log_event(
+            content_item=job.content_item,
+            action_type='processing_job_cancelled',
+            actor=request.user,
+            source='admin:jobs_api',
+            previous_state=previous_status,
+            new_state=job.status,
+            message='Processing job cancelled from jobs dashboard API',
+            payload={'job_id': str(job.id)},
+        )
 
         return JsonResponse({
             'success': True,
@@ -2605,7 +2882,11 @@ def api_job_cancel(request):
 
     if source == 'api_queue':
         queue_item = get_object_or_404(APIUploadQueue, id=job_id)
-        APIUploadQueueService.cancel_item(str(queue_item.id))
+        try:
+            APIUploadQueueService.cancel_item(str(queue_item.id), action_source='admin:jobs_api', actor=request.user)
+        except ValueError as exc:
+            return JsonResponse({'success': False, 'error': str(exc)}, status=400)
+
         return JsonResponse({
             'success': True,
             'message': _('API queue item cancelled successfully'),
@@ -2614,7 +2895,7 @@ def api_job_cancel(request):
     return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_job_promote(request):
     """Promote a pending job so it runs immediately."""
@@ -2631,18 +2912,49 @@ def api_job_promote(request):
 
     if source == 'processing_job':
         job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
-        if job.status not in ['pending', 'failed']:
+
+        from datetime import timedelta
+        stale_cutoff = timezone.now() - timedelta(hours=5)
+        is_stale = (job.status == 'processing' and job.updated_at < stale_cutoff)
+
+        if not job.can_promote() and not job.can_retry() and not is_stale:
             return JsonResponse({'success': False, 'error': _('Job is already running or completed')}, status=400)
+        previous_status = job.status
 
         selected_stage = job.failure_stage or job.current_stage or 'file_processing'
         task = dispatch_processing_task(job.content_item, stage=selected_stage)
         if not task:
             return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
 
-        job.status = 'processing'
-        job.celery_task_id = task.id
-        job.retry_count += 1
-        job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'updated_at'])
+        if is_stale:
+            # Stale jobs: revoke hung Celery task first, then force a fresh dispatch.
+            if job.celery_task_id:
+                celery_app.control.revoke(job.celery_task_id, terminate=True)
+            job.status = 'processing'
+            job.celery_task_id = task.id
+            job.last_action_source = 'admin:jobs_api'
+            job.retry_count += 1
+            job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
+        elif job.can_retry():
+            job.transition_to('pending', reason=_('Retry requested by admin'), source='admin:jobs_api')
+            job.retry_count += 1
+            job.transition_to('processing', source='admin:jobs_api')
+            job.celery_task_id = task.id
+            job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
+        else:
+            job.transition_to('processing', source='admin:jobs_api')
+            job.celery_task_id = task.id
+            job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
+        LifecycleAuditService.log_event(
+            content_item=job.content_item,
+            action_type='processing_job_promoted',
+            actor=request.user,
+            source='admin:jobs_api',
+            previous_state=previous_status,
+            new_state=job.status,
+            message='Processing job promoted from jobs dashboard API',
+            payload={'job_id': str(job.id), 'task_id': task.id},
+        )
 
         return JsonResponse({
             'success': True,
@@ -2652,7 +2964,11 @@ def api_job_promote(request):
 
     if source == 'api_queue':
         queue_item = get_object_or_404(APIUploadQueue, id=job_id)
-        APIUploadQueueService.promote_item(str(queue_item.id))
+        try:
+            APIUploadQueueService.promote_item(str(queue_item.id), action_source='admin:jobs_api', actor=request.user)
+        except ValueError as exc:
+            return JsonResponse({'success': False, 'error': str(exc)}, status=400)
+
         return JsonResponse({
             'success': True,
             'message': _('API queue item promoted successfully'),
@@ -2661,7 +2977,7 @@ def api_job_promote(request):
     return JsonResponse({'success': False, 'error': _('Unknown job source')}, status=400)
 
 
-@login_required
+@staff_member_required
 @require_POST
 def api_job_dispatch(request):
     """Manually dispatch a processing job for a content item."""
@@ -2678,10 +2994,21 @@ def api_job_dispatch(request):
         return JsonResponse({'success': False, 'error': _('content_id is required')}, status=400)
 
     content_item = get_object_or_404(ContentItem, id=content_id)
-    task_id = dispatch_content_item_for_stage(content_item, stage, force=force)
+    task_id = dispatch_content_item_for_stage(content_item, stage, force=force, action_source='admin:jobs_api')
 
     if not task_id:
         return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+
+    LifecycleAuditService.log_event(
+        content_item=content_item,
+        action_type='processing_job_dispatched',
+        actor=request.user,
+        source='admin:jobs_api',
+        previous_state='',
+        new_state='processing',
+        message='Manual dispatch requested from jobs dashboard API',
+        payload={'content_id': str(content_item.id), 'stage': stage, 'force': force, 'task_id': task_id},
+    )
 
     return JsonResponse({
         'success': True,

@@ -1,48 +1,64 @@
-<!-- templates/admin/pdf_management.html - Modern PDF Management -->
 {% extends "layouts/admin_base.html" %}
 {% load i18n %}
 
 {% block admin_content %}
 <div class="container-fluid px-0">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 fw-bold text-dark mb-1">{% trans "PDF Manager" %}</h1>
-            <p class="text-muted mb-0">{% trans "Manage books, documents, and sacred texts" %}</p>
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h1 class="h3 fw-bold text-dark mb-1">{{ management_ui.title }}</h1>
+            <p class="text-muted mb-0">{{ management_ui.subtitle }}</p>
         </div>
-        <a href="{% url 'frontend_api:upload_content' %}?type=pdf" class="btn btn-primary rounded-pill px-4">
-            <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-plus-lg"/></svg>{% trans "Add PDF" %}
-        </a>
+        <div class="col-auto">
+            <a href="{% url 'frontend_api:upload_content' %}?type={{ content_type }}" class="btn {{ management_ui.add_button_class }} rounded-pill px-4 shadow-sm">
+                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#{{ management_ui.add_icon }}"/></svg>{{ management_ui.add_label }}
+            </a>
+        </div>
     </div>
 
-    <!-- Filter Bar -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3">
+    <div class="card admin-filter-card mb-3">
         <div class="card-body">
-            <form method="GET" class="row g-2 align-items-center"
-                  hx-get="{% url 'frontend_api:pdf_management' %}"
-                  hx-target="#pdf-table-container"
+            <form method="GET"
+                  hx-get="{% url 'frontend_api:media_management' media_type=content_type %}"
+                  hx-target="#media-table-container"
                   hx-swap="innerHTML"
                   hx-trigger="submit, change from:select, keyup delay:500ms from:input[name='search']"
-                  hx-push-url="true">
-                <div class="col-md-5">
-                    <input type="text" name="search" class="form-control" placeholder="{% trans 'Search in titles, descriptions, and content...' %}" value="{{ filters.search }}">
+                  hx-push-url="true"
+                  class="row g-3 g-xl-4 align-items-end admin-filter-form">
+                <div class="col-12 col-lg-5">
+                    <label class="admin-filter-label">{% trans "Search" %}</label>
+                    <input type="text" name="search" class="form-control admin-filter-control" placeholder="{{ management_ui.search_placeholder }}" value="{{ filters.search }}">
                 </div>
-                <div class="col-md-3">
-                    <select name="status" class="form-select">
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="admin-filter-label">{% trans "Status" %}</label>
+                    <select name="status" class="form-select admin-filter-control">
                         <option value="">{% trans "All Status" %}</option>
                         <option value="active" {% if filters.status == 'active' %}selected{% endif %}>{% trans "Active" %}</option>
                         <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>{% trans "Inactive" %}</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <select name="missing_data" class="form-select">
+                {% if content_type == 'video' %}
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="admin-filter-label">{% trans "Processing" %}</label>
+                    <select name="processing_status" class="form-select admin-filter-control">
+                        <option value="">{% trans "All Processing" %}</option>
+                        <option value="pending" {% if filters.processing_status == 'pending' %}selected{% endif %}>{% trans "Pending" %}</option>
+                        <option value="processing" {% if filters.processing_status == 'processing' %}selected{% endif %}>{% trans "Processing" %}</option>
+                        <option value="completed" {% if filters.processing_status == 'completed' %}selected{% endif %}>{% trans "Completed" %}</option>
+                        <option value="failed" {% if filters.processing_status == 'failed' %}selected{% endif %}>{% trans "Failed" %}</option>
+                    </select>
+                </div>
+                {% else %}
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="admin-filter-label">{% trans "Content" %}</label>
+                    <select name="missing_data" class="form-select admin-filter-control">
                         <option value="">{% trans "All Data" %}</option>
                         <option value="no_seo" {% if filters.missing_data == 'no_seo' %}selected{% endif %}>{% trans "Missing SEO" %}</option>
                         <option value="no_metadata" {% if filters.missing_data == 'no_metadata' %}selected{% endif %}>{% trans "Missing Metadata" %}</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">
+                {% endif %}
+                <div class="col-12 col-lg-auto ms-lg-auto">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4 w-100">
                         <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-funnel"/></svg>{% trans "Filter" %}
                     </button>
                 </div>
@@ -50,8 +66,7 @@
         </div>
     </div>
 
-    <!-- Bulk Actions Bar -->
-    <div class="card border-0 shadow-sm rounded-4 mb-3" id="bulkActionsBar" style="display: none;">
+    <div class="card border-0 shadow-sm rounded-4 mb-3 admin-bulk-actions-bar" id="bulkActionsBar">
         <div class="card-body py-2">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
@@ -78,34 +93,35 @@
         </div>
     </div>
 
-    <!-- PDF Table Card -->
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden" id="pdf-table-container">
-        {% include "admin/partials/pdf_table.html" %}
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden" id="media-table-container">
+        {% include partial_template %}
     </div>
 </div>
 
 <script>
-// Bulk Selection Functions
 function toggleSelectAll(checkbox) {
     const checkboxes = document.querySelectorAll('.row-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    checkboxes.forEach((cb) => {
+        cb.checked = checkbox.checked;
+    });
     updateBulkActions();
 }
 
 function updateBulkActions() {
-    const checkboxes = document.querySelectorAll('.row-checkbox:checked');
-    const count = checkboxes.length;
+    const checked = document.querySelectorAll('.row-checkbox:checked');
+    const count = checked.length;
     const bulkBar = document.getElementById('bulkActionsBar');
     const selectedCount = document.getElementById('selectedCount');
-    
+
     if (count > 0) {
+        bulkBar.classList.remove('admin-bulk-actions-bar');
         bulkBar.style.display = 'block';
         selectedCount.textContent = count;
     } else {
-        bulkBar.style.display = 'none';
+        bulkBar.classList.add('admin-bulk-actions-bar');
+        bulkBar.style.display = '';
     }
-    
-    // Update master checkbox state
+
     const allCheckboxes = document.querySelectorAll('.row-checkbox');
     const masterCheckbox = document.getElementById('selectAll');
     if (masterCheckbox) {
@@ -116,22 +132,21 @@ function updateBulkActions() {
 
 function getSelectedIds() {
     const checkboxes = document.querySelectorAll('.row-checkbox:checked');
-    return Array.from(checkboxes).map(cb => cb.dataset.contentId);
+    return Array.from(checkboxes).map((cb) => cb.dataset.contentId);
 }
 
-// Bulk Actions
 function bulkGenerateSEO() {
     const selectedIds = getSelectedIds();
     if (selectedIds.length === 0) {
-        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        showToast('{% trans "Please select at least one item" %}', 'warning');
         return;
     }
-    
-    const message = '{% trans "Generate SEO metadata for selected PDFs?" %}';
+
+    const message = '{{ management_ui.bulk_generate_label|escapejs }}';
     const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}<br>` +
-                   `{% trans "This will use AI to generate SEO metadata for all selected PDFs." %}`;
-    
-    showConfirmation(message, details, function() {
+        `{% trans "This will use AI to generate SEO metadata for all selected items." %}`;
+
+    showConfirmation(message, details, function () {
         performBulkAction('{% url "frontend_api:api_auto_fill_metadata" %}', selectedIds);
     });
 }
@@ -139,14 +154,14 @@ function bulkGenerateSEO() {
 function bulkActivate() {
     const selectedIds = getSelectedIds();
     if (selectedIds.length === 0) {
-        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        showToast('{% trans "Please select at least one item" %}', 'warning');
         return;
     }
-    
-    const message = '{% trans "Activate selected PDFs?" %}';
+
+    const message = '{% trans "Activate selected items?" %}';
     const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
-    
-    showConfirmation(message, details, function() {
+
+    showConfirmation(message, details, function () {
         performBulkToggleStatus(selectedIds, true);
     });
 }
@@ -154,14 +169,14 @@ function bulkActivate() {
 function bulkDeactivate() {
     const selectedIds = getSelectedIds();
     if (selectedIds.length === 0) {
-        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        showToast('{% trans "Please select at least one item" %}', 'warning');
         return;
     }
-    
-    const message = '{% trans "Deactivate selected PDFs?" %}';
+
+    const message = '{% trans "Deactivate selected items?" %}';
     const details = `<strong>{% trans "Selected items:" %}</strong> ${selectedIds.length}`;
-    
-    showConfirmation(message, details, function() {
+
+    showConfirmation(message, details, function () {
         performBulkToggleStatus(selectedIds, false);
     });
 }
@@ -169,28 +184,23 @@ function bulkDeactivate() {
 function bulkDelete() {
     const selectedIds = getSelectedIds();
     if (selectedIds.length === 0) {
-        showToast('{% trans "Please select at least one PDF" %}', 'warning');
+        showToast('{% trans "Please select at least one item" %}', 'warning');
         return;
     }
-    
-    const message = '{% trans "Delete selected PDFs?" %}';
+
+    const message = '{{ management_ui.delete_confirm_label|escapejs }}';
     const details = `<strong class="text-danger">{% trans "WARNING:" %}</strong> ` +
-                   `{% trans "This will permanently delete" %} ${selectedIds.length} {% trans "PDF(s)." %}<br>` +
-                   `{% trans "This action cannot be undone!" %}`;
-    
-    showConfirmation(message, details, function() {
+        `{% trans "This action cannot be undone!" %}`;
+
+    showConfirmation(message, details, function () {
         performBulkDelete(selectedIds);
     });
 }
 
-// Perform Bulk Actions
 function refreshTable() {
     const filterForm = document.querySelector('form[hx-get]');
     if (filterForm) {
-        // Trigger HTMX request by dispatching submit event
         filterForm.dispatchEvent(new Event('submit', { cancelable: true }));
-        
-        // Reset check-all and bulk bar
         setTimeout(() => {
             const masterCheckbox = document.getElementById('selectAll');
             if (masterCheckbox) {
@@ -198,7 +208,10 @@ function refreshTable() {
                 masterCheckbox.indeterminate = false;
             }
             const bulkBar = document.getElementById('bulkActionsBar');
-            if (bulkBar) bulkBar.style.display = 'none';
+            if (bulkBar) {
+                bulkBar.classList.add('admin-bulk-actions-bar');
+                bulkBar.style.display = '';
+            }
         }, 100);
     } else {
         window.location.reload();
@@ -207,7 +220,7 @@ function refreshTable() {
 
 function performBulkAction(url, contentIds) {
     const data = { content_ids: contentIds };
-    
+
     fetch(url, {
         method: 'POST',
         headers: {
@@ -216,8 +229,8 @@ function performBulkAction(url, contentIds) {
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.json())
-    .then(data => {
+    .then((response) => response.json())
+    .then((data) => {
         if (data.success) {
             showToast(data.message || '{% trans "Action completed successfully" %}', 'success');
             refreshTable();
@@ -225,7 +238,7 @@ function performBulkAction(url, contentIds) {
             showToast(data.error || '{% trans "Action failed" %}', 'danger');
         }
     })
-    .catch(error => {
+    .catch((error) => {
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
@@ -244,8 +257,8 @@ function performBulkToggleStatus(contentIds, status) {
             bulk: true
         })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then((response) => response.json())
+    .then((data) => {
         if (data.success) {
             showToast(data.message || '{% trans "Status updated successfully" %}', 'success');
             refreshTable();
@@ -253,7 +266,7 @@ function performBulkToggleStatus(contentIds, status) {
             showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
         }
     })
-    .catch(error => {
+    .catch((error) => {
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
@@ -267,38 +280,37 @@ function performBulkDelete(contentIds) {
             'X-CSRFToken': '{{ csrf_token }}'
         },
         body: new URLSearchParams({
-            'operation': 'delete',
-            'content_ids': contentIds.join(',')
+            operation: 'delete',
+            content_ids: contentIds.join(',')
         })
     })
-    .then(response => {
+    .then((response) => {
         if (response.ok) {
-            showToast('{% trans "PDFs deleted successfully" %}', 'success');
+            showToast('{{ management_ui.delete_success_label|escapejs }}', 'success');
             refreshTable();
         } else {
-            showToast('{% trans "Failed to delete PDFs" %}', 'danger');
+            showToast('{{ management_ui.delete_failure_label|escapejs }}', 'danger');
         }
     })
-    .catch(error => {
+    .catch((error) => {
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
     });
 }
 
-// Single Item Actions
 function confirmAutoFill(contentId, title) {
-    const message = '{% trans "Generate SEO metadata for this PDF?" %}';
-    const details = `<strong>{% trans "PDF:" %}</strong> ${title}<br>` +
-                   `{% trans "This will use AI to generate SEO metadata." %}`;
-    
-    showConfirmation(message, details, function() {
+    const message = '{{ management_ui.single_generate_label|escapejs }}';
+    const details = `<strong>{% trans "Item:" %}</strong> ${title}<br>` +
+        `{% trans "This will use AI to generate SEO metadata." %}`;
+
+    showConfirmation(message, details, function () {
         autoFillMetadata(contentId);
     });
 }
 
 function toggleStatus(contentId, checkbox) {
     checkbox.disabled = true;
-    
+
     fetch('{% url "frontend_api:api_toggle_content_status" %}', {
         method: 'POST',
         headers: {
@@ -310,8 +322,8 @@ function toggleStatus(contentId, checkbox) {
             is_active: checkbox.checked
         })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then((response) => response.json())
+    .then((data) => {
         checkbox.disabled = false;
         if (data.success) {
             showToast(data.is_active ? '{% trans "Content activated" %}' : '{% trans "Content hidden" %}', 'success');
@@ -320,7 +332,7 @@ function toggleStatus(contentId, checkbox) {
             showToast(data.error || '{% trans "Failed to update status" %}', 'danger');
         }
     })
-    .catch(error => {
+    .catch((error) => {
         checkbox.disabled = false;
         checkbox.checked = !checkbox.checked;
         console.error('Error:', error);
@@ -339,19 +351,62 @@ function autoFillMetadata(contentId) {
             content_id: contentId
         })
     })
-    .then(response => response.json())
-    .then(data => {
+    .then((response) => response.json())
+    .then((data) => {
         if (data.success) {
             showToast('{% trans "Auto-fill started! Processing in background..." %}', 'success');
-            // Refresh table after a delay to show updated status
             setTimeout(() => refreshTable(), 2000);
         } else {
             showToast(data.error || '{% trans "Failed to start auto-fill" %}', 'danger');
         }
     })
-    .catch(error => {
+    .catch((error) => {
         console.error('Error:', error);
         showToast('{% trans "An error occurred" %}', 'danger');
+    });
+}
+
+function retryR2Upload(contentType, metaId, button, title) {
+    showConfirmation({
+        title: '{% trans "Retry R2 Upload" %}',
+        message: `{% trans "Retry R2 upload for" %} "${title}"?`,
+        details: '{% trans "The item will be re-queued for background upload." %}',
+        confirmText: '{% trans "Retry" %}',
+        confirmClass: 'btn-danger',
+        onConfirm: function() {
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            }
+
+            fetch(`{% url 'frontend_api:api_r2_retry' 'video' '00000000-0000-0000-0000-000000000000' %}`.replace('/video/', `/${contentType}/`).replace('00000000-0000-0000-0000-000000000000', metaId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then((response) => response.json().then((data) => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+                if (status >= 200 && status < 300 && data.success) {
+                    showToast(data.message || '{% trans "R2 upload retry triggered" %}', 'success');
+                    setTimeout(() => refreshTable(), 1000);
+                } else {
+                    showToast(data.error || '{% trans "Failed to retry R2 upload" %}', 'danger');
+                }
+            })
+            .catch((error) => {
+                console.error('R2 retry error:', error);
+                showToast('{% trans "An error occurred" %}', 'danger');
+            })
+            .finally(() => {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                }
+            });
+        }
     });
 }
 </script>

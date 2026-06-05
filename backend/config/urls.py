@@ -44,16 +44,17 @@ urlpatterns = [
     # Task Monitoring Admin (at /admin/tasks/)
     path('admin/tasks/', include('apps.admin_django.urls', namespace='admin_django')),
 
+    # System Monitor & File Manager (at /admin/system/)
+    path('admin/system/', include('apps.admin_django.system_urls', namespace='system_monitor')),
+
     # Authentication redirects
-    path('accounts/login/', RedirectView.as_view(url='/ar/users/login/', permanent=False), name='login_redirect'),
+    path('accounts/login/', RedirectView.as_view(pattern_name='frontend_api:admin_login', permanent=False), name='login_redirect'),
     path('accounts/logout/', RedirectView.as_view(url='/ar/users/logout/', permanent=False), name='logout_redirect'),
 
     # API endpoints (non-internationalized for consistency)
     # H-06: removed duplicate api/auth/ include — api/users/ is the canonical users API endpoint
     path('api/users/', include('apps.users.urls', namespace='users_api')),
     path('api/media/', include('apps.media_manager.urls', namespace='media_api')),
-    path('api/v1/', include('apps.media_manager.api.urls', namespace='api_upload')),  # RESTful Upload API
-
     # System endpoints
     # Two path('') entries are intentional:
     #   - health include routes sub-paths (health/, metrics/, readiness/, liveness/)

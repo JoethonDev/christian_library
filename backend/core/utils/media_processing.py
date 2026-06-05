@@ -396,11 +396,11 @@ class PDFProcessor(MediaProcessor):
         if missing:
             logger.warning(
                 f"PDF processing dependencies not found: {', '.join(missing)}. "
-                "PDF optimization will be disabled."
+                "PDF processing will be disabled."
             )
-            self.optimization_available = False
+            self.processing_available = False
         else:
-            self.optimization_available = True
+            self.processing_available = True
             
         if missing_optional:
             logger.warning(
@@ -411,40 +411,9 @@ class PDFProcessor(MediaProcessor):
         else:
             self.metadata_available = True
     
-    def optimize_pdf(self, input_path, output_path):
-        """Optimize PDF using Ghostscript"""
-        if not self.optimization_available:
-            raise DependencyError(
-                "Ghostscript is required for PDF optimization. "
-                "Please install Ghostscript: https://www.ghostscript.com/download/gsdnld.html"
-            )
-        
-        try:
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            
-            # Use platform-specific Ghostscript command
-            gs_command = get_platform_command('gs')
-            cmd = [
-                gs_command, '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
-                '-dPDFSETTINGS=/ebook', '-dNOPAUSE', '-dQUIET',
-                '-dBATCH', f'-sOutputFile={output_path}', str(input_path)
-            ]
-            
-            subprocess.run(cmd, check=True)
-            return output_path
-            
-        except subprocess.CalledProcessError as e:
-            raise Exception(f"PDF optimization failed: {e}")
-        except FileNotFoundError:
-            gs_command = get_platform_command('gs')
-            raise DependencyError(
-                f"Ghostscript command '{gs_command}' not found. "
-                "Please install Ghostscript and ensure it's in your PATH."
-            )
-
     def generate_thumbnail(self, input_path, output_path):
         """Generate a thumbnail image from the first page of a PDF using Ghostscript"""
-        if not self.optimization_available:
+        if not self.processing_available:
              raise DependencyError("Ghostscript is required for PDF thumbnail generation.")
              
         try:
@@ -527,8 +496,7 @@ def get_storage_path(content_type, file_type='original'):
             'compressed': 'compressed/audio'
         },
         'pdf': {
-            'original': 'original/pdf',
-            'optimized': 'optimized/pdf'
+            'original': 'original/pdf'
         }
     }
     

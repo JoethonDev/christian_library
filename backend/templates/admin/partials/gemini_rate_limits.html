@@ -72,7 +72,7 @@
                                 <small class="text-muted fw-medium">{% trans "Per Minute:" %}</small>
                                 <small class="fw-bold">${remaining_min} / ${limit_min}</small>
                             </div>
-                            <div class="progress" style="height: 6px;">
+                            <div class="progress admin-progress-xs">
                                 <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_min}%"></div>
                             </div>
                         </div>
@@ -81,7 +81,7 @@
                                 <small class="text-muted fw-medium">{% trans "Per Day:" %}</small>
                                 <small class="fw-bold">${remaining_day} / ${limit_day}</small>
                             </div>
-                            <div class="progress" style="height: 6px;">
+                            <div class="progress admin-progress-xs">
                                 <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_day}%"></div>
                             </div>
                         </div>
@@ -125,7 +125,7 @@
                                     <small class="text-muted fw-medium">{% trans "Per Minute" %}</small>
                                     <small class="fw-bold">${remaining_min} / ${limit_min}</small>
                                 </div>
-                                <div class="progress" style="height: 8px;">
+                                <div class="progress admin-progress-thin">
                                     <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_min}%"></div>
                                 </div>
                             </div>
@@ -136,7 +136,7 @@
                                     <small class="text-muted fw-medium">{% trans "Per Day" %}</small>
                                     <small class="fw-bold">${remaining_day} / ${limit_day}</small>
                                 </div>
-                                <div class="progress" style="height: 8px;">
+                                <div class="progress admin-progress-thin">
                                     <div class="progress-bar bg-${model.color}" role="progressbar" style="width: ${percent_day}%"></div>
                                 </div>
                             </div>

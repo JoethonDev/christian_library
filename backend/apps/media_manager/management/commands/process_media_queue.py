@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from apps.media_manager.models import VideoMeta, AudioMeta, PdfMeta
 from core.tasks.media_processing import (
-    process_video_to_hls, process_audio_compression, process_pdf_optimization
+    process_video_to_hls, process_audio_compression, process_pdf
 )
 
 
@@ -110,7 +110,7 @@ class Command(BaseCommand):
         for pdf in pdfs:
             pdf.processing_status = 'pending'
             pdf.save()
-            process_pdf_optimization.delay(pdf.id)
+            process_pdf.delay(pdf.id)
             count += 1
             self.stdout.write(f'Queued PDF: {pdf.content_item.title_ar}')
         

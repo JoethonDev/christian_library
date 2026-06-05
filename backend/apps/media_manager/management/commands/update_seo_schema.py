@@ -11,6 +11,7 @@ Usage:
 """
 from django.core.management.base import BaseCommand
 from apps.media_manager.models import SiteConfiguration
+import traceback
 
 
 class Command(BaseCommand):
@@ -84,5 +85,4 @@ class Command(BaseCommand):
             
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'\n✗ Error updating schema: {e}'))
-            import traceback
             self.stdout.write(traceback.format_exc())

@@ -1,0 +1,181 @@
+{% extends "admin/base_site.html" %}
+{% load i18n humanize %}
+
+{% block title %}System Monitor | {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; System Monitor
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>System Monitor</h1>
+
+{# Navigation tabs #}
+<div style="margin-bottom:1.5rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+  <a class="button" href="{% url 'system_monitor:dashboard' %}">Dashboard</a>
+  <a class="button" href="{% url 'system_monitor:file_manager' %}">File Manager</a>
+  <a class="button" href="{% url 'system_monitor:orphaned_files' %}">Orphaned Files</a>
+  <a class="button" href="{% url 'system_monitor:cache_manager' %}">Cache Manager</a>
+</div>
+
+{# ── STATS GRID ─────────────────────────────────────────────────── #}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;margin-bottom:1.5rem;">
+
+  {# CPU #}
+  <div class="module" style="padding:1rem;">
+    <h2 style="margin-top:0;">CPU</h2>
+    {% if cpu.error %}
+      <p class="errornote">{{ cpu.error }}</p>
+    {% else %}
+      <p style="font-size:2rem;font-weight:bold;margin:.25rem 0;">{{ cpu.percent }}%</p>
+      <div style="background:#e0e0e0;border-radius:4px;height:8px;margin-bottom:.5rem;">
+        <div style="background:{% if cpu.percent > 85 %}#dc3545{% elif cpu.percent > 60 %}#ff9800{% else %}#417690{% endif %};height:8px;border-radius:4px;width:{{ cpu.percent }}%;transition:width .5s;"></div>
+      </div>
+      <small>{{ cpu.count }} core(s) &nbsp;|&nbsp; Load avg: {{ cpu.load.0|floatformat:2 }}, {{ cpu.load.1|floatformat:2 }}, {{ cpu.load.2|floatformat:2 }}</small>
+    {% endif %}
+  </div>
+
+  {# Memory #}
+  <div class="module" style="padding:1rem;">
+    <h2 style="margin-top:0;">Memory (RAM)</h2>
+    {% if memory.error %}
+      <p class="errornote">{{ memory.error }}</p>
+    {% else %}
+      <p style="font-size:2rem;font-weight:bold;margin:.25rem 0;">{{ memory.percent }}%</p>
+      <div style="background:#e0e0e0;border-radius:4px;height:8px;margin-bottom:.5rem;">
+        <div style="background:{% if memory.percent > 85 %}#dc3545{% elif memory.percent > 60 %}#ff9800{% else %}#417690{% endif %};height:8px;border-radius:4px;width:{{ memory.percent }}%;transition:width .5s;"></div>
+      </div>
+      <small>Used: {{ memory.used }} / {{ memory.total }} &nbsp;|&nbsp; Free: {{ memory.available }}</small>
+    {% endif %}
+  </div>
+
+  {# Disk #}
+  <div class="module" style="padding:1rem;">
+    <h2 style="margin-top:0;">Disk ( / )</h2>
+    {% if disk.error %}
+      <p class="errornote">{{ disk.error }}</p>
+    {% else %}
+      <p style="font-size:2rem;font-weight:bold;margin:.25rem 0;">{{ disk.percent }}%</p>
+      <div style="background:#e0e0e0;border-radius:4px;height:8px;margin-bottom:.5rem;">
+        <div style="background:{% if disk.percent > 85 %}#dc3545{% elif disk.percent > 60 %}#ff9800{% else %}#417690{% endif %};height:8px;border-radius:4px;width:{{ disk.percent }}%;transition:width .5s;"></div>
+      </div>
+      <small>Used: {{ disk.used }} / {{ disk.total }} &nbsp;|&nbsp; Free: {{ disk.free }}</small>
+    {% endif %}
+  </div>
+
+  {# Database #}
+  <div class="module" style="padding:1rem;">
+    <h2 style="margin-top:0;">PostgreSQL</h2>
+    {% if database.error %}
+      <p class="errornote">{{ database.error }}</p>
+    {% else %}
+      <p><strong>DB:</strong> {{ database.name }}</p>
+      <p><strong>Size:</strong> <span style="font-size:1.4rem;font-weight:bold;">{{ database.size }}</span></p>
+      <p><strong>Active connections:</strong> {{ database.connections }}</p>
+    {% endif %}
+  </div>
+
+  {# Redis #}
+  <div class="module" style="padding:1rem;">
+    <h2 style="margin-top:0;">Redis</h2>
+    {% if redis_info.error %}
+      <p class="errornote">{{ redis_info.error }}</p>
+    {% else %}
+      <p><strong>Version:</strong> {{ redis_info.redis_version }}</p>
+      <p><strong>Memory:</strong> {{ redis_info.used_memory }} / {{ redis_info.used_memory_peak }} peak</p>
+      <p><strong>Keys:</strong> {{ redis_info.total_keys }} &nbsp;|&nbsp; Clients: {{ redis_info.connected_clients }}</p>
+      <p><strong>Hits/Misses:</strong> {{ redis_info.keyspace_hits }} / {{ redis_info.keyspace_misses }}</p>
+    {% endif %}
+  </div>
+
+  {# Media counts #}
+  <div class="module" style="padding:1rem;">
+    <h2 style="margin-top:0;">Media Library</h2>
+    {% if media_counts.error %}
+      <p class="errornote">{{ media_counts.error }}</p>
+    {% else %}
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td>Total items</td><td style="text-align:right;font-weight:bold;">{{ media_counts.content_items }}</td></tr>
+        <tr><td>Active</td><td style="text-align:right;">{{ media_counts.active_items }}</td></tr>
+        <tr><td>Videos</td><td style="text-align:right;">{{ media_counts.videos }}</td></tr>
+        <tr><td>Audios</td><td style="text-align:right;">{{ media_counts.audios }}</td></tr>
+        <tr><td>PDFs</td><td style="text-align:right;">{{ media_counts.pdfs }}</td></tr>
+        <tr><td style="color:#ff9800;">Pending</td><td style="text-align:right;color:#ff9800;">{{ media_counts.pending_processing }}</td></tr>
+        <tr><td style="color:#dc3545;">Failed</td><td style="text-align:right;color:#dc3545;">{{ media_counts.failed_processing }}</td></tr>
+      </table>
+    {% endif %}
+  </div>
+
+</div>
+
+{# ── VOLUME SIZES ────────────────────────────────────────────────── #}
+<div class="module" style="padding:1rem;margin-bottom:1.5rem;">
+  <h2 style="margin-top:0;">Docker Volumes</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr style="background:#417690;color:#fff;">
+        <th style="padding:.5rem;text-align:left;">Volume</th>
+        <th style="padding:.5rem;text-align:left;">Mount Path</th>
+        <th style="padding:.5rem;text-align:right;">Content Size</th>
+        <th style="padding:.5rem;text-align:right;">Files</th>
+        <th style="padding:.5rem;text-align:right;">Disk Used %</th>
+        <th style="padding:.5rem;text-align:right;">Disk Free</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for vol in volumes %}
+      <tr style="border-bottom:1px solid #ddd;">
+        <td style="padding:.4rem .5rem;"><strong>{{ vol.name }}</strong></td>
+        <td style="padding:.4rem .5rem;font-family:monospace;font-size:.85rem;">{{ vol.path }}</td>
+        <td style="padding:.4rem .5rem;text-align:right;">
+          {% if vol.exists %}{{ vol.size }}{% else %}<em>Not mounted</em>{% endif %}
+        </td>
+        <td style="padding:.4rem .5rem;text-align:right;">{{ vol.file_count|default:"-" }}</td>
+        <td style="padding:.4rem .5rem;text-align:right;">
+          {% if vol.disk_percent %}
+            <span style="color:{% if vol.disk_percent > 85 %}#dc3545{% elif vol.disk_percent > 60 %}#ff9800{% else %}inherit{% endif %};">
+              {{ vol.disk_percent }}%
+            </span>
+          {% else %}-{% endif %}
+        </td>
+        <td style="padding:.4rem .5rem;text-align:right;">{{ vol.disk_free|default:"-" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ── TOP DB TABLES ────────────────────────────────────────────────── #}
+{% if not database.error and database.tables %}
+<div class="module" style="padding:1rem;margin-bottom:1.5rem;">
+  <h2 style="margin-top:0;">Largest Tables</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead>
+      <tr style="background:#417690;color:#fff;">
+        <th style="padding:.5rem;text-align:left;">Table</th>
+        <th style="padding:.5rem;text-align:right;">Total Size</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tbl in database.tables %}
+      <tr style="border-bottom:1px solid #ddd;">
+        <td style="padding:.4rem .5rem;font-family:monospace;">{{ tbl.schema }}.{{ tbl.table }}</td>
+        <td style="padding:.4rem .5rem;text-align:right;">{{ tbl.size }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{# ── QUICK LINKS ────────────────────────────────────────────────── #}
+<div style="display:flex;gap:1rem;flex-wrap:wrap;">
+  <a class="button" href="{% url 'system_monitor:file_manager' %}">Open File Manager</a>
+  <a class="button" href="{% url 'system_monitor:orphaned_files' %}?scan=1">Scan Orphaned Files</a>
+  <a class="button" href="{% url 'system_monitor:cache_manager' %}">Manage Cache</a>
+  <a class="button" href="{% url 'admin:index' %}">Back to Admin</a>
+</div>
+{% endblock %}

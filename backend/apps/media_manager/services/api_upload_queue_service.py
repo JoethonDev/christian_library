@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.db import transaction, models
 from apps.media_manager.models import APIUploadQueue, ContentItem
+from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class APIUploadQueueService:
     MAX_FILE_SIZE_MB = 2048  # 2GB max file size
     
     @classmethod
-    def add_to_queue(cls, file, content_type, doc_file=None, metadata=None, thumbnail_file=None):
+    def add_to_queue(cls, file, content_type, doc_file=None, metadata=None, thumbnail_file=None, actor=None):
         """
         Add a file to the upload queue.
         
@@ -94,6 +95,23 @@ class APIUploadQueueService:
             metadata=metadata or {},
             status='pending',
             queue_status='waiting'
+        )
+
+        LifecycleAuditService.log_event(
+            content_item=None,
+            action_type='upload_initiated',
+            actor=actor,
+            source='api:upload_queue',
+            previous_state='',
+            new_state='pending',
+            message='API upload queue item created',
+            payload={
+                'queue_item_id': str(queue_item.id),
+                'file_name': file.name,
+                'content_type': content_type,
+                'has_doc_file': bool(doc_file),
+                'has_thumbnail': bool(thumbnail_file),
+            },
         )
         
         logger.info(f'Added {file.name} to queue (ID: {queue_item.id}, Type: {content_type})')
@@ -256,9 +274,19 @@ class APIUploadQueueService:
         
         try:
             # Update status
-            queue_item.status = 'processing'
+            previous_status = queue_item.status
+            queue_item.transition_to('processing', source='system:queue_worker')
             queue_item.processing_started_at = timezone.now()
-            queue_item.save(update_fields=['status', 'processing_started_at', 'updated_at'])
+            queue_item.save(update_fields=['status', 'processing_started_at', 'last_action_source', 'updated_at'])
+            LifecycleAuditService.log_event(
+                content_item=queue_item.content_item,
+                action_type='api_queue_processing_started',
+                source='system:queue_worker',
+                previous_state=previous_status,
+                new_state=queue_item.status,
+                message='Queue worker started processing API upload item',
+                payload={'queue_item_id': str(queue_item.id)},
+            )
             
             # Create ContentItem using upload service
             from apps.media_manager.services.upload_service import MediaUploadService
@@ -362,10 +390,20 @@ class APIUploadQueueService:
                 logger.info(f"Successfully created content item {content_item.id} with {'document' if document_file else 'no document'}")
             
             # Update queue item
+            previous_status = queue_item.status
             queue_item.content_item = content_item
-            queue_item.status = 'completed'
+            queue_item.transition_to('completed', source='system:queue_worker')
             queue_item.completed_at = timezone.now()
-            queue_item.save(update_fields=['content_item', 'status', 'completed_at', 'updated_at'])
+            queue_item.save(update_fields=['content_item', 'status', 'completed_at', 'last_action_source', 'updated_at'])
+            LifecycleAuditService.log_event(
+                content_item=content_item,
+                action_type='api_queue_completed',
+                source='system:queue_worker',
+                previous_state=previous_status,
+                new_state=queue_item.status,
+                message='Queue worker completed API upload item',
+                payload={'queue_item_id': str(queue_item.id)},
+            )
             
             # Clean up temp files
             cls._cleanup_temp_files(queue_item)
@@ -376,10 +414,20 @@ class APIUploadQueueService:
             
         except Exception as e:
             logger.error(f'Error processing queue item {queue_item.id}: {e}', exc_info=True)
-            queue_item.status = 'failed'
+            previous_status = queue_item.status
+            queue_item.transition_to('failed', reason=str(e), source='system:queue_worker')
             queue_item.error_message = str(e)
             queue_item.gemini_attempts += 1
-            queue_item.save(update_fields=['status', 'error_message', 'gemini_attempts', 'updated_at'])
+            queue_item.save(update_fields=['status', 'error_message', 'gemini_attempts', 'last_action_source', 'updated_at'])
+            LifecycleAuditService.log_event(
+                content_item=queue_item.content_item,
+                action_type='api_queue_failed',
+                source='system:queue_worker',
+                previous_state=previous_status,
+                new_state=queue_item.status,
+                message='Queue worker failed API upload item',
+                payload={'queue_item_id': str(queue_item.id), 'error': str(e)},
+            )
             return None
         finally:
             # Always release lock
@@ -401,7 +449,7 @@ class APIUploadQueueService:
             logger.error(f'Error cleaning up temp files: {e}')
     
     @classmethod
-    def promote_item(cls, queue_item_id):
+    def promote_item(cls, queue_item_id, action_source='admin:jobs_api', actor=None):
         """
         Admin action to promote a queue item to process immediately.
         
@@ -410,15 +458,20 @@ class APIUploadQueueService:
         """
         try:
             queue_item = APIUploadQueue.objects.get(id=queue_item_id)
-            if queue_item.status == 'failed':
-                queue_item.status = 'pending'
+            previous_status = queue_item.status
+            if queue_item.can_retry():
+                queue_item.transition_to('pending', source=action_source)
                 queue_item.queue_status = 'ready'
                 queue_item.scheduled_for = timezone.now()
                 queue_item.error_message = ''
                 queue_item.gemini_attempts += 1
-                queue_item.save(update_fields=['status', 'queue_status', 'scheduled_for', 'error_message', 'gemini_attempts', 'updated_at'])
+                queue_item.save(update_fields=['status', 'queue_status', 'scheduled_for', 'error_message', 'gemini_attempts', 'last_action_source', 'updated_at'])
             else:
+                if not queue_item.can_promote():
+                    raise ValueError(f'Queue item cannot be promoted from status: {queue_item.status}')
                 queue_item.promote_to_ready()
+                queue_item.last_action_source = action_source
+                queue_item.save(update_fields=['last_action_source', 'updated_at'])
             
             # Trigger processing if can acquire lock
             if cls.can_process_type(queue_item.content_type):
@@ -426,11 +479,22 @@ class APIUploadQueueService:
                 process_upload_queue_item.delay(str(queue_item.id), False)
             
             logger.info(f'Promoted queue item {queue_item.id}')
+            LifecycleAuditService.log_event(
+                content_item=queue_item.content_item,
+                action_type='api_queue_promoted',
+                actor=actor,
+                source=action_source,
+                previous_state=previous_status,
+                new_state=queue_item.status,
+                message='API queue item promoted from jobs dashboard API',
+                payload={'queue_item_id': str(queue_item.id)},
+            )
         except APIUploadQueue.DoesNotExist:
             logger.error(f'Queue item {queue_item_id} not found')
+            raise
     
     @classmethod
-    def cancel_item(cls, queue_item_id):
+    def cancel_item(cls, queue_item_id, action_source='admin:jobs_api', actor=None):
         """
         Admin action to cancel a queue item.
         
@@ -439,15 +503,31 @@ class APIUploadQueueService:
         """
         try:
             queue_item = APIUploadQueue.objects.get(id=queue_item_id)
-            queue_item.status = 'cancelled'
-            queue_item.save(update_fields=['status', 'updated_at'])
+            previous_status = queue_item.status
+            if not queue_item.can_cancel():
+                raise ValueError(f'Queue item cannot be cancelled from status: {queue_item.status}')
+
+            queue_item.transition_to('cancelled', reason='Cancelled by admin', source=action_source)
+            queue_item.queue_status = 'ready'
+            queue_item.save(update_fields=['status', 'queue_status', 'error_message', 'last_action_source', 'updated_at'])
             
             # Clean up temp files
             cls._cleanup_temp_files(queue_item)
             
             logger.info(f'Cancelled queue item {queue_item.id}')
+            LifecycleAuditService.log_event(
+                content_item=queue_item.content_item,
+                action_type='api_queue_cancelled',
+                actor=actor,
+                source=action_source,
+                previous_state=previous_status,
+                new_state=queue_item.status,
+                message='API queue item cancelled from jobs dashboard API',
+                payload={'queue_item_id': str(queue_item.id)},
+            )
         except APIUploadQueue.DoesNotExist:
             logger.error(f'Queue item {queue_item_id} not found')
+            raise
     
     @classmethod
     def get_queue_dashboard_data(cls):

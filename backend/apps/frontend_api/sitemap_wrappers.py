@@ -1,5 +1,4 @@
 from django.contrib.sitemaps.views import index as django_sitemap_index, sitemap as django_sitemap
-from django.http import HttpResponse
 
 # Custom wrapper to remove X-Robots-Tag header for XML responses
 

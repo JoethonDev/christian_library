@@ -46,9 +46,9 @@
                             <div class="col-12">
                                 <div class="p-3 bg-light rounded-3 d-flex align-items-center">
                                     <div class="me-3">
-                                        <div id="thumb-preview" class="rounded-3 border overflow-hidden bg-white d-flex align-items-center justify-content-center" style="width: 160px; height: 90px;">
+                                        <div id="thumb-preview" class="rounded-3 border overflow-hidden bg-white d-flex align-items-center justify-content-center admin-thumb-md">
                                             {% if content_item.get_thumbnail_url %}
-                                                <img src="{{ content_item.get_thumbnail_url }}" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+                                                <img src="{{ content_item.get_thumbnail_url }}" class="img-fluid admin-thumb-md">
                                             {% else %}
                                                 <svg class="bi text-muted fs-2" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg>
                                             {% endif %}
@@ -109,8 +109,8 @@
                             <!-- Active Toggle -->
                             <div class="col-12 mt-3">
                                 <div class="form-check form-switch p-3 bg-light rounded-3 ms-0 d-flex align-items-center">
-                                    <input class="form-check-input ms-0 me-3" type="checkbox" name="is_active" id="isActiveCheck" 
-                                           style="width: 2.5em; height: 1.25em;" :checked="isActive"
+                                    <input class="form-check-input ms-0 me-3 admin-toggle" type="checkbox" name="is_active" id="isActiveCheck" 
+                                           :checked="isActive"
                                            :disabled="isToggling"
                                            @change="toggleStatus('{{ content_item.id }}')">
                                     <div>
@@ -141,13 +141,107 @@
                                 </h2>
                                 <div id="collapseText" class="accordion-collapse collapse" data-bs-parent="#accordionText">
                                     <div class="accordion-body bg-white">
-                                        <div class="p-3 bg-light rounded-3 font-monospace small" style="max-height: 300px; overflow-y: auto; white-space: pre-wrap; direction: rtl; text-align: right;">{{ content_item.book_content }}</div>
+                                        <div class="p-3 bg-light rounded-3 font-monospace small admin-scroll-container" style="direction: rtl; text-align: right;">{{ content_item.book_content }}</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     {% endif %}
+
+                    <!-- SEO Configuration -->
+                    <div class="mb-4">
+                        <div class="accordion" id="seoAccordionDetail">
+                            <div class="accordion-item border-0 shadow-sm rounded-3 overflow-hidden">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed bg-light text-dark fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSEODetail" aria-expanded="false" aria-controls="collapseSEODetail">
+                                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+                                        {% trans "SEO Configuration" %}
+                                        <span class="badge {% if content_item.has_seo_metadata %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %} ms-2 rounded-pill">
+                                            {% if content_item.has_seo_metadata %}{% trans "Configured" %}{% else %}{% trans "Not Configured" %}{% endif %}
+                                        </span>
+                                    </button>
+                                </h2>
+                                <div id="collapseSEODetail" class="accordion-collapse collapse" data-bs-parent="#seoAccordionDetail">
+                                    <div class="accordion-body p-4">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-translate"/></svg>
+                                                    {% trans "Meta Title (AR)" %}
+                                                </label>
+                                                <input type="text" name="seo_title_ar" class="form-control bg-light border-0 rounded-3" dir="rtl"
+                                                       value="{{ content_item.seo_title_ar|default:'' }}" maxlength="70">
+                                                <small class="text-muted">{% trans "Recommended: max 70 characters" %}</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-globe"/></svg>
+                                                    {% trans "Meta Title (EN)" %}
+                                                </label>
+                                                <input type="text" name="seo_title_en" class="form-control bg-light border-0 rounded-3" dir="ltr"
+                                                       value="{{ content_item.seo_title_en|default:'' }}" maxlength="70">
+                                                <small class="text-muted">{% trans "Recommended: max 70 characters" %}</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-translate"/></svg>
+                                                    {% trans "Meta Description (AR)" %}
+                                                </label>
+                                                <textarea name="seo_meta_description_ar" class="form-control bg-light border-0 rounded-3" rows="3" dir="rtl" maxlength="160">{{ content_item.seo_meta_description_ar|default:'' }}</textarea>
+                                                <small class="text-muted">{% trans "Recommended: max 160 characters" %}</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-globe"/></svg>
+                                                    {% trans "Meta Description (EN)" %}
+                                                </label>
+                                                <textarea name="seo_meta_description_en" class="form-control bg-light border-0 rounded-3" rows="3" dir="ltr" maxlength="160">{{ content_item.seo_meta_description_en|default:'' }}</textarea>
+                                                <small class="text-muted">{% trans "Recommended: max 160 characters" %}</small>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-tags"/></svg>
+                                                    {% trans "Focus Keywords (AR)" %}
+                                                </label>
+                                                <input type="text" name="seo_keywords_ar" class="form-control bg-light border-0 rounded-3" dir="rtl"
+                                                       value="{{ content_item.seo_keywords_ar|default:'' }}" placeholder="{% trans 'keyword1, keyword2' %}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-tags"/></svg>
+                                                    {% trans "Focus Keywords (EN)" %}
+                                                </label>
+                                                <input type="text" name="seo_keywords_en" class="form-control bg-light border-0 rounded-3" dir="ltr"
+                                                       value="{{ content_item.seo_keywords_en|default:'' }}" placeholder="keyword1, keyword2">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
+                                                    {% trans "Transcript / Content Summary" %}
+                                                </label>
+                                                <textarea name="transcript" class="form-control bg-light border-0 rounded-3" rows="3" dir="rtl">{{ content_item.transcript|default:'' }}</textarea>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small text-muted fw-semibold">
+                                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-journal-text"/></svg>
+                                                    {% trans "Study Notes" %}
+                                                </label>
+                                                <textarea name="notes" class="form-control bg-light border-0 rounded-3" rows="3" dir="rtl">{{ content_item.notes|default:'' }}</textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small text-muted fw-semibold d-flex justify-content-between">
+                                                    <span><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-code-square"/></svg> {% trans "Structured Data (JSON-LD)" %}</span>
+                                                    <span class="badge bg-info-subtle text-info">{% trans "Schema.org" %}</span>
+                                                </label>
+                                                <textarea name="structured_data" class="form-control bg-light border-0 rounded-3 font-monospace" rows="4" placeholder='{ "@context": "https://schema.org", ... }'>{{ content_item.structured_data|default:'' }}</textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="d-flex justify-content-end gap-2 pt-3 border-top mt-4">
                         <a href="{% url 'frontend_api:admin_content_list' %}" class="btn btn-light rounded-pill px-4">
@@ -164,6 +258,68 @@
     
     <!-- Sidebar Meta -->
     <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-bar-chart-line"/></svg>
+                    {% trans "Content Status" %}
+                </h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    {% if content_item.is_active %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill d-inline-flex align-items-center gap-1 py-2 px-3">
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>
+                            {% trans "Active" %}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill d-inline-flex align-items-center gap-1 py-2 px-3">
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pause-circle"/></svg>
+                            {% trans "Inactive" %}
+                        </span>
+                    {% endif %}
+                    {% if content_item.processing_status == 'completed' %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill d-inline-flex align-items-center gap-1 py-2 px-3">
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-check2-circle"/></svg>
+                            {% trans "Processed" %}
+                        </span>
+                    {% elif content_item.processing_status == 'processing' %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill d-inline-flex align-items-center gap-1 py-2 px-3">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            {% trans "Processing" %}
+                        </span>
+                    {% elif content_item.processing_status == 'failed' %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill d-inline-flex align-items-center gap-1 py-2 px-3">
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>
+                            {% trans "Failed" %}
+                        </span>
+                    {% else %}
+                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill d-inline-flex align-items-center gap-1 py-2 px-3">
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-hourglass-split"/></svg>
+                            {% trans "Pending" %}
+                        </span>
+                    {% endif %}
+                </div>
+
+                {% include "admin/partials/content_quality_badges.html" with content_item=content_item meta=meta_data %}
+
+                <div class="d-flex flex-wrap gap-2 pt-3 border-top mt-2">
+                    {% if content_item.can_generate_seo %}
+                    <button type="button" class="btn btn-sm btn-warning text-white rounded-pill px-3" onclick="generateSEOFromDetail('{{ content_item.id }}', this)">
+                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>
+                        {% if content_item.has_seo_metadata %}{% trans "Regenerate SEO" %}{% else %}{% trans "Generate SEO" %}{% endif %}
+                    </button>
+                    {% endif %}
+
+                    {% if content_item.can_retry_r2_upload and meta_data %}
+                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="retryR2Upload('{{ content_item.content_type }}', '{{ meta_data.id }}', this, '{{ content_item.title_ar|escapejs }}')">
+                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Retry R2" %}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
         <!-- Media File Info -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-header bg-transparent border-0 py-3 px-4">
@@ -208,6 +364,7 @@
                             <span class="text-muted">{% trans "Status" %}</span>
                             <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ meta_data.processing_status|default:"Unknown" }}</span>
                         </div>
+
                         {% if meta_data.get_safe_file_size %}
                         <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
                             <span class="text-muted">{% trans "Size" %}</span>
@@ -290,7 +447,7 @@
                     </div>
                     
                     <div class="mt-3" x-show="isUploading" x-cloak>
-                        <div class="progress mb-2" style="height: 10px;">
+                        <div class="progress mb-2 admin-progress-default">
                             <div class="progress-bar progress-bar-striped progress-bar-animated" 
                                  role="progressbar" :style="'width: ' + uploadProgress + '%'"></div>
                         </div>
@@ -302,6 +459,25 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if content_item.supplementary_document_text %}
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-text"/></svg>
+                    {% trans "Extracted Document Text" %}
+                </h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <div class="p-3 bg-light rounded-3 font-monospace small admin-scroll-container" style="direction: rtl; text-align: right; max-height: 300px; overflow-y: auto;">
+                    {{ content_item.supplementary_document_text }}
+                </div>
+                <div class="small text-muted mt-2">
+                    {{ content_item.supplementary_document_text|length|intcomma }} {% trans "characters" %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Danger Zone -->
         <div class="card border-0 shadow-sm rounded-4">
@@ -421,8 +597,10 @@ function contentPage() {
                 try {
                     const response = JSON.parse(xhr.responseText);
                     if (xhr.status >= 200 && xhr.status < 300 && response.success) {
-                        showToast(response.message || '{% trans "Upload successful" %}', 'success');
-                        setTimeout(() => location.reload(), 1500);
+                        showToast(response.message || '{% trans "Document uploaded successfully" %}', 'success');
+                        this.isUploading = false;
+                        this.renderUploadedDocument(response);
+                        setTimeout(() => location.reload(), 2000);
                     } else {
                         this.isUploading = false;
                         showToast(response.error || '{% trans "Upload failed" %}', 'danger');
@@ -439,6 +617,124 @@ function contentPage() {
             };
 
             xhr.send(formData);
+        },
+
+        generateSEOFromDetail(contentId, button) {
+            const csrfToken = '{{ csrf_token }}';
+
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            }
+
+            fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ content_id: contentId })
+            })
+            .then(response => response.json().then(data => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+                if (status >= 200 && status < 300 && data.success) {
+                    showToast(data.message || '{% trans "SEO metadata generation started successfully!" %}', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(data.error || '{% trans "Failed to generate SEO metadata" %}', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('SEO generation error:', error);
+                showToast('{% trans "Network error. Please try again." %}', 'danger');
+            })
+            .finally(() => {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                }
+            });
+        },
+
+        retryR2Upload(contentType, metaId, button, title) {
+            showConfirmation({
+                title: '{% trans "Retry R2 Upload" %}',
+                message: `{% trans "Retry R2 upload for" %} "${title}"?`,
+                details: '{% trans "The item will be queued again for background upload." %}',
+                confirmText: '{% trans "Retry" %}',
+                confirmClass: 'btn-danger',
+                onConfirm: function() {
+                    if (button) {
+                        button.disabled = true;
+                        button.dataset.originalHtml = button.innerHTML;
+                        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                    }
+
+                    fetch(`{% url 'frontend_api:api_r2_retry' 'video' '00000000-0000-0000-0000-000000000000' %}`.replace('/video/', `/${contentType}/`).replace('00000000-0000-0000-0000-000000000000', metaId), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => response.json().then(data => ({ status: response.status, data })))
+                    .then(({ status, data }) => {
+                        if (status >= 200 && status < 300 && data.success) {
+                            showToast(data.message || '{% trans "R2 upload retry triggered" %}', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showToast(data.error || '{% trans "Failed to retry R2 upload" %}', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('R2 retry error:', error);
+                        showToast('{% trans "An error occurred" %}', 'danger');
+                    })
+                    .finally(() => {
+                        if (button) {
+                            button.disabled = false;
+                            button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                        }
+                    });
+                }
+            });
+        },
+
+        renderUploadedDocument(response) {
+            const card = document.getElementById('supplementaryDocumentCard');
+            if (!card) return;
+            const body = card.querySelector('.card-body');
+            const sizeStr = response.document_size
+                ? (response.document_size / 1024).toFixed(1) + ' KB'
+                : '--';
+            body.innerHTML = `
+                <div class="d-flex align-items-center mb-3 p-3 bg-light rounded-3">
+                    <div class="me-3 display-6 text-primary">
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-word-fill"/></svg>
+                    </div>
+                    <div class="overflow-hidden flex-grow-1">
+                        <div class="small text-muted text-uppercase mb-1">{% trans "Document" %}</div>
+                        <div class="fw-bold text-break text-truncate">${this.escapeHtml(response.document_name || '')}</div>
+                        <div class="small text-muted">${sizeStr}</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center p-3 bg-primary-subtle text-primary rounded-3 mb-3">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    <span class="small fw-medium">{% trans "Extracting text..." %}</span>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill" disabled>
+                        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Delete Document" %}
+                    </button>
+                </div>
+            `;
+        },
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
         },
 
         confirmDelete(contentId) {
@@ -507,31 +803,6 @@ function contentPage() {
     };
 }
 
-function showToast(message, type = 'info') {
-    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-        const toastHtml = `
-            <div class="toast align-items-center text-white bg-${type === 'danger' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-        `;
-        const toastContainer = document.getElementById('toast-container') || createToastContainer();
-        const toastElement = document.createElement('div');
-        toastElement.innerHTML = toastHtml;
-        const toastNode = toastElement.firstElementChild;
-        toastContainer.appendChild(toastNode);
-        const toast = new bootstrap.Toast(toastNode, { delay: 5000 });
-        toast.show();
-        toastNode.addEventListener('hidden.bs.toast', () => toastNode.remove());
-    } else if (typeof window.showToast === 'function') {
-        window.showToast(message, type || 'info');
-    } else {
-        console.warn('Toast display unavailable:', message);
-    }
-}
-
 function previewDetailThumb(input) {
     const previewDiv = document.getElementById('thumb-preview');
     if (input.files && input.files[0]) {
@@ -545,15 +816,6 @@ function previewDetailThumb(input) {
         previewDiv.innerHTML = '<svg class="bi text-muted fs-2" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg>';
         previewDiv.classList.add('border');
     }
-}
-
-function createToastContainer() {
-    const container = document.createElement('div');
-    container.id = 'toast-container';
-    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-    container.style.zIndex = '1100';
-    document.body.appendChild(container);
-    return container;
 }
 </script>
 {% endblock %}

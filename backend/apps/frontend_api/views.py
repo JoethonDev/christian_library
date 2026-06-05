@@ -3,12 +3,11 @@ Frontend API Views - Optimized with Zero N+1 Queries
 Refactored to use ContentService layer and eliminate database performance issues.
 Each view now uses minimal queries with proper relationship loading.
 """
+import json
 import logging
-from typing import Dict, Any
 
 from django.http import HttpResponse, Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404
-from django.template.loader import render_to_string
 from django.utils.translation import get_language
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
@@ -510,7 +509,6 @@ def api_track_content_view(request):
     Separate from content-serving endpoints to prevent cache interference.
     CSRF exempt as this is called from cached pages.
     """
-    import json
     
     try:
         # Parse JSON body

@@ -87,12 +87,19 @@ services:
 
   #============================================================================
   # Celery Workers (Background Tasks)
-  # Two single-concurrency workers listen on all queues.
+  #
+  # celery_worker_primary   – media processing (HLS encode, audio compress,
+  #                           PDF extraction, text indexing, default tasks)
+  # celery_worker_secondary – same queues, second worker for throughput
+  # celery_worker_uploads   – DEDICATED R2 upload worker (no rate-limit,
+  #                           higher concurrency; never blocked by encoding)
+  # celery_worker_gemini    – DEDICATED Gemini / SEO worker (rate-limited
+  #                           queue; isolated from heavy media tasks)
   #============================================================================
   celery_worker_primary:
     image: christian-library-app:latest
     restart: unless-stopped
-    command: ["worker", "-Q", "videos,audios,pdfs,gemini,uploads,default", "-c", "1", "-n", "primary@%h"]
+    command: ["worker", "-Q", "videos,audios,pdfs,default", "-c", "1", "-n", "primary@%h"]
     env_file: .env
     depends_on:
       db:
@@ -116,7 +123,7 @@ services:
   celery_worker_secondary:
     image: christian-library-app:latest
     restart: unless-stopped
-    command: ["worker", "-Q", "videos,audios,pdfs,gemini,uploads,default", "-c", "1", "-n", "secondary@%h"]
+    command: ["worker", "-Q", "videos,audios,pdfs,default", "-c", "1", "-n", "secondary@%h"]
     env_file: .env
     depends_on:
       db:
@@ -136,6 +143,57 @@ services:
         limits:
           cpus: '1.0'
           memory: 2048M
+
+  # Dedicated R2 upload worker — high concurrency, no rate limits.
+  # Separated so a slow HLS encode never blocks cloud upload tasks.
+  celery_worker_uploads:
+    image: christian-library-app:latest
+    restart: unless-stopped
+    command: ["worker", "-Q", "uploads", "-c", "4", "-n", "uploads@%h"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Dedicated Gemini / SEO worker — rate-limited, isolated from heavy tasks.
+  celery_worker_gemini:
+    image: christian-library-app:latest
+    restart: unless-stopped
+    command: ["worker", "-Q", "gemini", "-c", "2", "-n", "gemini@%h"]
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    volumes:
+      - media_data:/app/media
+      - logs_data:/app/logs
+    networks:
+      - backend
+      - frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   #============================================================================
   # Celery Beat (Scheduler)

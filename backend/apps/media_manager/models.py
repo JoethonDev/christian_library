@@ -34,8 +34,9 @@ See tests.py for FTS/Arabic search tests.
 """
 from datetime import timedelta
 import datetime
-import os
+import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -243,12 +244,6 @@ class ContentItemQuerySet(models.QuerySet):
             return qs.select_related('pdfmeta').prefetch_related('tags')
         
         return qs.prefetch_related('tags')
-    
-    def with_full_meta(self):
-        """Return content with all possible meta relationships optimized"""
-        return self.select_related(
-            'videometa', 'audiometa', 'pdfmeta'
-        ).prefetch_related('tags')
     
     def with_meta(self):
         """Optimized method to fetch content with appropriate meta - eliminates N+1 queries"""
@@ -990,7 +985,26 @@ class ContentItem(models.Model):
     # --- SEO Helper Methods ---
     def has_seo_metadata(self):
         """Check if this content item has SEO metadata generated"""
-        return bool(self.seo_keywords_ar or self.seo_keywords_en or self.seo_title_ar or self.seo_title_en)
+        return bool(self.seo_keywords_ar or self.seo_keywords_en or self.seo_title_ar or self.seo_title_en or self.seo_meta_description_ar or self.seo_meta_description_en)
+
+    def get_seo_status_display(self):
+        """Get a human-readable label for the SEO processing state."""
+        status_map = {
+            'pending': _('Pending'),
+            'processing': _('Processing'),
+            'completed': _('Completed'),
+            'failed': _('Failed'),
+        }
+        return status_map.get(self.seo_processing_status, self.seo_processing_status or _('Unknown'))
+
+    def can_generate_seo(self):
+        """Return True when SEO can be queued again from the admin UI."""
+        return (not self.has_seo_metadata()) or self.seo_processing_status in {'pending', 'failed'}
+
+    def can_retry_r2_upload(self):
+        """Return True when the underlying media upload can be retried."""
+        meta = self.get_meta_object()
+        return bool(meta and getattr(meta, 'r2_upload_status', '') == 'failed')
 
     def get_seo_title(self, language='en'):
         """Get SEO title with fallback logic"""
@@ -1184,7 +1198,6 @@ class ContentItem(models.Model):
         If language is provided, returns only the specific language's schema block.
         Otherwise detects current request language.
         """
-        import json
         
         if not self.structured_data:
             return ''
@@ -1330,6 +1343,11 @@ class ContentItem(models.Model):
         """Update SEO fields from Gemini AI response"""
         if not seo_metadata_dict:
             return False
+
+        previous_titles = {
+            'title_ar': self.title_ar,
+            'title_en': self.title_en,
+        }
         
         # Check for new nested format {"en": {...}, "ar": {...}}
         if 'en' in seo_metadata_dict and 'ar' in seo_metadata_dict:
@@ -1416,6 +1434,24 @@ class ContentItem(models.Model):
             'title_ar', 'title_en', 'description_ar', 'description_en',
             'updated_at'
         ])
+
+        if previous_titles['title_ar'] != self.title_ar or previous_titles['title_en'] != self.title_en:
+            from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
+
+            LifecycleAuditService.log_event(
+                content_item=self,
+                action_type='ai_title_mutated',
+                source='gemini:seo_update',
+                previous_state='changed',
+                new_state='changed',
+                message='AI-generated title fields updated from Gemini response',
+                payload={
+                    'title_ar_before': previous_titles['title_ar'],
+                    'title_ar_after': self.title_ar,
+                    'title_en_before': previous_titles['title_en'],
+                    'title_en_after': self.title_en,
+                },
+            )
         
         return True
 
@@ -1461,6 +1497,14 @@ class ProcessingJob(models.Model):
         ('completed', _('Completed')),
     ]
 
+    TRANSITION_RULES = {
+        'pending': {'processing', 'canceled'},
+        'processing': {'completed', 'failed'},
+        'failed': {'pending'},
+        'completed': set(),
+        'canceled': set(),
+    }
+
     content_item = models.OneToOneField(
         'ContentItem',
         on_delete=models.CASCADE,
@@ -1481,6 +1525,7 @@ class ProcessingJob(models.Model):
     failure_reason = models.TextField(blank=True)
     retry_count = models.PositiveSmallIntegerField(default=0)
     celery_task_id = models.CharField(max_length=255, blank=True)
+    last_action_source = models.CharField(max_length=64, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1492,6 +1537,28 @@ class ProcessingJob(models.Model):
 
     def __str__(self):
         return f"ProcessingJob({self.content_item_id}) [{self.status} / {self.current_stage}]"
+
+    def can_transition_to(self, new_status):
+        return new_status in self.TRANSITION_RULES.get(self.status, set())
+
+    def transition_to(self, new_status, reason='', source=''):
+        if not self.can_transition_to(new_status):
+            raise ValueError(f'Invalid ProcessingJob transition: {self.status} -> {new_status}')
+
+        self.status = new_status
+        if new_status in ['failed', 'canceled'] and reason:
+            self.failure_reason = reason
+        if source:
+            self.last_action_source = source
+
+    def can_promote(self):
+        return self.status == 'pending'
+
+    def can_retry(self):
+        return self.status == 'failed'
+
+    def can_cancel(self):
+        return self.status == 'pending'
     
 
 class ChunkedUploadSession(models.Model):
@@ -2143,9 +2210,7 @@ class PdfMetaQuerySet(models.QuerySet):
     
     def ready_for_viewing(self):
         """Return PDFs ready for viewing"""
-        return self.filter(processing_status='completed').filter(
-            models.Q(optimized_file__isnull=False) | models.Q(original_file__isnull=False)
-        )
+        return self.filter(processing_status='completed').filter(original_file__isnull=False)
     
     def for_viewer(self):
         """Optimized for PDF viewer - includes content item"""
@@ -2161,10 +2226,6 @@ class PdfMetaQuerySet(models.QuerySet):
         """Always include related content item"""
         return self.select_related('content_item')
     
-    def with_optimized(self):
-        """Return PDFs with optimized versions available"""
-        return self.filter(optimized_file__isnull=False)
-    
     def r2_uploaded(self):
         """Return PDFs uploaded to R2"""
         return self.filter(r2_upload_status='completed')
@@ -2179,7 +2240,6 @@ class PdfMetaQuerySet(models.QuerySet):
             total_pdfs=models.Count('id'),
             ready_pdfs=models.Count('id', filter=models.Q(processing_status='completed')),
             processing_pdfs=models.Count('id', filter=models.Q(processing_status__in=['pending', 'processing'])),
-            optimized_count=models.Count('id', filter=models.Q(optimized_file__isnull=False)),
             searchable_count=models.Count('id', filter=models.Q(
                 content_item__book_content__isnull=False,
                 content_item__book_content__gt=''
@@ -2228,11 +2288,6 @@ class PdfMeta(models.Model):
         blank=True, 
         verbose_name=_('Original File')
     )
-    optimized_file = models.FileField(
-        upload_to='optimized/pdf/', 
-        blank=True, 
-        verbose_name=_('Optimized File')
-    )
     file_size_mb = models.PositiveIntegerField(
         null=True, 
         blank=True, 
@@ -2259,12 +2314,6 @@ class PdfMeta(models.Model):
         blank=True,
         verbose_name=_('R2 Original File URL'),
         help_text=_('Cloudflare R2 URL for the original PDF file (if uploaded)')
-    )
-    r2_optimized_file_url = models.URLField(
-        max_length=1000,
-        blank=True,
-        verbose_name=_('R2 Optimized File URL'),
-        help_text=_('Cloudflare R2 URL for the optimized PDF file (if uploaded)')
     )
     r2_upload_status = models.CharField(
         max_length=32,
@@ -2309,8 +2358,7 @@ class PdfMeta(models.Model):
     
     def is_ready_for_viewing(self):
         """Check if PDF is ready for viewing"""
-        return (self.processing_status == 'completed' and 
-                (self.optimized_file or self.original_file))
+        return self.processing_status == 'completed' and bool(self.original_file)
 
     def get_safe_file_size(self):
         """Safely get file size in bytes, handling missing files and R2 storage"""
@@ -2327,8 +2375,8 @@ class PdfMeta(models.Model):
         return 0
     
     def get_viewing_file(self):
-        """Get the best file for viewing (optimized if available, otherwise original)"""
-        return self.optimized_file if self.optimized_file else self.original_file
+        """Get the file for viewing (original PDF only)."""
+        return self.original_file
     
     def get_original_file(self):
         """Get the original PDF file for download"""
@@ -2342,14 +2390,10 @@ class PdfMeta(models.Model):
         """Get the direct download URL (R2 if available, otherwise local)"""
         if self.r2_original_file_url:
             return self.r2_original_file_url
-        if self.r2_optimized_file_url:
-            return self.r2_optimized_file_url
         return self.original_file.url if self.original_file else None
     
     def get_direct_viewing_url(self):
         """Get the direct viewing URL (R2 if available, otherwise local)"""
-        if self.r2_optimized_file_url:
-            return self.r2_optimized_file_url
         if self.r2_original_file_url:
             return self.r2_original_file_url
         file_obj = self.get_viewing_file()
@@ -2358,7 +2402,7 @@ class PdfMeta(models.Model):
     # --- R2 Helper Methods ---
     def has_r2_files(self):
         """Check if any R2 files are available"""
-        return bool(self.r2_original_file_url or self.r2_optimized_file_url)
+        return bool(self.r2_original_file_url)
     
     def get_r2_status_display(self):
         """Get human-readable R2 upload status"""
@@ -2373,8 +2417,6 @@ class PdfMeta(models.Model):
     
     def get_pdf_url(self):
         """Get the best available viewing URL (R2 URL if available)"""
-        if self.r2_optimized_file_url:
-            return self.r2_optimized_file_url
         if self.r2_original_file_url:
             return self.r2_original_file_url
             
@@ -2617,7 +2659,6 @@ class SiteConfiguration(models.Model):
 
     def get_structured_data_json(self, lang='en'):
         """Get structured data as JSON string for a specific language"""
-        import json
         if self.structured_data and isinstance(self.structured_data, dict):
             if lang in self.structured_data:
                 return json.dumps(self.structured_data[lang], ensure_ascii=False, indent=2)
@@ -2670,6 +2711,16 @@ class APIUploadQueue(models.Model):
         ('rate_limited', _('Rate Limited')),
         ('cancelled', _('Cancelled')),
     ]
+
+    PENDING_LIKE_STATUSES = {'pending', 'queued', 'rate_limited'}
+
+    TRANSITION_RULES = {
+        'pending': {'processing', 'cancelled'},
+        'processing': {'completed', 'failed'},
+        'failed': {'pending'},
+        'completed': set(),
+        'cancelled': set(),
+    }
     
     QUEUE_STATUS_CHOICES = [
         ('waiting', _('Waiting')),
@@ -2743,6 +2794,13 @@ class APIUploadQueue(models.Model):
         verbose_name=_('Gemini Attempts'),
         help_text=_('Number of attempts to generate metadata with Gemini')
     )
+    last_action_source = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        verbose_name=_('Last Action Source'),
+        help_text=_('Origin of last status mutation, such as admin API or queue worker')
+    )
     content_item = models.ForeignKey(
         ContentItem,
         on_delete=models.SET_NULL,
@@ -2781,6 +2839,34 @@ class APIUploadQueue(models.Model):
     
     def __str__(self):
         return f"{self.file_name} - {self.status}"
+
+    def _normalized_status(self):
+        if self.status in self.PENDING_LIKE_STATUSES:
+            return 'pending'
+        return self.status
+
+    def can_transition_to(self, new_status):
+        current = self._normalized_status()
+        return new_status in self.TRANSITION_RULES.get(current, set())
+
+    def transition_to(self, new_status, reason='', source=''):
+        if not self.can_transition_to(new_status):
+            raise ValueError(f'Invalid APIUploadQueue transition: {self.status} -> {new_status}')
+
+        self.status = new_status
+        if new_status in ['failed', 'cancelled'] and reason:
+            self.error_message = reason
+        if source:
+            self.last_action_source = source
+
+    def can_promote(self):
+        return self.status in self.PENDING_LIKE_STATUSES
+
+    def can_retry(self):
+        return self.status == 'failed'
+
+    def can_cancel(self):
+        return self.status in self.PENDING_LIKE_STATUSES
     
     def can_process(self):
         """
@@ -2851,6 +2937,49 @@ class APIUploadQueue(models.Model):
             models.Q(priority__gt=self.priority) |
             models.Q(priority=self.priority, created_at__lt=self.created_at)
         ).count() + 1
+
+
+class ContentLifecycleAuditLog(models.Model):
+    """Persistent lifecycle log for content processing and admin actions."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content_item = models.ForeignKey(
+        ContentItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lifecycle_audit_logs',
+        verbose_name=_('Content Item'),
+    )
+    action_type = models.CharField(max_length=64, db_index=True, verbose_name=_('Action Type'))
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='content_lifecycle_logs',
+        verbose_name=_('Actor'),
+    )
+    source = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name=_('Source'))
+    previous_state = models.CharField(max_length=32, blank=True, default='', verbose_name=_('Previous State'))
+    new_state = models.CharField(max_length=32, blank=True, default='', verbose_name=_('New State'))
+    message = models.TextField(blank=True, default='', verbose_name=_('Message'))
+    payload = models.JSONField(blank=True, default=dict, verbose_name=_('Payload'))
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name=_('Created At'))
+
+    class Meta:
+        verbose_name = _('Content Lifecycle Audit Log')
+        verbose_name_plural = _('Content Lifecycle Audit Logs')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['content_item', 'created_at']),
+            models.Index(fields=['action_type', 'created_at']),
+            models.Index(fields=['actor', 'created_at']),
+            models.Index(fields=['new_state', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.action_type} [{self.previous_state} -> {self.new_state}]"
 
 
 class APIUploadLog(models.Model):

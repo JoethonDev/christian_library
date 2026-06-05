@@ -3,11 +3,9 @@ Celery Task Monitoring System for Admin Dashboard
 Tracks background tasks and their status
 """
 from typing import Dict, List, Optional
-from celery import current_app
 from celery.result import AsyncResult
 from django.core.cache import cache
 from django.utils import timezone
-import json
 import logging
 
 logger = logging.getLogger(__name__)

@@ -1,8 +1,9 @@
-from django.urls import path
+from django.urls import path, re_path
 from django.views.generic import RedirectView
 from . import views
 from . import admin_views
 from . import seo_views
+from apps.users.views import LoginView as UserLoginView
 
 app_name = 'frontend_api'
 
@@ -44,6 +45,7 @@ urlpatterns = [
     path('player/pdf/<uuid:pdf_uuid>/', views.pdf_player, name='pdf_player'),
     
     # Custom Admin dashboard and management views (at /en/dashboard/)
+    path('dashboard/login/', UserLoginView.as_view(), name='admin_login'),
     path('dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
     path('dashboard/content/', admin_views.content_list, name='admin_content_list'),
     path('dashboard/content/<uuid:content_id>/', admin_views.content_detail, name='admin_content_detail'),
@@ -69,14 +71,14 @@ urlpatterns = [
     path('dashboard/upload/generate-from-file/', admin_views.generate_metadata_from_file, name='generate_metadata_from_file'),
     path('dashboard/upload/generate-metadata-only/', admin_views.generate_metadata_only, name='generate_metadata_only'),
     path('dashboard/upload/generate-seo-only/', admin_views.generate_seo_only, name='generate_seo_only'),
-    
-    # Content type specific management (at /en/dashboard/videos/, etc.)
-    path('dashboard/videos/', admin_views.video_management, name='video_management'),
-    path('dashboard/audios/', admin_views.audio_management, name='audio_management'),
-    path('dashboard/pdfs/', admin_views.pdf_management, name='pdf_management'),
-    
+        
     # System management (at /en/dashboard/system/, etc.)
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
+    path('dashboard/system/files/', admin_views.file_manager, name='file_manager'),
+    path('dashboard/system/files/action/', admin_views.file_manager_action, name='file_manager_action'),
+    path('dashboard/system/files/download/', admin_views.file_manager_download, name='file_manager_download'),
+    path('dashboard/system/orphaned/', admin_views.orphaned_files, name='orphaned_files'),
+    path('dashboard/system/cache/', admin_views.cache_manager, name='cache_manager'),
     path('dashboard/bulk/', admin_views.bulk_operations, name='bulk_operations'),
 
     # Background Jobs dashboard (at /en/dashboard/jobs/)
@@ -86,10 +88,10 @@ urlpatterns = [
     path('dashboard/jobs/api/promote/', admin_views.api_job_promote, name='api_job_promote'),
     path('dashboard/jobs/api/dispatch/', admin_views.api_job_dispatch, name='api_job_dispatch'),
     path('dashboard/jobs/api/stats/', admin_views.api_jobs_stats, name='api_jobs_stats'),
+
+    # Content lifecycle logs dashboard
+    path('dashboard/logs/', admin_views.lifecycle_audit_logs, name='admin_lifecycle_audit_logs'),
     
-    # API Upload Queue Management (at /en/dashboard/api-queue/)
-    path('dashboard/api-queue/', admin_views.api_queue_list, name='api_queue_list'),
-    path('dashboard/api-queue/<uuid:queue_id>/', admin_views.api_queue_detail, name='api_queue_detail'),
     path('dashboard/api-queue/<uuid:queue_id>/promote/', admin_views.api_queue_promote, name='api_queue_promote'),
     path('dashboard/api-queue/<uuid:queue_id>/cancel/', admin_views.api_queue_cancel, name='api_queue_cancel'),
     
@@ -97,31 +99,15 @@ urlpatterns = [
     path('dashboard/analytics/', admin_views.analytics_dashboard, name='analytics_dashboard'),
     path('dashboard/analytics/api/', admin_views.api_analytics_views, name='api_analytics_views'),
     
-    # Search Sensitivity Settings API
-    path('dashboard/search-settings/', admin_views.get_search_sensitivity, name='get_search_sensitivity'),
+    # Search Sensitivity Settings
+    path('dashboard/search-settings/', admin_views.search_settings_page, name='get_search_sensitivity'),
+    path('dashboard/search-settings/api/', admin_views.get_search_sensitivity, name='api_get_search_sensitivity'),
     path('dashboard/search-settings/update/', admin_views.update_search_sensitivity, name='update_search_sensitivity'),
     path('dashboard/search-settings/test/', admin_views.test_search_sensitivity, name='test_search_sensitivity'),
     
-    # SEO Dashboard (at /en/dashboard/seo/)
-    path('dashboard/seo/', seo_views.SEODashboardView.as_view(), name='seo_dashboard'),
-    path('dashboard/seo/analytics-api/', seo_views.seo_analytics_api, name='seo_analytics_api'),
-    path('dashboard/seo/content-analysis-api/', seo_views.seo_content_analysis_api, name='seo_content_analysis_api'),
-    path('dashboard/seo/bulk-actions-api/', seo_views.bulk_seo_actions_api, name='bulk_seo_actions_api'),
-    path('dashboard/seo/monitoring-api/', seo_views.seo_monitoring_api, name='seo_monitoring_api'),
-    path('dashboard/seo/site-config-api/', seo_views.site_seo_api, name='site_seo_api'),
-    
-    # R2 Upload Status Dashboard (at /en/dashboard/r2/)
-    path('dashboard/r2/', admin_views.r2_status_dashboard, name='r2_status_dashboard'),
-    path('dashboard/r2/status/', admin_views.get_r2_sync_status, name='r2_sync_status'),
+    # Unified content type management (explicitly restricted to supported types)
+    re_path(r'^dashboard/(?P<media_type>video|audio|pdf)/$', admin_views.media_management, name='media_management'),
 
-    
-    # Legacy admin interfaces (redirects to dashboard for backward compatibility)
-    path('admin/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_redirect'),
-    path('admin-dashboard/', RedirectView.as_view(pattern_name='frontend_api:admin_dashboard'), name='admin_dashboard_legacy'),
-    path('admin-content/', RedirectView.as_view(pattern_name='frontend_api:admin_content_list'), name='admin_content_management'),
-    path('admin-system/', RedirectView.as_view(pattern_name='frontend_api:system_monitor'), name='admin_system_monitor'),
-    path('admin-bulk/', RedirectView.as_view(pattern_name='frontend_api:bulk_operations'), name='admin_bulk_operations'),
-    
     # API endpoints (NOT cached - separate from content routes)
     path('api/health/', views.api_health, name='api_health'),
     path('api/home-data/', views.api_home_data, name='api_home_data'),

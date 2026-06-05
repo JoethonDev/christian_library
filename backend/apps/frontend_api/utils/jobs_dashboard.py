@@ -1,20 +1,39 @@
 import json
+from datetime import timedelta
 
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import BooleanField, Case, CharField, Count, DateTimeField, F, Q, Value, When
+from django.db.models.functions import Cast, Coalesce
 from django.http import HttpResponseForbidden
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.media_manager.models import APIUploadQueue, ProcessingJob
 from apps.media_manager.tasks import extract_and_index_contentitem, generate_seo_metadata_task
 from core.tasks.media_processing import (
     process_audio_compression,
-    process_pdf_metadata,
+    process_pdf,
     process_video_to_hls,
     upload_audio_to_r2,
     upload_pdf_to_r2,
     upload_video_to_r2,
 )
+
+# A job is considered stale when it has been actively processing for longer
+# than this threshold without updating its status.
+STALE_JOB_HOURS = 5
+
+API_QUEUE_PENDING_STATUSES = ['pending', 'queued', 'rate_limited']
+
+
+def canonical_api_queue_status():
+    return Case(
+        When(status__in=API_QUEUE_PENDING_STATUSES, then=Value('pending')),
+        When(status='cancelled', then=Value('canceled')),
+        default=F('status'),
+        output_field=CharField(),
+    )
 
 
 def ensure_staff(request):
@@ -35,7 +54,7 @@ def parse_request_payload(request):
 def job_status_filters(status_filter):
     return {
         'active': {'processing_job': ['processing'], 'api_queue': ['processing']},
-        'pending': {'processing_job': ['pending'], 'api_queue': ['pending', 'queued', 'rate_limited']},
+        'pending': {'processing_job': ['pending'], 'api_queue': API_QUEUE_PENDING_STATUSES},
         'canceled': {'processing_job': ['canceled'], 'api_queue': ['cancelled']},
         'completed': {'processing_job': ['completed'], 'api_queue': ['completed']},
         'failed': {'processing_job': ['failed'], 'api_queue': ['failed']},
@@ -102,72 +121,42 @@ def dispatch_processing_task(content_item, stage='full', force=False):
     if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'audio' and meta:
         return process_audio_compression.delay(str(meta.id))
     if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'pdf' and meta:
-        return process_pdf_metadata.delay(str(meta.id))
+        return process_pdf.delay(str(meta.id))
 
     return None
 
 
-def serialize_processing_job(job):
-    content_item = job.content_item
-    return {
-        'id': str(job.id),
-        'source': 'processing_job',
-        'content_id': str(content_item.id),
-        'title': content_item.get_title(),
-        'content_type': content_item.content_type,
-        'status': job.status,
-        'stage': job.current_stage,
-        'celery_task_id': job.celery_task_id,
-        'retry_count': job.retry_count,
-        'failure_reason': job.failure_reason,
-        'created_at': job.created_at,
-        'updated_at': job.updated_at,
-        'can_cancel': job.status in ['pending', 'processing'],
-        'can_promote': job.status == 'pending',
-        'can_retry': job.status == 'failed',
-    }
-
-
-def serialize_api_queue_item(queue_item):
-    content_item = queue_item.content_item
-    title = queue_item.file_name
-    content_id = str(queue_item.id)
-
-    if content_item:
-        title = content_item.get_title()
-        content_id = str(content_item.id)
-
-    return {
-        'id': str(queue_item.id),
-        'source': 'api_queue',
-        'content_id': content_id,
-        'title': title,
-        'content_type': queue_item.content_type,
-        'status': queue_item.status,
-        'stage': queue_item.queue_status,
-        'celery_task_id': '',
-        'retry_count': queue_item.gemini_attempts,
-        'failure_reason': queue_item.error_message or '',
-        'created_at': queue_item.created_at,
-        'updated_at': queue_item.updated_at,
-        'can_cancel': queue_item.status not in ['completed', 'cancelled'],
-        'can_promote': queue_item.status in ['pending', 'queued', 'rate_limited'],
-        'can_retry': queue_item.status == 'failed',
-    }
-
-
 def get_jobs_counts():
+    processing_counts = ProcessingJob.objects.aggregate(
+        active=Count('id', filter=Q(status='processing')),
+        pending=Count('id', filter=Q(status='pending')),
+        canceled=Count('id', filter=Q(status='canceled')),
+        completed=Count('id', filter=Q(status='completed')),
+        failed=Count('id', filter=Q(status='failed')),
+    )
+
+    api_counts = APIUploadQueue.objects.annotate(
+        canonical_status=canonical_api_queue_status()
+    ).aggregate(
+        active=Count('id', filter=Q(canonical_status='processing')),
+        pending=Count('id', filter=Q(canonical_status='pending')),
+        canceled=Count('id', filter=Q(canonical_status='canceled')),
+        completed=Count('id', filter=Q(canonical_status='completed')),
+        failed=Count('id', filter=Q(canonical_status='failed')),
+    )
+
     return {
-        'active': ProcessingJob.objects.filter(status='processing').count() + APIUploadQueue.objects.filter(status='processing').count(),
-        'pending': ProcessingJob.objects.filter(status='pending').count() + APIUploadQueue.objects.filter(status__in=['pending', 'queued', 'rate_limited']).count(),
-        'canceled': ProcessingJob.objects.filter(status='canceled').count() + APIUploadQueue.objects.filter(status='cancelled').count(),
-        'completed': ProcessingJob.objects.filter(status='completed').count() + APIUploadQueue.objects.filter(status='completed').count(),
-        'failed': ProcessingJob.objects.filter(status='failed').count() + APIUploadQueue.objects.filter(status='failed').count(),
+        'active': processing_counts['active'] + api_counts['active'],
+        'pending': processing_counts['pending'] + api_counts['pending'],
+        'canceled': processing_counts['canceled'] + api_counts['canceled'],
+        'completed': processing_counts['completed'] + api_counts['completed'],
+        'failed': processing_counts['failed'] + api_counts['failed'],
     }
 
 
 def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all', search_query=''):
     filters = job_status_filters(status_filter)
+    stale_cutoff = timezone.now() - timedelta(hours=STALE_JOB_HOURS)
 
     processing_jobs = ProcessingJob.objects.select_related('content_item')
     api_queue_items = APIUploadQueue.objects.select_related('content_item')
@@ -192,16 +181,154 @@ def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all'
     processing_jobs = processing_jobs.filter(status__in=filters['processing_job'])
     api_queue_items = api_queue_items.filter(status__in=filters['api_queue'])
 
-    jobs = [serialize_processing_job(job) for job in processing_jobs]
-    jobs.extend(serialize_api_queue_item(item) for item in api_queue_items)
-    jobs.sort(key=lambda job: job['updated_at'] or job['created_at'], reverse=True)
+    # Clear model default ordering so SQLite allows compound UNION queries.
+    processing_jobs = processing_jobs.order_by()
+    api_queue_items = api_queue_items.order_by()
 
-    paginator = Paginator(jobs, per_page)
-    return paginator.get_page(page)
+    processing_rows = processing_jobs.annotate(
+        row_id=Cast('id', output_field=CharField()),
+        source=Value('processing_job', output_field=CharField()),
+        status_value=F('status'),
+        content_id_value=Cast('content_item_id', output_field=CharField()),
+        title_value=Coalesce(
+            'content_item__title_ar',
+            'content_item__title_en',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        content_type_value=F('content_item__content_type'),
+        stage_value=F('current_stage'),
+        retry_count_value=F('retry_count'),
+        failure_reason_value=Coalesce(
+            'failure_reason',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        # Stale = actively 'processing' but not updated within the threshold.
+        # Stale jobs are shown as actionable so admins can cancel or force-retry them.
+        can_cancel_value=Case(
+            When(status='pending', then=Value(True)),
+            When(Q(status='processing') & Q(updated_at__lt=stale_cutoff), then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+        can_promote_value=Case(
+            When(status__in=['pending', 'failed'], then=Value(True)),
+            When(Q(status='processing') & Q(updated_at__lt=stale_cutoff), then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+        can_retry_value=Case(
+            When(status='failed', then=Value(True)),
+            When(Q(status='processing') & Q(updated_at__lt=stale_cutoff), then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+    ).values(
+        'row_id',
+        'source',
+        'status_value',
+        'content_id_value',
+        'title_value',
+        'content_type_value',
+        'stage_value',
+        'retry_count_value',
+        'failure_reason_value',
+        'created_at',
+        'updated_at',
+        'can_cancel_value',
+        'can_promote_value',
+        'can_retry_value',
+    )
+
+    api_queue_rows = api_queue_items.annotate(
+        row_id=Cast('id', output_field=CharField()),
+        source=Value('api_queue', output_field=CharField()),
+        status_value=canonical_api_queue_status(),
+        content_id_value=Coalesce(
+            Cast('content_item_id', output_field=CharField()),
+            Cast('id', output_field=CharField()),
+        ),
+        title_value=Coalesce(
+            'content_item__title_ar',
+            'content_item__title_en',
+            'file_name',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        content_type_value=F('content_type'),
+        stage_value=F('queue_status'),
+        retry_count_value=F('gemini_attempts'),
+        failure_reason_value=Coalesce(
+            'error_message',
+            Value('', output_field=CharField()),
+            output_field=CharField(),
+        ),
+        can_cancel_value=Case(
+            When(status__in=['pending', 'queued', 'rate_limited'], then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+        can_promote_value=Case(
+            When(status__in=['pending', 'queued', 'rate_limited'], then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+        can_retry_value=Case(
+            When(status='failed', then=Value(True)),
+            default=Value(False),
+            output_field=BooleanField(),
+        ),
+    ).values(
+        'row_id',
+        'source',
+        'status_value',
+        'content_id_value',
+        'title_value',
+        'content_type_value',
+        'stage_value',
+        'retry_count_value',
+        'failure_reason_value',
+        'created_at',
+        'updated_at',
+        'can_cancel_value',
+        'can_promote_value',
+        'can_retry_value',
+    )
+
+    merged_rows = processing_rows.union(api_queue_rows, all=True).order_by('-updated_at', '-created_at')
+
+    paginator = Paginator(merged_rows, per_page)
+    page_obj = paginator.get_page(page)
+    page_obj.object_list = [
+        {
+            'id': row['row_id'],
+            'source': row['source'],
+            'content_id': row['content_id_value'],
+            'title': row['title_value'] or _('Untitled'),
+            'content_type': row['content_type_value'],
+            'status': row['status_value'],
+            # is_stale: True when job has been 'processing' longer than STALE_JOB_HOURS
+            'is_stale': (
+                row['status_value'] == 'processing'
+                and row['updated_at'] is not None
+                and row['updated_at'] < stale_cutoff
+            ),
+            'stage': row['stage_value'],
+            'retry_count': row['retry_count_value'],
+            'failure_reason': row['failure_reason_value'],
+            'created_at': row['created_at'],
+            'updated_at': row['updated_at'],
+            'can_cancel': row['can_cancel_value'],
+            'can_promote': row['can_promote_value'],
+            'can_retry': row['can_retry_value'],
+        }
+        for row in page_obj.object_list
+    ]
+    return page_obj
 
 
-def dispatch_content_item_for_stage(content_item, stage):
-    job, _ = ProcessingJob.objects.get_or_create(content_item=content_item)
+def dispatch_content_item_for_stage(content_item, stage, force=False, action_source='system:jobs_dispatch'):
     current_stage = {
         'full': 'file_processing',
         'file_processing': 'file_processing',
@@ -211,18 +338,41 @@ def dispatch_content_item_for_stage(content_item, stage):
         'text_extraction': 'text_extraction',
     }.get(stage, 'file_processing')
 
-    job.status = 'pending'
-    job.current_stage = current_stage
-    job.failure_stage = ''
-    job.failure_reason = ''
-    job.celery_task_id = ''
-    job.save(update_fields=['status', 'current_stage', 'failure_stage', 'failure_reason', 'celery_task_id', 'updated_at'])
+    with transaction.atomic():
+        job, _ = ProcessingJob.objects.select_for_update().get_or_create(content_item=content_item)
 
-    task = dispatch_processing_task(content_item, stage=stage)
-    if task:
-        job.celery_task_id = task.id
-        job.status = 'processing'
-        job.save(update_fields=['status', 'celery_task_id', 'updated_at'])
-        return task.id
+        if job.status == 'processing' and not force:
+            return ''
+        if job.status in ['completed', 'canceled'] and not force:
+            return ''
+
+        update_fields = ['status', 'current_stage', 'failure_stage', 'failure_reason', 'celery_task_id', 'last_action_source', 'updated_at']
+
+        if job.can_retry():
+            job.transition_to('pending', reason=_('Retry requested by admin'), source=action_source)
+            job.retry_count += 1
+            update_fields.append('retry_count')
+        elif force and job.status in ['processing', 'completed', 'canceled']:
+            # Force-dispatch can recover terminal jobs without a separate repair route.
+            job.status = 'pending'
+            job.last_action_source = action_source
+        elif job.status != 'pending':
+            return ''
+
+        if job.status == 'pending' and not job.last_action_source:
+            job.last_action_source = action_source
+
+        job.current_stage = current_stage
+        job.failure_stage = ''
+        job.failure_reason = ''
+        job.celery_task_id = ''
+        job.save(update_fields=update_fields)
+
+        task = dispatch_processing_task(content_item, stage=stage, force=force)
+        if task:
+            job.transition_to('processing', source=action_source)
+            job.celery_task_id = task.id
+            job.save(update_fields=['status', 'celery_task_id', 'last_action_source', 'updated_at'])
+            return task.id
 
     return ''

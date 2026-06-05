@@ -2,21 +2,21 @@
 {% load i18n %}
 <div class="table-responsive" id="seo-analysis-table-container">
     <table class="table table-hover align-middle mb-0" id="content-analysis-table">
-        <thead class="bg-light">
+        <thead>
             <tr>
-                <th class="ps-4 py-3 border-0" style="width: 40px;">
+                <th class="admin-checkbox-col admin-table-thead ps-4 border-0">
                     <input class="form-check-input" type="checkbox" id="select-all">
                 </th>
-                <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Content" %}</th>
-                <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Type" %}</th>
-                <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Score" %}</th>
-                <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Priority" %}</th>
-                <th class="py-3 border-0 text-secondary text-uppercase small fw-bold">{% trans "Issues" %}</th>
-                <th class="pe-4 py-3 border-0 text-end text-secondary text-uppercase small fw-bold">{% trans "Actions" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Content" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Type" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Score" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Priority" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Issues" %}</th>
+                <th class="admin-table-thead pe-4 border-0 text-end">{% trans "Actions" %}</th>
             </tr>
         </thead>
         <tbody id="content-analysis-body">
-            <!-- Content will be loaded via AJAX from JavaScript in seo_dashboard.html -->
+            <!-- Content will be loaded by the unified content management SEO controls -->
             <tr>
                 <td colspan="7" class="text-center py-5 text-muted">
                     <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>

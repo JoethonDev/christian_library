@@ -1,23 +1,24 @@
 {% load i18n %}{% load static %}
 <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
+        <thead>
             <tr>
-                <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0" style="width: 40px;">
+                <th class="admin-checkbox-col admin-table-thead ps-4 border-0">
                     <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
                 </th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Document" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Pages" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Size" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Indexed" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Visibility" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
-                <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Document" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Tags" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Pages" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Size" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Indexed" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Visibility" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Status" %}</th>
+                <th class="admin-table-thead text-end pe-4 border-0">{% trans "Actions" %}</th>
             </tr>
         </thead>
         <tbody>
             {% for pdf in pdfs %}
+            {% with meta=pdf.get_meta_object %}
             <tr x-data="{ expanded: false, autoFilling: false }" class="border-bottom">
                 <td class="ps-4 py-3">
                     <input type="checkbox" class="form-check-input row-checkbox" 
@@ -82,12 +83,10 @@
                         <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">
                             <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-check2"/></svg>{{ pdf.indexed_char_count|floatformat:0 }}
                         </span>
-                    {% elif pdf.content_type == 'pdf' %}
+                    {% else %}
                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill px-2">
                             {% trans "Pending" %}
                         </span>
-                    {% else %}
-                        <span class="text-muted small">-</span>
                     {% endif %}
                 </td>
                 <td>
@@ -98,30 +97,41 @@
                                onchange="toggleStatus('{{ pdf.id }}', this)">
                     </div>
                 </td>
-                 <td>
+                <td>
+                    <div class="status-badge-stack">
                     {% if pdf.processing_status == 'completed' %}
-                        <span class="badge bg-success rounded-pill px-2 text-white">{% trans "Active" %}</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">{% trans "Active" %}</span>
                     {% elif pdf.processing_status == 'processing' or pdf.processing_status == 'pending' %}
                         <div class="d-flex align-items-center text-warning" title="{% trans 'Processing' %}">
                             <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                             <span class="small fw-semibold">{% trans "Processing" %}</span>
                         </div>
                     {% elif pdf.processing_status == 'failed' %}
-                        <span class="badge bg-danger rounded-pill px-2">{% trans "Failed" %}</span>
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2">{% trans "Failed" %}</span>
                     {% else %}
-                        <span class="badge bg-secondary rounded-pill px-2">{{ pdf.processing_status|title }}</span>
+                        <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">{{ pdf.processing_status|title }}</span>
                     {% endif %}
+                        {% include "admin/partials/content_quality_badges.html" with content_item=pdf meta=meta %}
+                    </div>
                 </td>
                 <td class="text-end pe-4">
                     <div class="btn-group">
-                        {% if not pdf.pdfmeta.has_seo %}
+                        {% if pdf.can_generate_seo %}
                         <button type="button" 
                                 class="btn btn-sm btn-warning text-white" 
-                                title="{% trans 'Auto-Fill SEO' %}"
+                                title="{% if pdf.has_seo_metadata %}{% trans 'Regenerate SEO' %}{% else %}{% trans 'Generate SEO' %}{% endif %}"
                                 @click="confirmAutoFill('{{ pdf.id }}', '{{ pdf.title_ar|escapejs }}')"
                                 :disabled="autoFilling">
                             <svg class="bi me-1" aria-hidden="true" focusable="false"><use :href="autoFilling ? '#bi-hourglass-split' : '#bi-magic'"></use></svg>
-                            <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
+                            <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% if pdf.has_seo_metadata %}{% trans "Regenerate SEO" %}{% else %}{% trans "SEO" %}{% endif %}'"></span>
+                        </button>
+                        {% endif %}
+                        {% if pdf.can_retry_r2_upload and meta %}
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                title="{% trans 'Retry R2' %}"
+                                onclick="retryR2Upload('{{ pdf.content_type }}', '{{ meta.id }}', this, '{{ pdf.title_ar|escapejs }}')">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Retry R2" %}
                         </button>
                         {% endif %}
                         <a href="{% url 'frontend_api:admin_content_detail' pdf.id %}" 
@@ -149,6 +159,7 @@
                     </div>
                 </td>
             </tr>
+            {% endwith %}
             {% empty %}
             <tr>
                 <td colspan="9" class="text-center py-5 text-muted">
@@ -167,7 +178,8 @@
 
     {% if pagination and pagination.has_pagination %}
     <div class="card-footer bg-white border-0 py-4">
-        {% include "admin/partials/pagination.html" with baseUrl="/api/admin/pdf-management/" hxTarget="#pdf-table-container" extraParams="&status="|add:filters.status|add:"&search="|add:filters.search|add:"&missing_data="|add:filters.missing_data %}
+        {% url 'frontend_api:media_management' media_type='pdf' as pdf_base_url %}
+        {% include "admin/partials/pagination.html" with baseUrl=pdf_base_url hxTarget="#media-table-container" extraParams="&status="|add:filters.status|add:"&search="|add:filters.search|add:"&missing_data="|add:filters.missing_data %}
     </div>
     {% endif %}
 </div>

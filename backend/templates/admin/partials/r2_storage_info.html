@@ -63,8 +63,8 @@
                             <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>
                             ${new Date(data.last_updated).toLocaleString()}
                         </small>
-                        <a href="{% url 'frontend_api:r2_status_dashboard' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
-                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-speedometer2"/></svg> {% trans "Status" %}
+                        <a href="{% url 'frontend_api:jobs_dashboard' %}" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-list-task"/></svg> {% trans "Jobs" %}
                         </a>
                     </div>
                 </div>

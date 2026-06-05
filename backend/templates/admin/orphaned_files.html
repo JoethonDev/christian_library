@@ -1,0 +1,174 @@
+<!-- templates/admin/orphaned_files.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Orphaned Files" %} | Admin{% endblock %}
+
+{% block admin_content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Orphaned Files" %}</h1>
+        <p class="text-muted mb-0">{% trans "Files on disk that are no longer referenced by any database record" %}</p>
+    </div>
+    <div class="col-auto d-flex gap-2">
+        <button class="btn btn-outline-secondary rounded-pill" onclick="window.location.reload()">
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Re-scan" %}
+        </button>
+    </div>
+</div>
+
+<!-- Sub-section tabs -->
+<ul class="nav nav-pills mb-4 gap-1">
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:system_monitor' %}">{% trans "Overview" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:file_manager' %}">{% trans "File Manager" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{% url 'frontend_api:orphaned_files' %}">{% trans "Orphaned Files" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:cache_manager' %}">{% trans "Cache" %}</a>
+    </li>
+</ul>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-danger admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-x"/></svg>
+                <div class="display-6 fw-bold text-dark">{{ orphan_count }}</div>
+                <div class="admin-stat-label">{% trans "Orphaned Files" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-warning admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-hdd"/></svg>
+                <div class="display-6 fw-bold text-dark">{{ orphan_size }}</div>
+                <div class="admin-stat-label">{% trans "Space Reclaimable" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-info admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-files"/></svg>
+                <div class="display-6 fw-bold text-dark">{{ total_files }}</div>
+                <div class="admin-stat-label">{% trans "Total Files Scanned" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-success admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>
+                <div class="display-6 fw-bold text-dark">{{ elapsed }}s</div>
+                <div class="admin-stat-label">{% trans "Scan Duration" %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results card -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+            <svg class="bi me-2 text-danger" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-x"/></svg>
+            {% trans "Orphaned Files" %}
+            <span class="badge bg-danger ms-2">{{ orphan_count }}</span>
+        </h6>
+        {% if orphans %}
+        <button class="btn btn-sm btn-danger rounded-pill" data-bs-toggle="modal" data-bs-target="#deleteAllModal">
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Delete All" %}
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="card-body p-0">
+        {% if orphans %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th class="admin-table-thead ps-4 border-0">{% trans "File" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Size" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Modified" %}</th>
+                        <th class="admin-table-thead text-end pe-4 border-0">{% trans "Action" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for orphan in orphans %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-semibold">{{ orphan.name }}</div>
+                            <div class="text-muted small text-truncate admin-truncate-path" title="{{ orphan.rel_path }}">{{ orphan.rel_path }}</div>
+                        </td>
+                        <td class="text-muted small">{{ orphan.size }}</td>
+                        <td class="text-muted small">{{ orphan.modified }}</td>
+                        <td class="text-end pe-4">
+                            <form method="post" class="d-inline" onsubmit="return confirm('{% trans "Delete this file?" %}')">
+                                {% csrf_token %}
+                                <input type="hidden" name="rel_path" value="{{ orphan.rel_path }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Delete" %}
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <svg class="bi mb-2 text-success admin-icon-lg" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg>
+            <p class="fw-semibold mb-1">{% trans "No orphaned files found!" %}</p>
+            <p class="small mb-0">{% trans "All media files have matching database records." %}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if orphans %}
+<!-- Delete All Confirm Modal -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger">{% trans "Delete All Orphaned Files?" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <p>{% blocktrans with count=orphan_count size=orphan_size %}This will permanently delete <strong>{{ count }} files</strong> totalling <strong>{{ size }}</strong>. This action cannot be undone.{% endblocktrans %}</p>
+            </div>
+            <div class="modal-footer border-0 pt-0" id="deleteAllForms">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-danger rounded-pill" onclick="deleteAll()">{% trans "Delete All" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteAll() {
+    const forms = document.querySelectorAll('tbody form');
+    let i = 0;
+    function next() {
+        if (i < forms.length) { forms[i++].submit(); }
+        else { window.location.reload(); }
+    }
+    // Submit sequentially via fetch to avoid page redirects
+    const CSRF = '{{ csrf_token }}';
+    const promises = [...forms].map(form => {
+        const data = new FormData(form);
+        return fetch(form.action || window.location.href, {method: 'POST', body: data, headers: {'X-CSRFToken': CSRF}});
+    });
+    Promise.all(promises).then(() => { bootstrap.Modal.getInstance(document.getElementById('deleteAllModal')).hide(); window.location.reload(); });
+}
+</script>
+{% endif %}
+{% endblock %}

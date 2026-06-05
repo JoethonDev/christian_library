@@ -5,6 +5,7 @@ Handles text extraction, cleaning, and normalization for supplementary documents
 import logging
 import os
 import re
+import subprocess
 from typing import Tuple
 
 logger = logging.getLogger(__name__)
@@ -80,7 +81,6 @@ class DocumentProcessorService:
         try:
             # Try antiword first (most reliable system tool for .doc)
             try:
-                import subprocess
                 self.logger.info(f"Trying antiword for DOC file: {file_path}")
                 result = subprocess.run(
                     ['antiword', file_path],
@@ -99,7 +99,6 @@ class DocumentProcessorService:
             
             # Try pandoc as last resort
             try:
-                import subprocess
                 self.logger.info(f"Trying pandoc for DOC file: {file_path}")
                 result = subprocess.run(
                     ['pandoc', file_path, '-t', 'plain'],

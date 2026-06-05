@@ -1,0 +1,358 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}File Manager | {{ site_title }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .fm-toolbar { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; margin-bottom:1rem; }
+  .fm-base-select { padding:.35rem .6rem; border:1px solid #ccc; border-radius:3px; font-size:.9rem; }
+  .fm-breadcrumb { display:flex; gap:.25rem; flex-wrap:wrap; align-items:center; margin-bottom:.75rem;
+                    font-size:.9rem; background:#f8f8f8; padding:.5rem .75rem; border-radius:4px; }
+  .fm-breadcrumb a { color:#417690; text-decoration:none; }
+  .fm-breadcrumb a:hover { text-decoration:underline; }
+  .fm-breadcrumb .sep { color:#aaa; }
+  .fm-table { width:100%; border-collapse:collapse; }
+  .fm-table th { background:#417690; color:#fff; padding:.5rem .75rem; text-align:left; }
+  .fm-table td { padding:.4rem .75rem; border-bottom:1px solid #e8e8e8; vertical-align:middle; }
+  .fm-table tr:hover td { background:#f5f9fb; }
+  .fm-icon { margin-right:.35rem; }
+  .fm-actions { display:flex; gap:.35rem; flex-wrap:wrap; }
+  .fm-btn { padding:.2rem .55rem; font-size:.8rem; border:1px solid #ccc; border-radius:3px;
+             cursor:pointer; background:#fff; }
+  .fm-btn:hover { background:#e8f0f5; }
+  .fm-btn.danger:hover { background:#fff0f0; border-color:#dc3545; color:#dc3545; }
+  .fm-modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9000;
+                       align-items:center; justify-content:center; }
+  .fm-modal-overlay.active { display:flex; }
+  .fm-modal { background:#fff; border-radius:6px; padding:1.5rem; min-width:320px; max-width:480px;
+               box-shadow:0 4px 24px rgba(0,0,0,.25); }
+  .fm-modal h3 { margin-top:0; }
+  .fm-modal input[type=text] { width:100%; padding:.4rem .6rem; border:1px solid #ccc;
+                                 border-radius:3px; box-sizing:border-box; font-size:.95rem; }
+  .fm-modal .btn-row { display:flex; gap:.5rem; justify-content:flex-end; margin-top:1rem; }
+  .fm-toast { position:fixed; bottom:1.5rem; right:1.5rem; background:#417690; color:#fff;
+               padding:.75rem 1.25rem; border-radius:4px; font-size:.9rem; display:none;
+               box-shadow:0 2px 8px rgba(0,0,0,.3); z-index:9999; }
+  .fm-toast.error { background:#dc3545; }
+  .fm-toast.show { display:block; animation:fadein .2s ease; }
+  @keyframes fadein { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .fm-drop-target { outline:2px dashed #417690; background:#eef5fa; }
+  .fm-selected { background:#e0ecf5 !important; }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'system_monitor:dashboard' %}">System Monitor</a>
+  &rsaquo; File Manager
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>File Manager</h1>
+
+{# Navigation #}
+<div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+  <a class="button" href="{% url 'system_monitor:dashboard' %}">Dashboard</a>
+  <a class="button" href="{% url 'system_monitor:orphaned_files' %}">Orphaned Files</a>
+  <a class="button" href="{% url 'system_monitor:cache_manager' %}">Cache Manager</a>
+</div>
+
+{# Volume / base selector #}
+<div class="fm-toolbar">
+  <strong>Volume:</strong>
+  <select class="fm-base-select" id="baseSelect" onchange="changeBase()">
+    {% for b in bases %}
+    <option value="{{ b }}" {% if b == base_key %}selected{% endif %}>{{ b }}</option>
+    {% endfor %}
+  </select>
+  <span style="color:#aaa;font-family:monospace;font-size:.85rem;">{{ current_path }}</span>
+  <button class="button" onclick="openMkdirModal()">+ New Folder</button>
+</div>
+
+{# Breadcrumb #}
+<div class="fm-breadcrumb">
+  {% for crumb in crumbs %}
+    {% if not forloop.last %}
+      <a href="?base={{ base_key }}&path={{ crumb.path|urlencode }}">{{ crumb.label }}</a>
+      <span class="sep">/</span>
+    {% else %}
+      <strong>{{ crumb.label }}</strong>
+    {% endif %}
+  {% endfor %}
+</div>
+
+{# File table #}
+{% if entries %}
+<div class="module">
+  <table class="fm-table" id="fmTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Size</th>
+        <th>Modified</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {# Parent directory link #}
+      {% if not is_root %}
+      <tr>
+        <td colspan="4">
+          <a href="?base={{ base_key }}&path={{ crumbs|slice:':-1'|last }}{% if crumbs|length > 2 %}{{ crumbs|slice:'-2:-1'|first.path|urlencode }}{% endif %}">
+            &#128194; <em>.. (up)</em>
+          </a>
+        </td>
+      </tr>
+      {% endif %}
+
+      {% for entry in entries %}
+      <tr id="row-{{ forloop.counter }}"
+          draggable="true"
+          data-path="{{ entry.rel_path }}"
+          data-is-dir="{{ entry.is_dir|yesno:'true,false' }}"
+          ondragstart="onDragStart(event, '{{ entry.rel_path }}')"
+          ondragover="event.preventDefault(); this.classList.add('fm-drop-target');"
+          ondragleave="this.classList.remove('fm-drop-target');"
+          ondrop="onDrop(event, '{{ entry.rel_path }}', {{ entry.is_dir|yesno:'true,false' }})">
+        <td>
+          {% if entry.is_dir %}
+            <a href="?base={{ base_key }}&path={{ entry.rel_path|urlencode }}">
+              &#128194; {{ entry.name }}
+            </a>
+          {% else %}
+            <span>&#128196; {{ entry.name }}</span>
+          {% endif %}
+        </td>
+        <td style="font-family:monospace;font-size:.85rem;">{{ entry.size }}</td>
+        <td style="font-size:.85rem;color:#666;">{{ entry.modified }}</td>
+        <td>
+          <div class="fm-actions">
+            <button class="fm-btn" onclick="openRenameModal('{{ entry.rel_path|escapejs }}', '{{ entry.name|escapejs }}')">Rename</button>
+            <button class="fm-btn" onclick="openMoveModal('{{ entry.rel_path|escapejs }}', '{{ entry.name|escapejs }}')">Move</button>
+            <button class="fm-btn danger" onclick="confirmDelete('{{ entry.rel_path|escapejs }}', '{{ entry.name|escapejs }}', {{ entry.is_dir|yesno:'true,false' }})">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="module" style="padding:1rem;text-align:center;color:#999;">
+  <p>This directory is empty.</p>
+  <button class="button" onclick="openMkdirModal()">+ Create a Folder</button>
+</div>
+{% endif %}
+
+{# ── MODALS ─────────────────────────────────────────────────────── #}
+
+{# Mkdir modal #}
+<div class="fm-modal-overlay" id="mkdirModal">
+  <div class="fm-modal">
+    <h3>New Folder</h3>
+    <input type="text" id="mkdirName" placeholder="folder-name" autocomplete="off" />
+    <div class="btn-row">
+      <button class="button default" onclick="closeModal('mkdirModal')">Cancel</button>
+      <button class="button" onclick="doMkdir()">Create</button>
+    </div>
+  </div>
+</div>
+
+{# Rename modal #}
+<div class="fm-modal-overlay" id="renameModal">
+  <div class="fm-modal">
+    <h3>Rename</h3>
+    <input type="text" id="renamePath" style="display:none;" />
+    <p id="renameOldName" style="font-family:monospace;font-size:.9rem;color:#555;"></p>
+    <input type="text" id="renameNewName" placeholder="new-name" autocomplete="off" />
+    <div class="btn-row">
+      <button class="button default" onclick="closeModal('renameModal')">Cancel</button>
+      <button class="button" onclick="doRename()">Rename</button>
+    </div>
+  </div>
+</div>
+
+{# Move modal #}
+<div class="fm-modal-overlay" id="moveModal">
+  <div class="fm-modal">
+    <h3>Move</h3>
+    <input type="text" id="movePath" style="display:none;" />
+    <p>Moving: <strong id="moveName" style="font-family:monospace;"></strong></p>
+    <label>Destination path (relative to <em>{{ base_key }}</em> root):</label>
+    <input type="text" id="moveDestPath" placeholder="e.g. original/videos" autocomplete="off" />
+    <div class="btn-row">
+      <button class="button default" onclick="closeModal('moveModal')">Cancel</button>
+      <button class="button" onclick="doMove()">Move</button>
+    </div>
+  </div>
+</div>
+
+{# Delete confirm modal #}
+<div class="fm-modal-overlay" id="deleteModal">
+  <div class="fm-modal">
+    <h3>Confirm Delete</h3>
+    <input type="text" id="deletePath" style="display:none;" />
+    <p>Delete <strong id="deleteName" style="font-family:monospace;color:#dc3545;"></strong>?</p>
+    <p id="deleteDirWarning" style="display:none;color:#dc3545;">This will delete the folder and ALL its contents. This cannot be undone.</p>
+    <div class="btn-row">
+      <button class="button default" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="button" style="background:#dc3545;border-color:#dc3545;color:#fff;" onclick="doDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+{# Toast #}
+<div class="fm-toast" id="toast"></div>
+
+<script>
+const BASE_KEY = "{{ base_key }}";
+const REL_PATH = "{{ rel_path|escapejs }}";
+const ACTION_URL = "{% url 'system_monitor:file_action' %}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+
+// ── helpers ──────────────────────────────────────────────────────
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'fm-toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'fm-toast'; }, 3500);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+async function apiCall(body) {
+  const r = await fetch(ACTION_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN},
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+function reload() {
+  window.location.href = '?base=' + encodeURIComponent(BASE_KEY) + '&path=' + encodeURIComponent(REL_PATH);
+}
+
+function changeBase() {
+  const b = document.getElementById('baseSelect').value;
+  window.location.href = '?base=' + encodeURIComponent(b);
+}
+
+// ── Mkdir ────────────────────────────────────────────────────────
+function openMkdirModal() {
+  document.getElementById('mkdirName').value = '';
+  document.getElementById('mkdirModal').classList.add('active');
+  setTimeout(() => document.getElementById('mkdirName').focus(), 50);
+}
+
+async function doMkdir() {
+  const name = document.getElementById('mkdirName').value.trim();
+  if (!name) return showToast('Enter a folder name', true);
+  closeModal('mkdirModal');
+  const res = await apiCall({action:'mkdir', base:BASE_KEY, path:REL_PATH, name});
+  showToast(res.message || res.error, !res.ok);
+  if (res.ok) reload();
+}
+
+// ── Rename ───────────────────────────────────────────────────────
+function openRenameModal(path, oldName) {
+  document.getElementById('renamePath').value = path;
+  document.getElementById('renameOldName').textContent = oldName;
+  document.getElementById('renameNewName').value = oldName;
+  document.getElementById('renameModal').classList.add('active');
+  setTimeout(() => { const inp = document.getElementById('renameNewName'); inp.focus(); inp.select(); }, 50);
+}
+
+async function doRename() {
+  const path = document.getElementById('renamePath').value;
+  const newName = document.getElementById('renameNewName').value.trim();
+  if (!newName) return showToast('Enter a new name', true);
+  closeModal('renameModal');
+  const res = await apiCall({action:'rename', base:BASE_KEY, path, new_name:newName});
+  showToast(res.message || res.error, !res.ok);
+  if (res.ok) reload();
+}
+
+// ── Move ─────────────────────────────────────────────────────────
+function openMoveModal(path, name) {
+  document.getElementById('movePath').value = path;
+  document.getElementById('moveName').textContent = name;
+  document.getElementById('moveDestPath').value = '';
+  document.getElementById('moveModal').classList.add('active');
+  setTimeout(() => document.getElementById('moveDestPath').focus(), 50);
+}
+
+async function doMove() {
+  const path = document.getElementById('movePath').value;
+  const dest = document.getElementById('moveDestPath').value.trim();
+  if (!dest) return showToast('Enter destination path', true);
+  closeModal('moveModal');
+  const res = await apiCall({action:'move', base:BASE_KEY, path, dest_path:dest});
+  showToast(res.message || res.error, !res.ok);
+  if (res.ok) reload();
+}
+
+// ── Delete ───────────────────────────────────────────────────────
+function confirmDelete(path, name, isDir) {
+  document.getElementById('deletePath').value = path;
+  document.getElementById('deleteName').textContent = name;
+  document.getElementById('deleteDirWarning').style.display = isDir ? 'block' : 'none';
+  document.getElementById('deleteModal').classList.add('active');
+}
+
+async function doDelete() {
+  const path = document.getElementById('deletePath').value;
+  closeModal('deleteModal');
+  const res = await apiCall({action:'delete', base:BASE_KEY, path});
+  showToast(res.message || res.error, !res.ok);
+  if (res.ok) reload();
+}
+
+// ── Drag & Drop Move ─────────────────────────────────────────────
+let _dragPath = null;
+
+function onDragStart(e, path) {
+  _dragPath = path;
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+async function onDrop(e, targetPath, isDir) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('fm-drop-target');
+  if (!_dragPath || _dragPath === targetPath) return;
+  if (!isDir) {
+    showToast('Drop onto a folder to move', true);
+    return;
+  }
+  const res = await apiCall({action:'move', base:BASE_KEY, path:_dragPath, dest_path:targetPath});
+  showToast(res.message || res.error, !res.ok);
+  if (res.ok) reload();
+}
+
+// ── Close modals on ESC ──────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.fm-modal-overlay.active').forEach(m => m.classList.remove('active'));
+  }
+});
+
+// ── Close modals when clicking overlay background ────────────────
+document.querySelectorAll('.fm-modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('active');
+  });
+});
+
+// ── Enter key in modal inputs ────────────────────────────────────
+document.getElementById('mkdirName').addEventListener('keydown', e => { if(e.key==='Enter') doMkdir(); });
+document.getElementById('renameNewName').addEventListener('keydown', e => { if(e.key==='Enter') doRename(); });
+document.getElementById('moveDestPath').addEventListener('keydown', e => { if(e.key==='Enter') doMove(); });
+</script>
+
+{% endblock %}

@@ -1,0 +1,22 @@
+{% load i18n %}
+<div class="col-{{ col_size|default:'md-3' }}">
+    <div class="card admin-stat-card {{ extra_class }}">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                {% if icon %}
+                <div class="bg-{{ color|default:'primary' }} bg-opacity-10 text-{{ color|default:'primary' }} rounded-3 p-2">
+                    <svg class="bi fs-4" aria-hidden="true" focusable="false"><use href="#{{ icon }}"/></svg>
+                </div>
+                {% endif %}
+                {% if badge %}
+                <span class="badge {{ badge_class|default:'bg-success-subtle text-success' }} rounded-pill">{{ badge }}</span>
+                {% endif %}
+            </div>
+            <h2 class="fw-bold text-dark mb-1">{{ value }}</h2>
+            <p class="small text-muted mb-0 fw-medium text-uppercase">{{ label }}</p>
+            {% if description %}
+            <p class="small text-muted mb-0 mt-2">{{ description }}</p>
+            {% endif %}
+        </div>
+    </div>
+</div>

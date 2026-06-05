@@ -288,7 +288,7 @@ class ContentManagementPageTestCase(TestCase):
     
     def test_video_management_page_loads(self):
         """Test that video management page loads successfully"""
-        response = self.client.get(reverse('frontend_api:video_management'))
+        response = self.client.get(reverse('frontend_api:media_management', kwargs={'media_type': 'video'}))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Video Manager')
         # Check for bulk selection checkbox
@@ -297,7 +297,7 @@ class ContentManagementPageTestCase(TestCase):
     
     def test_audio_management_page_loads(self):
         """Test that audio management page loads successfully"""
-        response = self.client.get(reverse('frontend_api:audio_management'))
+        response = self.client.get(reverse('frontend_api:media_management', kwargs={'media_type': 'audio'}))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Audio Manager')
         # Check for bulk selection checkbox
@@ -306,7 +306,7 @@ class ContentManagementPageTestCase(TestCase):
     
     def test_pdf_management_page_loads(self):
         """Test that PDF management page loads successfully"""
-        response = self.client.get(reverse('frontend_api:pdf_management'))
+        response = self.client.get(reverse('frontend_api:media_management', kwargs={'media_type': 'pdf'}))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'PDF Manager')
         # Check for bulk selection checkbox
@@ -315,7 +315,7 @@ class ContentManagementPageTestCase(TestCase):
     
     def test_management_page_has_bulk_actions(self):
         """Test that management pages have bulk action controls"""
-        response = self.client.get(reverse('frontend_api:video_management'))
+        response = self.client.get(reverse('frontend_api:media_management', kwargs={'media_type': 'video'}))
         self.assertEqual(response.status_code, 200)
         # Check for bulk action bar
         self.assertContains(response, 'bulkActionsBar')
@@ -328,14 +328,14 @@ class ContentManagementPageTestCase(TestCase):
         """Test that filters work on management pages"""
         # Test missing_data filter
         response = self.client.get(
-            reverse('frontend_api:video_management'),
+            reverse('frontend_api:media_management', kwargs={'media_type': 'video'}),
             {'missing_data': 'no_seo'}
         )
         self.assertEqual(response.status_code, 200)
         
         # Test status filter
         response = self.client.get(
-            reverse('frontend_api:video_management'),
+            reverse('frontend_api:media_management', kwargs={'media_type': 'video'}),
             {'status': 'active'}
         )
         self.assertEqual(response.status_code, 200)

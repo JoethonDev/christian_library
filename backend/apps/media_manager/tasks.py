@@ -54,7 +54,7 @@ def extract_and_index_contentitem(self, contentitem_id, user_id=None):
             return
         
         # Update task status to indicate processing has started (only if not already completed)
-        # For PDFs, the file processing (optimization) completes first, then text extraction happens
+        # For PDFs, file processing completes first, then text extraction happens.
         # We don't want to overwrite 'completed' status from file processing
         if item.processing_status != 'completed':
             item.processing_status = 'processing'
@@ -217,6 +217,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         checklist_steps=['validation', 'ai_generation', 'content_update']
     )
     job_start(contentitem_id, 'seo_generation', self.request.id)
+    from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
     
     try:
         logger.info(f"🔄 Starting SEO metadata generation for ContentItem {contentitem_id} (attempt {self.request.retries + 1}/{self.max_retries + 1}, force={force_regenerate})")
@@ -228,6 +229,16 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
         )
         
         item = ContentItem.objects.get(id=contentitem_id)
+
+        LifecycleAuditService.log_event(
+            content_item=item,
+            action_type='gemini_processing_started',
+            source='system:seo_task',
+            previous_state='pending',
+            new_state='processing',
+            message='Gemini SEO generation task started',
+            payload={'content_id': str(item.id), 'task_id': self.request.id, 'force': force_regenerate},
+        )
         
         # Skip if SEO metadata already exists (unless force_regenerate is True)
         if not force_regenerate and item.has_seo_metadata():
@@ -337,6 +348,16 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
                     update_fields.append('processing_status')
                 
                 item.save(update_fields=update_fields)
+
+                LifecycleAuditService.log_event(
+                    content_item=item,
+                    action_type='gemini_processing_completed',
+                    source='system:seo_task',
+                    previous_state='processing',
+                    new_state='completed',
+                    message='Gemini SEO generation task completed',
+                    payload={'content_id': str(item.id), 'task_id': self.request.id, 'force': force_regenerate},
+                )
                 
                 logger.info(f"Successfully generated and updated SEO metadata for ContentItem {contentitem_id}")
                 
@@ -375,86 +396,111 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
     except Exception as exc:
         logger.error(f"💥 Error generating SEO metadata for ContentItem {contentitem_id}: {str(exc)}", exc_info=True)
         job_fail(contentitem_id, 'seo_generation', exc)
-        
+
+        # Helper: permanently mark SEO as failed and trigger finalize so local files
+        # are still cleaned up and the job record is closed properly.
+        def _seo_permanently_failed(reason: str):
+            try:
+                _item = ContentItem.objects.get(id=contentitem_id)
+                _item.seo_processing_status = 'failed'
+                _item.save(update_fields=['seo_processing_status'])
+            except Exception:
+                pass
+            job_fail(contentitem_id, 'seo_generation', reason)
+            finalize_media_processing.delay(str(contentitem_id))
+            TaskMonitor.update_task_status(
+                self.request.id,
+                'FAILURE',
+                {'message': reason, 'progress': 100},
+            )
+            logger.error(f"SEO permanently failed for {contentitem_id}: {reason}")
+
         # Enhanced error detection
         is_rate_limit_error = _is_gemini_rate_limit_error(exc)
         is_server_error = _is_gemini_server_error(exc)
-        
-        # Plan logic: 
+
+        # Plan logic:
         # 1. Any error after 3 failed attempts (retries 0, 1, 2) -> schedule for next day 3 AM
         # 2. Server errors (5xx) -> retry after 10 mins (600s)
         # 3. Other errors -> retry with current default or rate limit logic
-        
-        if self.request.retries >= 2:  # 0, 1, 2 attempts failed, now on 3rd retry or finishing it
-            # This was the 3rd attempt (retries = 2)
+
+        if self.request.retries >= 2:  # 0, 1, 2 attempts failed
             next_3am_delay = _calculate_next_3am_delay()
             logger.warning(f"❌ 3 attempts failed for ContentItem {contentitem_id}. Scheduling next attempt for 3:00 AM.")
-            item.seo_processing_status = 'failed'
-            item.save(update_fields=['seo_processing_status'])
-            
+            try:
+                item.seo_processing_status = 'failed'
+                item.save(update_fields=['seo_processing_status'])
+            except Exception:
+                pass
+
             TaskMonitor.update_task_status(
-                self.request.id, 
+                self.request.id,
                 'RETRY',
                 {
                     'message': f'3 attempts failed - rescheduling for 3:00 AM (Error: {str(exc)[:100]})',
                     'retry_at': '3:00 AM',
-                    'delay_hours': round(next_3am_delay/3600, 1)
-                }
+                    'delay_hours': round(next_3am_delay / 3600, 1),
+                },
             )
-            
-            # Retry at 3:00 AM tomorrow
-            raise self.retry(exc=exc, countdown=next_3am_delay)
-            
+            try:
+                raise self.retry(exc=exc, countdown=next_3am_delay)
+            except self.MaxRetriesExceededError:
+                _seo_permanently_failed('All retries exhausted for SEO generation (3AM schedule)')
+                return {'status': 'failed', 'message': 'Max retries exhausted'}
+
         if is_server_error:
             logger.warning(f"🔌 Gemini server error detected (5xx) for ContentItem {contentitem_id} (attempt {self.request.retries + 1})")
             countdown = 600  # 10 minutes
-            
             TaskMonitor.update_task_status(
-                self.request.id, 
+                self.request.id,
                 'RETRY',
                 {
                     'message': f'Server error (5xx) - retrying in 10 minutes (attempt {self.request.retries + 1}/3)',
                     'countdown': countdown,
-                    'error_type': 'server'
-                }
+                    'error_type': 'server',
+                },
             )
-            
-            raise self.retry(exc=exc, countdown=countdown)
-            
+            try:
+                raise self.retry(exc=exc, countdown=countdown)
+            except self.MaxRetriesExceededError:
+                _seo_permanently_failed('Max retries exceeded for SEO generation (server error path)')
+                return {'status': 'failed', 'message': 'Max retries exceeded'}
+
         if is_rate_limit_error:
             logger.warning(f"🚦 Gemini rate limit detected for ContentItem {contentitem_id} (attempt {self.request.retries + 1})")
-            # For rate limits, we'll use a shorter retry or just wait for the next 3AM if we prefer,
-            # but the requirement says for ANY error 3 attempts fail then 3 AM.
-            # So if it's attempt 1 or 2, we can retry sooner.
-            countdown = 300 # 5 minutes for rate limit before 3rd attempt
-            
+            countdown = 300  # 5 minutes before 3rd attempt
             TaskMonitor.update_task_status(
-                self.request.id, 
+                self.request.id,
                 'RETRY',
                 {
                     'message': f'Rate limited - retrying in 5 minutes (attempt {self.request.retries + 1}/3)',
                     'rate_limited': True,
-                    'countdown': countdown
-                }
+                    'countdown': countdown,
+                },
             )
-            
-            raise self.retry(exc=exc, countdown=countdown)
-        
+            try:
+                raise self.retry(exc=exc, countdown=countdown)
+            except self.MaxRetriesExceededError:
+                _seo_permanently_failed('Max retries exceeded for SEO generation (rate limit path)')
+                return {'status': 'failed', 'message': 'Max retries exceeded'}
+
         # Standard fallback for other errors
         countdown = 120 * (2 ** self.request.retries)
         logger.info(f"🔄 Standard retry for ContentItem {contentitem_id} in {countdown}s (attempt {self.request.retries + 1})")
-        
         TaskMonitor.update_task_status(
-            self.request.id, 
+            self.request.id,
             'RETRY',
             {
                 'message': f'Error retry in {countdown}s (attempt {self.request.retries + 1}/3)',
                 'countdown': countdown,
-                'error_type': 'standard'
-            }
+                'error_type': 'standard',
+            },
         )
-        
-        raise self.retry(exc=exc, countdown=countdown)
+        try:
+            raise self.retry(exc=exc, countdown=countdown)
+        except self.MaxRetriesExceededError:
+            _seo_permanently_failed('Max retries exceeded for SEO generation (standard path)')
+            return {'status': 'failed', 'message': 'Max retries exceeded'}
 
 def _is_gemini_rate_limit_error(exception):
     """Detect if the exception is a Gemini API rate limit error"""
@@ -505,38 +551,42 @@ def _calculate_next_3am_delay():
     return max(delay_seconds, 3600)
 
 
-@shared_task
-def finalize_media_processing(contentitem_id):
+@shared_task(bind=True, max_retries=8, default_retry_delay=600)
+def finalize_media_processing(self, contentitem_id):
     """
     Check if both R2 upload and SEO generation are finished.
     If both are done, safe to delete local files.
+    Retries up to 8 times (every 10 min) so a delayed SEO result is still caught.
     """
     ContentItem = get_contentitem_model()
-    
+
     try:
         item = ContentItem.objects.get(id=contentitem_id)
         meta = item.get_meta_object()
-        
+
         if not meta:
+            logger.warning(f"finalize_media_processing: no meta for {contentitem_id}, completing job anyway")
+            job_complete(contentitem_id)
             return
-            
-        # Conditions for cleanup:
-        # 1. R2 upload is completed (or not enabled)
+
+        # Condition 1: R2 upload completed successfully.
         r2_done = meta.r2_upload_status == 'completed'
-        
-        # 2. SEO generation is completed or failed (don't hang forever if AI fails)
-        seo_done = item.seo_processing_status in ['completed', 'failed']
-        
+
+        # Condition 2: SEO generation completed successfully.
+        # 'failed' does NOT satisfy this condition — if SEO failed or stalled,
+        # local files must be preserved (they are the only remaining copy).
+        seo_done = item.seo_processing_status == 'completed'
+
         if r2_done and seo_done:
             logger.info(f"Both R2 and SEO finished for {contentitem_id}. Cleaning up local files.")
-            
+
             local_paths = []
             try:
-                # 1. Original file
+                # Original file
                 if meta.original_file and os.path.exists(meta.original_file.path):
                     local_paths.append(str(meta.original_file.path))
-                
-                # 2. Content type specific processed files
+
+                # Content-type specific processed files
                 if item.content_type == 'video':
                     hls_dir = Path(settings.MEDIA_ROOT) / 'hls' / 'videos' / str(item.id)
                     if hls_dir.exists():
@@ -544,21 +594,35 @@ def finalize_media_processing(contentitem_id):
                 elif item.content_type == 'audio':
                     if hasattr(meta, 'compressed_file') and meta.compressed_file and os.path.exists(meta.compressed_file.path):
                         local_paths.append(str(meta.compressed_file.path))
-                elif item.content_type == 'pdf':
-                    if hasattr(meta, 'optimized_file') and meta.optimized_file and os.path.exists(meta.optimized_file.path):
-                        local_paths.append(str(meta.optimized_file.path))
-                
-                if local_paths and item.has_seo_metadata():
+
+                if local_paths:
                     from core.tasks.media_processing import delete_files_task
                     delete_files_task.delay(local_paths)
                     logger.info(f"Queued deletion for {len(local_paths)} paths for item {item.id}")
+                else:
+                    logger.info(f"No local files to delete for item {item.id} (already cleaned or never written)")
+
                 job_complete(contentitem_id)
-                    
+
             except Exception as e:
                 logger.warning(f"Error preparing local files for deletion for item {item.id}: {e}")
+                job_complete(contentitem_id)
+
         else:
-            logger.info(f"Finalize deferred for {contentitem_id}: R2={r2_done}, SEO={seo_done}")
-            
+            # One or both conditions not yet met — reschedule so we catch them later.
+            logger.info(
+                f"Finalize deferred for {contentitem_id}: R2={r2_done}, SEO={seo_done} "
+                f"(attempt {self.request.retries + 1}/{self.max_retries + 1})"
+            )
+            try:
+                raise self.retry(countdown=600)
+            except self.MaxRetriesExceededError:
+                logger.warning(
+                    f"finalize_media_processing max retries reached for {contentitem_id}: "
+                    f"R2={r2_done}, SEO={seo_done}. Completing job without full cleanup."
+                )
+                job_complete(contentitem_id)
+
     except ContentItem.DoesNotExist:
         pass
     except Exception as e:
@@ -637,26 +701,19 @@ def aggregate_daily_content_views():
         
         logger.info(f"Aggregating view events for {yesterday}")
         
-        # Get events from yesterday grouped by content_type and content_id
+        # Aggregate total and unique views in one grouped query.
         events = ContentViewEvent.objects.filter(
             timestamp__gte=start_datetime,
             timestamp__lte=end_datetime
         ).values('content_type', 'content_id').annotate(
-            count=Count('id')
+            count=Count('id'),
+            unique_views=Count('ip_address', distinct=True),
         )
         
         aggregated_count = 0
         for event_data in events:
-            # Count total views
             total_views = event_data['count']
-            
-            # Count unique views (distinct IP addresses)
-            unique_views = ContentViewEvent.objects.filter(
-                timestamp__gte=start_datetime,
-                timestamp__lte=end_datetime,
-                content_type=event_data['content_type'],
-                content_id=event_data['content_id']
-            ).values('ip_address').distinct().count()
+            unique_views = event_data['unique_views']
             
             # Update or create summary record
             summary, created = DailyContentViewSummary.objects.update_or_create(

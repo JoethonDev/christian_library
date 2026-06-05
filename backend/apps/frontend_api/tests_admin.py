@@ -3,14 +3,23 @@ Tests for Admin Service, Admin views, and Gemini services.
 Moved from apps/health/tests.py (was misplaced there).
 """
 import json
+import os
+import time
+import tempfile
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock, patch, MagicMock
 from django.test import TestCase, RequestFactory
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+from django.contrib.messages.storage.fallback import FallbackStorage
 from django.core.cache import cache
-from django.conf import settings
+from django.middleware.csrf import _get_new_csrf_string, _mask_cipher_secret
+from django.urls import resolve, Resolver404
+from django.utils import timezone
+from apps.media_manager.models import APIUploadQueue, ContentItem, ContentLifecycleAuditLog, ProcessingJob
 
-from apps.frontend_api.admin_services import AdminService
+
+User = get_user_model()
 
 
 class R2StorageAPIEndpointTestCase(TestCase):
@@ -21,6 +30,7 @@ class R2StorageAPIEndpointTestCase(TestCase):
         self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testuser',
+            email='testuser@example.com',
             password='testpass',
             is_staff=True
         )
@@ -63,6 +73,7 @@ class R2StorageAPIEndpointTestCase(TestCase):
 
         non_staff_user = User.objects.create_user(
             username='regularuser',
+            email='regularuser@example.com',
             password='testpass',
             is_staff=False
         )
@@ -72,10 +83,8 @@ class R2StorageAPIEndpointTestCase(TestCase):
 
         response = get_r2_storage_usage(request)
 
-        self.assertEqual(response.status_code, 403)
-        data = json.loads(response.content)
-        self.assertFalse(data['success'])
-        self.assertIn('Permission denied', data['error'])
+        # staff_member_required redirects non-staff users to the admin login page.
+        self.assertEqual(response.status_code, 302)
 
 
 class SystemMonitorTestCase(TestCase):
@@ -109,10 +118,9 @@ class SystemMonitorTestCase(TestCase):
 
         self.assertIn('original', breakdown)
         self.assertIn('hls', breakdown)
-        self.assertIn('optimized', breakdown)
         self.assertIn('compressed', breakdown)
 
-        for category in ['original', 'hls', 'optimized', 'compressed']:
+        for category in ['original', 'hls', 'compressed']:
             self.assertIn('size', breakdown[category])
             self.assertIn('count', breakdown[category])
             self.assertIsInstance(breakdown[category]['size'], int)
@@ -130,7 +138,7 @@ class SystemMonitorTestCase(TestCase):
         self.assertIn('total', stats)
         self.assertIn('storage', stats)
 
-    @patch('apps.frontend_api.admin_services.get_r2_storage_service')
+    @patch('core.services.r2_storage_service.get_r2_storage_service')
     @patch('apps.frontend_api.admin_services.settings')
     def test_r2_stats_enabled(self, mock_settings, mock_r2_service):
         """Test R2 stats when R2 is enabled"""
@@ -175,6 +183,778 @@ class SystemMonitorTestCase(TestCase):
         self.assertIn('active_tasks', data['task_monitor'])
         self.assertIn('task_stats', data['task_monitor'])
         self.assertIn('has_tasks', data['task_monitor'])
+
+
+class JobsDashboardEndpointsTestCase(TestCase):
+    """Regression tests for admin jobs API endpoints."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='jobs_staff',
+            email='jobs_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.non_staff_user = User.objects.create_user(
+            username='jobs_regular',
+            email='jobs_regular@example.com',
+            password='testpass123',
+            is_staff=False,
+        )
+
+        self.content_item = ContentItem.objects.create(
+            title_ar='محتوى الوظائف',
+            title_en='Jobs Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+        ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='pending',
+            current_stage='file_processing',
+        )
+        APIUploadQueue.objects.create(
+            file_name='queue_video.mp4',
+            file_path='tmp/queue_video.mp4',
+            content_type='video',
+            file_size_mb=12.0,
+            status='pending',
+            queue_status='waiting',
+        )
+
+    def test_api_jobs_list_htmx_returns_partial(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/list/', HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Job Queue')
+
+    def test_api_jobs_list_non_htmx_redirects_dashboard(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/list/?status=pending&type=all')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/dashboard/jobs/', response.url)
+
+    def test_api_jobs_list_shows_full_failure_reason(self):
+        long_failure_reason = (
+            'Upload failed because the remote storage service rejected the file during the final '
+            'consistency check after the retry window was exhausted. Please inspect the upstream '
+            'job logs, R2 connectivity, and source metadata before retrying.'
+        )
+        failed_content = ContentItem.objects.create(
+            title_ar='محتوى فاشل',
+            title_en='Failed Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+        ProcessingJob.objects.create(
+            content_item=failed_content,
+            status='failed',
+            current_stage='file_processing',
+            failure_reason=long_failure_reason,
+        )
+
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/list/?status=failed&type=all', HTTP_HX_REQUEST='true')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<details', html=False)
+        self.assertContains(response, long_failure_reason)
+
+    def test_api_jobs_stats_returns_expected_keys(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/stats/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        for key in ['active', 'pending', 'canceled', 'completed', 'failed']:
+            self.assertIn(key, data)
+
+    def test_api_jobs_list_non_staff_redirected(self):
+        self.client.force_login(self.non_staff_user)
+        response = self.client.get('/en/dashboard/jobs/api/list/', HTTP_HX_REQUEST='true')
+        self.assertEqual(response.status_code, 302)
+
+
+class Phase5InlineContentControlsTestCase(TestCase):
+    """Regression tests for inline content and media control surfaces."""
+
+    def setUp(self):
+        from apps.media_manager.models import VideoMeta
+
+        self.staff_user = User.objects.create_user(
+            username='phase5_staff',
+            email='phase5_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.regular_user = User.objects.create_user(
+            username='phase5_regular',
+            email='phase5_regular@example.com',
+            password='testpass123',
+            is_staff=False,
+        )
+
+        self.video_item = ContentItem.objects.create(
+            title_ar='محتوى مرئي',
+            title_en='Video Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+            seo_processing_status='failed',
+        )
+        self.video_meta = VideoMeta.objects.create(
+            content_item=self.video_item,
+            processing_status='failed',
+            r2_upload_status='failed',
+        )
+
+    def test_content_list_renders_inline_quality_chips_and_actions(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/content/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Retry R2')
+        self.assertContains(response, 'Regenerate SEO')
+        self.assertContains(response, 'SEO')
+        self.assertContains(response, 'R2')
+
+    def test_content_detail_renders_inline_quality_card(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(f'/en/dashboard/content/{self.video_item.id}/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Content Status')
+        self.assertContains(response, 'Retry R2')
+        self.assertContains(response, 'Regenerate SEO')
+
+    @patch('apps.frontend_api.admin_views.generate_seo_metadata_task')
+    def test_api_auto_fill_metadata_rejects_completed_regeneration_without_force(self, mock_generate_seo_task):
+        from apps.frontend_api.admin_views import api_auto_fill_metadata
+
+        completed_item = ContentItem.objects.create(
+            title_ar='محتوى مكتمل',
+            title_en='Completed Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='audio',
+            is_active=True,
+            seo_processing_status='completed',
+            seo_title_ar='عنوان موجود',
+            seo_title_en='Existing Title',
+            seo_keywords_ar='كلمة',
+            seo_keywords_en='keyword',
+        )
+
+        request = RequestFactory().post(
+            '/ar/dashboard/api/admin/auto-fill-metadata/',
+            data=json.dumps({'content_id': str(completed_item.id)}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        csrf_secret = _get_new_csrf_string()
+        csrf_token = _mask_cipher_secret(csrf_secret)
+        request.COOKIES['csrftoken'] = csrf_secret
+        request.META['CSRF_COOKIE'] = csrf_secret
+        request.META['HTTP_X_CSRFTOKEN'] = csrf_token
+        request.POST = request.POST.copy()
+        request.POST['csrfmiddlewaretoken'] = csrf_token
+
+        response = api_auto_fill_metadata(request)
+
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.content)
+        self.assertFalse(data['success'])
+        self.assertIn('SEO metadata already exists', data['error'])
+        mock_generate_seo_task.delay.assert_not_called()
+
+    @patch('apps.frontend_api.admin_views.upload_video_to_r2')
+    def test_retry_r2_upload_rejects_non_failed_status(self, mock_upload_video):
+        from apps.frontend_api.admin_views import retry_r2_upload
+        from apps.media_manager.models import VideoMeta
+
+        completed_item = ContentItem.objects.create(
+            title_ar='محتوى مكتمل R2',
+            title_en='Completed R2 Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+        completed_meta = VideoMeta.objects.create(
+            content_item=completed_item,
+            processing_status='completed',
+            r2_upload_status='completed',
+        )
+
+        request = RequestFactory().post('/api/admin/r2/retry/video/')
+        request.user = self.staff_user
+
+        response = retry_r2_upload(request, 'video', str(completed_meta.id))
+
+        self.assertEqual(response.status_code, 400)
+        mock_upload_video.delay.assert_not_called()
+
+
+class LifecycleAuditLogsViewTestCase(TestCase):
+    """Regression tests for the lifecycle audit logs dashboard."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='logs_staff',
+            email='logs_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.non_staff_user = User.objects.create_user(
+            username='logs_regular',
+            email='logs_regular@example.com',
+            password='testpass123',
+            is_staff=False,
+        )
+        self.content_item = ContentItem.objects.create(
+            title_ar='سجل المحتوى',
+            title_en='Audit Log Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+        self.other_content = ContentItem.objects.create(
+            title_ar='محتوى قديم',
+            title_en='Older Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='audio',
+            is_active=True,
+        )
+
+        self.manual_edit_log = ContentLifecycleAuditLog.objects.create(
+            content_item=self.content_item,
+            action_type='content_manual_edit',
+            actor=self.staff_user,
+            source='admin:content_detail',
+            previous_state='draft',
+            new_state='saved',
+            message='Manual edit log entry for the content audit page',
+            payload={'content_id': str(self.content_item.id)},
+        )
+        self.seo_log = ContentLifecycleAuditLog.objects.create(
+            content_item=self.other_content,
+            action_type='seo_generation_requested',
+            actor=self.staff_user,
+            source='admin:seo_request',
+            previous_state='pending',
+            new_state='processing',
+            message='SEO generation requested for older content',
+            payload={'content_id': str(self.other_content.id)},
+        )
+        self.system_log = ContentLifecycleAuditLog.objects.create(
+            content_item=self.content_item,
+            action_type='processing_job_cancelled',
+            actor=None,
+            source='admin:jobs_api',
+            previous_state='processing',
+            new_state='canceled',
+            message='Background job cancelled by operator',
+            payload={'content_id': str(self.content_item.id)},
+        )
+
+        ContentLifecycleAuditLog.objects.filter(id=self.manual_edit_log.id).update(
+            created_at=timezone.now() - timedelta(days=1)
+        )
+        ContentLifecycleAuditLog.objects.filter(id=self.seo_log.id).update(
+            created_at=timezone.now() - timedelta(days=2)
+        )
+        ContentLifecycleAuditLog.objects.filter(id=self.system_log.id).update(
+            created_at=timezone.now() - timedelta(days=7)
+        )
+
+    def test_admin_lifecycle_audit_logs_htmx_paginates_results(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get('/en/dashboard/logs/?per_page=2', HTTP_HX_REQUEST='true')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Lifecycle Audit Log')
+        self.assertContains(response, 'content_manual_edit')
+        self.assertContains(response, 'seo_generation_requested')
+        self.assertNotContains(response, 'processing_job_cancelled')
+
+    def test_admin_lifecycle_audit_logs_filters_by_action_actor_state_and_date(self):
+        self.client.force_login(self.staff_user)
+        response = self.client.get(
+            '/en/dashboard/logs/?action=content_manual_edit&actor=logs_staff&state=saved&q=Manual%20edit&from=' +
+            (timezone.now() - timedelta(days=2)).date().isoformat() +
+            '&to=' + timezone.now().date().isoformat(),
+            HTTP_HX_REQUEST='true',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Manual edit log entry for the content audit page')
+        self.assertNotContains(response, 'SEO generation requested for older content')
+        self.assertNotContains(response, 'Background job cancelled by operator')
+
+    def test_admin_lifecycle_audit_logs_non_staff_redirected(self):
+        self.client.force_login(self.non_staff_user)
+        response = self.client.get('/en/dashboard/logs/')
+
+        self.assertEqual(response.status_code, 302)
+
+
+class LifecycleInstrumentationEmitterTestCase(TestCase):
+    """Regression tests for lifecycle event emission helpers."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.staff_user = User.objects.create_user(
+            username='emit_staff',
+            email='emit_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.content_item = ContentItem.objects.create(
+            title_ar='عنوان أولي',
+            title_en='Initial Title',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+
+    def test_bulk_upload_init_persists_upload_initiated_log(self):
+        from apps.frontend_api.admin_views import bulk_upload_init
+
+        request = self.factory.post(
+            '/ar/dashboard/upload/bulk/init/',
+            data=json.dumps({'filename': 'phase4_upload.mp4', 'total_size': 1024}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        request._dont_enforce_csrf_checks = True
+
+        response = bulk_upload_init(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            ContentLifecycleAuditLog.objects.filter(
+                action_type='upload_initiated',
+                source='admin:bulk_upload_init',
+                payload__filename='phase4_upload.mp4',
+            ).exists()
+        )
+
+    @patch('apps.frontend_api.admin_views.get_gemini_manager')
+    def test_generate_content_metadata_persists_gemini_start_and_completion_logs(self, mock_get_gemini_manager):
+        from apps.frontend_api.admin_views import generate_content_metadata
+
+        fake_meta = SimpleNamespace(original_file=SimpleNamespace(path='C:/temp/fake-media.mp4'))
+        self.content_item.get_meta_object = Mock(return_value=fake_meta)
+        self.content_item.update_seo_from_gemini = Mock(return_value=True)
+
+        mock_manager = Mock()
+        mock_manager.generate_metadata.return_value = (True, {'title_ar': 'عنوان AI', 'title_en': 'AI Title'})
+        mock_get_gemini_manager.return_value = mock_manager
+
+        request = self.factory.post(
+            '/ar/dashboard/api/admin/generate-content-metadata/',
+            data={'content_id': str(self.content_item.id)},
+        )
+        request.user = self.staff_user
+        request._dont_enforce_csrf_checks = True
+
+        with patch('apps.frontend_api.admin_views.admin_service.get_content_detail', return_value=self.content_item):
+            response = generate_content_metadata(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(
+            ContentLifecycleAuditLog.objects.filter(
+                action_type='gemini_processing_started',
+                source='admin:generate_content_metadata',
+                content_item=self.content_item,
+            ).exists()
+        )
+        self.assertTrue(
+            ContentLifecycleAuditLog.objects.filter(
+                action_type='gemini_processing_completed',
+                source='admin:generate_content_metadata',
+                content_item=self.content_item,
+            ).exists()
+        )
+
+    def test_update_seo_from_gemini_persists_ai_title_mutation_log(self):
+        self.content_item.update_seo_from_gemini({
+            'title_ar': 'عنوان جديد',
+            'title_en': 'New AI Title',
+            'seo_title_ar': 'عنوان SEO جديد',
+            'seo_title_en': 'New SEO Title',
+        })
+
+        audit_log = ContentLifecycleAuditLog.objects.filter(
+            action_type='ai_title_mutated',
+            source='gemini:seo_update',
+            payload__title_en_before='Initial Title',
+            payload__title_en_after='New AI Title',
+        ).latest('created_at')
+
+        self.assertEqual(audit_log.content_item_id, self.content_item.id)
+
+    def test_r2_upload_file_with_progress_persists_attempt_and_completion_logs(self):
+        from core.storage_backends import R2Service
+
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            temp_file.write(b'phase4-r2-probe')
+            temp_file.flush()
+            temp_file.close()
+
+            service = R2Service()
+            service.use_r2 = True
+            service._r2_service = Mock()
+            service._r2_service.upload_file.return_value = (True, 'https://r2.example.com/file.mp4')
+
+            meta_instance = SimpleNamespace(
+                content_item=self.content_item,
+                r2_upload_status='pending',
+                r2_upload_progress=0,
+                save=Mock(),
+            )
+
+            with patch('os.path.getsize', return_value=15):
+                success, message = service.upload_file_with_progress(
+                    temp_file.name,
+                    'original/videos/file.mp4',
+                    meta_instance,
+                    'r2_original_file_url',
+                )
+
+            self.assertTrue(success)
+            self.assertEqual(message, 'Upload completed successfully')
+            self.assertTrue(
+                ContentLifecycleAuditLog.objects.filter(
+                    action_type='r2_upload_attempted',
+                    source='system:r2_storage',
+                    content_item=self.content_item,
+                ).exists()
+            )
+            self.assertTrue(
+                ContentLifecycleAuditLog.objects.filter(
+                    action_type='r2_upload_completed',
+                    source='system:r2_storage',
+                    content_item=self.content_item,
+                ).exists()
+            )
+        finally:
+            try:
+                os.unlink(temp_file.name)
+            except OSError:
+                pass
+
+
+class JobsTransitionGuardTestCase(TestCase):
+    """Phase 3 transition guard tests for jobs dashboard action APIs."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.staff_user = User.objects.create_user(
+            username='phase3_staff',
+            email='phase3_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.content_item = ContentItem.objects.create(
+            title_ar='وظيفة انتقال',
+            title_en='Transition Job',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+
+    @patch('apps.frontend_api.admin_views.dispatch_processing_task')
+    def test_promote_failed_processing_job_retries_then_processes(self, mock_dispatch):
+        from apps.frontend_api.admin_views import api_job_promote
+
+        mock_dispatch.return_value = SimpleNamespace(id='task-123')
+        job = ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='failed',
+            current_stage='file_processing',
+            failure_stage='file_processing',
+            retry_count=0,
+        )
+
+        request = self.factory.post(
+            '/ar/dashboard/jobs/api/promote/',
+            data=json.dumps({'job_id': str(job.id), 'source': 'processing_job'}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        response = api_job_promote(request)
+
+        self.assertEqual(response.status_code, 200)
+        job.refresh_from_db()
+        self.assertEqual(job.status, 'processing')
+        self.assertEqual(job.retry_count, 1)
+        self.assertEqual(job.celery_task_id, 'task-123')
+        self.assertEqual(job.last_action_source, 'admin:jobs_api')
+
+    def test_cancel_processing_job_rejects_processing_status(self):
+        from apps.frontend_api.admin_views import api_job_cancel
+
+        job = ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='processing',
+            current_stage='file_processing',
+        )
+
+        request = self.factory.post(
+            '/ar/dashboard/jobs/api/cancel/',
+            data=json.dumps({'job_id': str(job.id), 'source': 'processing_job'}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        response = api_job_cancel(request)
+
+        self.assertEqual(response.status_code, 400)
+        job.refresh_from_db()
+        self.assertEqual(job.status, 'processing')
+
+    def test_cancel_api_queue_rejects_completed_status(self):
+        from apps.frontend_api.admin_views import api_job_cancel
+
+        queue_item = APIUploadQueue.objects.create(
+            file_name='completed_queue.mp4',
+            file_path='tmp/completed_queue.mp4',
+            content_type='video',
+            file_size_mb=10.0,
+            status='completed',
+            queue_status='ready',
+        )
+
+        request = self.factory.post(
+            '/ar/dashboard/jobs/api/cancel/',
+            data=json.dumps({'job_id': str(queue_item.id), 'source': 'api_queue'}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        response = api_job_cancel(request)
+
+        self.assertEqual(response.status_code, 400)
+        queue_item.refresh_from_db()
+        self.assertEqual(queue_item.status, 'completed')
+
+    def test_cancel_processing_job_persists_lifecycle_audit_log(self):
+        from apps.frontend_api.admin_views import api_job_cancel
+
+        job = ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='pending',
+            current_stage='file_processing',
+        )
+
+        request = self.factory.post(
+            '/ar/dashboard/jobs/api/cancel/',
+            data=json.dumps({'job_id': str(job.id), 'source': 'processing_job'}),
+            content_type='application/json',
+        )
+        request.user = self.staff_user
+        response = api_job_cancel(request)
+
+        self.assertEqual(response.status_code, 200)
+        audit_log = ContentLifecycleAuditLog.objects.filter(
+            action_type='processing_job_cancelled',
+            payload__job_id=str(job.id),
+        ).latest('created_at')
+        self.assertEqual(audit_log.source, 'admin:jobs_api')
+        self.assertEqual(audit_log.previous_state, 'pending')
+        self.assertEqual(audit_log.new_state, 'canceled')
+        self.assertEqual(audit_log.actor_id, self.staff_user.id)
+
+
+class JobsDispatchPipelineTestCase(TestCase):
+    """Phase 3 dispatch and aggregation behavior tests."""
+
+    def setUp(self):
+        self.content_item = ContentItem.objects.create(
+            title_ar='وظيفة خطوط الانابيب',
+            title_en='Pipeline Job',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+
+    @patch('apps.frontend_api.utils.jobs_dashboard.dispatch_processing_task')
+    def test_dispatch_content_item_blocks_duplicate_processing_job(self, mock_dispatch):
+        from apps.frontend_api.utils.jobs_dashboard import dispatch_content_item_for_stage
+
+        ProcessingJob.objects.create(
+            content_item=self.content_item,
+            status='processing',
+            current_stage='file_processing',
+            celery_task_id='existing-task-id',
+        )
+
+        task_id = dispatch_content_item_for_stage(self.content_item, stage='file_processing')
+
+        self.assertEqual(task_id, '')
+        mock_dispatch.assert_not_called()
+
+    @patch('apps.frontend_api.utils.jobs_dashboard.dispatch_processing_task')
+    def test_dispatch_content_item_persists_action_source(self, mock_dispatch):
+        from apps.frontend_api.utils.jobs_dashboard import dispatch_content_item_for_stage
+
+        mock_dispatch.return_value = SimpleNamespace(id='task-xyz')
+
+        task_id = dispatch_content_item_for_stage(
+            self.content_item,
+            stage='file_processing',
+            action_source='admin:jobs_api',
+        )
+
+        self.assertEqual(task_id, 'task-xyz')
+        job = ProcessingJob.objects.get(content_item=self.content_item)
+        self.assertEqual(job.last_action_source, 'admin:jobs_api')
+
+    @patch('apps.media_manager.services.api_upload_queue_service.APIUploadQueueService.can_process_type')
+    def test_api_queue_promote_persists_action_source(self, mock_can_process_type):
+        from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
+
+        mock_can_process_type.return_value = False
+        queue_item = APIUploadQueue.objects.create(
+            file_name='source_queue.mp4',
+            file_path='tmp/source_queue.mp4',
+            content_type='video',
+            file_size_mb=5.0,
+            status='pending',
+            queue_status='waiting',
+        )
+
+        APIUploadQueueService.promote_item(str(queue_item.id), action_source='admin:jobs_api')
+
+        queue_item.refresh_from_db()
+        self.assertEqual(queue_item.last_action_source, 'admin:jobs_api')
+
+    @patch('apps.media_manager.services.api_upload_queue_service.APIUploadQueueService.can_process_type')
+    def test_api_queue_promote_persists_lifecycle_audit_log(self, mock_can_process_type):
+        from apps.frontend_api.admin_views import api_job_promote
+
+        mock_can_process_type.return_value = False
+        queue_item = APIUploadQueue.objects.create(
+            file_name='source_queue_2.mp4',
+            file_path='tmp/source_queue_2.mp4',
+            content_type='video',
+            file_size_mb=5.0,
+            status='pending',
+            queue_status='waiting',
+        )
+        staff_user = User.objects.create_user(
+            username='phase4_staff',
+            email='phase4_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+
+        request = RequestFactory().post(
+            '/ar/dashboard/jobs/api/promote/',
+            data=json.dumps({'job_id': str(queue_item.id), 'source': 'api_queue'}),
+            content_type='application/json',
+        )
+        request.user = staff_user
+
+        response = api_job_promote(request)
+
+        self.assertEqual(response.status_code, 200)
+        audit_log = ContentLifecycleAuditLog.objects.filter(
+            action_type='api_queue_promoted',
+            payload__queue_item_id=str(queue_item.id),
+        ).latest('created_at')
+        self.assertEqual(audit_log.source, 'admin:jobs_api')
+        self.assertEqual(audit_log.previous_state, 'pending')
+        self.assertEqual(audit_log.new_state, 'pending')
+        self.assertEqual(audit_log.actor_id, staff_user.id)
+
+    def test_get_jobs_counts_uses_canonical_api_queue_statuses(self):
+        from apps.frontend_api.utils.jobs_dashboard import get_jobs_counts
+
+        ContentItem.objects.create(
+            title_ar='وظيفة مكتملة',
+            title_en='Completed Job',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='audio',
+            is_active=True,
+        )
+
+        APIUploadQueue.objects.create(
+            file_name='queued_item.mp4',
+            file_path='tmp/queued_item.mp4',
+            content_type='video',
+            file_size_mb=5.0,
+            status='queued',
+            queue_status='ready',
+        )
+        APIUploadQueue.objects.create(
+            file_name='cancelled_item.mp4',
+            file_path='tmp/cancelled_item.mp4',
+            content_type='video',
+            file_size_mb=5.0,
+            status='cancelled',
+            queue_status='ready',
+        )
+
+        counts = get_jobs_counts()
+
+        self.assertGreaterEqual(counts['pending'], 1)
+        self.assertGreaterEqual(counts['canceled'], 1)
+
+
+class RemovedStandaloneDashboardRoutesTestCase(TestCase):
+    """Phase 2 hard-removal tests for deprecated standalone dashboard pages."""
+
+    def setUp(self):
+        self.staff_user = User.objects.create_user(
+            username='phase2_staff',
+            email='phase2_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.queue_item = APIUploadQueue.objects.create(
+            file_name='phase2_queue_video.mp4',
+            file_path='tmp/phase2_queue_video.mp4',
+            content_type='video',
+            file_size_mb=8.0,
+            status='pending',
+            queue_status='waiting',
+        )
+
+    def test_removed_routes_do_not_resolve_and_fail_fast(self):
+        removed_urls = [
+            '/ar/dashboard/api-queue/',
+            f'/ar/dashboard/api-queue/{self.queue_item.id}/',
+            '/ar/dashboard/r2/',
+            '/ar/dashboard/r2/status/',
+            '/ar/dashboard/seo/',
+            '/ar/dashboard/seo/analytics-api/',
+            '/ar/dashboard/seo/content-analysis-api/',
+            '/ar/dashboard/seo/bulk-actions-api/',
+            '/ar/dashboard/seo/monitoring-api/',
+            '/ar/dashboard/seo/site-config-api/',
+        ]
+
+        for url in removed_urls:
+            start = time.monotonic()
+            with self.assertRaises(Resolver404, msg=f'Expected unresolved route for {url}'):
+                resolve(url)
+            elapsed = time.monotonic() - start
+            self.assertLess(
+                elapsed,
+                1.0,
+                msg=f'URL resolution took too long for removed route {url}: {elapsed:.3f}s',
+            )
 
 
 class GeminiMetadataServiceTest(TestCase):
@@ -402,39 +1182,37 @@ class MetadataEndpointTest(TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
+        self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testuser',
+            email='metadata@example.com',
             password='testpass123',
             is_staff=True
         )
 
     def test_endpoint_requires_post(self):
         """Test that endpoint requires POST method"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_metadata_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_metadata_only')
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertFalse(data['success'])
-        self.assertIn('POST method required', data['error'])
+        request = self.factory.get('/api/admin/generate-metadata-only/')
+        request.user = self.user
+        response = generate_metadata_only(request)
+        self.assertEqual(response.status_code, 405)
 
     def test_endpoint_requires_file(self):
         """Test that endpoint requires file parameter"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_metadata_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_metadata_only')
-        response = client.post(url, {})
+        request = self.factory.post('/api/admin/generate-metadata-only/', {})
+        request.user = self.user
+        request._dont_enforce_csrf_checks = True
+        response = generate_metadata_only(request)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
+        data = json.loads(response.content)
         self.assertFalse(data['success'])
-        self.assertIn('File required', data['error'])
+        self.assertTrue(
+            ('File required' in data['error']) or ('الملف مطلوب' in data['error'])
+        )
 
 
 class SEOEndpointTest(TestCase):
@@ -442,36 +1220,145 @@ class SEOEndpointTest(TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
+        self.factory = RequestFactory()
         self.user = User.objects.create_user(
             username='testuser',
+            email='seo@example.com',
             password='testpass123',
             is_staff=True
         )
 
     def test_endpoint_requires_post(self):
         """Test that endpoint requires POST method"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_seo_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_seo_only')
-        response = client.get(url)
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertFalse(data['success'])
-        self.assertIn('POST method required', data['error'])
+        request = self.factory.get('/api/admin/generate-seo-only/')
+        request.user = self.user
+        response = generate_seo_only(request)
+        self.assertEqual(response.status_code, 405)
 
     def test_endpoint_requires_file(self):
         """Test that endpoint requires file parameter"""
-        from django.test import Client
-        from django.urls import reverse
+        from apps.frontend_api.admin_views import generate_seo_only
 
-        client = Client()
-        client.login(username='testuser', password='testpass123')
-        url = reverse('frontend_api:generate_seo_only')
-        response = client.post(url, {})
+        request = self.factory.post('/api/admin/generate-seo-only/', {})
+        request.user = self.user
+        request._dont_enforce_csrf_checks = True
+        response = generate_seo_only(request)
         self.assertEqual(response.status_code, 200)
-        data = response.json()
+        data = json.loads(response.content)
         self.assertFalse(data['success'])
-        self.assertIn('File required', data['error'])
+        self.assertTrue(
+            ('File required' in data['error']) or ('الملف مطلوب' in data['error'])
+        )
+
+
+class LifecycleInstrumentationCoverageTestCase(TestCase):
+    """Phase 4 task 3 coverage tests for manual edit, R2 retry, and SEO triggers."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username='phase4_cov_staff',
+            email='phase4_cov_staff@example.com',
+            password='testpass123',
+            is_staff=True,
+        )
+        self.content_item = ContentItem.objects.create(
+            title_ar='محتوى المرحلة 4',
+            title_en='Phase 4 Content',
+            description_ar='وصف',
+            description_en='Description',
+            content_type='video',
+            is_active=True,
+        )
+
+    def _attach_messages(self, request):
+        request.session = self.client.session
+        setattr(request, '_messages', FallbackStorage(request))
+
+    @patch('apps.frontend_api.admin_views.messages.error')
+    @patch('apps.frontend_api.admin_views.messages.success')
+    @patch('apps.frontend_api.admin_views.render')
+    def test_content_detail_manual_edit_persists_audit_log(self, mock_render, mock_messages_success, mock_messages_error):
+        from apps.frontend_api.admin_views import content_detail
+
+        mock_render.return_value = SimpleNamespace(status_code=200)
+
+        request = self.factory.post(
+            f'/ar/dashboard/content/{self.content_item.id}/',
+            data={
+                'title_ar': 'محتوى معدل',
+                'title_en': 'Updated Content',
+                'description_ar': 'وصف معدل',
+                'description_en': 'Updated Description',
+                'notes': 'manual edit',
+                'transcript': 'text',
+                'seo_title_ar': 'سيو',
+                'seo_title_en': 'SEO',
+                'tags': '',
+            },
+        )
+        request.user = self.user
+
+        response = content_detail(request, str(self.content_item.id))
+
+        self.assertEqual(response.status_code, 200)
+        audit_log = ContentLifecycleAuditLog.objects.filter(
+            action_type='content_manual_edit',
+            payload__content_id=str(self.content_item.id),
+        ).latest('created_at')
+        self.assertEqual(audit_log.source, 'admin:content_detail')
+        self.assertEqual(audit_log.actor_id, self.user.id)
+
+    @patch('apps.frontend_api.admin_views.upload_video_to_r2')
+    def test_retry_r2_upload_persists_audit_log(self, mock_upload_video):
+        from apps.frontend_api.admin_views import retry_r2_upload
+        from apps.media_manager.models import VideoMeta
+
+        mock_upload_video.delay.return_value = SimpleNamespace(id='r2-task-1')
+        video_meta = VideoMeta.objects.create(content_item=self.content_item)
+
+        request = self.factory.post('/api/admin/r2/retry/video/')
+        request.user = self.user
+
+        response = retry_r2_upload(request, 'video', str(video_meta.id))
+
+        self.assertEqual(response.status_code, 200)
+        audit_log = ContentLifecycleAuditLog.objects.filter(
+            action_type='r2_upload_retry_requested',
+            payload__meta_id=str(video_meta.id),
+        ).latest('created_at')
+        self.assertEqual(audit_log.source, 'admin:r2_retry')
+        self.assertEqual(audit_log.actor_id, self.user.id)
+
+    @patch('apps.frontend_api.admin_views.generate_seo_metadata_task')
+    def test_api_auto_fill_metadata_single_persists_audit_log(self, mock_generate_seo_task):
+        from apps.frontend_api.admin_views import api_auto_fill_metadata
+
+        mock_generate_seo_task.delay.return_value = SimpleNamespace(id='seo-task-1')
+        request = self.factory.post(
+            '/ar/dashboard/api/admin/auto-fill-metadata/',
+            data=json.dumps({'content_id': str(self.content_item.id)}),
+            content_type='application/json',
+        )
+        request.user = self.user
+        csrf_secret = _get_new_csrf_string()
+        csrf_token = _mask_cipher_secret(csrf_secret)
+        request.COOKIES['csrftoken'] = csrf_secret
+        request.META['CSRF_COOKIE'] = csrf_secret
+        request.META['HTTP_X_CSRFTOKEN'] = csrf_token
+        request.POST = request.POST.copy()
+        request.POST['csrfmiddlewaretoken'] = csrf_token
+
+        response = api_auto_fill_metadata(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertTrue(data['success'])
+        audit_log = ContentLifecycleAuditLog.objects.filter(
+            action_type='seo_generation_requested',
+            payload__content_id=str(self.content_item.id),
+        ).latest('created_at')
+        self.assertEqual(audit_log.source, 'admin:seo_request')
+        self.assertEqual(audit_log.actor_id, self.user.id)
