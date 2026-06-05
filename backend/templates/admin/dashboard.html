@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         
         loadCurrentSettings: function() {
-            fetch('{% url "frontend_api:get_search_sensitivity" %}')
+            fetch('{% url "frontend_api:api_get_search_sensitivity" %}')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {

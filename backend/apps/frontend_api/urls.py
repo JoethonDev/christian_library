@@ -99,8 +99,9 @@ urlpatterns = [
     path('dashboard/analytics/', admin_views.analytics_dashboard, name='analytics_dashboard'),
     path('dashboard/analytics/api/', admin_views.api_analytics_views, name='api_analytics_views'),
     
-    # Search Sensitivity Settings API
-    path('dashboard/search-settings/', admin_views.get_search_sensitivity, name='get_search_sensitivity'),
+    # Search Sensitivity Settings
+    path('dashboard/search-settings/', admin_views.search_settings_page, name='get_search_sensitivity'),
+    path('dashboard/search-settings/api/', admin_views.get_search_sensitivity, name='api_get_search_sensitivity'),
     path('dashboard/search-settings/update/', admin_views.update_search_sensitivity, name='update_search_sensitivity'),
     path('dashboard/search-settings/test/', admin_views.test_search_sensitivity, name='test_search_sensitivity'),
     

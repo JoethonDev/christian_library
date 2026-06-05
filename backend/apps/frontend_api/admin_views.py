@@ -156,6 +156,13 @@ def content_detail(request, content_id):
                     'description_en': content.description_en,
                     'seo_title_ar': content.seo_title_ar,
                     'seo_title_en': content.seo_title_en,
+                    'seo_keywords_ar': content.seo_keywords_ar,
+                    'seo_keywords_en': content.seo_keywords_en,
+                    'seo_meta_description_ar': content.seo_meta_description_ar,
+                    'seo_meta_description_en': content.seo_meta_description_en,
+                    'structured_data': content.structured_data,
+                    'notes': content.notes,
+                    'transcript': content.transcript,
                 }
                 # Handle general metadata updates
                 title_ar = request.POST.get('title_ar')
@@ -166,6 +173,11 @@ def content_detail(request, content_id):
                 transcript = request.POST.get('transcript', '')
                 seo_title_ar = request.POST.get('seo_title_ar', '')
                 seo_title_en = request.POST.get('seo_title_en', '')
+                seo_meta_description_ar = request.POST.get('seo_meta_description_ar', '')
+                seo_meta_description_en = request.POST.get('seo_meta_description_en', '')
+                seo_keywords_ar = request.POST.get('seo_keywords_ar', '')
+                seo_keywords_en = request.POST.get('seo_keywords_en', '')
+                structured_data = request.POST.get('structured_data', '')
                 tags_input = request.POST.get('tags', '')
                 thumbnail_file = request.FILES.get('thumbnail')
                 
@@ -178,10 +190,17 @@ def content_detail(request, content_id):
                 content.transcript = transcript
                 content.seo_title_ar = seo_title_ar
                 content.seo_title_en = seo_title_en
+                content.seo_meta_description_ar = seo_meta_description_ar
+                content.seo_meta_description_en = seo_meta_description_en
+                content.seo_keywords_ar = seo_keywords_ar
+                content.seo_keywords_en = seo_keywords_en
+                content.structured_data = structured_data if structured_data else None
                 
                 update_fields = [
                     'title_ar', 'title_en', 'description_ar', 'description_en',
-                    'notes', 'transcript', 'seo_title_ar', 'seo_title_en', 'updated_at'
+                    'notes', 'transcript', 'seo_title_ar', 'seo_title_en',
+                    'seo_meta_description_ar', 'seo_meta_description_en',
+                    'seo_keywords_ar', 'seo_keywords_en', 'structured_data', 'updated_at'
                 ]
                 
                 if thumbnail_file:
@@ -263,11 +282,29 @@ def content_detail(request, content_id):
                             'description_en': content.description_en,
                             'seo_title_ar': content.seo_title_ar,
                             'seo_title_en': content.seo_title_en,
+                            'seo_keywords_ar': content.seo_keywords_ar,
+                            'seo_keywords_en': content.seo_keywords_en,
+                            'seo_meta_description_ar': content.seo_meta_description_ar,
+                            'seo_meta_description_en': content.seo_meta_description_en,
+                            'structured_data': content.structured_data,
+                            'notes': content.notes,
+                            'transcript': content.transcript,
                         },
                         'tags_input': tags_input,
                         'thumbnail_updated': bool(thumbnail_file),
                     },
                 )
+                
+                # Compute SEO processing status from field presence
+                has_ar = bool(content.seo_title_ar or content.seo_meta_description_ar or content.seo_keywords_ar)
+                has_en = bool(content.seo_title_en or content.seo_meta_description_en or content.seo_keywords_en)
+                if has_ar and has_en:
+                    content.seo_processing_status = 'completed'
+                elif has_ar or has_en:
+                    content.seo_processing_status = 'processing' if content.seo_processing_status != 'completed' else 'completed'
+                else:
+                    content.seo_processing_status = 'pending'
+                update_fields.append('seo_processing_status')
                 
                 messages.success(request, _("Sacred metadata updated successfully"))
             
@@ -440,13 +477,13 @@ def bulk_upload_init(request):
             'tag_ids': payload.get('tag_ids', []) or [],
             'seo_title_en': payload.get('seo_title_en', ''),
             'seo_title_ar': payload.get('seo_title_ar', ''),
-            'seo_description_en': payload.get('seo_description_en', ''),
-            'seo_description_ar': payload.get('seo_description_ar', ''),
+            'seo_description_en': payload.get('seo_meta_description_en') or payload.get('seo_description_en', ''),
+            'seo_description_ar': payload.get('seo_meta_description_ar') or payload.get('seo_description_ar', ''),
             'seo_keywords_en': payload.get('seo_keywords_en', ''),
             'seo_keywords_ar': payload.get('seo_keywords_ar', ''),
             'transcript': payload.get('transcript', ''),
             'notes': payload.get('notes', ''),
-            'seo_structured_data': payload.get('seo_structured_data', ''),
+            'seo_structured_data': payload.get('structured_data') or payload.get('seo_structured_data', ''),
         }
 
         session = ChunkedUploadSession.objects.create(
@@ -2151,8 +2188,38 @@ def api_analytics_views(request):
 
 
 @staff_member_required
+def search_settings_page(request):
+    """Render the search settings admin page"""
+    search_service = get_search_settings_service()
+    settings = search_service.get_all_settings()
+    
+    modes = []
+    for mode_key, mode_label in [
+        ('exact', 'Exact Match'),
+        ('strict', 'Strict'),
+        ('normal', 'Normal'),
+        ('relaxed', 'Relaxed'),
+        ('custom', 'Custom'),
+    ]:
+        modes.append({
+            'key': mode_key,
+            'label': mode_label,
+            'threshold': search_service.get_threshold_for_mode(mode_key),
+            'description': search_service.get_mode_description(mode_key),
+            'is_active': settings['mode'] == mode_key
+        })
+    
+    context = {
+        'current_settings': settings,
+        'available_modes': modes,
+        'current_language': get_language(),
+    }
+    return render(request, 'admin/search_settings.html', context)
+
+
+@staff_member_required
 def get_search_sensitivity(request):
-    """Get current search sensitivity settings"""
+    """Get current search sensitivity settings (JSON API)"""
     try:
         search_service = get_search_settings_service()
         settings = search_service.get_all_settings()
@@ -2420,7 +2487,9 @@ def document_upload(request, content_id):
                 'message': result.get('message'),
                 'document_name': result.get('document_name'),
                 'document_size': result.get('document_size'),
-                'status': result.get('status')
+                'document_path': result.get('document_path'),
+                'status': result.get('status'),
+                'extraction_async': True,
             })
         else:
             return JsonResponse({

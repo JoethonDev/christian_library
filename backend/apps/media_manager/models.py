@@ -985,7 +985,7 @@ class ContentItem(models.Model):
     # --- SEO Helper Methods ---
     def has_seo_metadata(self):
         """Check if this content item has SEO metadata generated"""
-        return bool(self.seo_keywords_ar or self.seo_keywords_en or self.seo_title_ar or self.seo_title_en)
+        return bool(self.seo_keywords_ar or self.seo_keywords_en or self.seo_title_ar or self.seo_title_en or self.seo_meta_description_ar or self.seo_meta_description_en)
 
     def get_seo_status_display(self):
         """Get a human-readable label for the SEO processing state."""

@@ -11,9 +11,9 @@
         <p class="text-muted mb-0">{% trans "Live CPU, memory, disk, database, cache, and task activity" %}</p>
     </div>
     <div class="col-auto d-flex flex-wrap gap-2 align-items-center">
-        <div class="input-group input-group-sm align-items-center unit-select-group">
-            <span class="input-group-text bg-white border-0 text-muted fw-semibold">{% trans "Units" %}</span>
-            <select id="sizeUnitSelect" class="form-select form-select-sm rounded-pill border shadow-sm">
+        <div class="input-group input-group-sm align-items-center unit-select-group bg-light rounded-pill px-2 border shadow-sm">
+            <span class="input-group-text bg-transparent border-0 text-muted fw-semibold small pe-1">{% trans "Units" %}</span>
+            <select id="sizeUnitSelect" class="form-select form-select-sm border-0 bg-transparent ps-1 pe-3 fw-medium text-dark" style="cursor: pointer;">
                 <option value="auto">{% trans "Auto" %}</option>
                 <option value="bytes">B</option>
                 <option value="kb">KB</option>
@@ -31,11 +31,12 @@
     </div>
 </div>
 
-<ul class="nav nav-pills mb-4 gap-1">
+<ul class="nav nav-pills mb-4 gap-1 flex-wrap">
     <li class="nav-item"><a class="nav-link active" href="{% url 'frontend_api:system_monitor' %}">{% trans "Overview" %}</a></li>
     <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:file_manager' %}">{% trans "File Manager" %}</a></li>
     <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:orphaned_files' %}">{% trans "Orphaned Files" %}</a></li>
     <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:cache_manager' %}">{% trans "Cache" %}</a></li>
+    <li class="nav-item"><a class="nav-link" href="{% url 'frontend_api:get_search_sensitivity' %}">{% trans "Search Settings" %}</a></li>
 </ul>
 
 <div class="row g-3 mb-4">
