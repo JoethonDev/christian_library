@@ -17,14 +17,15 @@ class GeminiMetadataService(BaseGeminiService):
         """Initialize with DB-configured default model"""
         super().__init__()
     
-    def generate_metadata(self, file_path: str, content_type: str) -> Tuple[bool, Dict]:
+    def generate_metadata(self, file_path: str, content_type: str, content_item=None) -> Tuple[bool, Dict]:
         """
         Generate metadata for uploaded file using Gemini AI
-        
+
         Args:
             file_path: Path to the uploaded file
             content_type: Type of content ('video', 'audio', 'pdf')
-            
+            content_item: Optional ContentItem instance for attempt tracking
+
         Returns:
             Tuple of (success: bool, metadata: dict)
             Metadata follows standardized JSON format:
@@ -35,15 +36,15 @@ class GeminiMetadataService(BaseGeminiService):
         """
         if not self.is_available():
             return False, {"error": "Gemini AI service not available"}
-            
+
         uploaded_file = None
         try:
             # Upload file to Gemini
             uploaded_file = self._upload_file(file_path)
-            
+
             # Create metadata prompt
             prompt = self._create_metadata_prompt(content_type)
-            
+
             # Define response schema with tags
             response_schema = {
                 "type": "object",
@@ -77,7 +78,7 @@ class GeminiMetadataService(BaseGeminiService):
                 },
                 "required": ["en", "ar"]
             }
-            
+
             # Generate content with Gemini
             metadata = self._generate_content(
                 prompt,
@@ -85,14 +86,16 @@ class GeminiMetadataService(BaseGeminiService):
                 response_schema,
                 system_instruction=prompt,
                 cache_key=f"metadata:{self.default_model}:{content_type}",
+                content_item=content_item,
+                operation_type='metadata',
             )
-            
+
             # Validate and clean response
             cleaned_metadata = self._validate_metadata(metadata)
-            
+
             logger.info(f"Successfully generated metadata for {content_type} file")
             return True, cleaned_metadata
-            
+
         except Exception as e:
             logger.error(f"Error generating metadata: {e}")
             return False, {"error": f"AI generation failed: {str(e)}"}

@@ -9,7 +9,7 @@ import time
 from typing import Dict, Tuple, Optional
 from django.conf import settings
 from google import genai
-from apps.media_manager.models import GeminiModelSetting
+from apps.media_manager.models import GeminiModelSetting, GeminiGenerationAttempt
 from .gemini_rate_limit_service import get_gemini_rate_limit_service
 
 logger = logging.getLogger(__name__)
@@ -142,6 +142,38 @@ class BaseGeminiService:
 
             time.sleep(poll_interval_seconds)
 
+    def _create_attempt(self, content_item, requested_model_key, resolved_model_key, operation_type):
+        """Create a GeminiGenerationAttempt row before starting generation."""
+        try:
+            return GeminiGenerationAttempt.objects.create(
+                content_item=content_item,
+                requested_model_key=requested_model_key,
+                resolved_model_key=resolved_model_key,
+                operation_type=operation_type,
+                status=GeminiGenerationAttempt.Status.STARTED,
+                success=None,
+            )
+        except Exception as e:
+            logger.error(f"Failed to create Gemini attempt record: {e}")
+            return None
+
+    def _finalize_attempt(self, attempt, resolved_model, status, success, error_message=None, response_time_ms=None):
+        """Update the attempt row after generation completes."""
+        if attempt is None:
+            return
+        try:
+            attempt.resolved_model_key = resolved_model
+            attempt.status = status
+            attempt.success = success
+            attempt.error_message = error_message
+            attempt.response_time_ms = response_time_ms
+            attempt.save(update_fields=[
+                'resolved_model_key', 'status', 'success',
+                'error_message', 'response_time_ms'
+            ])
+        except Exception as e:
+            logger.error(f"Failed to finalize Gemini attempt record: {e}")
+
     def _cleanup_file(self, uploaded_file):
         """Clean up uploaded file from Gemini"""
         try:
@@ -159,9 +191,12 @@ class BaseGeminiService:
         system_instruction: Optional[str] = None,
         cache_key: Optional[str] = None,
         text_content: Optional[str] = None,
+        content_item=None,
+        operation_type: str = GeminiGenerationAttempt.OperationType.COMBINED,
     ):
         """
-        Generate content with Gemini using standard configuration
+        Generate content with Gemini using standard configuration.
+        Optionally records a GeminiGenerationAttempt if content_item is provided.
 
         Args:
             prompt: The prompt text
@@ -169,6 +204,8 @@ class BaseGeminiService:
             response_schema: JSON schema for response validation
             model: Specific model to use (uses default if None)
             use_fallback: Whether to use fallback model if primary fails
+            content_item: ContentItem instance to track this attempt (optional)
+            operation_type: Type of generation ('combined', 'metadata', 'seo')
 
         Returns:
             Parsed JSON response
@@ -177,6 +214,7 @@ class BaseGeminiService:
             Exception: If generation fails and no fallback is available
         """
         target_model = model or self.default_model
+        requested_model_key = model or self.default_model
 
         is_available, message, fallback_model = self.check_model_availability(target_model)
 
@@ -185,6 +223,12 @@ class BaseGeminiService:
             target_model = fallback_model
         elif not is_available:
             raise Exception(f"Model not available: {message}")
+
+        attempt = None
+        if content_item is not None:
+            attempt = self._create_attempt(content_item, requested_model_key, target_model, operation_type)
+
+        start_time = time.monotonic()
 
         try:
             contents = []
@@ -209,17 +253,39 @@ class BaseGeminiService:
                 config=config,
             )
 
+            elapsed_ms = int((time.monotonic() - start_time) * 1000)
+
             if self.rate_limit_service:
                 self.rate_limit_service.record_usage(target_model)
+
+            if attempt is not None:
+                self._finalize_attempt(
+                    attempt, target_model,
+                    GeminiGenerationAttempt.Status.SUCCESS, True,
+                    response_time_ms=elapsed_ms,
+                )
 
             logger.info(f"Successfully generated content using model: {target_model}")
             return json.loads(response.text)
 
         except Exception as e:
+            elapsed_ms = int((time.monotonic() - start_time) * 1000)
             logger.error(f"Error generating content with {target_model}: {e}")
+
+            if attempt is not None:
+                self._finalize_attempt(
+                    attempt, target_model,
+                    GeminiGenerationAttempt.Status.FAILURE, False,
+                    error_message=str(e), response_time_ms=elapsed_ms,
+                )
 
             if use_fallback and fallback_model and target_model != fallback_model:
                 logger.warning(f"Retrying with fallback model: {fallback_model}")
-                return self._generate_content(prompt, uploaded_file, response_schema, fallback_model, use_fallback=False)
+                return self._generate_content(
+                    prompt, uploaded_file, response_schema, fallback_model,
+                    use_fallback=False, system_instruction=system_instruction,
+                    cache_key=cache_key, text_content=text_content,
+                    content_item=content_item, operation_type=operation_type,
+                )
 
             raise

@@ -323,7 +323,7 @@ def generate_seo_metadata_task(self, contentitem_id, force_regenerate=False):
             'AI Processing'
         )
         
-        success, combined_data = manager.generate_combined_ai_data(file_path, item.content_type, context_text=context_text)
+        success, combined_data = manager.generate_combined_ai_data(contentitem_id, file_path, item.content_type, context_text=context_text)
         
         if success and combined_data:
             TaskMonitor.update_progress(
@@ -799,15 +799,13 @@ def process_upload_queue_item(self, queue_item_id, trigger_next=True):
             # Update queue item with error
             queue_item.status = 'failed'
             queue_item.error_message = str(e)
-            queue_item.gemini_attempts += 1
-            queue_item.save(update_fields=['status', 'error_message', 'gemini_attempts', 'updated_at'])
+            queue_item.save(update_fields=['status', 'error_message', 'updated_at'])
             
             # Release lock
             APIUploadQueueService.release_processing_lock(queue_item.content_type)
             
-            # Retry if not exceeded max retries
-            if queue_item.gemini_attempts < 3:
-                raise self.retry(exc=e, countdown=300)  # Retry after 5 minutes
+            # Retry (Celery's max_retries handles the limit)
+            raise self.retry(exc=e, countdown=300)  # Retry after 5 minutes
 
 
 @shared_task

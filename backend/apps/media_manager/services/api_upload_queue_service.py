@@ -417,8 +417,7 @@ class APIUploadQueueService:
             previous_status = queue_item.status
             queue_item.transition_to('failed', reason=str(e), source='system:queue_worker')
             queue_item.error_message = str(e)
-            queue_item.gemini_attempts += 1
-            queue_item.save(update_fields=['status', 'error_message', 'gemini_attempts', 'last_action_source', 'updated_at'])
+            queue_item.save(update_fields=['status', 'error_message', 'last_action_source', 'updated_at'])
             LifecycleAuditService.log_event(
                 content_item=queue_item.content_item,
                 action_type='api_queue_failed',
@@ -464,8 +463,7 @@ class APIUploadQueueService:
                 queue_item.queue_status = 'ready'
                 queue_item.scheduled_for = timezone.now()
                 queue_item.error_message = ''
-                queue_item.gemini_attempts += 1
-                queue_item.save(update_fields=['status', 'queue_status', 'scheduled_for', 'error_message', 'gemini_attempts', 'last_action_source', 'updated_at'])
+                queue_item.save(update_fields=['status', 'queue_status', 'scheduled_for', 'error_message', 'last_action_source', 'updated_at'])
             else:
                 if not queue_item.can_promote():
                     raise ValueError(f'Queue item cannot be promoted from status: {queue_item.status}')

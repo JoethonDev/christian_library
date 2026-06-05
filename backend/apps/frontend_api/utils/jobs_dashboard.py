@@ -258,7 +258,7 @@ def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all'
         ),
         content_type_value=F('content_type'),
         stage_value=F('queue_status'),
-        retry_count_value=F('gemini_attempts'),
+        retry_count_value=F('delay_count'),
         failure_reason_value=Coalesce(
             'error_message',
             Value('', output_field=CharField()),

@@ -22,15 +22,17 @@ class GeminiSEOService(BaseGeminiService):
         file_path: str,
         content_type: str,
         context_text: str = None,
+        content_item=None,
     ) -> Tuple[bool, Dict]:
         """
         Generate SEO metadata for uploaded file using Gemini AI
-        
+
         Args:
             file_path: Path to the uploaded file
             content_type: Type of content ('video', 'audio', 'pdf')
             context_text: Optional extracted text to analyze instead of the raw file
-            
+            content_item: Optional ContentItem instance for attempt tracking
+
         Returns:
             Tuple of (success: bool, seo_data: dict)
             SEO data follows standardized JSON format:
@@ -51,7 +53,7 @@ class GeminiSEOService(BaseGeminiService):
         """
         if not self.is_available():
             return False, {"error": "Gemini AI service not available"}
-            
+
         uploaded_file = None
         try:
             text_content = None
@@ -65,10 +67,10 @@ class GeminiSEOService(BaseGeminiService):
             else:
                 # Upload file to Gemini Files API
                 uploaded_file = self._upload_file(file_path)
-            
+
             # Create SEO prompt
             prompt = self._create_seo_prompt(content_type)
-            
+
             # Define response schema with structured data
             response_schema = {
                 "type": "object",
@@ -126,7 +128,7 @@ class GeminiSEOService(BaseGeminiService):
                 },
                 "required": ["en", "ar", "transcript", "notes"]
             }
-            
+
             # Generate content with Gemini
             seo_data = self._generate_content(
                 prompt,
@@ -135,14 +137,16 @@ class GeminiSEOService(BaseGeminiService):
                 system_instruction=prompt,
                 cache_key=f"seo:{self.default_model}:{content_type}",
                 text_content=text_content,
+                content_item=content_item,
+                operation_type='seo',
             )
-            
+
             # Validate and clean response
             cleaned_seo = self._validate_seo(seo_data)
-            
+
             logger.info(f"Successfully generated SEO metadata for {content_type} file")
             return True, cleaned_seo
-            
+
         except Exception as e:
             logger.error(f"Error generating SEO metadata: {e}")
             return False, {"error": f"AI generation failed: {str(e)}"}
@@ -155,9 +159,13 @@ class GeminiSEOService(BaseGeminiService):
         file_path: str,
         content_type: str,
         context_text: str = None,
+        content_item=None,
     ) -> Tuple[bool, Dict]:
         """
         Generate combined metadata + SEO output in a single Gemini call.
+
+        Args:
+            content_item: ContentItem instance for GeminiGenerationAttempt tracking
 
         Returns:
             Tuple of (success: bool, combined_data: dict)
@@ -262,6 +270,8 @@ class GeminiSEOService(BaseGeminiService):
                 system_instruction=prompt,
                 cache_key=f"combined:{self.default_model}:{content_type}",
                 text_content=text_content,
+                content_item=content_item,
+                operation_type='combined',
             )
 
             cleaned_combined = self._validate_combined(combined_data)
