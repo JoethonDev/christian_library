@@ -90,7 +90,7 @@ echo "$NEW" > "$ACTIVE_SLOT_FILE"
 sleep 3
 
 echo "      Stopping old slot: $ACTIVE..."
-docker compose $COMPOSE_SHARED $COMPOSE_OLD down || true
+docker compose $COMPOSE_SHARED $COMPOSE_OLD rm --stop --force app_${ACTIVE} || true
 
 # ── Step 8: Purge Cloudflare cache ──────────────────────────────────
 echo "[8/11] Purging Cloudflare cache..."
