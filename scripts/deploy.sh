@@ -21,7 +21,7 @@ COMPOSE_OLD="-f ${PROJECT_DIR}/docker-compose.${ACTIVE}.yml"
 
 # ── Step 1: Ensure shared services are up ────────────────────────────
 # Handles first-time deploy where no shared stack exists yet.
-echo "[1/9] Ensuring shared services are running..."
+echo "[1/11] Ensuring shared services are running..."
 if ! docker compose $COMPOSE_SHARED ps --status running 2>/dev/null | grep -q "redis"; then
   echo "      Shared stack not detected. Starting shared services..."
   docker compose $COMPOSE_SHARED up -d --wait db redis
@@ -29,12 +29,12 @@ fi
 echo "      Shared services OK"
 
 # ── Step 2: Build image ─────────────────────────────────────────────
-echo "[2/9] Building image christian-library-app:${IMAGE_TAG}..."
+echo "[2/11] Building image christian-library-app:${IMAGE_TAG}..."
 docker build -t christian-library-app:"${IMAGE_TAG}" -f "${PROJECT_DIR}/Dockerfile" "${PROJECT_DIR}"
 docker tag christian-library-app:"${IMAGE_TAG}" christian-library-app:latest
 
 # ── Step 3: Run migrations ──────────────────────────────────────────
-echo "[3/9] Running migrations..."
+echo "[3/11] Running migrations..."
 # Override image tag for the migration service
 export IMAGE_TAG
 docker compose $COMPOSE_SHARED run --rm migration \
@@ -42,11 +42,11 @@ docker compose $COMPOSE_SHARED run --rm migration \
 echo "      Migrations OK"
 
 # ── Step 4: Start new slot ──────────────────────────────────────────
-echo "[4/9] Starting new slot: $NEW..."
+echo "[4/11] Starting new slot: $NEW..."
 docker compose $COMPOSE_SHARED $COMPOSE_NEW up -d --force-recreate
 
 # ── Step 5: Wait for health check ───────────────────────────────────
-echo "[5/9] Waiting for $NEW to become healthy..."
+echo "[5/11] Waiting for $NEW to become healthy..."
 RETRIES=0
 MAX_RETRIES=30
 until docker inspect "app_${NEW}" \
@@ -64,7 +64,7 @@ done
 echo "      $NEW is healthy"
 
 # ── Step 6: Smoke tests ─────────────────────────────────────────────
-echo "[6/9] Running smoke tests against $NEW..."
+echo "[6/11] Running smoke tests against $NEW..."
 "${PROJECT_DIR}/scripts/smoke_test.sh" "$NEW" || {
   echo "      FAILED: smoke tests did not pass. Tearing down $NEW."
   docker compose $COMPOSE_SHARED $COMPOSE_NEW down
@@ -74,7 +74,7 @@ echo "[6/9] Running smoke tests against $NEW..."
 echo "      Smoke tests passed"
 
 # ── Step 7: Switch Nginx, then stop old slot ────────────────────────
-echo "[7/9] Switching traffic from $ACTIVE to $NEW..."
+echo "[7/11] Switching traffic from $ACTIVE to $NEW..."
 
 UPSTREAM_FILE="${PROJECT_DIR}/docker/nginx/conf.d/upstream.conf"
 echo "upstream active_backend { server app_${NEW}:8000; keepalive 32; }" \
@@ -89,8 +89,27 @@ sleep 3
 echo "      Stopping old slot: $ACTIVE..."
 docker compose $COMPOSE_SHARED $COMPOSE_OLD down || true
 
-# ── Step 8: Drain removed queues ────────────────────────────────────
-echo "[8/9] Draining old queues..."
+# ── Step 8: Purge Cloudflare cache ──────────────────────────────────
+echo "[8/11] Purging Cloudflare cache..."
+CF_ZONE_ID="${CF_ZONE_ID:?CF_ZONE_ID not set}"
+CF_API_TOKEN="${CF_API_TOKEN:?CF_API_TOKEN not set}"
+
+PURGE_RESPONSE=$(curl -s -X POST \
+  "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/purge_cache" \
+  -H "Authorization: Bearer ${CF_API_TOKEN}" \
+  -H "Content-Type: application/json" \
+  --data '{"purge_everything": true}')
+
+SUCCESS=$(echo "$PURGE_RESPONSE" | grep -o '"success":true')
+if [ -z "$SUCCESS" ]; then
+  echo "      WARNING: Cloudflare purge may have failed:"
+  echo "      $PURGE_RESPONSE"
+else
+  echo "      Cloudflare cache purged."
+fi
+
+# ── Step 9: Drain removed queues ────────────────────────────────────
+echo "[9/11] Draining old queues..."
 if [ ${#OLD_QUEUES[@]} -eq 0 ]; then
   echo "      No queues to drain. Skipping."
 else
@@ -118,8 +137,8 @@ else
   done
 fi
 
-# ── Step 9: Restart workers with new image ──────────────────────────
-echo "[9/9] Restarting workers with new image..."
+# ── Step 10: Restart workers with new image ─────────────────────────
+echo "[10/11] Restarting workers with new image..."
 WORKERS=(celery_worker_primary celery_worker_secondary celery_worker_uploads celery_worker_gemini)
 for WORKER in "${WORKERS[@]}"; do
   echo "      Restarting $WORKER..."
@@ -128,6 +147,12 @@ for WORKER in "${WORKERS[@]}"; do
 done
 echo "      Restarting beat..."
 docker compose $COMPOSE_SHARED restart celery_beat
+
+# ── Step 11: Docker cleanup ─────────────────────────────────────────
+echo "[11/11] Pruning Docker build cache and dangling images..."
+docker builder prune -a -f
+docker image prune -a -f
+echo "      Docker cleanup done."
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
