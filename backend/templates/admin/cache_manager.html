@@ -1,0 +1,163 @@
+<!-- templates/admin/cache_manager.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Cache Manager" %} | Admin{% endblock %}
+
+{% block admin_content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "Cache Manager" %}</h1>
+        <p class="text-muted mb-0">{% trans "Monitor and manage the Redis cache store" %}</p>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary rounded-pill" onclick="window.location.reload()">
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
+        </button>
+    </div>
+</div>
+
+<!-- Sub-section tabs -->
+<ul class="nav nav-pills mb-4 gap-1">
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:system_monitor' %}">{% trans "Overview" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:file_manager' %}">{% trans "File Manager" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:orphaned_files' %}">{% trans "Orphaned Files" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{% url 'frontend_api:cache_manager' %}">{% trans "Cache" %}</a>
+    </li>
+</ul>
+
+{% if cache_stats.error %}
+<div class="alert alert-warning rounded-3">
+    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
+    {% trans "Could not connect to Redis:" %} {{ cache_stats.error }}
+</div>
+{% else %}
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-primary admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-key"/></svg>
+                <div class="display-6 fw-bold text-dark">{{ cache_stats.total_keys|default:"0" }}</div>
+                <div class="admin-stat-label">{% trans "Cached Keys" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-warning admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-memory"/></svg>
+                <div class="h4 fw-bold text-dark mb-1">{{ cache_stats.used_memory|default:"?" }}</div>
+                <div class="admin-stat-label">{% trans "Memory Used" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-success admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-check2"/></svg>
+                <div class="display-6 fw-bold text-dark">{{ cache_stats.keyspace_hits|default:"0" }}</div>
+                <div class="admin-stat-label">{% trans "Cache Hits" %}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card admin-stat-card h-100 text-center py-3">
+            <div class="card-body">
+                <svg class="bi mb-2 text-danger admin-icon-sm" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg>
+                <div class="display-6 fw-bold text-dark">{{ cache_stats.keyspace_misses|default:"0" }}</div>
+                <div class="admin-stat-label">{% trans "Cache Misses" %}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Redis info + actions -->
+<div class="row g-4">
+    <!-- Redis info -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-server"/></svg>
+                    {% trans "Redis Info" %}
+                </h6>
+            </div>
+            <div class="card-body px-4">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5 text-muted fw-normal">{% trans "Version" %}</dt>
+                    <dd class="col-sm-7 fw-semibold">{{ cache_stats.redis_version|default:"?" }}</dd>
+
+                    <dt class="col-sm-5 text-muted fw-normal">{% trans "Memory Used" %}</dt>
+                    <dd class="col-sm-7 fw-semibold">{{ cache_stats.used_memory|default:"?" }}</dd>
+
+                    <dt class="col-sm-5 text-muted fw-normal">{% trans "Peak Memory" %}</dt>
+                    <dd class="col-sm-7 fw-semibold">{{ cache_stats.used_memory_peak|default:"?" }}</dd>
+
+                    <dt class="col-sm-5 text-muted fw-normal">{% trans "Connected Clients" %}</dt>
+                    <dd class="col-sm-7 fw-semibold">{{ cache_stats.connected_clients|default:"?" }}</dd>
+
+                    <dt class="col-sm-5 text-muted fw-normal">{% trans "Uptime" %}</dt>
+                    <dd class="col-sm-7 fw-semibold">
+                        {% if cache_stats.uptime_in_seconds %}
+                        {% widthratio cache_stats.uptime_in_seconds 3600 1 %}h
+                        {% else %}?{% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+                    <svg class="bi me-2 text-danger" aria-hidden="true" focusable="false"><use href="#bi-lightning"/></svg>
+                    {% trans "Cache Actions" %}
+                </h6>
+            </div>
+            <div class="card-body px-4">
+                <!-- Clear all -->
+                <div class="border rounded-3 p-3 mb-3">
+                    <h6 class="fw-semibold mb-1">{% trans "Clear Entire Cache" %}</h6>
+                    <p class="text-muted small mb-3">{% trans "Flushes ALL keys from the cache. Pages will rebuild on next request." %}</p>
+                    <form method="post" onsubmit="return confirm('{% trans "Clear ALL cache? This affects all cached pages and data." %}')">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="clear_all">
+                        <button type="submit" class="btn btn-danger rounded-pill">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>{% trans "Clear All Cache" %}
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Clear by pattern -->
+                <div class="border rounded-3 p-3">
+                    <h6 class="fw-semibold mb-1">{% trans "Clear by Pattern" %}</h6>
+                    <p class="text-muted small mb-3">{% trans "Delete keys containing a specific keyword (e.g. 'content', 'search', 'home')." %}</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="clear_pattern">
+                        <div class="input-group">
+                            <input type="text" name="pattern" class="form-control rounded-start-3" placeholder="{% trans 'Pattern keyword' %}">
+                            <button type="submit" class="btn btn-warning rounded-end-3">
+                                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-funnel"/></svg>{% trans "Clear Matching" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}

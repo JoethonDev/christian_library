@@ -1,96 +1,92 @@
 {% load i18n %}
 {% load static %}
-<!-- 
+<!--
     PDF.js RTL Fix: Force LTR direction for PDF viewer to ensure correct Arabic text rendering.
     PDF.js has issues rendering Arabic text correctly when the container has dir="rtl".
     This workaround forces the PDF viewer to always use LTR direction while keeping the UI
     elements (buttons, labels) in the correct language direction.
 -->
-<div class="modern-pdf-viewer rounded-4 overflow-hidden w-100 h-100" dir="ltr" style="background: linear-gradient(135deg, #F5DEB3 0%, rgba(75, 0, 130, 0.05) 100%); border: 1px solid rgba(184, 134, 11, 0.1); min-height:100%; min-width:100%; display:flex; flex-direction:column; box-shadow: 0 8px 32px rgba(184, 134, 11, 0.15);">
-    <!-- Enhanced Mobile-First Header -->
-    <div class="p-3 border-bottom flex-shrink-0" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 222, 179, 0.3) 100%); backdrop-filter: blur(15px); border-bottom: 2px solid rgba(184, 134, 11, 0.2);">
+<div class="modern-pdf-viewer rounded-4 overflow-hidden w-100 h-100" dir="ltr">
+    <!-- Header -->
+    <div class="pdf-viewer-header p-3 border-bottom flex-shrink-0">
         <div class="d-flex align-items-start flex-column flex-md-row gap-2 gap-md-3">
-            <!-- Coptic Cross Icon with Enhanced Styling -->
             <div class="d-flex align-items-center flex-shrink-0">
-                <div class="p-2" style="background: linear-gradient(135deg, #B8860B, #DAA520); border-radius: 16px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(184, 134, 11, 0.3);">
+                <div class="pdf-viewer-icon">
                     <svg class="bi text-white" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-journal-bookmark-fill"/></svg>
                 </div>
             </div>
-            <!-- Title and Tags with Mobile Optimization -->
             <div class="flex-grow-1 min-w-0">
-                <h6 class="mb-1 fw-bold text-truncate" style="color: #8B0000; font-family: 'Crimson Text', serif; font-size: 1.1rem; line-height: 1.3;">{{ pdf.title_ar }}</h6>
+                <h6 class="mb-1 fw-bold text-truncate pdf-viewer-title">{{ pdf.title_ar }}</h6>
                 {% if pdf.tags.exists %}
                 <div class="d-flex flex-wrap gap-1 mb-0">
                     {% for tag in pdf.tags.all %}
-                    <span class="badge rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-size: 0.75rem; padding: 0.25rem 0.5rem;">{{ tag.name }}</span>
+                    <span class="badge rounded-pill pdf-viewer-tag">{{ tag.name }}</span>
                     {% endfor %}
                 </div>
                 {% else %}
                 <small class="text-muted">{% trans "Uncategorized" %}</small>
                 {% endif %}
             </div>
-            <!-- Enhanced Download Button for Mobile -->
             {% if pdf.pdfmeta %}
                 <div class="d-flex gap-2 flex-shrink-0">
-                    <a href="{{ pdf.pdfmeta.get_direct_download_url }}?download=true" 
-                       class="btn btn-primary rounded-pill px-3 py-2" target="_blank" 
-                       style="background: linear-gradient(135deg, #B8860B, #DAA520); border: none; box-shadow: 0 4px 12px rgba(184, 134, 11, 0.3); font-size: 0.875rem; white-space: nowrap;">
+                    <a href="{{ pdf.pdfmeta.get_direct_download_url }}?download=true"
+                       class="btn pdf-download-btn rounded-pill px-3 py-2" target="_blank">
                         <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg><span class="d-none d-sm-inline">{% trans "Download" %}</span>
                     </a>
                 </div>
             {% endif %}
         </div>
     </div>
-    <div class="flex-grow-1 d-flex flex-column" style="min-height:60vh;">
+
+    <div class="flex-grow-1 d-flex flex-column" style="min-height: 60vh;">
         {% if pdf.pdfmeta and pdf.pdfmeta.get_pdf_url %}
         <div class="d-flex flex-column h-100">
-            <!-- Enhanced Mobile-First PDF Controls -->
-            <div class="pdf-controls p-2 p-md-3 border-bottom d-flex align-items-center justify-content-between flex-wrap flex-shrink-0" style="background: linear-gradient(135deg, rgba(248, 249, 250, 0.95) 0%, rgba(245, 222, 179, 0.1) 100%); backdrop-filter: blur(10px); gap: 8px; border-bottom: 1px solid rgba(184, 134, 11, 0.1);">
-                <!-- Navigation Controls with Larger Touch Targets -->
+            <!-- PDF Controls -->
+            <div class="pdf-controls p-2 p-md-3 border-bottom d-flex align-items-center justify-content-between flex-wrap flex-shrink-0">
+                <!-- Navigation -->
                 <div class="d-flex align-items-center gap-2">
-                    <button id="pdf-prev-btn" class="btn btn-outline-primary" disabled 
-                            style="min-width: 44px; height: 44px; border-color: rgba(184, 134, 11, 0.3); color: #8B0000; border-radius: 12px;" 
+                    <button id="pdf-prev-btn" class="btn btn-outline-secondary pdf-nav-btn" disabled
                             aria-label="{% trans 'Previous page' %}">
-                        <svg class="bi" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-left"/></svg>
                     </button>
-                    <div class="d-flex align-items-center px-2 py-1 rounded-pill" style="background: rgba(139, 0, 0, 0.1); color: #8B0000; font-weight: 600; min-width: 80px; text-align: center;">
+                    <div class="pdf-page-indicator">
                         <span class="small">
                             <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">-</span>
                         </span>
                     </div>
-                    <button id="pdf-next-btn" class="btn btn-outline-primary" disabled 
-                            style="min-width: 44px; height: 44px; border-color: rgba(184, 134, 11, 0.3); color: #8B0000; border-radius: 12px;" 
+                    <button id="pdf-next-btn" class="btn btn-outline-secondary pdf-nav-btn" disabled
                             aria-label="{% trans 'Next page' %}">
-                        <svg class="bi" style="font-size: 1.1rem;" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-chevron-right"/></svg>
                     </button>
                 </div>
-                <!-- Zoom Controls with Better Mobile UX -->
+                <!-- Zoom -->
                 <div class="d-flex align-items-center gap-2">
-                    <button id="pdf-zoom-out-btn" class="btn btn-outline-secondary" 
-                            style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
+                    <button id="pdf-zoom-out-btn" class="btn btn-outline-secondary pdf-zoom-btn"
                             aria-label="{% trans 'Zoom out' %}">
                         <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-zoom-out"/></svg>
                     </button>
-                    <div class="px-2 py-1 rounded-pill small fw-medium" style="background: rgba(75, 0, 130, 0.1); color: #4B0082; min-width: 50px; text-align: center;">
+                    <div class="pdf-zoom-level">
                         <span id="pdf-zoom-level">100%</span>
                     </div>
-                    <button id="pdf-zoom-in-btn" class="btn btn-outline-secondary" 
-                            style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
+                    <button id="pdf-zoom-in-btn" class="btn btn-outline-secondary pdf-zoom-btn"
                             aria-label="{% trans 'Zoom in' %}">
                         <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-zoom-in"/></svg>
                     </button>
-                    <button id="pdf-fit-width-btn" class="btn btn-outline-secondary d-none d-md-inline-flex" 
-                            style="min-width: 40px; height: 40px; border-radius: 10px; color: #4B0082;" 
+                    <button id="pdf-fit-width-btn" class="btn btn-outline-secondary pdf-zoom-btn d-none d-md-inline-flex"
                             aria-label="{% trans 'Fit to width' %}">
                         <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrows-angle-expand"/></svg>
                     </button>
+                    <button id="pdf-fit-page-btn" class="btn btn-outline-secondary pdf-zoom-btn d-none d-md-inline-flex"
+                            aria-label="{% trans 'Fit to page' %}">
+                        <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrows-fullscreen"/></svg>
+                    </button>
                 </div>
             </div>
+
             <!-- PDF Viewer Container -->
-            <!-- Force LTR for PDF.js canvas rendering and text layers -->
-            <div id="pdf-viewer-container" class="flex-grow-1 bg-white position-relative overflow-auto" dir="ltr" style="min-height: 400px; direction: ltr !important;" data-pdf-url="{{ pdf.pdfmeta.get_pdf_url }}">
+            <div id="pdf-viewer-container" class="flex-grow-1 bg-white position-relative overflow-auto" dir="ltr" data-pdf-url="{{ pdf.pdfmeta.get_pdf_url }}">
                 <!-- Loading Overlay -->
-                <div id="pdf-loading-overlay" class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center" style="top: 0; left: 0; background: rgba(255,255,255,0.9); z-index: 10;">
+                <div id="pdf-loading-overlay" class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center pdf-overlay">
                     <div class="text-center">
                         <div class="spinner-border text-primary mb-2" role="status">
                             <span class="visually-hidden">{% trans "Loading..." %}</span>
@@ -99,7 +95,7 @@
                     </div>
                 </div>
                 <!-- Error Overlay -->
-                <div id="pdf-error-overlay" class="position-absolute w-100 h-100 align-items-center justify-content-center" style="top: 0; left: 0; background: rgba(255,255,255,0.9); z-index: 10; display:none;">
+                <div id="pdf-error-overlay" class="position-absolute w-100 h-100 align-items-center justify-content-center pdf-overlay" style="display:none;">
                     <div class="text-center">
                         <svg class="bi text-danger mb-2" style="font-size: 2rem;" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
                         <h5 class="text-danger mb-2" id="pdf-error-title">{% trans "Error loading PDF" %}</h5>
@@ -108,11 +104,11 @@
                     </div>
                 </div>
                 <!-- Canvas Container -->
-                <div id="pdf-canvas-container" class="d-flex justify-content-center align-items-start p-3" dir="ltr" style="min-height: 100%; direction: ltr !important; unicode-bidi: embed;"></div>
+                <div id="pdf-canvas-container" class="d-flex justify-content-center align-items-start p-2 p-md-3" dir="ltr"></div>
             </div>
         </div>
         {% else %}
-        <div class="text-center w-100">
+        <div class="text-center w-100 py-5">
             <div class="mb-3">
                 <svg class="bi text-warning" style="font-size: 2rem;" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
             </div>
@@ -125,7 +121,7 @@
 
 <!-- Load PDF.js from local static files as ES module -->
 <script type="module">
-    // Dynamically load pdf_viewer.min.css (164 KB) only when reader is opened
+    // Dynamically load pdf_viewer.min.css only when reader is opened
     if (!document.querySelector('link[href*="pdf_viewer.min.css"]')) {
         const _css = document.createElement('link');
         _css.rel = 'stylesheet';
@@ -134,256 +130,242 @@
         document.head.appendChild(_css);
     }
 
-    // Import PDF.js as ES module
     import * as pdfjsLib from '{% static "js/pdf.min.js" %}';
-    
-    // Set worker source for local PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = '{% static "js/pdf.worker.min.js" %}';
-    console.log('[PDF viewer] PDF.js worker configured');
 
     function initPDFViewer() {
-        console.log('[PDF viewer] Initializing PDF viewer...');
         try {
-            console.log('[PDF viewer] PDF.js found, initializing viewer...');
-                const viewer = document.getElementById('pdf-viewer-container');
-                const canvasContainer = document.getElementById('pdf-canvas-container');
-                const prevBtn = document.getElementById('pdf-prev-btn');
-                const nextBtn = document.getElementById('pdf-next-btn');
-                const currentPageEl = document.getElementById('pdf-current-page');
-                const totalPagesEl = document.getElementById('pdf-total-pages');
-                const zoomInBtn = document.getElementById('pdf-zoom-in-btn');
-                const zoomOutBtn = document.getElementById('pdf-zoom-out-btn');
-                const fitWidthBtn = document.getElementById('pdf-fit-width-btn');
-                const zoomLevelEl = document.getElementById('pdf-zoom-level');
-                const loadingOverlay = document.getElementById('pdf-loading-overlay');
-                const errorOverlay = document.getElementById('pdf-error-overlay');
-                const errorTitle = document.getElementById('pdf-error-title');
-                const errorMessage = document.getElementById('pdf-error-message');
-                const errorDirectLink = document.getElementById('pdf-error-direct-link');
+            const viewer = document.getElementById('pdf-viewer-container');
+            const canvasContainer = document.getElementById('pdf-canvas-container');
+            const prevBtn = document.getElementById('pdf-prev-btn');
+            const nextBtn = document.getElementById('pdf-next-btn');
+            const currentPageEl = document.getElementById('pdf-current-page');
+            const totalPagesEl = document.getElementById('pdf-total-pages');
+            const zoomInBtn = document.getElementById('pdf-zoom-in-btn');
+            const zoomOutBtn = document.getElementById('pdf-zoom-out-btn');
+            const fitWidthBtn = document.getElementById('pdf-fit-width-btn');
+            const fitPageBtn = document.getElementById('pdf-fit-page-btn');
+            const zoomLevelEl = document.getElementById('pdf-zoom-level');
+            const loadingOverlay = document.getElementById('pdf-loading-overlay');
+            const errorOverlay = document.getElementById('pdf-error-overlay');
+            const errorTitle = document.getElementById('pdf-error-title');
+            const errorMessage = document.getElementById('pdf-error-message');
+            const errorDirectLink = document.getElementById('pdf-error-direct-link');
 
-                // Get PDF URL from data attribute
-                const pdfUrl = viewer.getAttribute('data-pdf-url');
-                console.log('[PDF viewer] Found elements:', {
-                    viewer: !!viewer,
-                    canvasContainer: !!canvasContainer,
-                    pdfUrl: pdfUrl,
-                    loadingOverlay: !!loadingOverlay
-                });
+            const pdfUrl = viewer.getAttribute('data-pdf-url');
+            if (!pdfUrl) return;
 
-                let pdfDoc = null;
-                let currentPage = 1;
-                let totalPages = 0;
-                let scale = 1.0;
-                let pageRendering = false;
-                let pageNumPending = null;
-                let currentRenderTask = null;
-                let autoFitEnabled = true; // Track if auto-fit is enabled
+            let pdfDoc = null;
+            let currentPage = 1;
+            let totalPages = 0;
+            let scale = 1.0;
+            let pageRendering = false;
+            let pageNumPending = null;
+            let currentRenderTask = null;
+            let fitMode = 'width'; // 'width', 'page', or 'manual'
+            let baseScale = 1.0;
 
-                function showLoading(show) {
-                    console.log('[PDF viewer] showLoading:', show);
-                    if (show) {
-                        loadingOverlay.classList.add('d-flex');
-                        loadingOverlay.classList.remove('d-none');
-                    } else {
-                        loadingOverlay.classList.remove('d-flex');
-                        loadingOverlay.classList.add('d-none');
+            const dpr = window.devicePixelRatio || 1;
+            const MIN_SCALE = 0.25;
+            const MAX_SCALE = 5.0;
+
+            function showLoading(show) {
+                if (show) {
+                    loadingOverlay.classList.add('d-flex');
+                    loadingOverlay.classList.remove('d-none');
+                } else {
+                    loadingOverlay.classList.remove('d-flex');
+                    loadingOverlay.classList.add('d-none');
+                }
+            }
+
+            function showError(title, message) {
+                errorTitle.textContent = title;
+                errorMessage.textContent = message;
+                errorOverlay.classList.add('d-flex');
+                errorOverlay.classList.remove('d-none');
+                showLoading(false);
+            }
+
+            function updateUI() {
+                currentPageEl.textContent = currentPage;
+                totalPagesEl.textContent = totalPages;
+                prevBtn.disabled = (currentPage <= 1);
+                nextBtn.disabled = (currentPage >= totalPages);
+                zoomLevelEl.textContent = Math.round(scale * 100) + '%';
+            }
+
+            function createNewCanvas() {
+                canvasContainer.innerHTML = '';
+                const canvas = document.createElement('canvas');
+                canvas.className = 'd-block mx-auto';
+                canvas.style.maxWidth = '100%';
+                canvas.style.height = 'auto';
+                canvasContainer.appendChild(canvas);
+                return canvas;
+            }
+
+            function getContainerWidth() {
+                return viewer.clientWidth - (window.innerWidth <= 576 ? 16 : 24);
+            }
+
+            function getContainerHeight() {
+                return viewer.clientHeight - 80;
+            }
+
+            function renderPage(pageNum) {
+                if (pageRendering) {
+                    pageNumPending = pageNum;
+                    return;
+                }
+                pageRendering = true;
+
+                if (currentRenderTask) {
+                    try { currentRenderTask.cancel(); } catch (e) {}
+                    currentRenderTask = null;
+                }
+
+                pdfDoc.getPage(pageNum).then(function(page) {
+                    const canvas = createNewCanvas();
+                    const ctx = canvas.getContext('2d');
+
+                    // Use 1.0 for viewport calculation, apply DPR for crisp rendering
+                    const unscaledViewport = page.getViewport({ scale: 1.0 });
+
+                    // Calculate scale based on fit mode
+                    if (fitMode === 'width') {
+                        baseScale = getContainerWidth() / unscaledViewport.width;
+                    } else if (fitMode === 'page') {
+                        const scaleW = getContainerWidth() / unscaledViewport.width;
+                        const scaleH = getContainerHeight() / unscaledViewport.height;
+                        baseScale = Math.min(scaleW, scaleH);
                     }
-                }
-                function showError(title, message) {
-                    console.log('[PDF viewer] showError:', title, message);
-                    errorTitle.textContent = title;
-                    errorMessage.textContent = message;
-                    errorOverlay.classList.add('d-flex');
-                    errorOverlay.classList.remove('d-none');
-                    showLoading(false);
-                }
-                function hideError() {
-                    errorOverlay.classList.remove('d-flex');
-                    errorOverlay.classList.add('d-none');
-                }
+                    // 'manual' keeps current scale
 
-                function updateUI() {
-                    currentPageEl.textContent = currentPage;
-                    totalPagesEl.textContent = totalPages;
-                    prevBtn.disabled = (currentPage <= 1);
-                    nextBtn.disabled = (currentPage >= totalPages);
-                    zoomLevelEl.textContent = Math.round(scale * 100) + '%';
-                }
+                    const finalScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, baseScale));
+                    const scaledViewport = page.getViewport({ scale: finalScale });
 
-                function createNewCanvas() {
-                    canvasContainer.innerHTML = '';
-                    const canvas = document.createElement('canvas');
-                    canvas.className = 'd-block mx-auto';
-                    canvas.style.maxWidth = '100%';
-                    canvas.style.height = 'auto';
-                    canvasContainer.appendChild(canvas);
-                    return canvas;
-                }
+                    // Set canvas dimensions with DPR for sharp rendering
+                    canvas.width = Math.floor(scaledViewport.width * dpr);
+                    canvas.height = Math.floor(scaledViewport.height * dpr);
+                    canvas.style.width = Math.floor(scaledViewport.width) + 'px';
+                    canvas.style.height = Math.floor(scaledViewport.height) + 'px';
 
-                function renderPage(pageNum) {
-                    console.log('[PDF.js] Starting renderPage for page:', pageNum);
-                    if (pageRendering) {
-                        console.log('[PDF.js] Page rendering in progress, queuing page:', pageNum);
-                        pageNumPending = pageNum;
-                        return;
-                    }
-                    pageRendering = true;
-                    if (currentRenderTask) {
-                        try { currentRenderTask.cancel(); } catch (e) {}
-                        currentRenderTask = null;
-                    }
-                    
-                    console.log('[PDF.js] Getting page', pageNum, 'from PDF document...');
-                    pdfDoc.getPage(pageNum).then(function(page) {
-                        console.log('[PDF.js] Page', pageNum, 'retrieved successfully');
-                        const canvas = createNewCanvas();
-                        const ctx = canvas.getContext('2d');
-                        const containerWidth = viewer.clientWidth - 40;
-                        const viewport = page.getViewport({ scale: 1.0 });
-                        
-                        // Only auto-fit on mobile if auto-fit is enabled and this is initial load or window resize
-                        if (window.innerWidth <= 768 && autoFitEnabled) {
-                            scale = Math.min(containerWidth / viewport.width, 2.0);
-                        }
-                        
-                        const scaledViewport = page.getViewport({ scale: scale });
-                        canvas.width = scaledViewport.width;
-                        canvas.height = scaledViewport.height;
-                        canvas.style.width = scaledViewport.width + 'px';
-                        canvas.style.height = scaledViewport.height + 'px';
-                        const renderContext = { canvasContext: ctx, viewport: scaledViewport };
-                        const renderTask = page.render(renderContext);
-                        currentRenderTask = renderTask;
-                        
-                        console.log('[PDF.js] Starting page render...');
-                        renderTask.promise.then(function() {
-                            console.log('[PDF.js] Page', pageNum, 'rendered successfully');
-                            currentPage = pageNum;
-                            pageRendering = false;
-                            currentRenderTask = null;
-                            updateUI();
-                            if (pageNumPending !== null) {
-                                const pendingPage = pageNumPending;
-                                pageNumPending = null;
-                                renderPage(pendingPage);
-                            }
-                        }).catch(function(error) {
-                            console.error('[PDF.js] Error rendering page:', error);
-                            pageRendering = false;
-                            currentRenderTask = null;
-                            if (error.name !== 'RenderingCancelledException') {
-                                console.error('[PDF.js] Error rendering page:', error);
-                                showError('{% trans "Error loading PDF" %}', '{% trans "The PDF file could not be loaded" %}');
-                            }
-                        });
-                    }).catch(function(error) {
-                        console.error('[PDF.js] Error getting page:', error);
+                    // Scale context for high-DPI
+                    ctx.scale(dpr, dpr);
+
+                    const renderContext = {
+                        canvasContext: ctx,
+                        viewport: scaledViewport
+                    };
+
+                    const renderTask = page.render(renderContext);
+                    currentRenderTask = renderTask;
+
+                    renderTask.promise.then(function() {
+                        currentPage = pageNum;
                         pageRendering = false;
-                        console.error('[PDF.js] Error getting page:', error);
-                        showError('{% trans "Error loading PDF" %}', '{% trans "The PDF file could not be loaded" %}');
-                    });
-                }
-
-                function loadPDF() {
-                    showLoading(true);
-                    hideError();
-                    console.log('[PDF.js] Attempting to load PDF:', pdfUrl);
-                    
-                    const loadingTask = pdfjsLib.getDocument({
-                        url: pdfUrl,
-                        httpHeaders: { 'Accept': 'application/pdf' },
-                        withCredentials: false
-                    });
-                    
-                    loadingTask.onPassword = function(updateCallback, reason) {
-                        console.warn('[PDF.js] PDF requires a password.', reason);
-                    };
-                    loadingTask.onProgress = function(progressData) {
-                        console.log('[PDF.js] Loading progress:', progressData);
-                    };
-                    
-                    loadingTask.promise.then(function(pdf) {
-                        console.log('[PDF.js] PDF document loaded successfully, pages:', pdf.numPages);
-                        pdfDoc = pdf;
-                        totalPages = pdfDoc.numPages;
-                        console.log('[PDF.js] About to render page 1...');
-                        autoFitEnabled = true; // Enable auto-fit for initial load
-                        renderPage(1);
-                        showLoading(false);
+                        currentRenderTask = null;
+                        scale = finalScale;
+                        updateUI();
+                        if (pageNumPending !== null) {
+                            const pendingPage = pageNumPending;
+                            pageNumPending = null;
+                            renderPage(pendingPage);
+                        }
                     }).catch(function(error) {
-                        console.error('[PDF.js] Failed to load PDF:', error);
-                        // Try to fetch the PDF manually for debugging
-                        fetch(pdfUrl, { credentials: 'same-origin' }).then(function(resp) {
-                            console.log('[PDF.js] Manual fetch status:', resp.status, resp.statusText);
-                            console.log('[PDF.js] Manual fetch content-type:', resp.headers.get('content-type'));
-                            if (!resp.ok) {
-                                return resp.text().then(function(text) {
-                                    console.log('[PDF.js] Manual fetch response body:', text.slice(0, 500));
-                                });
-                            }
-                        }).catch(function(fetchErr) {
-                            console.error('[PDF.js] Manual fetch error:', fetchErr);
-                        });
-                        showError('{% trans "Error loading PDF" %}', '{% trans "The PDF file could not be loaded" %}');
+                        pageRendering = false;
+                        currentRenderTask = null;
+                        if (error.name !== 'RenderingCancelledException') {
+                            showError('{% trans "Error loading PDF" %}', error.message || '{% trans "The PDF file could not be loaded" %}');
+                        }
                     });
-                }
+                }).catch(function(error) {
+                    pageRendering = false;
+                    showError('{% trans "Error loading PDF" %}', error.message || '{% trans "The PDF file could not be loaded" %}');
+                });
+            }
 
-                prevBtn.addEventListener('click', function() {
-                    if (currentPage > 1) renderPage(currentPage - 1);
+            function loadPDF() {
+                showLoading(true);
+                errorOverlay.classList.remove('d-flex');
+                errorOverlay.classList.add('d-none');
+
+                const loadingTask = pdfjsLib.getDocument({
+                    url: pdfUrl,
+                    httpHeaders: { 'Accept': 'application/pdf' },
+                    withCredentials: false
                 });
-                nextBtn.addEventListener('click', function() {
-                    if (currentPage < totalPages) renderPage(currentPage + 1);
+
+                loadingTask.promise.then(function(pdf) {
+                    pdfDoc = pdf;
+                    totalPages = pdfDoc.numPages;
+                    fitMode = 'width';
+                    renderPage(1);
+                    showLoading(false);
+                }).catch(function(error) {
+                    showError('{% trans "Error loading PDF" %}', error.message || '{% trans "The PDF file could not be loaded" %}');
+                    if (errorDirectLink) errorDirectLink.href = pdfUrl;
                 });
-                zoomInBtn.addEventListener('click', function() {
-                    autoFitEnabled = false; // Disable auto-fit when user manually zooms
-                    scale = Math.min(scale * 1.25, 3.0);
-                    renderPage(currentPage);
-                });
-                zoomOutBtn.addEventListener('click', function() {
-                    autoFitEnabled = false; // Disable auto-fit when user manually zooms
-                    scale = Math.max(scale * 0.8, 0.5);
-                    renderPage(currentPage);
-                });
-                fitWidthBtn.addEventListener('click', function() {
-                    if (pdfDoc && currentPage) {
-                        autoFitEnabled = true; // Re-enable auto-fit when user clicks fit-to-width
-                        pdfDoc.getPage(currentPage).then(function(page) {
-                            const containerWidth = viewer.clientWidth - 40;
-                            const viewport = page.getViewport({ scale: 1.0 });
-                            scale = containerWidth / viewport.width;
-                            renderPage(currentPage);
-                        });
+            }
+
+            prevBtn.addEventListener('click', function() {
+                if (currentPage > 1) renderPage(currentPage - 1);
+            });
+
+            nextBtn.addEventListener('click', function() {
+                if (currentPage < totalPages) renderPage(currentPage + 1);
+            });
+
+            zoomInBtn.addEventListener('click', function() {
+                fitMode = 'manual';
+                baseScale = Math.min(baseScale * 1.25, MAX_SCALE);
+                renderPage(currentPage);
+            });
+
+            zoomOutBtn.addEventListener('click', function() {
+                fitMode = 'manual';
+                baseScale = Math.max(baseScale * 0.8, MIN_SCALE);
+                renderPage(currentPage);
+            });
+
+            fitWidthBtn.addEventListener('click', function() {
+                fitMode = 'width';
+                renderPage(currentPage);
+            });
+
+            fitPageBtn.addEventListener('click', function() {
+                fitMode = 'page';
+                renderPage(currentPage);
+            });
+
+            // Responsive: re-fit on resize
+            let resizeTimeout;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(function() {
+                    if (pdfDoc && currentPage && fitMode !== 'manual') {
+                        renderPage(currentPage);
                     }
-                });
-                window.addEventListener('resize', function() {
-                    if (window.innerWidth <= 768 && pdfDoc && currentPage && autoFitEnabled) {
-                        pdfDoc.getPage(currentPage).then(function(page) {
-                            const containerWidth = viewer.clientWidth - 40;
-                            const viewport = page.getViewport({ scale: 1.0 });
-                            scale = Math.min(containerWidth / viewport.width, 2.0);
-                            renderPage(currentPage);
-                        });
-                    }
-                });
+                }, 150);
+            });
 
-                // Error overlay direct link
-                if (errorDirectLink) {
-                    errorDirectLink.href = pdfUrl;
-                }
+            // Keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                if (e.key === 'ArrowLeft' && currentPage > 1) renderPage(currentPage - 1);
+                if (e.key === 'ArrowRight' && currentPage < totalPages) renderPage(currentPage + 1);
+            });
 
-                console.log('[PDF viewer] Starting PDF load...');
-                loadPDF();
+            loadPDF();
         } catch (error) {
-            console.error('[PDF viewer] Error in initPDFViewer:', error);
+            console.error('[PDF viewer] Error:', error);
         }
     }
 
-    // Check if DOM is already loaded, otherwise wait for it
     if (document.readyState === 'loading') {
-        console.log('[PDF viewer] DOM still loading, waiting...');
         document.addEventListener('DOMContentLoaded', initPDFViewer);
     } else {
-        console.log('[PDF viewer] DOM already loaded, initializing immediately...');
         initPDFViewer();
     }
 </script>

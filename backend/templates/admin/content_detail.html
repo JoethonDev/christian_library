@@ -46,9 +46,9 @@
                             <div class="col-12">
                                 <div class="p-3 bg-light rounded-3 d-flex align-items-center">
                                     <div class="me-3">
-                                        <div id="thumb-preview" class="rounded-3 border overflow-hidden bg-white d-flex align-items-center justify-content-center" style="width: 160px; height: 90px;">
+                                        <div id="thumb-preview" class="rounded-3 border overflow-hidden bg-white d-flex align-items-center justify-content-center admin-thumb-md">
                                             {% if content_item.get_thumbnail_url %}
-                                                <img src="{{ content_item.get_thumbnail_url }}" class="img-fluid" style="width: 100%; height: 100%; object-fit: cover;">
+                                                <img src="{{ content_item.get_thumbnail_url }}" class="img-fluid admin-thumb-md">
                                             {% else %}
                                                 <svg class="bi text-muted fs-2" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg>
                                             {% endif %}
@@ -109,8 +109,8 @@
                             <!-- Active Toggle -->
                             <div class="col-12 mt-3">
                                 <div class="form-check form-switch p-3 bg-light rounded-3 ms-0 d-flex align-items-center">
-                                    <input class="form-check-input ms-0 me-3" type="checkbox" name="is_active" id="isActiveCheck" 
-                                           style="width: 2.5em; height: 1.25em;" :checked="isActive"
+                                    <input class="form-check-input ms-0 me-3 admin-toggle" type="checkbox" name="is_active" id="isActiveCheck" 
+                                           :checked="isActive"
                                            :disabled="isToggling"
                                            @change="toggleStatus('{{ content_item.id }}')">
                                     <div>
@@ -141,7 +141,7 @@
                                 </h2>
                                 <div id="collapseText" class="accordion-collapse collapse" data-bs-parent="#accordionText">
                                     <div class="accordion-body bg-white">
-                                        <div class="p-3 bg-light rounded-3 font-monospace small" style="max-height: 300px; overflow-y: auto; white-space: pre-wrap; direction: rtl; text-align: right;">{{ content_item.book_content }}</div>
+                                        <div class="p-3 bg-light rounded-3 font-monospace small admin-scroll-container" style="direction: rtl; text-align: right;">{{ content_item.book_content }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -164,6 +164,64 @@
     
     <!-- Sidebar Meta -->
     <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-transparent border-0 py-3 px-4">
+                <h6 class="mb-0 fw-bold text-dark">
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-bar-chart-line"/></svg>
+                    {% trans "Content Status" %}
+                </h6>
+            </div>
+            <div class="card-body p-4 pt-0">
+                <div class="status-badge-stack">
+                    <div class="status-badge-line">
+                        {% if content_item.is_active %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                                {% trans "Active" %}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary rounded-pill">
+                                {% trans "Inactive" %}
+                            </span>
+                        {% endif %}
+                        {% if content_item.processing_status == 'completed' %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">
+                                {% trans "Processing Complete" %}
+                            </span>
+                        {% elif content_item.processing_status == 'processing' %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill">
+                                {% trans "Processing" %}
+                            </span>
+                        {% elif content_item.processing_status == 'failed' %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill">
+                                {% trans "Processing Failed" %}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle rounded-pill">
+                                {% trans "Processing Pending" %}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% include "admin/partials/content_quality_badges.html" with content_item=content_item meta=meta_data %}
+
+                    <div class="status-badge-line pt-1">
+                        {% if content_item.can_generate_seo %}
+                        <button type="button" class="btn btn-sm btn-warning text-white rounded-pill px-3" onclick="generateSEOFromDetail('{{ content_item.id }}', this)">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>
+                            {% if content_item.has_seo_metadata %}{% trans "Regenerate SEO" %}{% else %}{% trans "Generate SEO" %}{% endif %}
+                        </button>
+                        {% endif %}
+
+                        {% if content_item.can_retry_r2_upload and meta_data %}
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="retryR2Upload('{{ content_item.content_type }}', '{{ meta_data.id }}', this, '{{ content_item.title_ar|escapejs }}')">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Retry R2" %}
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Media File Info -->
         <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-header bg-transparent border-0 py-3 px-4">
@@ -207,6 +265,9 @@
                         <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
                             <span class="text-muted">{% trans "Status" %}</span>
                             <span class="badge bg-secondary-subtle text-secondary rounded-pill">{{ meta_data.processing_status|default:"Unknown" }}</span>
+                        </div>
+                        <div class="list-group-item px-0 bg-transparent">
+                            {% include "admin/partials/content_quality_badges.html" with content_item=content_item meta=meta_data %}
                         </div>
                         {% if meta_data.get_safe_file_size %}
                         <div class="list-group-item px-0 d-flex justify-content-between bg-transparent">
@@ -290,7 +351,7 @@
                     </div>
                     
                     <div class="mt-3" x-show="isUploading" x-cloak>
-                        <div class="progress mb-2" style="height: 10px;">
+                        <div class="progress mb-2 admin-progress-default">
                             <div class="progress-bar progress-bar-striped progress-bar-animated" 
                                  role="progressbar" :style="'width: ' + uploadProgress + '%'"></div>
                         </div>
@@ -441,6 +502,88 @@ function contentPage() {
             xhr.send(formData);
         },
 
+        generateSEOFromDetail(contentId, button) {
+            const csrfToken = '{{ csrf_token }}';
+
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            }
+
+            fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ content_id: contentId })
+            })
+            .then(response => response.json().then(data => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+                if (status >= 200 && status < 300 && data.success) {
+                    showToast(data.message || '{% trans "SEO metadata generation started successfully!" %}', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast(data.error || '{% trans "Failed to generate SEO metadata" %}', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('SEO generation error:', error);
+                showToast('{% trans "Network error. Please try again." %}', 'danger');
+            })
+            .finally(() => {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                }
+            });
+        },
+
+        retryR2Upload(contentType, metaId, button, title) {
+            showConfirmation({
+                title: '{% trans "Retry R2 Upload" %}',
+                message: `{% trans "Retry R2 upload for" %} "${title}"?`,
+                details: '{% trans "The item will be queued again for background upload." %}',
+                confirmText: '{% trans "Retry" %}',
+                confirmClass: 'btn-danger',
+                onConfirm: function() {
+                    if (button) {
+                        button.disabled = true;
+                        button.dataset.originalHtml = button.innerHTML;
+                        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                    }
+
+                    fetch(`{% url 'frontend_api:api_r2_retry' 'video' '00000000-0000-0000-0000-000000000000' %}`.replace('/video/', `/${contentType}/`).replace('00000000-0000-0000-0000-000000000000', metaId), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        }
+                    })
+                    .then(response => response.json().then(data => ({ status: response.status, data })))
+                    .then(({ status, data }) => {
+                        if (status >= 200 && status < 300 && data.success) {
+                            showToast(data.message || '{% trans "R2 upload retry triggered" %}', 'success');
+                            setTimeout(() => location.reload(), 1000);
+                        } else {
+                            showToast(data.error || '{% trans "Failed to retry R2 upload" %}', 'danger');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('R2 retry error:', error);
+                        showToast('{% trans "An error occurred" %}', 'danger');
+                    })
+                    .finally(() => {
+                        if (button) {
+                            button.disabled = false;
+                            button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                        }
+                    });
+                }
+            });
+        },
+
         confirmDelete(contentId) {
             if (this.deleteModal) {
                 this.deleteModal.hide();
@@ -507,31 +650,6 @@ function contentPage() {
     };
 }
 
-function showToast(message, type = 'info') {
-    if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
-        const toastHtml = `
-            <div class="toast align-items-center text-white bg-${type === 'danger' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-        `;
-        const toastContainer = document.getElementById('toast-container') || createToastContainer();
-        const toastElement = document.createElement('div');
-        toastElement.innerHTML = toastHtml;
-        const toastNode = toastElement.firstElementChild;
-        toastContainer.appendChild(toastNode);
-        const toast = new bootstrap.Toast(toastNode, { delay: 5000 });
-        toast.show();
-        toastNode.addEventListener('hidden.bs.toast', () => toastNode.remove());
-    } else if (typeof window.showToast === 'function') {
-        window.showToast(message, type || 'info');
-    } else {
-        console.warn('Toast display unavailable:', message);
-    }
-}
-
 function previewDetailThumb(input) {
     const previewDiv = document.getElementById('thumb-preview');
     if (input.files && input.files[0]) {
@@ -545,15 +663,6 @@ function previewDetailThumb(input) {
         previewDiv.innerHTML = '<svg class="bi text-muted fs-2" aria-hidden="true" focusable="false"><use href="#bi-image"/></svg>';
         previewDiv.classList.add('border');
     }
-}
-
-function createToastContainer() {
-    const container = document.createElement('div');
-    container.id = 'toast-container';
-    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-    container.style.zIndex = '1100';
-    document.body.appendChild(container);
-    return container;
 }
 </script>
 {% endblock %}

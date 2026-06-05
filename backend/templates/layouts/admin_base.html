@@ -23,6 +23,9 @@
     <!-- SVG icon sizing helpers (replaces Bootstrap Icons font CSS) -->
     <link rel="stylesheet" href="{% static 'css/icons.css' %}">
 
+    <!-- Admin theme shared stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/admin-theme.css' %}">
+
     <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
     
@@ -30,200 +33,6 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 
     {% block extra_head %}{% endblock %}
-
-    <style>
-        :root {
-            /* Modern Admin Color Palette (Soft UI) */
-            --admin-primary: #005f5f;       /* Teal */
-            --admin-primary-dark: #004c4c;
-            --admin-secondary: #6c757d;     /* Gray */
-            --admin-success: #198754;       /* Green */
-            --admin-info: #0dcaf0;          /* Cyan */
-            --admin-warning: #ffc107;       /* Yellow */
-            --admin-danger: #dc3545;        /* Red */
-            
-            --admin-bg: #f5f7f9;            /* Light Gray BG */
-            --admin-card-bg: #ffffff;
-            --admin-text: #344767;          /* Dark Blue-Gray */
-            --admin-text-muted: #8392ab;
-            
-            --admin-sidebar-width: 260px;
-            --font-admin: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-
-        body {
-            font-family: var(--font-admin);
-            background-color: var(--admin-bg);
-            color: var(--admin-text);
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            min-height: 100vh;
-        }
-        
-        /* Links */
-        a { text-decoration: none; }
-        
-        /* Sidebar */
-        .admin-sidebar {
-            width: var(--admin-sidebar-width);
-            background: #ffffff;
-            border-right: 1px solid rgba(0,0,0,0.05);
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0; /* Left for LTR, Right for RTL via logic below */
-            z-index: 1040;
-            transition: transform 0.3s ease-in-out;
-            overflow-y: auto;
-            box-shadow: 0 0 15px rgba(0,0,0,0.02);
-        }
-
-        /* RTL Sidebar support via CSS Logic or direction attribute */
-        html[dir="rtl"] .admin-sidebar {
-            left: auto;
-            right: 0;
-            border-right: none;
-            border-left: 1px solid rgba(0,0,0,0.05);
-        }
-
-        .admin-brand {
-            height: 70px;
-            display: flex;
-            align-items: center;
-            padding: 0 1.5rem;
-            background: var(--admin-primary);
-            color: white;
-        }
-
-        .nav-link-admin {
-            display: flex;
-            align-items: center;
-            padding: 0.85rem 1.5rem;
-            color: var(--admin-text);
-            font-weight: 500;
-            font-size: 0.95rem;
-            transition: all 0.2s ease;
-            border-left: 3px solid transparent; /* LTR */
-        }
-        
-        html[dir="rtl"] .nav-link-admin {
-            border-left: none;
-            border-right: 3px solid transparent;
-        }
-
-        .nav-link-admin:hover {
-            background-color: #f8f9fa;
-            color: var(--admin-primary);
-        }
-
-        .nav-link-admin.active {
-            background: linear-gradient(90deg, rgba(0, 95, 95, 0.14) 0%, rgba(0, 95, 95, 0.05) 100%);
-            color: var(--admin-primary);
-            border-color: var(--admin-primary);
-            box-shadow: inset 0 0 0 1px rgba(0, 95, 95, 0.08);
-        }
-
-        .nav-link-icon {
-            width: 24px;
-            text-align: center;
-            margin-right: 10px; /* LTR */
-            font-size: 1.1rem;
-        }
-        
-        html[dir="rtl"] .nav-link-icon {
-            margin-right: 0;
-            margin-left: 10px;
-        }
-
-        .admin-section-label {
-            padding: 1.5rem 1.5rem 0.5rem;
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: var(--admin-text-muted);
-            letter-spacing: 0.05em;
-        }
-
-        /* Main Content Wrapper */
-        .admin-main {
-            flex-grow: 1;
-            margin-left: var(--admin-sidebar-width); /* LTR */
-            transition: margin 0.3s ease-in-out;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        html[dir="rtl"] .admin-main {
-            margin-left: 0;
-            margin-right: var(--admin-sidebar-width);
-        }
-
-        /* Top Navbar */
-        .admin-topbar {
-            height: 70px;
-            background: white; /* Glass effect if desired, standard white for now */
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-            padding: 0 2rem;
-            display: flex;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 1030;
-        }
-
-        /* Content Container */
-        .admin-content {
-            padding: 2rem;
-            flex: 1;
-        }
-        
-        /* Utils */
-        .bg-gradient-primary {
-            background: linear-gradient(135deg, var(--admin-primary) 0%, var(--admin-primary-dark) 100%);
-        }
-        
-        /* Card Soft UI */
-        .card {
-            box-shadow: 0 0.25rem 0.375rem -0.0625rem rgba(0, 0, 0, 0.05), 0 0.125rem 0.25rem -0.0625rem rgba(0, 0, 0, 0.03);
-            border: 1px solid rgba(0,0,0,0.05);
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 991.98px) {
-            .admin-sidebar {
-                transform: translateX(-100%);
-            }
-            html[dir="rtl"] .admin-sidebar {
-                transform: translateX(100%);
-            }
-            
-            .admin-sidebar.show {
-                transform: translateX(0);
-            }
-            
-            .admin-main {
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                width: 100%;
-            }
-            
-            .mobile-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0,0,0,0.5);
-                z-index: 1035;
-                display: none;
-            }
-            .mobile-overlay.show {
-                display: block;
-            }
-        }
-    </style>
 </head>
 <body class="d-flex flex-column" x-data="{ sidebarOpen: false }">
     {# SVG icon sprite — must be first child of <body> so href="#bi-..." references resolve #}
@@ -296,11 +105,32 @@
                     <span id="jobs-sidebar-badge" class="badge rounded-pill text-bg-primary align-self-center flex-shrink-0">--</span>
                 </span>
             </a>
+
+            <a href="{% url 'frontend_api:admin_lifecycle_audit_logs' %}"
+               class="nav-link-admin {% if 'dashboard/logs' in request.path %}active{% endif %}">
+                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-journal-text"/></svg>
+                {% trans "Lifecycle Logs" %}
+            </a>
             
             <a href="{% url 'frontend_api:system_monitor' %}" 
-               class="nav-link-admin {% if 'system' in request.path %}active{% endif %}">
+               class="nav-link-admin {% if 'system' in request.path and 'files' not in request.path and 'orphaned' not in request.path and 'cache' not in request.path %}active{% endif %}">
                 <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-cpu"/></svg>
                 {% trans "System Monitor" %}
+            </a>
+            <a href="{% url 'frontend_api:file_manager' %}" 
+               class="nav-link-admin ps-4 {% if 'system/files' in request.path %}active{% endif %}">
+                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-folder"/></svg>
+                {% trans "File Manager" %}
+            </a>
+            <a href="{% url 'frontend_api:orphaned_files' %}" 
+               class="nav-link-admin ps-4 {% if 'orphaned' in request.path %}active{% endif %}">
+                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-x"/></svg>
+                {% trans "Orphaned Files" %}
+            </a>
+            <a href="{% url 'frontend_api:cache_manager' %}" 
+               class="nav-link-admin ps-4 {% if 'system/cache' in request.path %}active{% endif %}">
+                <svg class="bi nav-link-icon" aria-hidden="true" focusable="false"><use href="#bi-lightning"/></svg>
+                {% trans "Cache Manager" %}
             </a>
         </nav>
         
@@ -329,7 +159,7 @@
                 <div class="dropdown">
                    <a href="#" class="d-flex align-items-center text-decoration-none dropdown-toggle text-dark" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
                        <span class="me-2 d-none d-md-inline small fw-semibold">{{ request.user.username }}</span>
-                       <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white small" style="width: 32px; height: 32px;">
+                       <div class="bg-secondary admin-avatar text-white small">
                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-person-fill"/></svg>
                        </div>
                    </a>
@@ -388,7 +218,7 @@
 
     <!-- Confirmation Modal (Reusable) -->
     <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="confirmationModalLabel">{% trans "Confirm Action" %}</h5>
@@ -460,42 +290,57 @@
         };
 
         /**
-         * Show confirmation modal
-         * @param {string} message - The confirmation message
-         * @param {string} details - Additional details to show (optional, can contain HTML)
-         * @param {function} onConfirm - Callback function when confirmed
+         * Show a reusable confirmation modal.
+         * @param {object|string} options - Confirmation configuration or the message string.
+         * @param {string} [details] - Optional details text/HTML when using the legacy signature.
+         * @param {function} [onConfirm] - Callback to run after confirmation.
          */
-        window.showConfirmation = function(message, details, onConfirm) {
-            const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+        window.showConfirmation = function(options, details, onConfirm) {
+            const config = typeof options === 'object' && options !== null
+                ? options
+                : { message: options, details: details, onConfirm: onConfirm };
+
+            const modalEl = document.getElementById('confirmationModal');
+            if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+                if (typeof config.onConfirm === 'function') {
+                    config.onConfirm();
+                }
+                return;
+            }
+
+            const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             const confirmBtn = document.getElementById('confirmActionBtn');
             const messageEl = document.getElementById('confirmationMessage');
             const detailsEl = document.getElementById('confirmationDetails');
-            
-            messageEl.textContent = message;
-            
-            if (details) {
-                // innerHTML is safe here because details are constructed in our own code
-                // with user input already escaped via Django's escapejs filter
-                detailsEl.innerHTML = details;
+            const titleEl = document.getElementById('confirmationModalLabel');
+
+            messageEl.textContent = config.message || '{% trans "Are you sure you want to perform this action?" %}';
+            titleEl.textContent = config.title || '{% trans "Confirm Action" %}';
+
+            if (config.details) {
+                detailsEl.innerHTML = config.details;
                 detailsEl.style.display = 'block';
             } else {
+                detailsEl.innerHTML = '';
                 detailsEl.style.display = 'none';
             }
-            
-            // Remove old event listeners
+
             const newConfirmBtn = confirmBtn.cloneNode(true);
             confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
-            
-            // Add new event listener
+            newConfirmBtn.className = `btn ${config.confirmClass || 'btn-primary'}`;
+            newConfirmBtn.textContent = config.confirmText || '{% trans "Confirm" %}';
+
             newConfirmBtn.addEventListener('click', function() {
                 modal.hide();
-                if (typeof onConfirm === 'function') {
-                    onConfirm();
+                if (typeof config.onConfirm === 'function') {
+                    config.onConfirm();
                 }
             });
-            
+
             modal.show();
         };
+
+        window.showConfirmationDialog = window.showConfirmation;
 
         window.refreshBackgroundJobsBadge = function() {
             const badge = document.getElementById('jobs-sidebar-badge');

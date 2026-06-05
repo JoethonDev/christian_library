@@ -1,0 +1,322 @@
+<!-- templates/admin/file_manager.html -->
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "File Manager" %} | Admin{% endblock %}
+
+{% block admin_content %}
+<div class="row align-items-center mb-4">
+    <div class="col">
+        <h1 class="h3 fw-bold text-dark mb-1">{% trans "File Manager" %}</h1>
+        <p class="text-muted mb-0">{% trans "Browse and manage files in media, static and log directories" %}</p>
+    </div>
+    <div class="col-auto d-flex gap-2">
+        <a href="{% url 'frontend_api:orphaned_files' %}" class="btn btn-outline-warning rounded-pill">
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-x"/></svg>{% trans "Orphaned Files" %}
+        </a>
+        <a href="{% url 'frontend_api:system_monitor' %}" class="btn btn-outline-secondary rounded-pill">
+            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-speedometer2"/></svg>{% trans "System Monitor" %}
+        </a>
+    </div>
+</div>
+
+<!-- Sub-section tabs -->
+<ul class="nav nav-pills mb-4 gap-1">
+    <li class="nav-item">
+        <a class="nav-link {% if 'system' in request.path and 'files' not in request.path and 'orphaned' not in request.path and 'cache' not in request.path %}active{% endif %}"
+           href="{% url 'frontend_api:system_monitor' %}">{% trans "Overview" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{% url 'frontend_api:file_manager' %}">{% trans "File Manager" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:orphaned_files' %}">{% trans "Orphaned Files" %}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url 'frontend_api:cache_manager' %}">{% trans "Cache" %}</a>
+    </li>
+</ul>
+
+<!-- Base selector -->
+<div class="card border-0 shadow-sm rounded-4 mb-4">
+    <div class="card-body p-4">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-muted fw-semibold me-2">{% trans "Root:" %}</span>
+            {% for b in bases %}
+            <a href="{% url 'frontend_api:file_manager' %}?base={{ b }}&path="
+               class="btn btn-sm {% if b == base_key %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill">
+                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-folder2-open"/></svg>{{ b }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Breadcrumbs -->
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        {% for crumb in crumbs %}
+        <li class="breadcrumb-item {% if forloop.last %}active{% endif %}">
+            {% if not forloop.last %}
+            <a href="{% url 'frontend_api:file_manager' %}?base={{ base_key }}&path={{ crumb.path|urlencode }}">{{ crumb.label }}</a>
+            {% else %}
+            {{ crumb.label }}
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+</nav>
+
+{% if list_error %}
+<div class="alert alert-danger rounded-3">
+    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>{{ list_error }}
+</div>
+{% endif %}
+
+<!-- Toolbar -->
+<div class="card border-0 shadow-sm rounded-4">
+    <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+            <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-folder"/></svg>
+            {% if rel_path %}{{ rel_path }}{% else %}{% trans "Root" %}{% endif %}
+            <span class="badge bg-secondary ms-2 fw-normal">{{ entries|length }}</span>
+        </h6>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#mkdirModal">
+                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-folder-plus"/></svg>{% trans "New Folder" %}
+            </button>
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        {% if entries %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th class="admin-table-thead ps-4 border-0">{% trans "Name" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Size" %}</th>
+                        <th class="admin-table-thead border-0">{% trans "Modified" %}</th>
+                        <th class="admin-table-thead text-end pe-4 border-0">{% trans "Actions" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td class="ps-4">
+                            {% if entry.is_dir %}
+                            <a href="{% url 'frontend_api:file_manager' %}?base={{ base_key }}&path={{ entry.rel_path|urlencode }}"
+                               class="text-decoration-none fw-semibold">
+                                <svg class="bi me-2 text-warning" aria-hidden="true" focusable="false"><use href="#bi-folder-fill"/></svg>{{ entry.name }}
+                            </a>
+                            {% else %}
+                            <span>
+                                <svg class="bi me-2 text-secondary" aria-hidden="true" focusable="false"><use href="#bi-file-earmark"/></svg>{{ entry.name }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ entry.size|default:"-" }}</td>
+                        <td class="text-muted small">{{ entry.modified }}</td>
+                        <td class="text-end pe-4">
+                            <div class="d-flex gap-1 justify-content-end">
+                                <a href="{% url 'frontend_api:file_manager_download' %}?base={{ base_key }}&path={{ entry.rel_path|urlencode }}"
+                                   class="btn btn-sm btn-outline-success rounded-pill px-2"
+                                   title="{% trans 'Download' %}">
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>
+                                </a>
+                                <button class="btn btn-sm btn-outline-secondary rounded-pill px-2"
+                                        onclick="openRenameModal('{{ entry.rel_path|escapejs }}', '{{ entry.name|escapejs }}')"
+                                        title="{% trans 'Rename' %}">
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg>
+                                </button>
+                                {% if not entry.is_dir and rel_path %}
+                                <button class="btn btn-sm btn-outline-info rounded-pill px-2"
+                                        onclick="openMoveModal('{{ entry.rel_path|escapejs }}', '{{ entry.name|escapejs }}')"
+                                        title="{% trans 'Move' %}">
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrows-move"/></svg>
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-sm btn-outline-danger rounded-pill px-2"
+                                        onclick="confirmDelete('{{ entry.rel_path|escapejs }}', '{{ entry.name|escapejs }}', {{ entry.is_dir|lower }})"
+                                        title="{% trans 'Delete' %}">
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <svg class="bi mb-2 text-secondary admin-icon-md" aria-hidden="true" focusable="false"><use href="#bi-folder"/></svg>
+            <p class="mb-0">{% trans "This directory is empty." %}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Modals ──────────────────────────────────────────────── -->
+
+<!-- Create Folder Modal -->
+<div class="modal fade" id="mkdirModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">{% trans "New Folder" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <input type="text" id="mkdirName" class="form-control rounded-3" placeholder="{% trans 'Folder name' %}">
+                <div id="mkdirError" class="text-danger small mt-2 d-none"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-primary rounded-pill" onclick="doMkdir()">{% trans "Create" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rename Modal -->
+<div class="modal fade" id="renameModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">{% trans "Rename" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <p class="text-muted small mb-2">{% trans "Renaming:" %} <strong id="renameCurrentName"></strong></p>
+                <input type="text" id="renameNewName" class="form-control rounded-3" placeholder="{% trans 'New name' %}">
+                <div id="renameError" class="text-danger small mt-2 d-none"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-primary rounded-pill" onclick="doRename()">{% trans "Rename" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Move Modal -->
+<div class="modal fade" id="moveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">{% trans "Move File" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <p class="text-muted small mb-2">{% trans "Moving:" %} <strong id="moveFileName"></strong></p>
+                <label class="form-label small fw-semibold">{% trans "Destination path (relative to root)" %}</label>
+                <input type="text" id="moveDestPath" class="form-control rounded-3" placeholder="{% trans 'e.g. original/videos' %}">
+                <div id="moveError" class="text-danger small mt-2 d-none"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-primary rounded-pill" onclick="doMove()">{% trans "Move" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger">{% trans "Confirm Delete" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <p>{% trans "Are you sure you want to delete" %} <strong id="deleteTargetName"></strong>?</p>
+                <p id="deleteDirWarning" class="text-warning small d-none">
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
+                    {% trans "This will delete the folder and ALL its contents." %}
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-danger rounded-pill" onclick="doDelete()">{% trans "Delete" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token }}';
+const BASE_KEY = '{{ base_key }}';
+const REL_PATH = '{{ rel_path|escapejs }}';
+const ACTION_URL = '{% url "frontend_api:file_manager_action" %}';
+
+let _deletePath = '';
+let _renamePath = '';
+let _movePath = '';
+
+async function callAction(payload) {
+    return fetch(ACTION_URL, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': CSRF},
+        body: JSON.stringify(payload)
+    }).then(r => r.json());
+}
+
+function doMkdir() {
+    const name = document.getElementById('mkdirName').value.trim();
+    if (!name) return;
+    callAction({action: 'mkdir', base: BASE_KEY, path: REL_PATH, name}).then(res => {
+        if (res.ok) { window.showToast(res.message, 'success'); setTimeout(() => location.reload(), 800); }
+        else { document.getElementById('mkdirError').textContent = res.error; document.getElementById('mkdirError').classList.remove('d-none'); }
+    });
+}
+
+function openRenameModal(path, name) {
+    _renamePath = path;
+    document.getElementById('renameCurrentName').textContent = name;
+    document.getElementById('renameNewName').value = name;
+    document.getElementById('renameError').classList.add('d-none');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('renameModal')).show();
+}
+function doRename() {
+    const new_name = document.getElementById('renameNewName').value.trim();
+    if (!new_name) return;
+    callAction({action: 'rename', base: BASE_KEY, path: _renamePath, new_name}).then(res => {
+        if (res.ok) { window.showToast(res.message, 'success'); setTimeout(() => location.reload(), 800); }
+        else { document.getElementById('renameError').textContent = res.error; document.getElementById('renameError').classList.remove('d-none'); }
+    });
+}
+
+function openMoveModal(path, name) {
+    _movePath = path;
+    document.getElementById('moveFileName').textContent = name;
+    document.getElementById('moveDestPath').value = '';
+    document.getElementById('moveError').classList.add('d-none');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('moveModal')).show();
+}
+function doMove() {
+    const dest_path = document.getElementById('moveDestPath').value.trim();
+    if (!dest_path) return;
+    callAction({action: 'move', base: BASE_KEY, path: _movePath, dest_path}).then(res => {
+        if (res.ok) { window.showToast(res.message, 'success'); setTimeout(() => location.reload(), 800); }
+        else { document.getElementById('moveError').textContent = res.error; document.getElementById('moveError').classList.remove('d-none'); }
+    });
+}
+
+function confirmDelete(path, name, isDir) {
+    _deletePath = path;
+    document.getElementById('deleteTargetName').textContent = name;
+    const warn = document.getElementById('deleteDirWarning');
+    isDir ? warn.classList.remove('d-none') : warn.classList.add('d-none');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteModal')).show();
+}
+function doDelete() {
+    callAction({action: 'delete', base: BASE_KEY, path: _deletePath}).then(res => {
+        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+        if (res.ok) { window.showToast(res.message, 'success'); setTimeout(() => location.reload(), 800); }
+        else { window.showToast(res.error, 'danger'); }
+    });
+}
+</script>
+{% endblock %}

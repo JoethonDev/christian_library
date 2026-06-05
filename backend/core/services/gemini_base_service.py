@@ -8,7 +8,13 @@ import os
 import time
 from typing import Dict, Tuple, Optional
 from django.conf import settings
-from google import genai
+
+try:
+    from google import genai
+except Exception as exc:  # pragma: no cover - import-time environment guard
+    genai = None
+    _genai_import_error = exc
+
 from .gemini_rate_limit_service import get_gemini_rate_limit_service
 
 logger = logging.getLogger(__name__)
@@ -37,6 +43,9 @@ class BaseGeminiService:
             api_key = getattr(settings, 'GEMINI_API_KEY', None)
             if not api_key:
                 raise ValueError("GEMINI_API_KEY not found in settings")
+
+            if genai is None:
+                raise RuntimeError(f"google.genai could not be imported: {_genai_import_error}")
                 
             self.default_model = default_model or getattr(settings, 'GEMINI_MODEL', self.MODEL_2_5_FLASH)
             self.client = genai.Client(api_key=api_key)

@@ -9,7 +9,12 @@ from datetime import datetime
 from django.core.cache import cache
 from django.conf import settings
 from django.utils import timezone
-from google import genai
+
+try:
+    from google import genai
+except Exception as exc:  # pragma: no cover - import-time environment guard
+    genai = None
+    _genai_import_error = exc
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +37,9 @@ class GeminiRateLimitService:
             api_key = getattr(settings, 'GEMINI_API_KEY', None)
             if not api_key:
                 raise ValueError("GEMINI_API_KEY not found in settings")
+
+            if genai is None:
+                raise RuntimeError(f"google.genai could not be imported: {_genai_import_error}")
             
             self.client = genai.Client(api_key=api_key)
             self.is_initialized = True

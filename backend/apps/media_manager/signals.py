@@ -2,6 +2,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.core.files.storage import default_storage
 import os
+import shutil
 
 from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta, ProcessingJob
 
@@ -29,7 +30,6 @@ def delete_video_files(sender, instance, **kwargs):
     
     # Delete HLS directories
     if instance.content_item:
-        import shutil
         from django.conf import settings
         from pathlib import Path
         

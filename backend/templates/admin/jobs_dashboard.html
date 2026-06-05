@@ -17,56 +17,56 @@
 
 <div class="row g-3 mb-4">
     <div class="col-6 col-xl-2">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card admin-stat-card h-100">
             <div class="card-body text-center py-3">
                 <div class="text-primary fw-bold display-6" id="jobs-active-count">{{ status_counts.active }}</div>
-                <div class="text-muted small text-uppercase fw-semibold">{% trans "Active" %}</div>
+                <div class="admin-stat-label">{% trans "Active" %}</div>
             </div>
         </div>
     </div>
     <div class="col-6 col-xl-2">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card admin-stat-card h-100">
             <div class="card-body text-center py-3">
                 <div class="text-warning fw-bold display-6" id="jobs-pending-count">{{ status_counts.pending }}</div>
-                <div class="text-muted small text-uppercase fw-semibold">{% trans "Pending" %}</div>
+                <div class="admin-stat-label">{% trans "Pending" %}</div>
             </div>
         </div>
     </div>
     <div class="col-6 col-xl-2">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card admin-stat-card h-100">
             <div class="card-body text-center py-3">
                 <div class="text-secondary fw-bold display-6" id="jobs-canceled-count">{{ status_counts.canceled }}</div>
-                <div class="text-muted small text-uppercase fw-semibold">{% trans "Canceled" %}</div>
+                <div class="admin-stat-label">{% trans "Canceled" %}</div>
             </div>
         </div>
     </div>
     <div class="col-6 col-xl-2">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card admin-stat-card h-100">
             <div class="card-body text-center py-3">
                 <div class="text-success fw-bold display-6" id="jobs-completed-count">{{ status_counts.completed }}</div>
-                <div class="text-muted small text-uppercase fw-semibold">{% trans "Completed" %}</div>
+                <div class="admin-stat-label">{% trans "Completed" %}</div>
             </div>
         </div>
     </div>
     <div class="col-6 col-xl-2">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card admin-stat-card h-100">
             <div class="card-body text-center py-3">
                 <div class="text-danger fw-bold display-6" id="jobs-failed-count">{{ status_counts.failed }}</div>
-                <div class="text-muted small text-uppercase fw-semibold">{% trans "Failed" %}</div>
+                <div class="admin-stat-label">{% trans "Failed" %}</div>
             </div>
         </div>
     </div>
     <div class="col-6 col-xl-2">
-        <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card admin-stat-card h-100">
             <div class="card-body text-center py-3">
                 <div class="text-dark fw-bold display-6" id="jobs-total-count">{{ status_counts.active|add:status_counts.pending|add:status_counts.canceled|add:status_counts.completed|add:status_counts.failed }}</div>
-                <div class="text-muted small text-uppercase fw-semibold">{% trans "Total" %}</div>
+                <div class="admin-stat-label">{% trans "Total" %}</div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm rounded-4 mb-4">
+<div class="card admin-filter-card mb-4">
     <div class="card-body p-4">
         <form id="jobs-filter-form"
               hx-get="{% url 'frontend_api:api_jobs_list' %}"
@@ -74,42 +74,42 @@
               hx-swap="innerHTML"
               hx-push-url="true"
               hx-trigger="change, keyup delay:350ms from:input[name='search']"
-              class="row g-3 align-items-end">
-            <div class="col-12 col-md-4">
-                <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Search" %}</label>
-                <input type="search" name="search" value="{{ search_query }}" class="form-control rounded-pill border-0 bg-light" placeholder="{% trans 'Search by title, file name, or metadata' %}">
+              class="row g-3 g-xl-4 align-items-end admin-filter-form">
+            <div class="col-12 col-xl-4">
+                <label class="admin-filter-label">{% trans "Search" %}</label>
+                <input type="search" name="search" value="{{ search_query }}" class="form-control admin-filter-control" placeholder="{% trans 'Search by title, file name, or metadata' %}">
             </div>
             <input type="hidden" name="status" id="jobs-status-input" value="{{ current_tab }}">
-            <div class="col-6 col-md-2">
-                <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Type" %}</label>
-                <select name="type" class="form-select rounded-pill border-0 bg-light">
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="admin-filter-label">{% trans "Type" %}</label>
+                <select name="type" class="form-select admin-filter-control">
                     <option value="all" {% if content_type_filter == 'all' %}selected{% endif %}>{% trans "All" %}</option>
                     <option value="video" {% if content_type_filter == 'video' %}selected{% endif %}>{% trans "Video" %}</option>
                     <option value="audio" {% if content_type_filter == 'audio' %}selected{% endif %}>{% trans "Audio" %}</option>
                     <option value="pdf" {% if content_type_filter == 'pdf' %}selected{% endif %}>{% trans "PDF" %}</option>
                 </select>
             </div>
-            <div class="col-6 col-md-2">
-                <label class="form-label small fw-semibold text-uppercase text-muted">{% trans "Per Page" %}</label>
-                <select name="per_page" class="form-select rounded-pill border-0 bg-light">
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="admin-filter-label">{% trans "Per Page" %}</label>
+                <select name="per_page" class="form-select admin-filter-control">
                     <option value="10" {% if per_page == 10 %}selected{% endif %}>10</option>
                     <option value="20" {% if per_page == 20 %}selected{% endif %}>20</option>
                     <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
                 </select>
             </div>
-            <div class="col-6 col-md-2 text-md-end">
+            <div class="col-12 col-md-3 col-xl-auto ms-xl-auto">
                 <button type="submit" class="btn btn-primary rounded-pill px-4 w-100">{% trans "Apply" %}</button>
             </div>
         </form>
     </div>
 </div>
 
-<div class="d-flex flex-wrap gap-2 mb-4">
-    <button type="button" class="btn btn-sm {% if current_tab == 'active' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('active')">{% trans "Active" %} <span class="badge text-bg-light ms-1">{{ status_counts.active }}</span></button>
-    <button type="button" class="btn btn-sm {% if current_tab == 'pending' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('pending')">{% trans "Pending" %} <span class="badge text-bg-light ms-1">{{ status_counts.pending }}</span></button>
-    <button type="button" class="btn btn-sm {% if current_tab == 'canceled' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('canceled')">{% trans "Canceled" %} <span class="badge text-bg-light ms-1">{{ status_counts.canceled }}</span></button>
-    <button type="button" class="btn btn-sm {% if current_tab == 'completed' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('completed')">{% trans "Completed" %} <span class="badge text-bg-light ms-1">{{ status_counts.completed }}</span></button>
-    <button type="button" class="btn btn-sm {% if current_tab == 'failed' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('failed')">{% trans "Failed" %} <span class="badge text-bg-light ms-1">{{ status_counts.failed }}</span></button>
+<div class="d-flex flex-wrap gap-2 mb-4 overflow-auto pb-1">
+    <button type="button" class="btn btn-sm flex-shrink-0 {% if current_tab == 'active' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('active')">{% trans "Active" %} <span class="badge text-bg-light ms-1">{{ status_counts.active }}</span></button>
+    <button type="button" class="btn btn-sm flex-shrink-0 {% if current_tab == 'pending' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('pending')">{% trans "Pending" %} <span class="badge text-bg-light ms-1">{{ status_counts.pending }}</span></button>
+    <button type="button" class="btn btn-sm flex-shrink-0 {% if current_tab == 'canceled' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('canceled')">{% trans "Canceled" %} <span class="badge text-bg-light ms-1">{{ status_counts.canceled }}</span></button>
+    <button type="button" class="btn btn-sm flex-shrink-0 {% if current_tab == 'completed' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('completed')">{% trans "Completed" %} <span class="badge text-bg-light ms-1">{{ status_counts.completed }}</span></button>
+    <button type="button" class="btn btn-sm flex-shrink-0 {% if current_tab == 'failed' %}btn-primary{% else %}btn-outline-primary{% endif %} rounded-pill" onclick="setJobsStatus('failed')">{% trans "Failed" %} <span class="badge text-bg-light ms-1">{{ status_counts.failed }}</span></button>
 </div>
 
 <div class="row g-4 mb-4">
@@ -211,11 +211,14 @@ function runJobAction(action, jobId, source) {
         if (data.success) {
             refreshJobsTable();
             window.refreshBackgroundJobsBadge();
+            if (window.showToast) {
+                window.showToast(data.message || '{% trans "Action completed" %}', 'success');
+            }
         } else {
-            alert(data.error || '{% trans "Action failed" %}');
+            window.showToast(data.error || '{% trans "Action failed" %}', 'danger');
         }
     })
-    .catch(() => alert('{% trans "Action failed" %}'));
+    .catch(() => window.showToast('{% trans "Action failed" %}', 'danger'));
 }
 
 function dispatchJob() {
@@ -223,7 +226,7 @@ function dispatchJob() {
     const stage = document.getElementById('dispatch-stage').value;
 
     if (!contentId) {
-        alert('{% trans "Please enter a Content ID" %}');
+        window.showToast('{% trans "Please enter a Content ID" %}', 'danger');
         return;
     }
 
@@ -241,46 +244,14 @@ function dispatchJob() {
         if (data.success) {
             refreshJobsTable();
             window.refreshBackgroundJobsBadge();
-        } else {
-            alert(data.error || '{% trans "Dispatch failed" %}');
-        }
-    })
-    .catch(() => alert('{% trans "Dispatch failed" %}'));
-}
-
-function forceReprocessJob(contentId, itemTitle) {
-    if (!contentId) {
-        alert('{% trans "Please enter a Content ID" %}');
-        return;
-    }
-
-    const confirmed = confirm(`{% trans "Force re-process" %} "${itemTitle}"?\n{% trans "This will re-upload to R2 and regenerate AI metadata." %}`);
-    if (!confirmed) {
-        return;
-    }
-
-    fetch("{% url 'frontend_api:api_job_dispatch' %}", {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}',
-            'HX-Request': 'true',
-        },
-        body: JSON.stringify({ content_id: contentId, stage: 'full', force: true })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            refreshJobsTable();
-            window.refreshBackgroundJobsBadge();
             if (window.showToast) {
-                window.showToast('{% trans "Force re-process queued" %}', 'success');
+                window.showToast(data.message || '{% trans "Dispatch queued" %}', 'success');
             }
         } else {
-            alert(data.error || '{% trans "Dispatch failed" %}');
+            window.showToast(data.error || '{% trans "Dispatch failed" %}', 'danger');
         }
     })
-    .catch(() => alert('{% trans "Dispatch failed" %}'));
+    .catch(() => window.showToast('{% trans "Dispatch failed" %}', 'danger'));
 }
 
 function refreshJobStats() {

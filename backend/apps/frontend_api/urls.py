@@ -74,6 +74,11 @@ urlpatterns = [
         
     # System management (at /en/dashboard/system/, etc.)
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
+    path('dashboard/system/files/', admin_views.file_manager, name='file_manager'),
+    path('dashboard/system/files/action/', admin_views.file_manager_action, name='file_manager_action'),
+    path('dashboard/system/files/download/', admin_views.file_manager_download, name='file_manager_download'),
+    path('dashboard/system/orphaned/', admin_views.orphaned_files, name='orphaned_files'),
+    path('dashboard/system/cache/', admin_views.cache_manager, name='cache_manager'),
     path('dashboard/bulk/', admin_views.bulk_operations, name='bulk_operations'),
 
     # Background Jobs dashboard (at /en/dashboard/jobs/)
@@ -83,6 +88,9 @@ urlpatterns = [
     path('dashboard/jobs/api/promote/', admin_views.api_job_promote, name='api_job_promote'),
     path('dashboard/jobs/api/dispatch/', admin_views.api_job_dispatch, name='api_job_dispatch'),
     path('dashboard/jobs/api/stats/', admin_views.api_jobs_stats, name='api_jobs_stats'),
+
+    # Content lifecycle logs dashboard
+    path('dashboard/logs/', admin_views.lifecycle_audit_logs, name='admin_lifecycle_audit_logs'),
     
     path('dashboard/api-queue/<uuid:queue_id>/promote/', admin_views.api_queue_promote, name='api_queue_promote'),
     path('dashboard/api-queue/<uuid:queue_id>/cancel/', admin_views.api_queue_cancel, name='api_queue_cancel'),
@@ -96,14 +104,6 @@ urlpatterns = [
     path('dashboard/search-settings/update/', admin_views.update_search_sensitivity, name='update_search_sensitivity'),
     path('dashboard/search-settings/test/', admin_views.test_search_sensitivity, name='test_search_sensitivity'),
     
-    path('dashboard/seo/analytics-api/', seo_views.seo_analytics_api, name='seo_analytics_api'),
-    path('dashboard/seo/content-analysis-api/', seo_views.seo_content_analysis_api, name='seo_content_analysis_api'),
-    path('dashboard/seo/bulk-actions-api/', seo_views.bulk_seo_actions_api, name='bulk_seo_actions_api'),
-    path('dashboard/seo/monitoring-api/', seo_views.seo_monitoring_api, name='seo_monitoring_api'),
-    path('dashboard/seo/site-config-api/', seo_views.site_seo_api, name='site_seo_api'),
-    
-    path('dashboard/r2/status/', admin_views.get_r2_sync_status, name='r2_sync_status'),
-
     # Unified content type management (explicitly restricted to supported types)
     re_path(r'^dashboard/(?P<media_type>video|audio|pdf)/$', admin_views.media_management, name='media_management'),
 

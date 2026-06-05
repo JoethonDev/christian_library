@@ -3,6 +3,7 @@ Content Management Service Layer
 Handles all business logic for content operations
 """
 from typing import Any, Dict, List, Optional, Tuple, Union
+import json
 import uuid
 from django.db import transaction, models
 from django.db.models import Count, Q
@@ -247,7 +248,6 @@ class ContentService:
             # Process structured data if it's a string
             if isinstance(structured_data, str) and structured_data.strip():
                 try:
-                    import json
                     structured_data = json.loads(structured_data)
                 except json.JSONDecodeError:
                     logger.warning(f"Invalid JSON in structured_data for {title_ar}, using empty dict")

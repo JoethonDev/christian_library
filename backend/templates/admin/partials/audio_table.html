@@ -1,21 +1,22 @@
 {% load i18n %}{% load static %}
 <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
+        <thead>
             <tr>
-                <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0" style="width: 40px;">
+                <th class="admin-checkbox-col admin-table-thead ps-4 border-0">
                     <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
                 </th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Audio Content" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Duration" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Visibility" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
-                <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Audio Content" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Tags" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Duration" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Visibility" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Status" %}</th>
+                <th class="admin-table-thead text-end pe-4 border-0">{% trans "Actions" %}</th>
             </tr>
         </thead>
         <tbody>
             {% for audio in audios %}
+            {% with meta=audio.get_meta_object %}
             <tr x-data="{ autoFilling: false }">
                 <td class="ps-4 py-3">
                     <input type="checkbox" class="form-check-input row-checkbox" 
@@ -79,6 +80,7 @@
                     </div>
                 </td>
                 <td>
+                    <div class="status-badge-stack">
                     {% if audio.live_task %}
                         <div class="d-flex align-items-center text-warning" title="{{ audio.live_task.step }}">
                             <span class="spinner-border spinner-border-sm me-2"></span>
@@ -99,17 +101,27 @@
                     {% else %}
                         <span class="badge bg-secondary-subtle text-secondary rounded-pill px-2">{{ audio.processing_status|title }}</span>
                     {% endif %}
+                        {% include "admin/partials/content_quality_badges.html" with content_item=audio meta=meta %}
+                    </div>
                 </td>
                 <td class="text-end pe-4">
                     <div class="btn-group">
-                        {% if not audio.audiometa.has_seo %}
+                        {% if audio.can_generate_seo %}
                         <button type="button" 
                                 class="btn btn-sm btn-warning text-white" 
-                                title="{% trans 'Auto-Fill SEO' %}"
+                                title="{% if audio.has_seo_metadata %}{% trans 'Regenerate SEO' %}{% else %}{% trans 'Generate SEO' %}{% endif %}"
                                 @click="confirmAutoFill('{{ audio.id }}', '{{ audio.title_ar|escapejs }}')"
                                 :disabled="autoFilling">
                             <svg class="bi me-1" aria-hidden="true" focusable="false"><use :href="autoFilling ? '#bi-hourglass-split' : '#bi-magic'"></use></svg>
-                            <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% trans "SEO" %}'"></span>
+                            <span x-text="autoFilling ? '{% trans "Generating..." %}' : '{% if audio.has_seo_metadata %}{% trans "Regenerate SEO" %}{% else %}{% trans "SEO" %}{% endif %}'"></span>
+                        </button>
+                        {% endif %}
+                        {% if audio.can_retry_r2_upload and meta %}
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                title="{% trans 'Retry R2' %}"
+                                onclick="retryR2Upload('{{ audio.content_type }}', '{{ meta.id }}', this, '{{ audio.title_ar|escapejs }}')">
+                            <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Retry R2" %}
                         </button>
                         {% endif %}
                         <a href="{% url 'frontend_api:admin_content_detail' audio.id %}" 
@@ -137,6 +149,7 @@
                     </div>
                 </td>
             </tr>
+            {% endwith %}
             {% empty %}
             <tr>
                 <td colspan="7" class="text-center py-5 text-muted">

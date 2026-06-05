@@ -1,13 +1,17 @@
-# SEO Analytics and Monitoring Views
-# Add to apps/frontend_api/views.py or create new apps/seo_dashboard/views.py
+# SEO analytics and monitoring views used by the content management admin UI.
 
 from django.contrib.auth.decorators import user_passes_test
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q
-from apps.media_manager.models import ContentItem, SiteConfiguration
 from collections import Counter
+import datetime
 import json
+import logging
+
+from apps.media_manager.models import ContentItem, SiteConfiguration
+
+logger = logging.getLogger(__name__)
 
 staff_member_required = user_passes_test(
     lambda u: u.is_active and u.is_staff,
@@ -249,7 +253,6 @@ def seo_monitoring_api(request):
     from django.core.cache import cache
     from django.utils import timezone
     from django.contrib.sites.models import Site
-    import datetime
     
     try:
         # Get current site info

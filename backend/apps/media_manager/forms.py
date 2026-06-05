@@ -1,6 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from .models import ContentItem, VideoMeta, AudioMeta, PdfMeta
+import json
 import os
 
 
@@ -42,7 +43,6 @@ class ContentItemForm(forms.ModelForm):
         
         # Pretty-print JSON for the form
         if self.instance and self.instance.pk and self.instance.structured_data:
-            import json
             try:
                 self.initial['structured_data'] = json.dumps(
                     self.instance.structured_data, 
@@ -59,7 +59,6 @@ class ContentItemForm(forms.ModelForm):
         
         if isinstance(data, str):
             try:
-                import json
                 return json.loads(data)
             except json.JSONDecodeError as e:
                 raise ValidationError(f"Invalid JSON format: {str(e)}")

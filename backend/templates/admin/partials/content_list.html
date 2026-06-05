@@ -3,37 +3,38 @@
 
 <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
+        <thead>
             <tr>
-                <th class="ps-4 py-3 text-secondary text-uppercase small fw-bold border-0" style="width: 40px;">
+                <th class="admin-checkbox-col admin-table-thead ps-4 border-0">
                     <input type="checkbox" class="form-check-input" id="select-all">
                 </th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Content" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Type" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Tags" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "SEO" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Status" %}</th>
-                <th class="py-3 text-secondary text-uppercase small fw-bold border-0">{% trans "Date" %}</th>
-                <th class="py-3 text-end pe-4 text-secondary text-uppercase small fw-bold border-0">{% trans "Actions" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Content" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Type" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Tags" %}</th>
+                <th class="admin-table-thead border-0">{% trans "SEO" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Status" %}</th>
+                <th class="admin-table-thead border-0">{% trans "Date" %}</th>
+                <th class="admin-table-thead text-end pe-4 border-0">{% trans "Actions" %}</th>
             </tr>
         </thead>
         <tbody>
             {% for item in content_data.content_items %}
             {% if item.id %}
+            {% with meta=item.get_meta_object %}
             <tr>
                 <td class="ps-4">
                     <input type="checkbox" class="form-check-input" name="content_select" value="{{ item.id }}">
                 </td>
                 <td class="py-3">
                     <div class="d-flex align-items-center">
-                        <div class="me-3 rounded overflow-hidden d-flex align-items-center justify-content-center" 
-                             style="width: 45px; height: 45px; {% if item.content_type == 'video' %}background-color: #fff4f4;{% elif item.content_type == 'audio' %}background-color: #fff9e6;{% else %}background-color: #f0f7ff;{% endif %}">
+                        <div class="me-3 admin-icon-type rounded overflow-hidden d-flex align-items-center justify-content-center"
+                             style="{% if item.content_type == 'video' %}background-color: #fff4f4;{% elif item.content_type == 'audio' %}background-color: #fff9e6;{% else %}background-color: #f0f7ff;{% endif %}">
                             {% if item.content_type == 'video' %}
-                                <svg class="bi text-danger" style="font-size: 1.2rem;" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
+                                <svg class="bi text-danger" aria-hidden="true" focusable="false"><use href="#bi-play-circle"/></svg>
                             {% elif item.content_type == 'audio' %}
-                                <svg class="bi text-warning" style="font-size: 1.2rem;" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>
+                                <svg class="bi text-warning" aria-hidden="true" focusable="false"><use href="#bi-music-note"/></svg>
                             {% else %}
-                                <svg class="bi text-primary" style="font-size: 1.2rem;" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
+                                <svg class="bi text-primary" aria-hidden="true" focusable="false"><use href="#bi-file-text"/></svg>
                             {% endif %}
                         </div>
                         <div>
@@ -89,13 +90,11 @@
                                     <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-exclamation"/></svg>
                                 </span>
                             {% endif %}
-                            
-                            <span class="badge {% if item.seo_keywords_ar %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1" 
-                                  style="width: 20px; height: 20px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center;"
-                                  title="{% trans 'Arabic' %}">AR</span>
-                            <span class="badge {% if item.seo_keywords_en %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1" 
-                                  style="width: 20px; height: 20px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center;"
-                                  title="{% trans 'English' %}">EN</span>
+
+                            <span class="badge admin-seo-badge {% if item.seo_keywords_ar %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1"
+                                   title="{% trans 'Arabic' %}">AR</span>
+                            <span class="badge admin-seo-badge {% if item.seo_keywords_en %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary opacity-50{% endif %} rounded-circle p-1"
+                                   title="{% trans 'English' %}">EN</span>
                         </div>
                     {% else %}
                         <span class="badge bg-danger-subtle text-danger rounded-pill" title="{% trans 'Missing' %}">
@@ -104,7 +103,7 @@
                     {% endif %}
                 </td>
                 <td>
-                    <div class="d-flex flex-column gap-1">
+                    <div class="status-badge-stack">
                         {% if item.is_active %}
                             <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill w-auto">
                                 {% trans "Active" %}
@@ -114,9 +113,9 @@
                                 {% trans "Inactive" %}
                             </span>
                         {% endif %}
-                        
+
                         {% if item.processing_status and item.processing_status != 'completed' %}
-                            <div class="small">
+                            <div class="small status-badge-line">
                             {% if item.processing_status == 'pending' %}
                                 <span class="text-secondary"><svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>{% trans "Pending" %}</span>
                             {% elif item.processing_status == 'processing' %}
@@ -129,6 +128,8 @@
                             {% endif %}
                             </div>
                         {% endif %}
+
+                        {% include "admin/partials/content_quality_badges.html" with content_item=item meta=meta %}
                     </div>
                 </td>
                 <td class="text-muted small">
@@ -136,52 +137,61 @@
                 </td>
                 <td class="text-end pe-4">
                     <div class="btn-group">
-                        <a href="{% url 'frontend_api:admin_content_detail' item.id %}" 
-                           class="btn btn-sm btn-light text-secondary" 
+                        <a href="{% url 'frontend_api:admin_content_detail' item.id %}"
+                           class="btn btn-sm btn-light text-secondary"
                            title="{% trans 'Edit' %}">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg>
                         </a>
-                        
+
                         {% if item.content_type == 'video' %}
-                        <a href="{% url 'frontend_api:video_detail' item.id %}" 
-                           class="btn btn-sm btn-light text-secondary" 
+                        <a href="{% url 'frontend_api:video_detail' item.id %}"
+                           class="btn btn-sm btn-light text-secondary"
                            title="{% trans 'Preview' %}" target="_blank">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% elif item.content_type == 'audio' %}
-                        <a href="{% url 'frontend_api:audio_detail' item.id %}" 
-                           class="btn btn-sm btn-light text-secondary" 
+                        <a href="{% url 'frontend_api:audio_detail' item.id %}"
+                           class="btn btn-sm btn-light text-secondary"
                            title="{% trans 'Preview' %}" target="_blank">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% else %}
-                        <a href="{% url 'frontend_api:pdf_detail' item.id %}" 
-                           class="btn btn-sm btn-light text-secondary" 
+                        <a href="{% url 'frontend_api:pdf_detail' item.id %}"
+                           class="btn btn-sm btn-light text-secondary"
                            title="{% trans 'Preview' %}" target="_blank">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-eye"/></svg>
                         </a>
                         {% endif %}
-                        
-                        {% if not item.has_seo_metadata %}
-                        <button class="btn btn-sm btn-light text-warning" 
-                                title="{% trans 'Generate SEO' %}"
-                                onclick="generateSEOForItem('{{ item.id }}')">
+
+                        {% if item.can_generate_seo %}
+                        <button class="btn btn-sm btn-light text-warning"
+                                title="{% if item.has_seo_metadata %}{% trans 'Regenerate SEO' %}{% else %}{% trans 'Generate SEO' %}{% endif %}"
+                                onclick="generateSEOForItem('{{ item.id }}', this)">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>
                         </button>
                         {% endif %}
-                        
-                        <button class="btn btn-sm btn-light text-danger" 
-                                title="{% trans 'Delete' %}" 
+
+                        {% if item.can_retry_r2_upload and meta %}
+                        <button class="btn btn-sm btn-light text-danger"
+                                title="{% trans 'Retry R2' %}"
+                                onclick="retryR2Upload('{{ item.content_type }}', '{{ meta.id }}', this, '{{ item.title_ar|escapejs }}')">
+                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>
+                        </button>
+                        {% endif %}
+
+                        <button class="btn btn-sm btn-light text-danger"
+                                title="{% trans 'Delete' %}"
                                 onclick="confirmDelete('{{ item.id }}', '{{ item.title_ar|escapejs }}')">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>
                         </button>
                     </div>
                 </td>
             </tr>
+            {% endwith %}
             {% endif %}
             {% empty %}
             <tr>
-                <td colspan="7" class="text-center py-5 text-muted">
+                <td colspan="8" class="text-center py-5 text-muted">
                     <div class="mb-3">
                         <svg class="bi display-4 text-secondary opacity-50" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
                     </div>
@@ -207,7 +217,7 @@
         <ul class="pagination pagination-sm mb-0">
             {% if content_data.pagination.has_previous %}
             <li class="page-item">
-                <a class="page-link border-0 text-secondary" 
+                <a class="page-link border-0 text-secondary"
                    hx-get="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
                    hx-target="#admin-content-table"
                    href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
@@ -215,7 +225,7 @@
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link border-0 text-secondary" 
+                <a class="page-link border-0 text-secondary"
                    hx-get="?page={{ content_data.pagination.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
                    hx-target="#admin-content-table"
                    href="?page={{ content_data.pagination.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
@@ -223,16 +233,16 @@
                 </a>
             </li>
             {% endif %}
-            
+
             <li class="page-item active">
                 <span class="page-link bg-primary border-primary">
                     {{ content_data.pagination.page.number }}
                 </span>
             </li>
-            
+
             {% if content_data.pagination.has_next %}
             <li class="page-item">
-                <a class="page-link border-0 text-secondary" 
+                <a class="page-link border-0 text-secondary"
                    hx-get="?page={{ content_data.pagination.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
                    hx-target="#admin-content-table"
                    href="?page={{ content_data.pagination.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
@@ -240,7 +250,7 @@
                 </a>
             </li>
             <li class="page-item">
-                <a class="page-link border-0 text-secondary" 
+                <a class="page-link border-0 text-secondary"
                    hx-get="?page={{ content_data.pagination.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}"
                    hx-target="#admin-content-table"
                    href="?page={{ content_data.pagination.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}{% if content_type %}&type={{ content_type }}{% endif %}{% if ordering %}&sort={{ ordering }}{% endif %}{% if per_page %}&limit={{ per_page }}{% endif %}">
@@ -254,78 +264,115 @@
 {% endif %}
 
 <script>
-function generateSEOForItem(contentId) {
-    if (!confirm('{% trans "Generate SEO metadata for this item using AI?" %}')) {
-        return;
-    }
-    
-    // Add CSRF token safely if not present in your form handling
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? 
-                      document.querySelector('[name=csrfmiddlewaretoken]').value : 
-                      '{{ csrf_token }}';
+function generateSEOForItem(contentId, button) {
+    showConfirmation({
+        title: '{% trans "Generate SEO" %}',
+        message: '{% trans "Generate SEO metadata for this item using AI?" %}',
+        confirmText: '{% trans "Generate" %}',
+        confirmClass: 'btn-warning text-dark',
+        onConfirm: function() {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ?
+                              document.querySelector('[name=csrfmiddlewaretoken]').value :
+                              '{{ csrf_token }}';
 
-    const formData = new FormData();
-    formData.append('action', 'generate_seo');
-    formData.append('content_ids', contentId);
-    if(csrfToken) formData.append('csrfmiddlewaretoken', csrfToken);
-    
-    // Find the button that was clicked and disable it
-    const button = event.target.closest('button');
-    const originalHTML = button.innerHTML;
-    button.disabled = true;
-    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
-    
-    fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success > 0) {
-            // Updated modern alert
-            const alertHtml = `
-                <div class="alert alert-success alert-dismissible fade show shadow-sm border-0" role="alert">
-                    <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-check-circle-fill"/></svg>
-                    {% trans "SEO metadata generation started successfully!" %}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>`;
-            
-            // Insert alert safely
-            const tableContainer = document.getElementById('admin-content-table');
-            if (tableContainer) {
-                const temp = document.createElement('div');
-                temp.innerHTML = alertHtml;
-                tableContainer.insertBefore(temp.firstElementChild, tableContainer.firstChild);
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
             }
-            
-            // Reload
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-        } else {
-            showToast('{% trans "Error:" %} ' + (data.messages && data.messages.join(' ') || '{% trans "Failed to generate SEO metadata" %}'), 'danger');
+
+            fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken,
+                },
+                body: JSON.stringify({ content_id: contentId })
+            })
+            .then(response => response.json().then(data => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+                if (status >= 200 && status < 300 && data.success) {
+                    showToast(data.message || '{% trans "SEO metadata generation started successfully!" %}', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('{% trans "Error:" %} ' + (data.error || (data.messages && data.messages.join(' ')) || '{% trans "Failed to generate SEO metadata" %}'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('SEO generation error:', error);
+                showToast('{% trans "Network error. Please try again." %}', 'danger');
+            })
+            .finally(() => {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                }
+            });
         }
-    })
-    .catch(error => {
-        console.error('SEO generation error:', error);
-        showToast('{% trans "Network error. Please try again." %}', 'danger');
-    })
-    .finally(() => {
-        // Re-enable button
-        if(button) {
-            button.disabled = false;
-            button.innerHTML = originalHTML;
+    });
+}
+
+function retryR2Upload(contentType, metaId, button, itemTitle) {
+    showConfirmation({
+        title: '{% trans "Retry R2 Upload" %}',
+        message: `{% trans "Retry R2 upload for" %} "${itemTitle}"?`,
+        details: '{% trans "The item will be re-queued for background upload." %}',
+        confirmText: '{% trans "Retry" %}',
+        confirmClass: 'btn-danger',
+        onConfirm: function() {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ?
+                              document.querySelector('[name=csrfmiddlewaretoken]').value :
+                              '{{ csrf_token }}';
+
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalHtml = button.innerHTML;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+            }
+
+            fetch(`{% url 'frontend_api:api_r2_retry' 'video' '00000000-0000-0000-0000-000000000000' %}`.replace('/video/', `/${contentType}/`).replace('00000000-0000-0000-0000-000000000000', metaId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': csrfToken,
+                }
+            })
+            .then(response => response.json().then(data => ({ status: response.status, data })))
+            .then(({ status, data }) => {
+                if (status >= 200 && status < 300 && data.success) {
+                    showToast(data.message || '{% trans "R2 upload retry triggered" %}', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('{% trans "Error:" %} ' + (data.error || '{% trans "Failed to retry R2 upload" %}'), 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('R2 retry error:', error);
+                showToast('{% trans "Network error. Please try again." %}', 'danger');
+            })
+            .finally(() => {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = button.dataset.originalHtml || button.innerHTML;
+                }
+            });
         }
     });
 }
 
 function confirmDelete(itemId, itemTitle) {
-    if (confirm('{% trans "Are you sure you want to delete" %} "' + itemTitle + '"?')) {
-        const url = "{% url 'frontend_api:admin_content_delete' '00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', itemId);
-        window.location.href = url;
-    }
+    showConfirmation({
+        title: '{% trans "Delete Content" %}',
+        message: '{% trans "Are you sure you want to delete" %} "' + itemTitle + '"?',
+        details: '{% trans "This action cannot be undone." %}',
+        confirmText: '{% trans "Delete" %}',
+        confirmClass: 'btn-danger',
+        onConfirm: function() {
+            const url = "{% url 'frontend_api:admin_content_delete' '00000000-0000-0000-0000-000000000000' %}".replace('00000000-0000-0000-0000-000000000000', itemId);
+            window.location.href = url;
+        }
+    });
 }
 </script>

@@ -10,7 +10,7 @@
         <p class="text-muted mb-0">{% trans "Manage your library's videos, audio messages, and documents" %}</p>
     </div>
     <div class="col-auto d-flex gap-2">
-        <button id="bulk-generate-ai" class="btn btn-outline-primary rounded-pill px-4" style="display:none;">
+        <button id="bulk-generate-ai" class="btn btn-outline-primary rounded-pill px-4 admin-bulk-actions-bar">
             <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Generate with AI" %}
         </button>
         <a href="{% url 'frontend_api:upload_content' %}" class="btn btn-primary text-white rounded-pill px-4 shadow-sm">
@@ -19,7 +19,7 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+<div class="card admin-filter-card overflow-hidden">
     <div class="card-body p-4" 
          x-data="{ 
             q: '{{ search_query }}', 
@@ -37,24 +37,25 @@
          }"
          @htmx:after-request="updateUrl()">
         <!-- Search and Filter Section -->
-        <div class="row g-3 align-items-center mb-4">
+        <div class="row g-3 g-xl-4 align-items-end mb-4 admin-filter-form">
             <div class="col-lg-12">
                 <form hx-get="{% url 'frontend_api:admin_content_list' %}" 
                       hx-target="#admin-content-table" 
                       hx-trigger="change, keyup delay:300ms from:input"
-                      class="row g-2">
+                      class="row g-3 g-xl-4 align-items-end">
                     
-                    <div class="col-md-4 position-relative">
+                    <div class="col-12 col-lg-5 position-relative">
                         <span class="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted">
                             <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
                         </span>
-                        <input type="search" name="q" x-model="q" class="form-control rounded-pill ps-5 bg-light border-0" 
+                        <input type="search" name="q" x-model="q" class="form-control admin-filter-control ps-5"
                                placeholder="{% trans 'Search content...' %}" 
                                value="{{ search_query }}">
                     </div>
                     
-                    <div class="col-md-3">
-                        <select name="type" x-model="type" class="form-select rounded-pill bg-light border-0">
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <label class="admin-filter-label">{% trans "Type" %}</label>
+                        <select name="type" x-model="type" class="form-select admin-filter-control">
                             <option value="">{% trans "All Types" %}</option>
                             <option value="video" {% if content_type == 'video' %}selected{% endif %}>{% trans "Videos" %}</option>
                             <option value="audio" {% if content_type == 'audio' %}selected{% endif %}>{% trans "Audios" %}</option>
@@ -62,8 +63,9 @@
                         </select>
                     </div>
 
-                    <div class="col-md-3">
-                        <select name="sort" x-model="sort" class="form-select rounded-pill bg-light border-0">
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <label class="admin-filter-label">{% trans "Sort" %}</label>
+                        <select name="sort" x-model="sort" class="form-select admin-filter-control">
                             <option value="-created_at" {% if ordering == '-created_at' %}selected{% endif %}>{% trans "Newest First" %}</option>
                             <option value="created_at" {% if ordering == 'created_at' %}selected{% endif %}>{% trans "Oldest First" %}</option>
                             <option value="title_ar" {% if ordering == 'title_ar' %}selected{% endif %}>{% trans "Title (Arabic) A-Z" %}</option>
@@ -71,8 +73,9 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
-                        <select name="limit" x-model="limit" class="form-select rounded-pill bg-light border-0">
+                    <div class="col-6 col-md-4 col-lg-2">
+                        <label class="admin-filter-label">{% trans "Per Page" %}</label>
+                        <select name="limit" x-model="limit" class="form-select admin-filter-control">
                             <option value="10" {% if per_page == 10 %}selected{% endif %}>10 / {% trans "page" %}</option>
                             <option value="20" {% if per_page == 20 %}selected{% endif %}>20 / {% trans "page" %}</option>
                             <option value="50" {% if per_page == 50 %}selected{% endif %}>50 / {% trans "page" %}</option>
@@ -99,10 +102,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateBulkButton() {
         const selected = document.querySelectorAll('input[name="content_select"]:checked').length;
         if (selected > 0) {
-            bulkBtn.style.display = 'block';
+            bulkBtn.classList.remove('admin-bulk-actions-bar');
+            bulkBtn.style.display = '';
             bulkBtn.innerHTML = `<svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>{% trans "Generate AI for" %} ${selected} {% trans "items" %}`;
         } else {
-            bulkBtn.style.display = 'none';
+            bulkBtn.classList.add('admin-bulk-actions-bar');
+            bulkBtn.style.display = '';
         }
     }
     
@@ -135,19 +140,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Direct action without confirmation
         showToast('{% trans "Generating metadata with AI..." %}', 'info');
         
-        // Build FormData with multiple content_ids parameters
-        const formData = new FormData();
-        formData.append('action', 'generate_seo');
-        selectedIds.forEach(id => {
-            formData.append('content_ids', id);
-        });
-        
-        fetch('{% url "frontend_api:bulk_seo_actions_api" %}', {
+        fetch('{% url "frontend_api:api_auto_fill_metadata" %}', {
             method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value || '{{ csrf_token }}'
             },
-            body: formData
+            body: JSON.stringify({ content_ids: selectedIds })
         })
         .then(response => response.json())
         .then(data => {

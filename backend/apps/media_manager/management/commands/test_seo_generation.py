@@ -12,6 +12,7 @@ from django.core.management.base import BaseCommand
 from core.services.gemini_seo_service import get_gemini_seo_service
 from core.services.gemini_metadata_service import get_gemini_metadata_service
 import os
+import traceback
 
 
 class Command(BaseCommand):
@@ -126,7 +127,6 @@ class Command(BaseCommand):
             
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'✗ Error during generation: {e}'))
-            import traceback
             self.stdout.write(traceback.format_exc())
     
     def validate_seo_output(self, seo_data):

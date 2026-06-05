@@ -34,8 +34,9 @@ See tests.py for FTS/Arabic search tests.
 """
 from datetime import timedelta
 import datetime
-import os
+import json
 import logging
+import os
 import re
 import time
 import uuid
@@ -986,6 +987,25 @@ class ContentItem(models.Model):
         """Check if this content item has SEO metadata generated"""
         return bool(self.seo_keywords_ar or self.seo_keywords_en or self.seo_title_ar or self.seo_title_en)
 
+    def get_seo_status_display(self):
+        """Get a human-readable label for the SEO processing state."""
+        status_map = {
+            'pending': _('Pending'),
+            'processing': _('Processing'),
+            'completed': _('Completed'),
+            'failed': _('Failed'),
+        }
+        return status_map.get(self.seo_processing_status, self.seo_processing_status or _('Unknown'))
+
+    def can_generate_seo(self):
+        """Return True when SEO can be queued again from the admin UI."""
+        return (not self.has_seo_metadata()) or self.seo_processing_status in {'pending', 'failed'}
+
+    def can_retry_r2_upload(self):
+        """Return True when the underlying media upload can be retried."""
+        meta = self.get_meta_object()
+        return bool(meta and getattr(meta, 'r2_upload_status', '') == 'failed')
+
     def get_seo_title(self, language='en'):
         """Get SEO title with fallback logic"""
         if language == 'ar':
@@ -1178,7 +1198,6 @@ class ContentItem(models.Model):
         If language is provided, returns only the specific language's schema block.
         Otherwise detects current request language.
         """
-        import json
         
         if not self.structured_data:
             return ''
@@ -1324,6 +1343,11 @@ class ContentItem(models.Model):
         """Update SEO fields from Gemini AI response"""
         if not seo_metadata_dict:
             return False
+
+        previous_titles = {
+            'title_ar': self.title_ar,
+            'title_en': self.title_en,
+        }
         
         # Check for new nested format {"en": {...}, "ar": {...}}
         if 'en' in seo_metadata_dict and 'ar' in seo_metadata_dict:
@@ -1410,6 +1434,24 @@ class ContentItem(models.Model):
             'title_ar', 'title_en', 'description_ar', 'description_en',
             'updated_at'
         ])
+
+        if previous_titles['title_ar'] != self.title_ar or previous_titles['title_en'] != self.title_en:
+            from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
+
+            LifecycleAuditService.log_event(
+                content_item=self,
+                action_type='ai_title_mutated',
+                source='gemini:seo_update',
+                previous_state='changed',
+                new_state='changed',
+                message='AI-generated title fields updated from Gemini response',
+                payload={
+                    'title_ar_before': previous_titles['title_ar'],
+                    'title_ar_after': self.title_ar,
+                    'title_en_before': previous_titles['title_en'],
+                    'title_en_after': self.title_en,
+                },
+            )
         
         return True
 
@@ -2617,7 +2659,6 @@ class SiteConfiguration(models.Model):
 
     def get_structured_data_json(self, lang='en'):
         """Get structured data as JSON string for a specific language"""
-        import json
         if self.structured_data and isinstance(self.structured_data, dict):
             if lang in self.structured_data:
                 return json.dumps(self.structured_data[lang], ensure_ascii=False, indent=2)
@@ -2896,6 +2937,49 @@ class APIUploadQueue(models.Model):
             models.Q(priority__gt=self.priority) |
             models.Q(priority=self.priority, created_at__lt=self.created_at)
         ).count() + 1
+
+
+class ContentLifecycleAuditLog(models.Model):
+    """Persistent lifecycle log for content processing and admin actions."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content_item = models.ForeignKey(
+        ContentItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lifecycle_audit_logs',
+        verbose_name=_('Content Item'),
+    )
+    action_type = models.CharField(max_length=64, db_index=True, verbose_name=_('Action Type'))
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='content_lifecycle_logs',
+        verbose_name=_('Actor'),
+    )
+    source = models.CharField(max_length=64, blank=True, default='', db_index=True, verbose_name=_('Source'))
+    previous_state = models.CharField(max_length=32, blank=True, default='', verbose_name=_('Previous State'))
+    new_state = models.CharField(max_length=32, blank=True, default='', verbose_name=_('New State'))
+    message = models.TextField(blank=True, default='', verbose_name=_('Message'))
+    payload = models.JSONField(blank=True, default=dict, verbose_name=_('Payload'))
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name=_('Created At'))
+
+    class Meta:
+        verbose_name = _('Content Lifecycle Audit Log')
+        verbose_name_plural = _('Content Lifecycle Audit Logs')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['content_item', 'created_at']),
+            models.Index(fields=['action_type', 'created_at']),
+            models.Index(fields=['actor', 'created_at']),
+            models.Index(fields=['new_state', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.action_type} [{self.previous_state} -> {self.new_state}]"
 
 
 class APIUploadLog(models.Model):

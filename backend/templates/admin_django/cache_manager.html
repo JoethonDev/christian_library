@@ -1,0 +1,170 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Cache Manager | {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'system_monitor:dashboard' %}">System Monitor</a>
+  &rsaquo; Cache Manager
+</div>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+  .stat-card { background:#fff; border:1px solid #ddd; border-radius:6px; padding:1rem; }
+  .stat-card h4 { margin:0 0 .25rem; color:#417690; font-size:.85rem; text-transform:uppercase; letter-spacing:.05em; }
+  .stat-card .val { font-size:1.6rem; font-weight:bold; }
+  .stat-card .sub { font-size:.8rem; color:#888; }
+  .fm-toast { position:fixed; bottom:1.5rem; right:1.5rem; background:#417690; color:#fff;
+               padding:.75rem 1.25rem; border-radius:4px; font-size:.9rem; display:none;
+               box-shadow:0 2px 8px rgba(0,0,0,.3); z-index:9999; }
+  .fm-toast.error { background:#dc3545; }
+  .fm-toast.success { background:#28a745; }
+  .fm-toast.show { display:block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Cache Manager</h1>
+
+<div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+  <a class="button" href="{% url 'system_monitor:dashboard' %}">Dashboard</a>
+  <a class="button" href="{% url 'system_monitor:file_manager' %}">File Manager</a>
+  <a class="button" href="{% url 'system_monitor:orphaned_files' %}">Orphaned Files</a>
+</div>
+
+{% if redis_info.error %}
+<p class="errornote">Redis connection error: {{ redis_info.error }}</p>
+{% else %}
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <h4>Redis Version</h4>
+    <div class="val">{{ redis_info.version }}</div>
+    <div class="sub">Uptime: {{ redis_info.uptime_days }} day(s)</div>
+  </div>
+  <div class="stat-card">
+    <h4>Memory Used</h4>
+    <div class="val">{{ redis_info.used_memory }}</div>
+    <div class="sub">Peak: {{ redis_info.used_memory_peak }} &nbsp;|&nbsp; Max: {{ redis_info.maxmemory }}</div>
+  </div>
+  <div class="stat-card">
+    <h4>Total Keys</h4>
+    <div class="val">{{ redis_info.total_keys }}</div>
+    <div class="sub">Connected clients: {{ redis_info.connected_clients }}</div>
+  </div>
+  <div class="stat-card">
+    <h4>Cache Hit Rate</h4>
+    {% with hits=redis_info.keyspace_hits misses=redis_info.keyspace_misses %}
+    {% if hits or misses %}
+    <div class="val">
+      {% widthratio hits|add:0 hits|add:misses 100 %}%
+    </div>
+    <div class="sub">Hits: {{ hits }} &nbsp;|&nbsp; Misses: {{ misses }}</div>
+    {% else %}
+    <div class="val">—</div>
+    <div class="sub">No data yet</div>
+    {% endif %}
+    {% endwith %}
+  </div>
+  <div class="stat-card">
+    <h4>Evicted Keys</h4>
+    <div class="val">{{ redis_info.evicted_keys }}</div>
+    <div class="sub">Fragmentation ratio: {{ redis_info.mem_fragmentation_ratio }}</div>
+  </div>
+  <div class="stat-card">
+    <h4>Cache Backend</h4>
+    <div class="val" style="font-size:.95rem;word-break:break-all;">{{ cache_backend }}</div>
+  </div>
+</div>
+
+{% if redis_info.keyspace %}
+<div class="module" style="padding:1rem;margin-bottom:1.5rem;">
+  <h2 style="margin-top:0;">Keyspace</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="background:#417690;color:#fff;"><th style="padding:.5rem;">DB</th><th style="padding:.5rem;">Keys</th><th style="padding:.5rem;">Expires</th><th style="padding:.5rem;">Avg TTL</th></tr></thead>
+    <tbody>
+      {% for db, stats in redis_info.keyspace.items %}
+      <tr style="border-bottom:1px solid #ddd;">
+        <td style="padding:.4rem .5rem;font-family:monospace;">{{ db }}</td>
+        <td style="padding:.4rem .5rem;">{{ stats.keys }}</td>
+        <td style="padding:.4rem .5rem;">{{ stats.expires|default:0 }}</td>
+        <td style="padding:.4rem .5rem;">{{ stats.avg_ttl|default:0 }} ms</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endif %}
+
+{# ── Controls ─────────────────────────────────────────────────── #}
+<div class="module" style="padding:1rem;margin-bottom:1.5rem;">
+  <h2 style="margin-top:0;">Actions</h2>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;">
+
+    <div>
+      <button class="button" style="background:#dc3545;border-color:#dc3545;color:#fff;" onclick="clearAll()">
+        Clear ALL Cache
+      </button>
+      <p style="margin:.35rem 0 0;font-size:.8rem;color:#888;">Flushes the entire Redis cache. Use with caution.</p>
+    </div>
+
+    <div>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <input type="text" id="patternInput" placeholder="e.g. views.decorators, api_cache" style="padding:.35rem .6rem;border:1px solid #ccc;border-radius:3px;font-size:.9rem;min-width:240px;" />
+        <button class="button" onclick="clearPattern()">Clear by Pattern</button>
+      </div>
+      <p style="margin:.35rem 0 0;font-size:.8rem;color:#888;">Deletes all keys whose name contains this string.</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="fm-toast" id="toast"></div>
+
+<script>
+const CSRF_TOKEN = "{{ csrf_token }}";
+const CACHE_URL = "{% url 'system_monitor:cache_manager' %}";
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'fm-toast show' + (type ? ' ' + type : '');
+  setTimeout(() => { t.className = 'fm-toast'; }, 4000);
+}
+
+async function apiCall(body) {
+  const r = await fetch(CACHE_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN},
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+async function clearAll() {
+  if (!confirm('Clear ALL cache? This affects every cached page and API response.')) return;
+  const res = await apiCall({action:'clear_all'});
+  showToast(res.message || res.error, res.ok ? 'success' : 'error');
+  if (res.ok) setTimeout(() => location.reload(), 1200);
+}
+
+async function clearPattern() {
+  const p = document.getElementById('patternInput').value.trim();
+  if (!p) { showToast('Enter a pattern first', 'error'); return; }
+  const res = await apiCall({action:'clear_pattern', pattern:p});
+  showToast(res.message || res.error, res.ok ? 'success' : 'error');
+  if (res.ok) setTimeout(() => location.reload(), 1200);
+}
+
+document.getElementById('patternInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') clearPattern();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% load i18n %}
+<tr>
+    <td colspan="{{ colspan|default:'7' }}" class="text-center py-5">
+        <div class="admin-empty-state-icon">
+            <svg class="bi" aria-hidden="true" focusable="false"><use href="#{{ icon|default:'bi-inbox' }}"/></svg>
+        </div>
+        <h6 class="fw-bold text-dark mb-2">{{ title }}</h6>
+        <p class="text-muted mb-3">{{ description|default:'' }}</p>
+        {% if cta_url %}
+        <a href="{{ cta_url }}" class="btn btn-primary rounded-pill px-4">
+            {{ cta_text|default:"Get Started" }}
+        </a>
+        {% endif %}
+    </td>
+</tr>

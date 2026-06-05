@@ -1,0 +1,141 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Orphaned Files | {{ site_title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a>
+  &rsaquo; <a href="{% url 'system_monitor:dashboard' %}">System Monitor</a>
+  &rsaquo; Orphaned Files
+</div>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+  .orphan-table { width:100%; border-collapse:collapse; }
+  .orphan-table th { background:#417690; color:#fff; padding:.5rem .75rem; text-align:left; }
+  .orphan-table td { padding:.4rem .75rem; border-bottom:1px solid #e8e8e8; font-size:.9rem; }
+  .orphan-table tr:hover td { background:#fff5f5; }
+  .fm-toast { position:fixed; bottom:1.5rem; right:1.5rem; background:#417690; color:#fff;
+               padding:.75rem 1.25rem; border-radius:4px; font-size:.9rem; display:none;
+               box-shadow:0 2px 8px rgba(0,0,0,.3); z-index:9999; }
+  .fm-toast.error { background:#dc3545; }
+  .fm-toast.show { display:block; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Orphaned Files</h1>
+
+<div style="margin-bottom:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+  <a class="button" href="{% url 'system_monitor:dashboard' %}">Dashboard</a>
+  <a class="button" href="{% url 'system_monitor:file_manager' %}">File Manager</a>
+  <a class="button" href="{% url 'system_monitor:cache_manager' %}">Cache Manager</a>
+</div>
+
+<div class="module" style="padding:1rem;margin-bottom:1rem;">
+  <p>This scan compares every file in the <strong>media</strong> volume against all file-field references in the database (ContentItem thumbnails &amp; documents, VideoMeta, AudioMeta, PdfMeta). Files with no matching DB record are listed as orphans.</p>
+  <a class="button" href="?scan=1">Run Scan Now</a>
+</div>
+
+{% if scanned %}
+  {% if result.error %}
+    <p class="errornote">{{ result.error }}</p>
+  {% else %}
+    <div class="module" style="padding:1rem;margin-bottom:1rem;display:flex;gap:2rem;flex-wrap:wrap;">
+      <div><strong>Total media files scanned:</strong> {{ result.total_files }}</div>
+      <div><strong>Orphaned files found:</strong> <span style="color:{% if result.orphan_count > 0 %}#dc3545{% else %}#28a745{% endif %};font-weight:bold;">{{ result.orphan_count }}</span></div>
+      <div><strong>Orphan total size:</strong> {{ result.orphan_size }}</div>
+      <div><strong>Scan time:</strong> {{ result.elapsed }}</div>
+    </div>
+
+    {% if result.orphans %}
+      <div style="margin-bottom:.75rem;display:flex;gap:.75rem;align-items:center;">
+        <button class="button" style="background:#dc3545;border-color:#dc3545;color:#fff;" onclick="deleteAll()">Delete All Orphans</button>
+        <span style="color:#aaa;font-size:.85rem;">⚠ This is irreversible. Verify before deleting.</span>
+      </div>
+      <div class="module">
+        <table class="orphan-table" id="orphanTable">
+          <thead>
+            <tr>
+              <th>File Path (relative to media/)</th>
+              <th>Size</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in result.orphans %}
+            <tr id="orphan-row-{{ forloop.counter }}" data-path="{{ o.rel_path|escapejs }}">
+              <td style="font-family:monospace;word-break:break-all;">{{ o.rel_path }}</td>
+              <td>{{ o.size }}</td>
+              <td>
+                <button class="button" style="background:#dc3545;border-color:#dc3545;color:#fff;padding:.2rem .5rem;font-size:.8rem;"
+                        onclick="deleteSingle('{{ o.rel_path|escapejs }}', this)">Delete</button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="module" style="padding:1rem;text-align:center;color:#28a745;">
+        <p style="font-size:1.1rem;">✓ No orphaned files found. Media directory is clean.</p>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endif %}
+
+<div class="fm-toast" id="toast"></div>
+
+<script>
+const CSRF_TOKEN = "{{ csrf_token }}";
+const DELETE_URL = "{% url 'system_monitor:orphaned_files' %}";
+
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'fm-toast show' + (isError ? ' error' : '');
+  setTimeout(() => { t.className = 'fm-toast'; }, 3500);
+}
+
+async function deleteSingle(path, btn) {
+  if (!confirm('Delete "' + path + '"?')) return;
+  btn.disabled = true;
+  const r = await fetch(DELETE_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN},
+    body: JSON.stringify({path})
+  });
+  const res = await r.json();
+  showToast(res.message || res.error, !res.ok);
+  if (res.ok) {
+    const row = btn.closest('tr');
+    if (row) row.remove();
+  } else {
+    btn.disabled = false;
+  }
+}
+
+async function deleteAll() {
+  const rows = document.querySelectorAll('#orphanTable tbody tr');
+  if (!rows.length) return;
+  if (!confirm('Delete ALL ' + rows.length + ' orphaned files? This cannot be undone.')) return;
+
+  let deleted = 0, failed = 0;
+  for (const row of rows) {
+    const path = row.dataset.path;
+    const r = await fetch(DELETE_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','X-CSRFToken': CSRF_TOKEN},
+      body: JSON.stringify({path})
+    });
+    const res = await r.json();
+    if (res.ok) { row.remove(); deleted++; }
+    else failed++;
+  }
+  showToast('Deleted ' + deleted + ' files.' + (failed ? ' ' + failed + ' failed.' : ''), failed > 0);
+}
+</script>
+{% endblock %}

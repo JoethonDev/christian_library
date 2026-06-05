@@ -2,15 +2,17 @@
 Admin Service Layer for Frontend API
 Optimized administrative operations with zero N+1 queries.
 """
-from typing import Dict, List, Optional, Tuple, Any
-from django.db.models import QuerySet, Q, Count
-from django.db import models
-from django.core.paginator import Paginator
-from django.utils.translation import get_language
-from django.conf import settings
+import logging
 import os
 import shutil
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple, Any
+
+from django.conf import settings
+from django.core.paginator import Paginator
+from django.db import models
+from django.db.models import QuerySet, Q, Count
+from django.utils.translation import get_language
 
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag
 from apps.media_manager.services.search_settings_service import get_search_settings_service
@@ -19,6 +21,8 @@ from apps.frontend_api.services import ContentLanguageProcessor
 
 from apps.health.task_monitor import TaskMonitor
 from core.services.gemini_manager import get_gemini_manager
+
+logger = logging.getLogger(__name__)
 
 
 class AdminService:
@@ -100,8 +104,7 @@ class AdminService:
                 'has_tasks': len(active_tasks) > 0,
             }
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Error getting task data: {e}")
+            logger.error(f"Error getting task data: {e}")
             return {
                 'task_stats': {},
                 'active_tasks': [],
@@ -119,8 +122,7 @@ class AdminService:
                 'gemini_seo_available': self.gemini_manager.check_seo_availability()[0],
             }
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Failed to get Gemini rate limits: {e}")
+            logger.error(f"Failed to get Gemini rate limits: {e}")
             return {
                 'gemini_rate_limits': {},
                 'gemini_metadata_available': False,
@@ -486,8 +488,7 @@ class AdminService:
                 'percentage': int((stat.used / stat.total) * 100) if stat.total > 0 else 0
             }
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Error getting disk usage: {e}")
+            logger.error(f"Error getting disk usage: {e}")
             return {
                 'total': 0,
                 'used': 0,
@@ -534,8 +535,7 @@ class AdminService:
             return breakdown
             
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Error getting storage breakdown: {e}")
+            logger.error(f"Error getting storage breakdown: {e}")
             return {
                 'original': {'size': 0, 'count': 0},
                 'hls': {'size': 0, 'count': 0},
@@ -553,8 +553,7 @@ class AdminService:
                     total_size += entry.stat().st_size
                     file_count += 1
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Error calculating directory size for {directory}: {e}")
+            logger.error(f"Error calculating directory size for {directory}: {e}")
         
         return total_size, file_count
     
@@ -606,8 +605,7 @@ class AdminService:
             }
             
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Error getting R2 stats: {e}")
+            logger.error(f"Error getting R2 stats: {e}")
             return {
                 'total': {'completed': 0, 'pending': 0, 'uploading': 0, 'failed': 0},
                 'storage': {'success': False, 'total_size_gb': 0, 'object_count': 0},
@@ -649,7 +647,7 @@ class AdminService:
             return False, f"Error updating status: {str(e)}"
     
     def get_content_for_seo_dashboard(self) -> Dict[str, Any]:
-        """Get content data for SEO dashboard - optimized queries"""        
+        """Get content data for SEO overview reporting - optimized queries"""        
         # Get SEO coverage statistics in single query
         seo_stats = ContentItem.objects.filter(is_active=True).aggregate(
             total_content=Count('id'),

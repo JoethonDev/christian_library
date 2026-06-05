@@ -1,10 +1,12 @@
 import json
+from datetime import timedelta
 
 from django.core.paginator import Paginator
 from django.db import transaction
-from django.db.models import BooleanField, Case, CharField, Count, F, Q, Value, When
+from django.db.models import BooleanField, Case, CharField, Count, DateTimeField, F, Q, Value, When
 from django.db.models.functions import Cast, Coalesce
 from django.http import HttpResponseForbidden
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.media_manager.models import APIUploadQueue, ProcessingJob
@@ -18,6 +20,9 @@ from core.tasks.media_processing import (
     upload_video_to_r2,
 )
 
+# A job is considered stale when it has been actively processing for longer
+# than this threshold without updating its status.
+STALE_JOB_HOURS = 5
 
 API_QUEUE_PENDING_STATUSES = ['pending', 'queued', 'rate_limited']
 
@@ -151,6 +156,7 @@ def get_jobs_counts():
 
 def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all', search_query=''):
     filters = job_status_filters(status_filter)
+    stale_cutoff = timezone.now() - timedelta(hours=STALE_JOB_HOURS)
 
     processing_jobs = ProcessingJob.objects.select_related('content_item')
     api_queue_items = APIUploadQueue.objects.select_related('content_item')
@@ -198,18 +204,23 @@ def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all'
             Value('', output_field=CharField()),
             output_field=CharField(),
         ),
+        # Stale = actively 'processing' but not updated within the threshold.
+        # Stale jobs are shown as actionable so admins can cancel or force-retry them.
         can_cancel_value=Case(
             When(status='pending', then=Value(True)),
+            When(Q(status='processing') & Q(updated_at__lt=stale_cutoff), then=Value(True)),
             default=Value(False),
             output_field=BooleanField(),
         ),
         can_promote_value=Case(
-            When(status='pending', then=Value(True)),
+            When(status__in=['pending', 'failed'], then=Value(True)),
+            When(Q(status='processing') & Q(updated_at__lt=stale_cutoff), then=Value(True)),
             default=Value(False),
             output_field=BooleanField(),
         ),
         can_retry_value=Case(
             When(status='failed', then=Value(True)),
+            When(Q(status='processing') & Q(updated_at__lt=stale_cutoff), then=Value(True)),
             default=Value(False),
             output_field=BooleanField(),
         ),
@@ -297,6 +308,12 @@ def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all'
             'title': row['title_value'] or _('Untitled'),
             'content_type': row['content_type_value'],
             'status': row['status_value'],
+            # is_stale: True when job has been 'processing' longer than STALE_JOB_HOURS
+            'is_stale': (
+                row['status_value'] == 'processing'
+                and row['updated_at'] is not None
+                and row['updated_at'] < stale_cutoff
+            ),
             'stage': row['stage_value'],
             'retry_count': row['retry_count_value'],
             'failure_reason': row['failure_reason_value'],

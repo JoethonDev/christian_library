@@ -9,7 +9,9 @@ import os
 import re
 import tempfile
 import mimetypes
-from datetime import date, timedelta
+import zipfile
+from datetime import date, datetime, time, timedelta
+from types import SimpleNamespace
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -31,13 +33,14 @@ from django.http.multipartparser import MultiPartParser
 
 from apps.frontend_api.admin_services import AdminService
 from apps.media_manager.models import (
-    APIUploadQueue, ContentItem, ContentViewEvent,
+    APIUploadQueue, ContentItem, ContentLifecycleAuditLog, ContentViewEvent,
     DailyContentViewSummary, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
 )
 from apps.media_manager.models import ChunkedUploadSession
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
 from apps.media_manager.services.content_service import ContentService
 from apps.media_manager.services.delete_service import MediaProcessingService
+from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditService
 from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.media_manager.services.unified_search_service import get_unified_search_service
 from apps.media_manager.services.upload_service import MediaUploadService
@@ -131,10 +134,29 @@ def content_detail(request, content_id):
             if 'toggle_active' in request.POST:
                 success, message = admin_service.toggle_content_status(str(content_id))
                 if success:
+                    refreshed_content = admin_service.get_content_detail(str(content_id))
+                    LifecycleAuditService.log_event(
+                        content_item=refreshed_content,
+                        action_type='content_status_toggled',
+                        actor=request.user,
+                        source='admin:content_detail',
+                        previous_state='active' if not refreshed_content.is_active else 'inactive',
+                        new_state='active' if refreshed_content.is_active else 'inactive',
+                        message='Content active status toggled from admin content detail',
+                        payload={'content_id': str(refreshed_content.id), 'is_active': refreshed_content.is_active},
+                    )
                     messages.success(request, message)
                 else:
                     messages.error(request, message)
             else:
+                previous_snapshot = {
+                    'title_ar': content.title_ar,
+                    'title_en': content.title_en,
+                    'description_ar': content.description_ar,
+                    'description_en': content.description_en,
+                    'seo_title_ar': content.seo_title_ar,
+                    'seo_title_en': content.seo_title_en,
+                }
                 # Handle general metadata updates
                 title_ar = request.POST.get('title_ar')
                 title_en = request.POST.get('title_en')
@@ -222,6 +244,30 @@ def content_detail(request, content_id):
                     # Update the tags relationship
                     content.tags.set(tag_objects)
                     logger.info(f"Updated tags for content {content_id}: {tag_names}")
+
+                LifecycleAuditService.log_event(
+                    content_item=content,
+                    action_type='content_manual_edit',
+                    actor=request.user,
+                    source='admin:content_detail',
+                    previous_state='metadata_saved',
+                    new_state='metadata_saved',
+                    message='Content metadata manually edited from admin content detail',
+                    payload={
+                        'content_id': str(content.id),
+                        'fields_before': previous_snapshot,
+                        'fields_after': {
+                            'title_ar': content.title_ar,
+                            'title_en': content.title_en,
+                            'description_ar': content.description_ar,
+                            'description_en': content.description_en,
+                            'seo_title_ar': content.seo_title_ar,
+                            'seo_title_en': content.seo_title_en,
+                        },
+                        'tags_input': tags_input,
+                        'thumbnail_updated': bool(thumbnail_file),
+                    },
+                )
                 
                 messages.success(request, _("Sacred metadata updated successfully"))
             
@@ -410,6 +456,21 @@ def bulk_upload_init(request):
             metadata=metadata
         )
 
+        LifecycleAuditService.log_event(
+            content_item=None,
+            action_type='upload_initiated',
+            actor=request.user,
+            source='admin:bulk_upload_init',
+            previous_state='',
+            new_state='pending',
+            message='Chunked upload session created from admin upload page',
+            payload={
+                'session_id': str(session.id),
+                'filename': filename,
+                'total_size': total_size,
+            },
+        )
+
         # Ensure staging directory is under MEDIA_ROOT so os.replace remains atomic
         staging_dir = os.path.join(settings.MEDIA_ROOT, 'chunked_uploads')
         os.makedirs(staging_dir, exist_ok=True)
@@ -588,6 +649,18 @@ def generate_content_metadata(request):
         meta_obj = content.get_meta_object()
         if not meta_obj or not meta_obj.original_file:
             return JsonResponse({'success': False, 'error': _('No media file found for content')})
+
+        LifecycleAuditService.log_event(
+            content_item=content,
+            action_type='gemini_processing_started',
+            actor=request.user,
+            source='admin:generate_content_metadata',
+            previous_state='pending',
+            new_state='processing',
+            message='Gemini metadata generation started from admin content API',
+            payload={'content_id': str(content.id), 'content_type': content.content_type},
+        )
+
         success, metadata = get_gemini_manager().generate_metadata(
             meta_obj.original_file.path, content.content_type
         )
@@ -595,6 +668,17 @@ def generate_content_metadata(request):
         if success:
             # Update content with generated metadata
             content.update_seo_from_gemini(metadata)
+
+            LifecycleAuditService.log_event(
+                content_item=content,
+                action_type='gemini_processing_completed',
+                actor=request.user,
+                source='admin:generate_content_metadata',
+                previous_state='processing',
+                new_state='completed',
+                message='Gemini metadata generation completed from admin content API',
+                payload={'content_id': str(content.id), 'content_type': content.content_type},
+            )
             
             return JsonResponse({
                 'success': True,
@@ -717,15 +801,174 @@ def media_management(request, media_type):
 @staff_member_required
 def system_monitor(request):
     """System monitoring dashboard - Optimized queries"""
-    # Get all system data with optimized service
+    from apps.admin_django.views_system import (
+        get_database_stats,
+        get_media_counts,
+        get_redis_stats,
+        get_system_stats,
+    )
+
     system_data = admin_service.get_system_monitor_data()
     
     context = {
         **system_data,
+        'system_stats': get_system_stats(),
+        'database_stats': get_database_stats(),
+        'redis_stats': get_redis_stats(),
+        'media_counts': get_media_counts(),
         'current_language': get_language(),
     }
     
     return render(request, 'admin/system_monitor.html', context)
+
+
+# ──────────────────────────────────────────────────────────────────
+# FILE MANAGER — custom admin dashboard at /dashboard/system/files/
+# ──────────────────────────────────────────────────────────────────
+
+@staff_member_required
+def file_manager(request):
+    """Browse and manage files in media / static / logs directories."""
+    from apps.admin_django.views_system import (
+        ALLOWED_BASES,
+        list_directory,
+    )
+    base_key = request.GET.get("base", "media")
+    rel_path = request.GET.get("path", "")
+    if base_key not in ALLOWED_BASES:
+        base_key = "media"
+
+    listing = list_directory(base_key, rel_path)
+    context = {
+        "base_key": base_key,
+        "rel_path": rel_path,
+        "entries": listing["entries"],
+        "crumbs": listing["crumbs"],
+        "bases": list(ALLOWED_BASES.keys()),
+        "is_root": listing["is_root"],
+        "list_error": listing.get("error"),
+        "current_language": get_language(),
+    }
+    return render(request, "admin/file_manager.html", context)
+
+
+@staff_member_required
+@csrf_protect
+@require_POST
+def file_manager_action(request):
+    """AJAX endpoint for file operations (mkdir / delete / rename / move)."""
+    from apps.admin_django.views_system import execute_file_action, ALLOWED_BASES
+
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON"}, status=400)
+
+    action = data.get("action", "")
+    base_key = data.get("base", "media")
+    rel_path = data.get("path", "")
+
+    if base_key not in ALLOWED_BASES:
+        return JsonResponse({"ok": False, "error": "Invalid base"}, status=400)
+
+    result = execute_file_action(
+        action,
+        base_key,
+        rel_path,
+        name=data.get("name", ""),
+        new_name=data.get("new_name", ""),
+        dest_path=data.get("dest_path", ""),
+    )
+    status = 200 if result.get("ok") else 400
+    return JsonResponse(result, status=status)
+
+
+@staff_member_required
+def file_manager_download(request):
+    """Download a file directly or zip a folder before downloading it."""
+    from apps.admin_django.views_system import ALLOWED_BASES, resolve_safe_path
+
+    base_key = request.GET.get("base", "media")
+    rel_path = request.GET.get("path", "")
+
+    if base_key not in ALLOWED_BASES:
+        raise Http404("Invalid base")
+
+    target = resolve_safe_path(base_key, rel_path)
+    if target is None or not target.exists():
+        raise Http404("File not found")
+
+    if target.is_dir():
+        if not rel_path.strip():
+            raise Http404("Root directory download is not supported")
+
+        archive_name = f"{target.name}.zip"
+        buffer = tempfile.SpooledTemporaryFile(max_size=10 * 1024 * 1024, mode="w+b")
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+            for item in target.rglob("*"):
+                if item.is_file():
+                    archive.write(item, arcname=item.relative_to(target).as_posix())
+        buffer.seek(0)
+
+        response = FileResponse(buffer, as_attachment=True, filename=archive_name)
+        response["Content-Type"] = "application/zip"
+        return response
+
+    download_name = target.name
+    response = FileResponse(target.open("rb"), as_attachment=True, filename=download_name)
+    response["Content-Type"] = mimetypes.guess_type(download_name)[0] or "application/octet-stream"
+    response["Content-Length"] = str(target.stat().st_size)
+    return response
+
+
+@staff_member_required
+def orphaned_files(request):
+    """Find files on disk that have no matching DB record."""
+    from apps.admin_django.views_system import scan_orphaned_files, delete_orphan
+
+    message = None
+    if request.method == "POST":
+        rel_path = request.POST.get("rel_path", "")
+        res = delete_orphan(rel_path)
+        if res.get("ok"):
+            messages.success(request, res["message"])
+        else:
+            messages.error(request, res.get("error", "Delete failed"))
+        return redirect("frontend_api:orphaned_files")
+
+    scan = scan_orphaned_files()
+    context = {
+        "orphans": scan["orphans"],
+        "orphan_count": scan["orphan_count"],
+        "orphan_size": scan["orphan_size"],
+        "total_files": scan["total_files"],
+        "elapsed": scan["elapsed"],
+        "current_language": get_language(),
+    }
+    return render(request, "admin/orphaned_files.html", context)
+
+
+@staff_member_required
+def cache_manager(request):
+    """View and manage the Redis / Django cache."""
+    from apps.admin_django.views_system import get_cache_stats, execute_cache_action
+
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        pattern = request.POST.get("pattern", "").strip()
+        res = execute_cache_action(action, pattern or None)
+        if res.get("ok"):
+            messages.success(request, res["message"])
+        else:
+            messages.error(request, res.get("error", "Action failed"))
+        return redirect("frontend_api:cache_manager")
+
+    stats = get_cache_stats()
+    context = {
+        "cache_stats": stats,
+        "current_language": get_language(),
+    }
+    return render(request, "admin/cache_manager.html", context)
 
 
 @staff_member_required
@@ -1094,27 +1337,50 @@ def retry_r2_upload(request, content_type, meta_id):
         
         if content_type == 'video':
             video_meta = get_object_or_404(VideoMeta, id=meta_id)
+            if video_meta.r2_upload_status != 'failed':
+                return JsonResponse({'error': _('R2 upload can only be retried after a failed upload.')}, status=400)
+            previous_state = video_meta.r2_upload_status
             video_meta.r2_upload_status = 'pending'  # Reset status
             video_meta.r2_upload_progress = 0
             video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
             task_result = upload_video_to_r2.delay(str(meta_id))
             task_id = task_result.id
+            content_item = video_meta.content_item
             
         elif content_type == 'audio':
             audio_meta = get_object_or_404(AudioMeta, id=meta_id)
+            if audio_meta.r2_upload_status != 'failed':
+                return JsonResponse({'error': _('R2 upload can only be retried after a failed upload.')}, status=400)
+            previous_state = audio_meta.r2_upload_status
             audio_meta.r2_upload_status = 'pending'  # Reset status
             audio_meta.r2_upload_progress = 0
             audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
             task_result = upload_audio_to_r2.delay(str(meta_id))
             task_id = task_result.id
+            content_item = audio_meta.content_item
             
         elif content_type == 'pdf':
             pdf_meta = get_object_or_404(PdfMeta, id=meta_id)
+            if pdf_meta.r2_upload_status != 'failed':
+                return JsonResponse({'error': _('R2 upload can only be retried after a failed upload.')}, status=400)
+            previous_state = pdf_meta.r2_upload_status
             pdf_meta.r2_upload_status = 'pending'  # Reset status
             pdf_meta.r2_upload_progress = 0
             pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
             task_result = upload_pdf_to_r2.delay(str(meta_id))
             task_id = task_result.id
+            content_item = pdf_meta.content_item
+
+        LifecycleAuditService.log_event(
+            content_item=content_item,
+            action_type='r2_upload_retry_requested',
+            actor=request.user,
+            source='admin:r2_retry',
+            previous_state=previous_state,
+            new_state='pending',
+            message='Single-item R2 upload retry triggered from admin API',
+            payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_id},
+        )
         
         logger.info(f"Triggered R2 upload retry for {content_type} {meta_id} (task: {task_id})")
         
@@ -1166,6 +1432,16 @@ def bulk_retry_r2_uploads(request):
                     video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
                     task_result = upload_video_to_r2.delay(str(meta_id))
                     results['task_ids'].append(task_result.id)
+                    LifecycleAuditService.log_event(
+                        content_item=video_meta.content_item,
+                        action_type='r2_upload_retry_requested',
+                        actor=request.user,
+                        source='admin:r2_bulk_retry',
+                        previous_state='failed',
+                        new_state='pending',
+                        message='Bulk R2 retry triggered for video item',
+                        payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_result.id},
+                    )
                     
                 elif content_type == 'audio':
                     audio_meta = AudioMeta.objects.get(id=meta_id)
@@ -1174,6 +1450,16 @@ def bulk_retry_r2_uploads(request):
                     audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
                     task_result = upload_audio_to_r2.delay(str(meta_id))
                     results['task_ids'].append(task_result.id)
+                    LifecycleAuditService.log_event(
+                        content_item=audio_meta.content_item,
+                        action_type='r2_upload_retry_requested',
+                        actor=request.user,
+                        source='admin:r2_bulk_retry',
+                        previous_state='failed',
+                        new_state='pending',
+                        message='Bulk R2 retry triggered for audio item',
+                        payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_result.id},
+                    )
                     
                 elif content_type == 'pdf':
                     pdf_meta = PdfMeta.objects.get(id=meta_id)
@@ -1182,6 +1468,16 @@ def bulk_retry_r2_uploads(request):
                     pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
                     task_result = upload_pdf_to_r2.delay(str(meta_id))
                     results['task_ids'].append(task_result.id)
+                    LifecycleAuditService.log_event(
+                        content_item=pdf_meta.content_item,
+                        action_type='r2_upload_retry_requested',
+                        actor=request.user,
+                        source='admin:r2_bulk_retry',
+                        previous_state='failed',
+                        new_state='pending',
+                        message='Bulk R2 retry triggered for pdf item',
+                        payload={'content_type': content_type, 'meta_id': str(meta_id), 'task_id': task_result.id},
+                    )
                     
                 else:
                     results['errors'].append(
@@ -1290,10 +1586,23 @@ def api_auto_fill_metadata(request):
             for cid in content_ids:
                 try:
                     # Verify content exists
-                    ContentItem.objects.get(id=cid)
+                    content_item = ContentItem.objects.get(id=cid)
+                    previous_state = content_item.seo_processing_status or 'pending'
+                    content_item.seo_processing_status = 'pending'
+                    content_item.save(update_fields=['seo_processing_status', 'updated_at'])
                     task = generate_seo_metadata_task.delay(str(cid))
                     task_ids.append(task.id)
                     success_count += 1
+                    LifecycleAuditService.log_event(
+                        content_item=content_item,
+                        action_type='seo_generation_requested',
+                        actor=request.user,
+                        source='admin:seo_bulk_request',
+                        previous_state=previous_state,
+                        new_state='pending',
+                        message='Bulk SEO generation requested from admin API',
+                        payload={'content_id': str(content_item.id), 'task_id': task.id},
+                    )
                 except ContentItem.DoesNotExist:
                     logger.warning(f"Content {cid} not found for bulk SEO generation")
                     continue
@@ -1311,11 +1620,33 @@ def api_auto_fill_metadata(request):
             return JsonResponse({'success': False, 'error': _('No content ID provided')})
         
         # Get the content item
-        if not ContentItem.objects.filter(id=content_id).exists():
+        content_item = ContentItem.objects.filter(id=content_id).first()
+        if not content_item:
             return JsonResponse({'success': False, 'error': _('Content not found')})
+
+        force_regenerate = bool(data.get('force'))
+        if content_item.has_seo_metadata() and content_item.seo_processing_status == 'completed' and not force_regenerate:
+            return JsonResponse({
+                'success': False,
+                'error': _('SEO metadata already exists for this item.')
+            }, status=400)
+
+        previous_state = content_item.seo_processing_status or 'pending'
+        content_item.seo_processing_status = 'pending'
+        content_item.save(update_fields=['seo_processing_status', 'updated_at'])
         
         # Trigger the background task
         task = generate_seo_metadata_task.delay(str(content_id))
+        LifecycleAuditService.log_event(
+            content_item=content_item,
+            action_type='seo_generation_requested',
+            actor=request.user,
+            source='admin:seo_request',
+            previous_state=previous_state,
+            new_state='pending',
+            message='SEO generation requested from admin API',
+            payload={'content_id': str(content_item.id), 'task_id': task.id},
+        )
         
         logger.info(f"Auto-fill triggered for content {content_id}, task ID: {task.id}")
         
@@ -2305,6 +2636,113 @@ def api_jobs_list(request):
     )
 
 
+def _parse_admin_log_date(raw_value, end_of_day=False):
+    if not raw_value:
+        return None
+
+    try:
+        parsed_date = date.fromisoformat(raw_value)
+    except ValueError:
+        return None
+
+    boundary = datetime.combine(parsed_date, time.max if end_of_day else time.min)
+    if timezone.is_naive(boundary):
+        boundary = timezone.make_aware(boundary, timezone.get_current_timezone())
+    return boundary
+
+
+@staff_member_required
+def lifecycle_audit_logs(request):
+    """Staff-only audit log browser with server-side filtering and pagination."""
+    staff_guard = ensure_staff(request)
+    if staff_guard:
+        return staff_guard
+
+    action_filter = request.GET.get('action', '').strip()
+    actor_filter = request.GET.get('actor', '').strip()
+    state_filter = request.GET.get('state', '').strip()
+    search_query = request.GET.get('q', '').strip()
+    created_from = request.GET.get('from', '').strip()
+    created_to = request.GET.get('to', '').strip()
+    per_page = min(max(1, int(request.GET.get('per_page', 20))), 100)
+    page_number = max(1, int(request.GET.get('page', 1)))
+
+    audit_logs = ContentLifecycleAuditLog.objects.select_related('content_item', 'actor').all()
+
+    if action_filter:
+        audit_logs = audit_logs.filter(action_type__icontains=action_filter)
+
+    if actor_filter:
+        actor_query = Q(actor__username__icontains=actor_filter) | Q(actor__email__icontains=actor_filter)
+        if actor_filter.isdigit():
+            actor_query |= Q(actor_id=int(actor_filter))
+        audit_logs = audit_logs.filter(actor_query)
+
+    if state_filter:
+        audit_logs = audit_logs.filter(Q(previous_state__icontains=state_filter) | Q(new_state__icontains=state_filter))
+
+    if search_query:
+        audit_logs = audit_logs.filter(
+            Q(message__icontains=search_query)
+            | Q(action_type__icontains=search_query)
+            | Q(source__icontains=search_query)
+            | Q(content_item__title_ar__icontains=search_query)
+            | Q(content_item__title_en__icontains=search_query)
+            | Q(actor__username__icontains=search_query)
+            | Q(actor__email__icontains=search_query)
+        )
+
+    created_from_boundary = _parse_admin_log_date(created_from)
+    created_to_boundary = _parse_admin_log_date(created_to, end_of_day=True)
+    if created_from_boundary:
+        audit_logs = audit_logs.filter(created_at__gte=created_from_boundary)
+    if created_to_boundary:
+        audit_logs = audit_logs.filter(created_at__lte=created_to_boundary)
+
+    page_obj = Paginator(audit_logs, per_page).get_page(page_number)
+    pagination = SimpleNamespace(
+        has_pagination=page_obj.paginator.num_pages > 1,
+        has_previous=page_obj.has_previous(),
+        previous_page_number=page_obj.previous_page_number() if page_obj.has_previous() else None,
+        has_next=page_obj.has_next(),
+        next_page_number=page_obj.next_page_number() if page_obj.has_next() else None,
+        page_range=page_obj.paginator.page_range,
+        page=page_obj,
+    )
+
+    query_params = {
+        'action': action_filter,
+        'actor': actor_filter,
+        'state': state_filter,
+        'q': search_query,
+        'from': created_from,
+        'to': created_to,
+        'per_page': per_page,
+    }
+    extra_params = urlencode({key: value for key, value in query_params.items() if value not in ('', None)})
+
+    context = {
+        'page_obj': page_obj,
+        'pagination': pagination,
+        'audit_logs': page_obj.object_list,
+        'action_filter': action_filter,
+        'actor_filter': actor_filter,
+        'state_filter': state_filter,
+        'search_query': search_query,
+        'created_from': created_from,
+        'created_to': created_to,
+        'per_page': per_page,
+        'baseUrl': reverse('frontend_api:admin_lifecycle_audit_logs'),
+        'hxTarget': '#lifecycle-audit-log-table',
+        'extraParams': f'&{extra_params}' if extra_params else '',
+    }
+
+    if request.headers.get('HX-Request') == 'true':
+        return render(request, 'admin/partials/lifecycle_audit_log_table.html', context)
+
+    return render(request, 'admin/lifecycle_audit_logs.html', context)
+
+
 @staff_member_required
 def api_jobs_stats(request):
     """Return aggregate job counts for dashboard badges."""
@@ -2332,15 +2770,41 @@ def api_job_cancel(request):
 
     if source == 'processing_job':
         job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
-        if not job.can_cancel():
+
+        # Allow cancellation of stale jobs (processing > 5 h) even though the
+        # normal state machine doesn't permit processing → canceled.
+        from datetime import timedelta
+        stale_cutoff = timezone.now() - timedelta(hours=5)
+        is_stale = (job.status == 'processing' and job.updated_at < stale_cutoff)
+
+        if not job.can_cancel() and not is_stale:
             return JsonResponse({'success': False, 'error': _('Job cannot be cancelled from its current status')}, status=400)
+        previous_status = job.status
 
         if job.celery_task_id:
             celery_app.control.revoke(job.celery_task_id, terminate=True)
 
-        job.transition_to('canceled', reason=_('Cancelled by admin'), source='admin:jobs_api')
-        job.failure_stage = job.current_stage
+        # For stale jobs we bypass transition_to() because the state machine
+        # only permits pending → canceled.
+        if is_stale:
+            job.status = 'canceled'
+            job.failure_stage = job.current_stage
+            job.failure_reason = str(_('Cancelled by admin (stale job)'))
+            job.last_action_source = 'admin:jobs_api'
+        else:
+            job.transition_to('canceled', reason=_('Cancelled by admin'), source='admin:jobs_api')
+            job.failure_stage = job.current_stage
         job.save(update_fields=['status', 'failure_stage', 'failure_reason', 'last_action_source', 'updated_at'])
+        LifecycleAuditService.log_event(
+            content_item=job.content_item,
+            action_type='processing_job_cancelled',
+            actor=request.user,
+            source='admin:jobs_api',
+            previous_state=previous_status,
+            new_state=job.status,
+            message='Processing job cancelled from jobs dashboard API',
+            payload={'job_id': str(job.id)},
+        )
 
         return JsonResponse({
             'success': True,
@@ -2350,7 +2814,7 @@ def api_job_cancel(request):
     if source == 'api_queue':
         queue_item = get_object_or_404(APIUploadQueue, id=job_id)
         try:
-            APIUploadQueueService.cancel_item(str(queue_item.id), action_source='admin:jobs_api')
+            APIUploadQueueService.cancel_item(str(queue_item.id), action_source='admin:jobs_api', actor=request.user)
         except ValueError as exc:
             return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
@@ -2379,21 +2843,49 @@ def api_job_promote(request):
 
     if source == 'processing_job':
         job = get_object_or_404(ProcessingJob.objects.select_related('content_item'), id=job_id)
-        if not job.can_promote() and not job.can_retry():
+
+        from datetime import timedelta
+        stale_cutoff = timezone.now() - timedelta(hours=5)
+        is_stale = (job.status == 'processing' and job.updated_at < stale_cutoff)
+
+        if not job.can_promote() and not job.can_retry() and not is_stale:
             return JsonResponse({'success': False, 'error': _('Job is already running or completed')}, status=400)
+        previous_status = job.status
 
         selected_stage = job.failure_stage or job.current_stage or 'file_processing'
         task = dispatch_processing_task(job.content_item, stage=selected_stage)
         if not task:
             return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
 
-        if job.can_retry():
+        if is_stale:
+            # Stale jobs: revoke hung Celery task first, then force a fresh dispatch.
+            if job.celery_task_id:
+                celery_app.control.revoke(job.celery_task_id, terminate=True)
+            job.status = 'processing'
+            job.celery_task_id = task.id
+            job.last_action_source = 'admin:jobs_api'
+            job.retry_count += 1
+            job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
+        elif job.can_retry():
             job.transition_to('pending', reason=_('Retry requested by admin'), source='admin:jobs_api')
             job.retry_count += 1
-
-        job.transition_to('processing', source='admin:jobs_api')
-        job.celery_task_id = task.id
-        job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
+            job.transition_to('processing', source='admin:jobs_api')
+            job.celery_task_id = task.id
+            job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
+        else:
+            job.transition_to('processing', source='admin:jobs_api')
+            job.celery_task_id = task.id
+            job.save(update_fields=['status', 'celery_task_id', 'retry_count', 'last_action_source', 'updated_at'])
+        LifecycleAuditService.log_event(
+            content_item=job.content_item,
+            action_type='processing_job_promoted',
+            actor=request.user,
+            source='admin:jobs_api',
+            previous_state=previous_status,
+            new_state=job.status,
+            message='Processing job promoted from jobs dashboard API',
+            payload={'job_id': str(job.id), 'task_id': task.id},
+        )
 
         return JsonResponse({
             'success': True,
@@ -2404,7 +2896,7 @@ def api_job_promote(request):
     if source == 'api_queue':
         queue_item = get_object_or_404(APIUploadQueue, id=job_id)
         try:
-            APIUploadQueueService.promote_item(str(queue_item.id), action_source='admin:jobs_api')
+            APIUploadQueueService.promote_item(str(queue_item.id), action_source='admin:jobs_api', actor=request.user)
         except ValueError as exc:
             return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
@@ -2437,6 +2929,17 @@ def api_job_dispatch(request):
 
     if not task_id:
         return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+
+    LifecycleAuditService.log_event(
+        content_item=content_item,
+        action_type='processing_job_dispatched',
+        actor=request.user,
+        source='admin:jobs_api',
+        previous_state='',
+        new_state='processing',
+        message='Manual dispatch requested from jobs dashboard API',
+        payload={'content_id': str(content_item.id), 'stage': stage, 'force': force, 'task_id': task_id},
+    )
 
     return JsonResponse({
         'success': True,

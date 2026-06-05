@@ -4,6 +4,7 @@ Handles file uploads, validation, and processing initiation
 """
 import os
 import mimetypes
+import tempfile
 import uuid
 from typing import Dict, Tuple, Optional
 from pathlib import Path
@@ -111,7 +112,6 @@ class MediaUploadService:
                     
                     if is_valid_doc:
                         # Save document to temporary location for processing
-                        import tempfile
                         with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(document_file.name)[1]) as tmp_file:
                             for chunk in document_file.chunks():
                                 tmp_file.write(chunk)

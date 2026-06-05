@@ -563,76 +563,169 @@ def process_pdf(self, pdf_meta_id):
 
 @shared_task
 def cleanup_failed_uploads():
-    """Clean up files from failed processing tasks"""
+    """
+    Detect and recover stale processing jobs.
+
+    A job is considered *stale* when it has been in 'processing' status for
+    more than STALE_JOB_HOURS without any update.  We handle three pipeline
+    stages:
+
+    file_processing  — FFMPEG / PDF extraction still running  (retry once)
+    r2_upload        — R2 cloud upload hung                    (mark failed)
+    seo_generation   — Gemini call hung                        (mark failed + finalize)
+
+    All time comparisons use ProcessingJob.updated_at so we measure how long
+    the current active task has been running, not how long ago the item was
+    created.
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from apps.media_manager.tasks import finalize_media_processing
+
     VideoMeta = apps.get_model('media_manager', 'VideoMeta')
     AudioMeta = apps.get_model('media_manager', 'AudioMeta')
     PdfMeta = apps.get_model('media_manager', 'PdfMeta')
+    ContentItem = apps.get_model('media_manager', 'ContentItem')
     ProcessingJob = apps.get_model('media_manager', 'ProcessingJob')
+
+    STALE_JOB_HOURS = 5
+    stale_cutoff = timezone.now() - timedelta(hours=STALE_JOB_HOURS)
+    total_cleaned = 0
+
     try:
-        # Find items that have been in 'processing' state for more than 1 hour
-        from django.utils import timezone
-        from datetime import timedelta
-        
-        cutoff_time = timezone.now() - timedelta(hours=1)
+        # ------------------------------------------------------------------ #
+        # Stage 1 – file_processing stale (HLS encode / audio compress / PDF) #
+        # ------------------------------------------------------------------ #
+        stale_file_jobs = ProcessingJob.objects.filter(
+            status='processing',
+            current_stage='file_processing',
+            updated_at__lt=stale_cutoff,
+        ).select_related('content_item')
 
-        def handle_stale_item(meta_obj, retry_task):
-            content_item = meta_obj.content_item
-            job, _ = ProcessingJob.objects.get_or_create(content_item=content_item)
+        for job in stale_file_jobs:
+            content_item = job.content_item
+            logger.warning(
+                f"[stale] file_processing exceeded {STALE_JOB_HOURS}h for "
+                f"item {content_item.id} ({content_item.title_ar})"
+            )
+            try:
+                meta = content_item.get_meta_object()
+                if meta and hasattr(meta, 'processing_status'):
+                    meta.processing_status = 'failed'
+                    meta.save(update_fields=['processing_status'])
 
-            meta_obj.processing_status = 'failed'
-            meta_obj.save(update_fields=['processing_status'])
-            content_item.processing_status = 'failed'
-            content_item.save(update_fields=['processing_status'])
-            job_fail(content_item.id, 'file_processing', 'Stale: exceeded 1h processing limit')
-
-            if job.retry_count == 0:
-                job.retry_count = 1
-                job.status = 'pending'
-                job.current_stage = 'file_processing'
-                job.celery_task_id = ''
-                job.save(update_fields=['retry_count', 'status', 'current_stage', 'celery_task_id', 'updated_at'])
-
-                meta_obj.processing_status = 'pending'
-                meta_obj.save(update_fields=['processing_status'])
-                content_item.processing_status = 'pending'
+                content_item.processing_status = 'failed'
                 content_item.save(update_fields=['processing_status'])
-                retry_task.delay(str(meta_obj.id))
-                logger.info(f"Auto-retried stale item: {content_item.title_ar}")
-        
-        # Clean up video processing failures
-        failed_videos = VideoMeta.objects.filter(
-            processing_status='processing',
-            content_item__created_at__lt=cutoff_time
-        )
-        
-        for video in failed_videos:
-            handle_stale_item(video, upload_video_to_r2)
-            logger.info(f"Marked video as failed: {video.content_item.title_ar}")
-        
-        # Clean up audio processing failures
-        failed_audios = AudioMeta.objects.filter(
-            processing_status='processing',
-            content_item__created_at__lt=cutoff_time
-        )
-        
-        for audio in failed_audios:
-            handle_stale_item(audio, upload_audio_to_r2)
-            logger.info(f"Marked audio as failed: {audio.content_item.title_ar}")
-        
-        # Clean up PDF processing failures
-        failed_pdfs = PdfMeta.objects.filter(
-            processing_status='processing',
-            content_item__created_at__lt=cutoff_time
-        )
-        
-        for pdf in failed_pdfs:
-            handle_stale_item(pdf, upload_pdf_to_r2)
-            logger.info(f"Marked PDF as failed: {pdf.content_item.title_ar}")
-        
-        return {'status': 'success', 'cleaned_items': len(failed_videos) + len(failed_audios) + len(failed_pdfs)}
-        
+                job_fail(content_item.id, 'file_processing', f'Stale: exceeded {STALE_JOB_HOURS}h processing limit')
+
+                # Auto-retry once if never retried before
+                if job.retry_count == 0 and meta:
+                    job.retry_count = 1
+                    job.status = 'pending'
+                    job.current_stage = 'file_processing'
+                    job.celery_task_id = ''
+                    job.save(update_fields=['retry_count', 'status', 'current_stage', 'celery_task_id', 'updated_at'])
+
+                    meta.processing_status = 'pending'
+                    meta.save(update_fields=['processing_status'])
+                    content_item.processing_status = 'pending'
+                    content_item.save(update_fields=['processing_status'])
+
+                    # Dispatch the correct re-processing task per content type
+                    if content_item.content_type == 'video':
+                        process_video_to_hls.delay(str(meta.id))
+                    elif content_item.content_type == 'audio':
+                        process_audio_compression.delay(str(meta.id))
+                    elif content_item.content_type == 'pdf':
+                        process_pdf.delay(str(meta.id))
+                    logger.info(f"[stale] Auto-retried file_processing for item {content_item.id}")
+
+                total_cleaned += 1
+            except Exception as e:
+                logger.error(f"[stale] Error handling stale file_processing for {content_item.id}: {e}")
+
+        # ------------------------------------------------------------------ #
+        # Stage 2 – r2_upload stale                                           #
+        # ------------------------------------------------------------------ #
+        stale_r2_jobs = ProcessingJob.objects.filter(
+            status='processing',
+            current_stage='r2_upload',
+            updated_at__lt=stale_cutoff,
+        ).select_related('content_item')
+
+        for job in stale_r2_jobs:
+            content_item = job.content_item
+            logger.warning(
+                f"[stale] r2_upload exceeded {STALE_JOB_HOURS}h for "
+                f"item {content_item.id} ({content_item.title_ar})"
+            )
+            try:
+                meta = content_item.get_meta_object()
+                if meta and hasattr(meta, 'r2_upload_status') and meta.r2_upload_status == 'uploading':
+                    meta.r2_upload_status = 'failed'
+                    meta.r2_upload_progress = 100
+                    meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+                job_fail(content_item.id, 'r2_upload', f'Stale: R2 upload exceeded {STALE_JOB_HOURS}h')
+                total_cleaned += 1
+            except Exception as e:
+                logger.error(f"[stale] Error handling stale r2_upload for {content_item.id}: {e}")
+
+        # ------------------------------------------------------------------ #
+        # Stage 3 – seo_generation stale                                      #
+        # ------------------------------------------------------------------ #
+        stale_seo_jobs = ProcessingJob.objects.filter(
+            status='processing',
+            current_stage='seo_generation',
+            updated_at__lt=stale_cutoff,
+        ).select_related('content_item')
+
+        for job in stale_seo_jobs:
+            content_item = job.content_item
+            logger.warning(
+                f"[stale] seo_generation exceeded {STALE_JOB_HOURS}h for "
+                f"item {content_item.id} ({content_item.title_ar})"
+            )
+            try:
+                content_item.seo_processing_status = 'failed'
+                content_item.save(update_fields=['seo_processing_status'])
+                job_fail(content_item.id, 'seo_generation', f'Stale: SEO generation exceeded {STALE_JOB_HOURS}h')
+                # Trigger finalize so local file cleanup and job completion still happen
+                finalize_media_processing.delay(str(content_item.id))
+                total_cleaned += 1
+            except Exception as e:
+                logger.error(f"[stale] Error handling stale seo_generation for {content_item.id}: {e}")
+
+        # ------------------------------------------------------------------ #
+        # Stage 4 – text_extraction stale (PDF only)                          #
+        # ------------------------------------------------------------------ #
+        stale_text_jobs = ProcessingJob.objects.filter(
+            status='processing',
+            current_stage='text_extraction',
+            updated_at__lt=stale_cutoff,
+        ).select_related('content_item')
+
+        for job in stale_text_jobs:
+            content_item = job.content_item
+            logger.warning(
+                f"[stale] text_extraction exceeded {STALE_JOB_HOURS}h for "
+                f"item {content_item.id} ({content_item.title_ar})"
+            )
+            try:
+                job_fail(content_item.id, 'text_extraction', f'Stale: text extraction exceeded {STALE_JOB_HOURS}h')
+                # Continue pipeline: text extraction failure should not block R2 upload
+                meta = content_item.get_meta_object()
+                if meta:
+                    job_advance(content_item.id, 'r2_upload')
+                    upload_pdf_to_r2.delay(str(meta.id))
+                total_cleaned += 1
+            except Exception as e:
+                logger.error(f"[stale] Error handling stale text_extraction for {content_item.id}: {e}")
+
+        logger.info(f"[stale cleanup] Processed {total_cleaned} stale job(s).")
+        return {'status': 'success', 'cleaned_items': total_cleaned}
+
     except Exception as e:
-        logger.error(f"Cleanup task failed: {e}")
+        logger.error(f"cleanup_failed_uploads task failed: {e}")
         return {'status': 'error', 'message': str(e)}
 
 
