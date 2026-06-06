@@ -34,7 +34,7 @@ from django.http.multipartparser import MultiPartParser
 from apps.frontend_api.admin_services import AdminService
 from apps.media_manager.models import (
     APIUploadQueue, ContentItem, ContentLifecycleAuditLog, ContentViewEvent,
-    DailyContentViewSummary, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
+    DailyContentViewSummary, GeminiModelSetting, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
 )
 from apps.media_manager.models import ChunkedUploadSession
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
@@ -44,7 +44,7 @@ from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditSe
 from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.media_manager.services.unified_search_service import get_unified_search_service
 from apps.media_manager.services.upload_service import MediaUploadService
-from apps.media_manager.tasks import generate_seo_metadata_task
+from core.tasks.media_finalization import generate_seo_metadata_task
 from core.services.gemini_manager import get_gemini_manager
 from core.services.gemini_metadata_service import get_gemini_metadata_service
 from core.services.gemini_seo_service import get_gemini_seo_service
@@ -54,6 +54,14 @@ from core.tasks.media_processing import (
     upload_video_to_r2,
     upload_audio_to_r2,
     upload_pdf_to_r2,
+)
+from apps.admin_django.views_system import (
+    ALLOWED_BASES,
+    execute_file_action,
+    get_file_info,
+    list_directory,
+    resolve_safe_path,
+    search_files,
 )
 from apps.frontend_api.utils.jobs_dashboard import (
     dispatch_content_item_for_stage,
@@ -72,16 +80,22 @@ staff_member_required = user_passes_test(
     login_url='frontend_api:admin_login',
 )
 
-# Initialize services
+# Lazy service initializers (avoid eager DB access at import time)
+_admin_service_instance = None
+def get_admin_service():
+    global _admin_service_instance
+    if _admin_service_instance is None:
+        _admin_service_instance = AdminService()
+    return _admin_service_instance
+
 content_service = ContentService()
-admin_service = AdminService()
 
 
 @staff_member_required
 def admin_dashboard(request):
     """Main admin dashboard - Optimized to 4 queries total"""
     # Get all dashboard data with optimized service
-    dashboard_data = admin_service.get_dashboard_data()
+    dashboard_data = get_admin_service().get_dashboard_data()
     
     return render(request, 'admin/dashboard.html', dashboard_data)
 
@@ -97,7 +111,7 @@ def content_list(request):
     per_page = int(request.GET.get('limit', 20))
     
     # Get content list using optimized service
-    content_data = admin_service.get_content_list(
+    content_data = get_admin_service().get_content_list(
         content_type=content_type,
         search_query=search_query,
         page=page,
@@ -126,15 +140,15 @@ def content_detail(request, content_id):
     """Content detail page - Single optimized query"""
     try:
         # Get content with all relations in single query
-        content = admin_service.get_content_detail(str(content_id))
+        content = get_admin_service().get_content_detail(str(content_id))
         
         # Handle POST request for status/metadata updates
         if request.method == 'POST':
             # Handle is_active toggle
             if 'toggle_active' in request.POST:
-                success, message = admin_service.toggle_content_status(str(content_id))
+                success, message = get_admin_service().toggle_content_status(str(content_id))
                 if success:
-                    refreshed_content = admin_service.get_content_detail(str(content_id))
+                    refreshed_content = get_admin_service().get_content_detail(str(content_id))
                     LifecycleAuditService.log_event(
                         content_item=refreshed_content,
                         action_type='content_status_toggled',
@@ -309,10 +323,10 @@ def content_detail(request, content_id):
                 messages.success(request, _("Sacred metadata updated successfully"))
             
             # Re-fetch content to reflect changes
-            content = admin_service.get_content_detail(str(content_id))
+            content = get_admin_service().get_content_detail(str(content_id))
 
         # Process for current language
-        processed_content = admin_service.language_processor.process_content_item(
+        processed_content = get_admin_service().language_processor.process_content_item(
             content, get_language()
         )
         
@@ -334,7 +348,7 @@ def content_delete_confirm(request, content_id):
     """Handle content deletion - Optimized with single query check"""
     try:
         # Get content with all relations in single query
-        content = admin_service.get_content_detail(str(content_id))
+        content = get_admin_service().get_content_detail(str(content_id))
         
         if request.method == 'POST':
             # Use existing delete service for actual deletion
@@ -350,7 +364,7 @@ def content_delete_confirm(request, content_id):
         
         # GET request - Show confirmation page
         # Process for current language
-        processed_content = admin_service.language_processor.process_content_item(
+        processed_content = get_admin_service().language_processor.process_content_item(
             content, get_language()
         )
         
@@ -373,7 +387,7 @@ def content_delete_confirm(request, content_id):
 def delete_local_confirm(request, content_id):
     """Handle local file deletion only, preserving R2 and DB record."""
     try:
-        content = admin_service.get_content_detail(str(content_id))
+        content = get_admin_service().get_content_detail(str(content_id))
         
         # Get meta object based on content type
         meta = None
@@ -403,7 +417,7 @@ def delete_local_confirm(request, content_id):
                 return redirect('frontend_api:admin_content_detail', content_id=content_id)
 
         # GET request - Show confirmation page
-        processed_content = admin_service.language_processor.process_content_item(
+        processed_content = get_admin_service().language_processor.process_content_item(
             content, get_language()
         )
         
@@ -680,7 +694,7 @@ def generate_content_metadata(request):
             return JsonResponse({'success': False, 'error': _('Content ID required')})
         
         # Get content item
-        content = admin_service.get_content_detail(content_id)
+        content = get_admin_service().get_content_detail(content_id)
         
         # Use Gemini manager to generate metadata
         meta_obj = content.get_meta_object()
@@ -803,7 +817,7 @@ def _render_media_management(request, media_type):
     }
     filters.update(config['extra_filters'])
 
-    media_data = admin_service.get_type_specific_content(
+    media_data = get_admin_service().get_type_specific_content(
         content_type=media_type,
         page=page,
         per_page=per_page,
@@ -845,7 +859,7 @@ def system_monitor(request):
         get_system_stats,
     )
 
-    system_data = admin_service.get_system_monitor_data()
+    system_data = get_admin_service().get_system_monitor_data()
     
     context = {
         **system_data,
@@ -863,29 +877,174 @@ def system_monitor(request):
 # FILE MANAGER — custom admin dashboard at /dashboard/system/files/
 # ──────────────────────────────────────────────────────────────────
 
+# ──────────────────────────────────────────────────────────────────
+# HELPERS — ContentItem file search (augments filesystem search)
+# ──────────────────────────────────────────────────────────────────
+
+def _make_content_entry(
+    name: str, rel_path: str, content_title: str,
+    content_type_label: str, content_type: str, size: int = 0,
+) -> dict:
+    """Build an entry dict for a ContentItem-linked file."""
+    entry: dict = {
+        "name": name,
+        "is_dir": False,
+        "size": "",
+        "size_bytes": size,
+        "modified": "",
+        "rel_path": rel_path,
+        "content_title": content_title,
+        "content_type_label": content_type_label,
+        "content_type": content_type,
+        "is_content_file": True,
+    }
+    if size:
+        from apps.admin_django.views_system import fmt_bytes
+        entry["size"] = fmt_bytes(size)
+    return entry
+
+
+_CONTENT_FILE_FIELDS = [
+    ("thumbnail", "thumbnail", "Thumbnail"),
+    ("supplementary_document", "document", "Document"),
+]
+
+_META_FILE_FIELDS = [
+    ("videometa", "original_file", "video", "Video"),
+    ("audiometa", "original_file", "audio", "Audio"),
+    ("audiometa", "compressed_file", "audio", "Audio (compressed)"),
+    ("pdfmeta", "original_file", "pdf", "PDF"),
+]
+
+
+def _search_content_files(query: str, max_results: int = 100) -> list[dict]:
+    """
+    Search ContentItems by title and return their associated file entries.
+    Merged into search results so a content titled "test" shows its
+    thumbnail, documents, video/audio/pdf files even if filenames differ.
+    """
+    q = query.strip()
+    if len(q) < 2:
+        return []
+
+    content_qs = ContentItem.objects.filter(
+        Q(title_ar__icontains=q) | Q(title_en__icontains=q)
+    ).only(
+        "id", "title_ar", "title_en", "thumbnail",
+        "supplementary_document", "supplementary_document_name",
+        "supplementary_document_size",
+    ).prefetch_related("videometa", "audiometa", "pdfmeta")[:20]
+
+    results: list[dict] = []
+
+    for item in content_qs:
+        title = item.title_ar or item.title_en or ""
+        if len(results) >= max_results:
+            break
+
+        # Direct ContentItem file fields
+        for field_name, ctype, clabel in _CONTENT_FILE_FIELDS:
+            f = getattr(item, field_name, None)
+            if f and hasattr(f, "name") and f.name:
+                fsize = 0
+                try:
+                    fsize = f.size
+                except Exception:
+                    if field_name == "supplementary_document":
+                        fsize = item.supplementary_document_size or 0
+                results.append(_make_content_entry(
+                    name=os.path.basename(f.name),
+                    rel_path=f.name,
+                    size=fsize,
+                    content_title=title,
+                    content_type_label=clabel,
+                    content_type=ctype,
+                ))
+                if len(results) >= max_results:
+                    break
+
+        if len(results) >= max_results:
+            break
+
+        # Related meta file fields (OneToOneField)
+        for rel_name, field_name, ctype, clabel in _META_FILE_FIELDS:
+            try:
+                meta_obj = getattr(item, rel_name, None)
+            except Exception:
+                meta_obj = None
+            if meta_obj is None:
+                continue
+            f = getattr(meta_obj, field_name, None)
+            if f and hasattr(f, "name") and f.name:
+                fsize = 0
+                try:
+                    fsize = f.size
+                except Exception:
+                    pass
+                results.append(_make_content_entry(
+                    name=os.path.basename(f.name),
+                    rel_path=f.name,
+                    size=fsize,
+                    content_title=title,
+                    content_type_label=clabel,
+                    content_type=ctype,
+                ))
+                if len(results) >= max_results:
+                    break
+
+    return results
+
+
+# ──────────────────────────────────────────────────────────────────
+# FILE MANAGER — custom admin dashboard at /dashboard/system/files/
+# ──────────────────────────────────────────────────────────────────
+
 @staff_member_required
 def file_manager(request):
     """Browse and manage files in media / static / logs directories."""
-    from apps.admin_django.views_system import (
-        ALLOWED_BASES,
-        list_directory,
-    )
     base_key = request.GET.get("base", "media")
     rel_path = request.GET.get("path", "")
+    query = request.GET.get("q", "").strip()
     if base_key not in ALLOWED_BASES:
         base_key = "media"
 
-    listing = list_directory(base_key, rel_path)
-    context = {
-        "base_key": base_key,
-        "rel_path": rel_path,
-        "entries": listing["entries"],
-        "crumbs": listing["crumbs"],
-        "bases": list(ALLOWED_BASES.keys()),
-        "is_root": listing["is_root"],
-        "list_error": listing.get("error"),
-        "current_language": get_language(),
-    }
+    search_active = bool(query)
+
+    if search_active:
+        listing = search_files(base_key, query)
+        content_entries = _search_content_files(query)
+        all_entries = listing["entries"] + content_entries
+        all_entries.sort(key=lambda e: (not e.get("is_content_file", False), not e["is_dir"], e["name"].lower()))
+        crumbs = [{"label": base_key, "path": ""}]
+        context = {
+            "base_key": base_key,
+            "rel_path": rel_path,
+            "entries": all_entries,
+            "crumbs": crumbs,
+            "bases": list(ALLOWED_BASES.keys()),
+            "is_root": True,
+            "list_error": listing.get("error"),
+            "current_language": get_language(),
+            "search_active": True,
+            "search_query": query,
+            "search_total": len(all_entries),
+            "search_truncated": listing.get("truncated", False),
+            "has_content_results": bool(content_entries),
+        }
+    else:
+        listing = list_directory(base_key, rel_path)
+        context = {
+            "base_key": base_key,
+            "rel_path": rel_path,
+            "entries": listing["entries"],
+            "crumbs": listing["crumbs"],
+            "bases": list(ALLOWED_BASES.keys()),
+            "is_root": listing["is_root"],
+            "list_error": listing.get("error"),
+            "current_language": get_language(),
+            "search_active": False,
+            "search_query": "",
+        }
     return render(request, "admin/file_manager.html", context)
 
 
@@ -894,8 +1053,6 @@ def file_manager(request):
 @require_POST
 def file_manager_action(request):
     """AJAX endpoint for file operations (mkdir / delete / rename / move)."""
-    from apps.admin_django.views_system import execute_file_action, ALLOWED_BASES
-
     try:
         data = json.loads(request.body)
     except Exception:
@@ -923,8 +1080,6 @@ def file_manager_action(request):
 @staff_member_required
 def file_manager_download(request):
     """Download a file directly or zip a folder before downloading it."""
-    from apps.admin_django.views_system import ALLOWED_BASES, resolve_safe_path
-
     base_key = request.GET.get("base", "media")
     rel_path = request.GET.get("path", "")
 
@@ -956,6 +1111,51 @@ def file_manager_download(request):
     response["Content-Type"] = mimetypes.guess_type(download_name)[0] or "application/octet-stream"
     response["Content-Length"] = str(target.stat().st_size)
     return response
+
+
+@staff_member_required
+def file_manager_search(request):
+    """AJAX endpoint to search files/folders and ContentItem-linked files."""
+    base_key = request.GET.get("base", "media")
+    query = request.GET.get("q", "").strip()
+
+    if base_key not in ALLOWED_BASES:
+        base_key = "media"
+
+    if not query:
+        return JsonResponse({"entries": [], "total": 0, "base_key": base_key, "query": ""})
+
+    fs_results = search_files(base_key, query)
+    content_entries = _search_content_files(query)
+
+    all_entries = fs_results["entries"] + content_entries
+    all_entries.sort(key=lambda e: (not e.get("is_content_file", False), not e["is_dir"], e["name"].lower()))
+
+    return JsonResponse({
+        "entries": all_entries,
+        "total": len(all_entries),
+        "base_key": base_key,
+        "query": query,
+        "truncated": fs_results.get("truncated", False),
+        "has_content_results": bool(content_entries),
+    })
+
+
+@staff_member_required
+def file_manager_info(request):
+    """AJAX endpoint returning detailed metadata for a file or directory."""
+    base_key = request.GET.get("base", "media")
+    rel_path = request.GET.get("path", "")
+
+    if base_key not in ALLOWED_BASES:
+        return JsonResponse({"ok": False, "error": "Invalid base"}, status=400)
+
+    if not rel_path:
+        return JsonResponse({"ok": False, "error": "Path is required"}, status=400)
+
+    info = get_file_info(base_key, rel_path)
+    status = 200 if info.get("ok") else 400
+    return JsonResponse(info, status=status)
 
 
 @staff_member_required
@@ -1036,7 +1236,7 @@ def bulk_operations(request):
                 for cid in content_ids:
                     try:
                         # Fetch the content item first as delete_content expects an object
-                        content = admin_service.get_content_detail(cid)
+                        content = get_admin_service().get_content_detail(cid)
                         success, _delete_message = processing_service.delete_content(content)
                         if success:
                             success_count += 1
@@ -1051,7 +1251,7 @@ def bulk_operations(request):
             return redirect('frontend_api:bulk_operations')
 
     # Get bulk operation data
-    bulk_data = admin_service.get_bulk_operation_data()
+    bulk_data = get_admin_service().get_bulk_operation_data()
     
     context = {
         'bulk_stats': bulk_data,
@@ -1094,7 +1294,7 @@ def api_toggle_content_status(request):
             return JsonResponse({'success': False, 'error': _('Content ID required')})
         
         # Toggle status using optimized service
-        success, message = admin_service.toggle_content_status(content_id)
+        success, message = get_admin_service().toggle_content_status(content_id)
         
         # Get the updated status to return to frontend
         if success:
@@ -1137,7 +1337,7 @@ def api_bulk_generate_seo(request):
 
         for content_id in content_ids:
             try:
-                content = admin_service.get_content_detail(content_id)
+                content = get_admin_service().get_content_detail(content_id)
                 meta_obj = content.get_meta_object()
                 if not meta_obj or not meta_obj.original_file:
                     results.append({'id': content_id, 'success': False, 'error': 'No media file'})
@@ -1220,7 +1420,7 @@ def api_bulk_delete(request):
         for content_id in content_ids:
             try:
                 # Use admin_service to get the object with relations
-                content = admin_service.get_content_detail(content_id)
+                content = get_admin_service().get_content_detail(content_id)
                 success, message = processing_service.delete_content(content)
                 results.append({
                     'id': content_id,
@@ -1902,9 +2102,26 @@ def api_gemini_rate_limits(request):
         metadata_available, metadata_msg = gemini_manager.check_metadata_availability()
         seo_available, seo_msg = gemini_manager.check_seo_availability()
         
+        # Build dynamic model list from DB (replaces hardcoded JS array in template)
+        COLOR_PALETTE = ['primary', 'info', 'secondary', 'dark', 'warning', 'success']
+        ICON_PALETTE = ['lightning-fill', 'info-circle-fill', 'shield-check', 'gear', 'bar-chart', 'activity']
+        models = []
+        for idx, setting in enumerate(GeminiModelSetting.objects.filter(archived_at__isnull=True).order_by('fallback_priority')):
+            model_id = setting.model_key.replace('.', '_').replace('-', '_')
+            position = min(idx, len(COLOR_PALETTE) - 1)
+            purpose = _('Primary Model') if setting.is_default else _('Fallback Layer')
+            models.append({
+                'id': model_id,
+                'name': setting.display_name,
+                'purpose': purpose,
+                'color': COLOR_PALETTE[position],
+                'icon': ICON_PALETTE[position],
+            })
+        
         return JsonResponse({
             'success': True,
             'rate_limits': rate_limits,
+            'models': models,
             'metadata_available': metadata_available,
             'metadata_message': metadata_msg,
             'seo_available': seo_available,
@@ -1916,6 +2133,154 @@ def api_gemini_rate_limits(request):
             'success': False,
             'error': str(e)
         })
+
+
+@staff_member_required
+def api_gemini_reporting(request):
+    """API endpoint for Gemini usage reporting queries"""
+    try:
+        gemini_manager = get_gemini_manager()
+        report_type = request.GET.get('type', 'summary')
+        days = int(request.GET.get('days', 30))
+        content_item_id = request.GET.get('content_item_id')
+
+        reporting = gemini_manager.reporting_service
+
+        report_map = {
+            'summary': lambda: reporting.summary_stats(days),
+            'total_by_model': lambda: reporting.total_calls_by_model(days),
+            'status_by_model': lambda: reporting.status_counts_by_model(days),
+            'fallback': lambda: reporting.fallback_usage(days),
+            'daily_volume': lambda: reporting.daily_volume(days),
+            'hourly_volume': lambda: reporting.hourly_volume(min(days, 7)),
+            'response_times': lambda: reporting.avg_response_time_by_model(days),
+            'per_item': lambda: reporting.per_item_history(content_item_id) if content_item_id else [],
+            'daily_token_usage': lambda: reporting.daily_token_usage(days),
+            'minute_token_usage': lambda: reporting.minute_token_usage(
+                request.GET.get('model_key', ''),
+                timezone.now().date()
+            ) if request.GET.get('model_key') else [],
+        }
+
+        result = report_map.get(report_type, report_map['summary'])()
+
+        return JsonResponse({'success': True, 'report_type': report_type, 'data': result})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@staff_member_required
+def api_gemini_models(request):
+    """CRUD API for Gemini model settings"""
+    if request.method == 'GET':
+        models_qs = GeminiModelSetting.objects.all().order_by('fallback_priority')
+        data = []
+        for m in models_qs:
+            data.append({
+                'id': str(m.id),
+                'model_key': m.model_key,
+                'display_name': m.display_name,
+                'provider': m.provider,
+                'is_enabled': m.is_enabled,
+                'is_default': m.is_default,
+                'fallback_priority': m.fallback_priority,
+                'limit_per_minute': m.limit_per_minute,
+                'limit_per_day': m.limit_per_day,
+                'limit_per_month': m.limit_per_month,
+                'tokens_per_minute': m.tokens_per_minute,
+                'tokens_per_day': m.tokens_per_day,
+                'max_input_tokens': m.max_input_tokens,
+                'request_timeout_seconds': m.request_timeout_seconds,
+                'notes': m.notes,
+                'archived_at': m.archived_at.isoformat() if m.archived_at else None,
+                'created_at': m.created_at.isoformat(),
+            })
+        return JsonResponse({'success': True, 'models': data})
+
+    if request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            action = body.get('action')
+
+            if action == 'toggle_enable':
+                model_id = body.get('id')
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                obj.is_enabled = not obj.is_enabled
+                obj.save(update_fields=['is_enabled', 'updated_at'])
+                return JsonResponse({'success': True, 'is_enabled': obj.is_enabled})
+
+            if action == 'set_default':
+                model_id = body.get('id')
+                GeminiModelSetting.objects.filter(is_default=True).exclude(id=model_id).update(is_default=False)
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                obj.is_default = True
+                obj.is_enabled = True
+                obj.save(update_fields=['is_default', 'is_enabled', 'updated_at'])
+                return JsonResponse({'success': True, 'is_default': True})
+
+            if action == 'toggle_archive':
+                model_id = body.get('id')
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                if obj.archived_at:
+                    obj.archived_at = None
+                else:
+                    from django.utils import timezone as tz
+                    obj.archived_at = tz.now()
+                obj.save(update_fields=['archived_at', 'updated_at'])
+                return JsonResponse({'success': True, 'archived_at': obj.archived_at.isoformat() if obj.archived_at else None})
+
+            if action == 'save':
+                model_id = body.get('id')
+                if model_id:
+                    obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                else:
+                    obj = GeminiModelSetting()
+                obj.model_key = body.get('model_key', obj.model_key)
+                obj.display_name = body.get('display_name', obj.display_name)
+                obj.provider = body.get('provider', obj.provider)
+                obj.fallback_priority = int(body.get('fallback_priority', obj.fallback_priority))
+                obj.limit_per_minute = int(body.get('limit_per_minute', obj.limit_per_minute))
+                obj.limit_per_day = int(body.get('limit_per_day', obj.limit_per_day))
+                obj.limit_per_month = body.get('limit_per_month') or None
+                if obj.limit_per_month is not None:
+                    obj.limit_per_month = int(obj.limit_per_month)
+                obj.tokens_per_minute = body.get('tokens_per_minute') or None
+                if obj.tokens_per_minute is not None:
+                    obj.tokens_per_minute = int(obj.tokens_per_minute)
+                obj.tokens_per_day = body.get('tokens_per_day') or None
+                if obj.tokens_per_day is not None:
+                    obj.tokens_per_day = int(obj.tokens_per_day)
+                obj.max_input_tokens = body.get('max_input_tokens') or None
+                if obj.max_input_tokens is not None:
+                    obj.max_input_tokens = int(obj.max_input_tokens)
+                obj.request_timeout_seconds = body.get('request_timeout_seconds') or None
+                if obj.request_timeout_seconds is not None:
+                    obj.request_timeout_seconds = int(obj.request_timeout_seconds)
+                obj.notes = body.get('notes', obj.notes)
+                if body.get('is_default'):
+                    GeminiModelSetting.objects.filter(is_default=True).exclude(pk=obj.pk if obj.pk else None).update(is_default=False)
+                    obj.is_default = True
+                obj.full_clean()
+                obj.save()
+                return JsonResponse({'success': True, 'id': str(obj.id)})
+
+            if action == 'delete':
+                model_id = body.get('id')
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                obj.delete()
+                return JsonResponse({'success': True})
+
+            return JsonResponse({'success': False, 'error': f'Unknown action: {action}'}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+
+@staff_member_required
+def admin_gemini_management(request):
+    """Gemini Model Settings & Reporting page"""
+    return render(request, 'admin/gemini_management.html')
 
 
 @staff_member_required
@@ -2994,10 +3359,10 @@ def api_job_dispatch(request):
         return JsonResponse({'success': False, 'error': _('content_id is required')}, status=400)
 
     content_item = get_object_or_404(ContentItem, id=content_id)
-    task_id = dispatch_content_item_for_stage(content_item, stage, force=force, action_source='admin:jobs_api')
+    task_id, error_msg = dispatch_content_item_for_stage(content_item, stage, force=force, action_source='admin:jobs_api')
 
     if not task_id:
-        return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+        return JsonResponse({'success': False, 'error': _(error_msg or 'No matching task could be dispatched')}, status=400)
 
     LifecycleAuditService.log_event(
         content_item=content_item,

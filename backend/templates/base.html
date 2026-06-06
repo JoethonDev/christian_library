@@ -54,7 +54,7 @@
     <link rel="preload" as="style" href="{% static 'css/icons.css' %}" onload="this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="{% static 'css/icons.css' %}"></noscript>
     <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" defer></script>
+    <script src="{% static 'js/htmx.min.js' %}"></script>
     
     <!-- PDF Viewer placeholder - will be overridden by component -->
     <script>
@@ -73,7 +73,7 @@
     }
     </script>
     
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" defer></script>
+    <script src="{% static 'js/alpine.min.js' %}" defer></script>
     
     <!-- Video & PDF specific loading handled in detail templates -->
 

@@ -16,11 +16,12 @@ from core.tasks.media_processing import (
     process_video_to_hls,
 )
 
-from apps.media_manager.tasks import generate_seo_metadata_task
+from core.tasks.media_finalization import generate_seo_metadata_task
 
 from .models import (
     ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag, 
-    ContentViewEvent, DailyContentViewSummary, SiteConfiguration
+    ContentViewEvent, DailyContentViewSummary, SiteConfiguration,
+    GeminiModelSetting, GeminiGenerationAttempt, GeminiModelConsumption
 )
 from .forms import ContentItemForm
 
@@ -740,4 +741,156 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         # Don't allow deletion
+        return False
+
+
+@admin.register(GeminiModelConsumption)
+class GeminiModelConsumptionAdmin(admin.ModelAdmin):
+    list_display = ['model_key', 'date', 'minute_slot', 'tokens_consumed', 'requests_consumed', 'is_finalized']
+    list_filter = ['model_key', 'date', 'is_finalized']
+    search_fields = ['model_key']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    date_hierarchy = 'date'
+    ordering = ['-date', '-minute_slot']
+
+    fieldsets = (
+        (_('Identity'), {
+            'fields': ('id', 'model_key', 'date', 'minute_slot')
+        }),
+        (_('Usage'), {
+            'fields': ('tokens_consumed', 'requests_consumed', 'is_finalized')
+        }),
+        (_('Timing'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(GeminiModelSetting)
+class GeminiModelSettingAdmin(admin.ModelAdmin):
+    list_display = ['model_key', 'display_name', 'is_enabled', 'is_default', 'queue_depth_display', 'active_leases_display', 'fallback_priority', 'max_concurrency', 'limit_per_minute']
+    list_filter = ['is_enabled', 'is_default', 'provider']
+    search_fields = ['model_key', 'display_name', 'notes']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = (
+        (_('Model Identity'), {
+            'fields': ('model_key', 'display_name', 'provider', 'notes')
+        }),
+        (_('Availability'), {
+            'fields': ('is_enabled', 'is_default', 'archived_at')
+        }),
+        (_('Rate Limits'), {
+            'fields': ('limit_per_minute', 'limit_per_day', 'limit_per_month', 'tokens_per_minute', 'tokens_per_day', 'max_input_tokens', 'max_concurrency', 'request_timeout_seconds')
+        }),
+        (_('Fallback'), {
+            'fields': ('fallback_priority',)
+        }),
+        (_('System Information'), {
+            'fields': ('id', 'created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    actions = ['enable_selected', 'disable_selected', 'archive_selected', 'clear_queue_selected']
+
+    def queue_depth_display(self, obj):
+        from core.services.gemini_scheduler_service import get_gemini_scheduler_service
+        count = get_gemini_scheduler_service().pending_count(obj.model_key)
+        if count > 0:
+            return format_html('<span style="color: #e67e22; font-weight: bold;">{}</span>', count)
+        return format_html('<span style="color: green;">0</span>')
+    queue_depth_display.short_description = _('Queue Depth')
+
+    def active_leases_display(self, obj):
+        from core.services.gemini_lease_service import get_gemini_lease_service
+        count = get_gemini_lease_service().active_leases(obj.model_key)
+        max_c = obj.max_concurrency
+        color = 'green' if count < max_c else ('orange' if count == max_c else 'red')
+        return format_html('<span style="color: {};">{}/{}</span>', color, count, max_c)
+    active_leases_display.short_description = _('Active Leases')
+
+    def enable_selected(self, request, queryset):
+        count = queryset.update(is_enabled=True)
+        messages.success(request, _(f'{count} model(s) enabled.'))
+    enable_selected.short_description = _('Enable selected models')
+
+    def disable_selected(self, request, queryset):
+        count = queryset.update(is_enabled=False)
+        messages.success(request, _(f'{count} model(s) disabled.'))
+    disable_selected.short_description = _('Disable selected models')
+
+    def archive_selected(self, request, queryset):
+        count = queryset.update(archived_at=timezone.now())
+        messages.success(request, _(f'{count} model(s) archived.'))
+    archive_selected.short_description = _('Archive selected models')
+
+    def clear_queue_selected(self, request, queryset):
+        from core.services.gemini_scheduler_service import get_gemini_scheduler_service
+        scheduler = get_gemini_scheduler_service()
+        total = 0
+        for obj in queryset:
+            total += scheduler.clear_queue(obj.model_key)
+        messages.success(request, _(f'{total} queued item(s) cleared.'))
+    clear_queue_selected.short_description = _('Clear queue for selected models')
+
+    def save_model(self, request, obj, form, change):
+        if obj.is_default:
+            GeminiModelSetting.objects.filter(is_default=True).exclude(pk=obj.pk).update(is_default=False)
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(GeminiGenerationAttempt)
+class GeminiGenerationAttemptAdmin(admin.ModelAdmin):
+    list_display = ['created_at', 'content_item_link', 'requested_model_key', 'resolved_model_key', 'operation_type', 'status', 'success', 'response_time_ms']
+    list_filter = ['operation_type', 'status', 'success', 'requested_model_key']
+    search_fields = ['content_item__id', 'error_message']
+    date_hierarchy = 'created_at'
+    readonly_fields = ['id', 'content_item', 'requested_model_key', 'resolved_model_key', 'operation_type', 'status', 'success', 'error_message', 'response_time_ms', 'created_at']
+    ordering = ['-created_at']
+
+    fieldsets = (
+        (_('Identity'), {
+            'fields': ('id', 'content_item')
+        }),
+        (_('Model'), {
+            'fields': ('requested_model_key', 'resolved_model_key')
+        }),
+        (_('Operation'), {
+            'fields': ('operation_type', 'status', 'success')
+        }),
+        (_('Response'), {
+            'fields': ('response_time_ms',)
+        }),
+        (_('Error Details'), {
+            'fields': ('error_message',),
+            'classes': ('collapse',),
+        }),
+        (_('Timing'), {
+            'fields': ('created_at',),
+        }),
+    )
+
+    def content_item_link(self, obj):
+        if obj.content_item_id:
+            link = reverse('admin:media_manager_contentitem_change', args=[obj.content_item_id])
+            return format_html('<a href="{}">{}</a>', link, str(obj.content_item)[:50])
+        return '-'
+    content_item_link.short_description = _('Content Item')
+    content_item_link.admin_order_field = 'content_item'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False

@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import timedelta
 
 from django.core.paginator import Paginator
@@ -10,7 +11,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.media_manager.models import APIUploadQueue, ProcessingJob
-from apps.media_manager.tasks import extract_and_index_contentitem, generate_seo_metadata_task
+from apps.media_manager.tasks import extract_and_index_contentitem
+from core.tasks.media_finalization import generate_seo_metadata_task
 from core.tasks.media_processing import (
     process_audio_compression,
     process_pdf,
@@ -19,9 +21,13 @@ from core.tasks.media_processing import (
     upload_pdf_to_r2,
     upload_video_to_r2,
 )
+from config import celery_app
 
 # A job is considered stale when it has been actively processing for longer
 # than this threshold without updating its status.
+logger = logging.getLogger(__name__)
+
+
 STALE_JOB_HOURS = 5
 
 API_QUEUE_PENDING_STATUSES = ['pending', 'queued', 'rate_limited']
@@ -108,20 +114,30 @@ def dispatch_processing_task(content_item, stage='full', force=False):
         return extract_and_index_contentitem.delay(str(content_item.id))
 
     if normalized_stage == 'r2_upload':
-        if content_item.content_type == 'video' and meta:
+        if not meta:
+            logger.warning("Cannot dispatch r2_upload for %s: no meta object exists", content_item.id)
+            return None
+        if content_item.content_type == 'video':
             return upload_video_to_r2.delay(str(meta.id))
-        if content_item.content_type == 'audio' and meta:
+        if content_item.content_type == 'audio':
             return upload_audio_to_r2.delay(str(meta.id))
-        if content_item.content_type == 'pdf' and meta:
+        if content_item.content_type == 'pdf':
             return upload_pdf_to_r2.delay(str(meta.id))
+        logger.warning("Cannot dispatch r2_upload for %s: unknown content_type=%s", content_item.id, content_item.content_type)
         return None
 
-    if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'video' and meta:
-        return process_video_to_hls.delay(str(meta.id))
-    if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'audio' and meta:
-        return process_audio_compression.delay(str(meta.id))
-    if normalized_stage in ['full', 'file_processing'] and content_item.content_type == 'pdf' and meta:
-        return process_pdf.delay(str(meta.id))
+    if normalized_stage in ['full', 'file_processing']:
+        if not meta:
+            logger.warning("Cannot dispatch %s for %s: no meta object exists", normalized_stage, content_item.id)
+            return None
+        if content_item.content_type == 'video':
+            return process_video_to_hls.delay(str(meta.id))
+        if content_item.content_type == 'audio':
+            return process_audio_compression.delay(str(meta.id))
+        if content_item.content_type == 'pdf':
+            return process_pdf.delay(str(meta.id))
+        logger.warning("Cannot dispatch %s for %s: unknown content_type=%s", normalized_stage, content_item.id, content_item.content_type)
+        return None
 
     return None
 
@@ -258,7 +274,7 @@ def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all'
         ),
         content_type_value=F('content_type'),
         stage_value=F('queue_status'),
-        retry_count_value=F('gemini_attempts'),
+        retry_count_value=F('delay_count'),
         failure_reason_value=Coalesce(
             'error_message',
             Value('', output_field=CharField()),
@@ -328,6 +344,25 @@ def get_all_jobs(status_filter='active', page=1, per_page=20, content_type='all'
     return page_obj
 
 
+def _is_task_actually_running(task_id):
+    """Check via Celery inspect whether a task is active or reserved in any worker."""
+    if not task_id:
+        return False
+    try:
+        inspect = celery_app.control.inspect(timeout=1.0)
+        active = inspect.active() or {}
+        for tasks in active.values():
+            if any(t.get('id') == task_id for t in (tasks or [])):
+                return True
+        reserved = inspect.reserved() or {}
+        for tasks in reserved.values():
+            if any(t.get('id') == task_id for t in (tasks or [])):
+                return True
+    except Exception:
+        logger.debug("inspect() failed — assuming task %s is stale", task_id, exc_info=True)
+    return False
+
+
 def dispatch_content_item_for_stage(content_item, stage, force=False, action_source='system:jobs_dispatch'):
     current_stage = {
         'full': 'file_processing',
@@ -342,9 +377,21 @@ def dispatch_content_item_for_stage(content_item, stage, force=False, action_sou
         job, _ = ProcessingJob.objects.select_for_update().get_or_create(content_item=content_item)
 
         if job.status == 'processing' and not force:
-            return ''
+            if job.celery_task_id and _is_task_actually_running(job.celery_task_id):
+                logger.warning(
+                    "Dispatch refused: job %s task %s is active in a worker",
+                    job.id, job.celery_task_id,
+                )
+                return '', 'Job is already processing'
+            logger.warning(
+                "Dispatch overriding stale processing job %s (task %s not found in workers)",
+                job.id, job.celery_task_id,
+            )
+            job.status = 'pending'
+            job.last_action_source = action_source
         if job.status in ['completed', 'canceled'] and not force:
-            return ''
+            logger.warning("Dispatch refused: job %s is %s (use force=true to re-dispatch)", job.id, job.status)
+            return '', f'Job is already {job.status}'
 
         update_fields = ['status', 'current_stage', 'failure_stage', 'failure_reason', 'celery_task_id', 'last_action_source', 'updated_at']
 
@@ -357,7 +404,7 @@ def dispatch_content_item_for_stage(content_item, stage, force=False, action_sou
             job.status = 'pending'
             job.last_action_source = action_source
         elif job.status != 'pending':
-            return ''
+            return '', f'Job is in status {job.status} and cannot be dispatched (use force=true)'
 
         if job.status == 'pending' and not job.last_action_source:
             job.last_action_source = action_source
@@ -373,6 +420,6 @@ def dispatch_content_item_for_stage(content_item, stage, force=False, action_sou
             job.transition_to('processing', source=action_source)
             job.celery_task_id = task.id
             job.save(update_fields=['status', 'celery_task_id', 'last_action_source', 'updated_at'])
-            return task.id
+            return task.id, ''
 
-    return ''
+    return '', 'No matching task could be dispatched'

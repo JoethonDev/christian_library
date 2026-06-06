@@ -76,6 +76,8 @@ urlpatterns = [
     path('dashboard/system/', admin_views.system_monitor, name='system_monitor'),
     path('dashboard/system/files/', admin_views.file_manager, name='file_manager'),
     path('dashboard/system/files/action/', admin_views.file_manager_action, name='file_manager_action'),
+    path('dashboard/system/files/search/', admin_views.file_manager_search, name='file_manager_search'),
+    path('dashboard/system/files/info/', admin_views.file_manager_info, name='file_manager_info'),
     path('dashboard/system/files/download/', admin_views.file_manager_download, name='file_manager_download'),
     path('dashboard/system/orphaned/', admin_views.orphaned_files, name='orphaned_files'),
     path('dashboard/system/cache/', admin_views.cache_manager, name='cache_manager'),
@@ -123,4 +125,7 @@ urlpatterns = [
     path('api/content/<uuid:content_id>/seo/', admin_views.api_content_seo, name='api_content_seo'),
     path('api/admin/auto-fill-metadata/', admin_views.api_auto_fill_metadata, name='api_auto_fill_metadata'),
     path('api/admin/gemini-rate-limits/', admin_views.api_gemini_rate_limits, name='api_gemini_rate_limits'),
+    path('api/admin/gemini-reporting/', admin_views.api_gemini_reporting, name='api_gemini_reporting'),
+    path('api/admin/gemini-models/', admin_views.api_gemini_models, name='api_gemini_models'),
+    path('dashboard/gemini/', admin_views.admin_gemini_management, name='admin_gemini_management'),
 ]

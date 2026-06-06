@@ -1,0 +1,1007 @@
+{% extends "layouts/admin_base.html" %}
+{% load i18n %}
+
+{% block admin_content %}
+<div x-data="geminiManagement()" x-init="init()">
+    {% csrf_token %}
+
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h1 class="h3 fw-bold text-dark mb-1">{% trans "Gemini AI Management" %}</h1>
+            <p class="text-muted mb-0">{% trans "Monitor rate limits, configure model settings, and view usage reports" %}</p>
+        </div>
+        <div class="col-auto d-flex gap-2">
+            <button class="btn btn-outline-primary rounded-pill px-4" @click="refreshRateLimits()" :disabled="loading">
+                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>{% trans "Refresh" %}
+            </button>
+        </div>
+    </div>
+
+    <!-- Status Alert -->
+    <div x-show="error" x-cloak class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
+        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg>
+        <span x-text="error"></span>
+        <button type="button" class="btn-close" @click="error = null"></button>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-pills border-0 mb-4 gap-2" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 fw-medium" :class="tab === 'rate_limits' ? 'active shadow-sm' : 'text-muted bg-light border-0'" @click="tab = 'rate_limits'" type="button">
+                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-speedometer2"/></svg>{% trans "Rate Limits" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 fw-medium" :class="tab === 'models' ? 'active shadow-sm' : 'text-muted bg-light border-0'" @click="tab = 'models'; loadModels()" type="button">
+                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-gear"/></svg>{% trans "Model Settings" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 fw-medium" :class="tab === 'reporting' ? 'active shadow-sm' : 'text-muted bg-light border-0'" @click="tab = 'reporting'; loadReporting()" type="button">
+                <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-bar-chart"/></svg>{% trans "Reporting" %}
+            </button>
+        </li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <!-- TAB 1: RATE LIMITS -->
+    <!-- ============================================================ -->
+    <div x-show="tab === 'rate_limits'" x-cloak>
+        <div class="row g-4 mb-4">
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-white border-bottom py-3 d-flex align-items-center">
+                        <svg class="bi text-primary me-2" aria-hidden="true" focusable="false"><use href="#bi-robot"/></svg>
+                        <h5 class="mb-0 fw-bold">{% trans "AI Credits & Rate Limits" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <template x-for="model in rateLimitModels" :key="model.id">
+                            <div class="border rounded-3 p-3 mb-3">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-3 p-2 me-3" :class="`bg-${model.color}-subtle`">
+                                            <svg class="bi fs-4" :class="`text-${model.color}`" aria-hidden="true" focusable="false"><use :href="`#bi-${model.icon}`"/></svg>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold" x-text="model.name"></h6>
+                                            <small class="text-muted" x-text="model.purpose"></small>
+                                        </div>
+                                    </div>
+                                    <span x-html="statusBadge(getRateLimit(model.id)?.status)"></span>
+                                </div>
+                                <div class="mt-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted fw-medium">{% trans "Per Minute:" %}</small>
+                                        <small class="fw-bold" x-text="`${getRateLimit(model.id)?.remaining_requests_minute || 0} / ${getRateLimit(model.id)?.limit_per_minute || 0}`"></small>
+                                    </div>
+                                    <div class="progress admin-progress-xs">
+                                        <div class="progress-bar" role="progressbar" :class="`bg-${model.color}`" :style="`width: ${getPercent(getRateLimit(model.id)?.remaining_requests_minute, getRateLimit(model.id)?.limit_per_minute)}%`"></div>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted fw-medium">{% trans "Per Day:" %}</small>
+                                        <small class="fw-bold" x-text="`${getRateLimit(model.id)?.remaining_requests_day || 0} / ${getRateLimit(model.id)?.limit_per_day || 0}`"></small>
+                                    </div>
+                                    <div class="progress admin-progress-xs">
+                                        <div class="progress-bar" role="progressbar" :class="`bg-${model.color}`" :style="`width: ${getPercent(getRateLimit(model.id)?.remaining_requests_day, getRateLimit(model.id)?.limit_per_day)}%`"></div>
+                                    </div>
+                                </div>
+                                <template x-if="getRateLimit(model.id)?.tokens_per_minute != null">
+                                    <div class="mt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small class="text-muted fw-medium">{% trans "Tokens/min:" %}</small>
+                                            <small class="fw-bold" x-text="`${getRateLimit(model.id)?.remaining_tokens_minute || 0} / ${getRateLimit(model.id)?.tokens_per_minute || 0}`"></small>
+                                        </div>
+                                        <div class="progress admin-progress-xs">
+                                            <div class="progress-bar bg-success" role="progressbar" :style="`width: ${getPercent(getRateLimit(model.id)?.remaining_tokens_minute, getRateLimit(model.id)?.tokens_per_minute)}%`"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="getRateLimit(model.id)?.tokens_per_day != null">
+                                    <div class="mt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small class="text-muted fw-medium">{% trans "Tokens/day:" %}</small>
+                                            <small class="fw-bold" x-text="`${getRateLimit(model.id)?.remaining_tokens_day || 0} / ${getRateLimit(model.id)?.tokens_per_day || 0}`"></small>
+                                        </div>
+                                        <div class="progress admin-progress-xs">
+                                            <div class="progress-bar bg-success" role="progressbar" :style="`width: ${getPercent(getRateLimit(model.id)?.remaining_tokens_day, getRateLimit(model.id)?.tokens_per_day)}%`"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <div x-show="rateLimitModels.length === 0 && !loading" class="text-center py-4 text-muted">
+                            <svg class="bi fs-1 d-block mb-2 opacity-25" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
+                            <small>{% trans "No model data available" %}</small>
+                        </div>
+                        <div x-show="loading" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="text-muted mt-2 mb-0 small">{% trans "Loading rate limits..." %}</p>
+                        </div>
+                        <div x-show="rateLimitLastUpdated" class="mt-3 pt-3 border-top text-center">
+                            <small class="text-muted">
+                                <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-clock"/></svg>
+                                {% trans "Last updated:" %} <span x-text="rateLimitLastUpdated"></span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-header bg-white border-bottom py-3 d-flex align-items-center">
+                        <svg class="bi text-info me-2" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
+                        <h5 class="mb-0 fw-bold">{% trans "Service Availability" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="p-3 bg-light rounded-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-magic"/></svg>
+                                    <span class="fw-medium">{% trans "Metadata Generation" %}</span>
+                                </div>
+                                <span x-html="availabilityBadge(metadataAvailable, metadataMessage)"></span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-light rounded-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <svg class="bi me-2 text-warning" aria-hidden="true" focusable="false"><use href="#bi-file-earmark-text"/></svg>
+                                    <span class="fw-medium">{% trans "SEO Generation" %}</span>
+                                </div>
+                                <span x-html="availabilityBadge(seoAvailable, seoMessage)"></span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <h6 class="fw-bold mb-3">{% trans "Model Chain" %}</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                <template x-for="(model, idx) in rateLimitModels" :key="model.id">
+                                    <span class="badge rounded-pill px-3 py-2" :class="`bg-${model.color}`">
+                                        <span x-text="model.name"></span>
+                                        <span x-show="idx < rateLimitModels.length - 1" class="ms-1">→</span>
+                                    </span>
+                                </template>
+                            </div>
+                            <p class="text-muted small mt-2 mb-0">{% trans "Models are tried in priority order. If the primary is rate-limited, fallbacks are used automatically." %}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 2: MODEL SETTINGS -->
+    <!-- ============================================================ -->
+    <div x-show="tab === 'models'" x-cloak>
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold">
+                    <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-collection"/></svg>
+                    {% trans "Model Configurations" %}
+                </h5>
+                <button class="btn btn-primary rounded-pill px-3 btn-sm" @click="openAddModal()">
+                    <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-plus-lg"/></svg>{% trans "Add Model" %}
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div x-show="modelsLoading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted mt-2 mb-0 small">{% trans "Loading models..." %}</p>
+                </div>
+                <div x-show="!modelsLoading && models.length === 0" class="text-center py-5 text-muted">
+                    <svg class="bi fs-1 d-block mb-2 opacity-25" aria-hidden="true" focusable="false"><use href="#bi-inbox"/></svg>
+                    <small>{% trans "No models configured yet" %}</small>
+                </div>
+                <div class="table-responsive" x-show="!modelsLoading && models.length > 0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="admin-table-thead ps-4 border-0">{% trans "Model Key" %}</th>
+                                <th class="admin-table-thead border-0">{% trans "Display Name" %}</th>
+                                <th class="admin-table-thead border-0">{% trans "Provider" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Enabled" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Default" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Priority" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Req (min/day)" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Tokens (min/day)" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Max Input" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Archived" %}</th>
+                                <th class="admin-table-thead text-end pe-4 border-0">{% trans "Actions" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="model in sortedModels" :key="model.id">
+                                <tr>
+                                    <td class="ps-4 py-3"><code class="small" x-text="model.model_key"></code></td>
+                                    <td class="fw-medium" x-text="model.display_name"></td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary rounded-pill" x-text="model.provider"></span></td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block mb-0">
+                                            <input class="form-check-input" type="checkbox" :checked="model.is_enabled" @click="toggleModelEnable(model)">
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <span x-show="model.is_default" class="badge bg-success-subtle text-success rounded-pill">
+                                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-star-fill"/></svg>
+                                        </span>
+                                        <button x-show="!model.is_default" class="btn btn-sm btn-outline-warning rounded-pill" @click="setModelDefault(model)" title="{% trans 'Set as default' %}">
+                                            <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-star"/></svg>
+                                        </button>
+                                    </td>
+                                    <td class="text-center"><span class="badge bg-info-subtle text-info rounded-pill" x-text="model.fallback_priority"></span></td>
+                                    <td class="text-center small" x-text="`${model.limit_per_minute} / ${model.limit_per_day}`"></td>
+                                    <td class="text-center small">
+                                        <span x-show="model.tokens_per_minute != null" x-text="`${model.tokens_per_minute} / ${model.tokens_per_day || '∞'}`"></span>
+                                        <span x-show="model.tokens_per_minute == null" class="text-muted">—</span>
+                                    </td>
+                                    <td class="text-center small">
+                                        <span x-text="model.max_input_tokens != null ? model.max_input_tokens.toLocaleString() : '128,000'"></span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span x-show="model.archived_at" class="badge bg-secondary-subtle text-secondary rounded-pill">{% trans "Archived" %}</span>
+                                        <span x-show="!model.archived_at" class="text-muted small">—</span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary border-0" @click="openEditModal(model)" title="{% trans 'Edit' %}">
+                                                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg>
+                                            </button>
+                                            <button class="btn btn-outline-secondary border-0" @click="toggleModelArchive(model)" title="{% trans 'Archive' %}">
+                                                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-archive"/></svg>
+                                            </button>
+                                            <button class="btn btn-outline-danger border-0" @click="deleteModel(model)" title="{% trans 'Delete' %}">
+                                                <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit/Create Model Modal -->
+    <div class="modal fade" id="modelEditModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title fw-bold" x-text="editModal.title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">{% trans "Model Key" %}</label>
+                            <input type="text" class="form-control" x-model="editModal.fields.model_key" placeholder="e.g. gemini-2.0-flash">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">{% trans "Display Name" %}</label>
+                            <input type="text" class="form-control" x-model="editModal.fields.display_name" placeholder="e.g. Gemini 2.0 Flash">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Provider" %}</label>
+                            <input type="text" class="form-control" x-model="editModal.fields.provider">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Fallback Priority" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.fallback_priority" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Timeout (seconds)" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.request_timeout_seconds" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Limit Per Minute" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.limit_per_minute" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Limit Per Day" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.limit_per_day" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Limit Per Month" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.limit_per_month" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Tokens Per Minute" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.tokens_per_minute" min="0" placeholder="{% trans 'Leave empty for no limit' %}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Tokens Per Day" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.tokens_per_day" min="0" placeholder="{% trans 'Leave empty for no limit' %}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Max Input Tokens" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.max_input_tokens" min="0" placeholder="{% trans 'Default: 128000' %}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold">{% trans "Notes" %}</label>
+                            <textarea class="form-control" x-model="editModal.fields.notes" rows="2"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="modal-set-default" x-model="editModal.fields.is_default">
+                                <label class="form-check-label" for="modal-set-default">{% trans "Set as default model" %}</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div x-show="editModal.error" x-cloak class="alert alert-danger mt-3 mb-0 py-2 small">
+                        <span x-text="editModal.error"></span>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" @click="saveEditModal()" :disabled="editModal.saving">
+                        <span x-show="!editModal.saving">{% trans "Save" %}</span>
+                        <span x-show="editModal.saving" x-cloak><span class="spinner-border spinner-border-sm me-1"></span>{% trans "Saving..." %}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- TAB 3: REPORTING -->
+    <!-- ============================================================ -->
+    <div x-show="tab === 'reporting'" x-cloak>
+        <!-- Reporting Controls -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body py-3">
+                <div class="row g-3 align-items-center">
+                    <div class="col-auto">
+                        <label class="form-label small fw-semibold mb-0">{% trans "Period:" %}</label>
+                    </div>
+                    <div class="col-auto">
+                        <select class="form-select form-select-sm rounded-pill" x-model="reportDays" @change="loadReporting()">
+                            <option value="7">7 {% trans "days" %}</option>
+                            <option value="30" selected>30 {% trans "days" %}</option>
+                            <option value="90">90 {% trans "days" %}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="reportLoading" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="text-muted mt-2 mb-0">{% trans "Loading report data..." %}</p>
+        </div>
+
+        <!-- Summary Stats -->
+        <div x-show="!reportLoading && reportSummary" x-cloak>
+            <div class="row g-4 mb-4">
+                <div class="col-6 col-xl-3">
+                    <div class="card admin-stat-card h-100">
+                        <div class="card-body text-center py-3">
+                            <div class="text-primary fw-bold display-6" x-text="(reportSummary||{}).total_calls||0"></div>
+                            <div class="admin-stat-label">{% trans "Total API Calls" %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="card admin-stat-card h-100">
+                        <div class="card-body text-center py-3">
+                            <div class="text-success fw-bold display-6" x-text="(reportSummary||{}).success_count||0"></div>
+                            <div class="admin-stat-label">{% trans "Successful" %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="card admin-stat-card h-100">
+                        <div class="card-body text-center py-3">
+                            <div class="text-danger fw-bold display-6" x-text="(reportSummary||{}).failure_count||0"></div>
+                            <div class="admin-stat-label">{% trans "Failed" %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-xl-3">
+                    <div class="card admin-stat-card h-100">
+                        <div class="card-body text-center py-3">
+                            <div class="text-warning fw-bold display-6" x-text="(reportSummary||{}).avg_response_time_ms||0"></div>
+                            <div class="admin-stat-label">{% trans "Avg Response (ms)" %}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Volume Chart -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-bold">{% trans "Daily API Call Volume" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div x-show="reportDailyVolume && reportDailyVolume.length > 0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-thead border-0">{% trans "Date" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Total Calls" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Success" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Failures" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Avg Response (ms)" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(day, idx) in reportDailyVolume" :key="idx">
+                                        <tr>
+                                            <td class="fw-medium" x-text="day.date || day.period"></td>
+                                            <td class="text-end" x-text="day.total_calls || day.count || 0"></td>
+                                            <td class="text-end text-success" x-text="day.success_count || 0"></td>
+                                            <td class="text-end text-danger" x-text="day.failure_count || 0"></td>
+                                            <td class="text-end" x-text="day.avg_response_time_ms || day.avg_response_ms || '—'"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div x-show="!reportDailyVolume || reportDailyVolume.length === 0" class="text-center py-4 text-muted">
+                        <small>{% trans "No daily volume data available" %}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Calls by Model -->
+            <div class="row g-4 mb-4">
+                <div class="col-12 col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-header bg-white border-bottom py-3">
+                            <h5 class="mb-0 fw-bold">{% trans "Calls by Model" %}</h5>
+                        </div>
+                        <div class="card-body">
+                            <div x-show="reportByModel && reportByModel.length > 0">
+                                <template x-for="(item, idx) in reportByModel" :key="idx">
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
+                                        <span class="fw-medium small" x-text="item.model_key || item.model"></span>
+                                        <span class="badge bg-primary-subtle text-primary rounded-pill" x-text="item.total_calls || item.count || 0"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="!reportByModel || reportByModel.length === 0" class="text-center py-4 text-muted">
+                                <small>{% trans "No model data available" %}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-6">
+                    <div class="card border-0 shadow-sm rounded-4 h-100">
+                        <div class="card-header bg-white border-bottom py-3">
+                            <h5 class="mb-0 fw-bold">{% trans "Response Times by Model" %}</h5>
+                        </div>
+                        <div class="card-body">
+                            <div x-show="reportResponseTimes && reportResponseTimes.length > 0">
+                                <template x-for="(item, idx) in reportResponseTimes" :key="idx">
+                                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-light">
+                                        <span class="fw-medium small" x-text="item.model_key || item.model"></span>
+                                        <span class="badge bg-info-subtle text-info rounded-pill" x-text="`${Math.round(item.avg_response_time_ms || item.avg_ms || 0)} ms`"></span>
+                                    </div>
+                                </template>
+                            </div>
+                            <div x-show="!reportResponseTimes || reportResponseTimes.length === 0" class="text-center py-4 text-muted">
+                                <small>{% trans "No response time data available" %}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fallback Usage -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0 fw-bold">{% trans "Fallback Usage" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div x-show="reportFallback && reportFallback.length > 0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-thead border-0">{% trans "Primary Model" %}</th>
+                                        <th class="admin-table-thead border-0">{% trans "Fallback Model" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Times Triggered" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(item, idx) in reportFallback" :key="idx">
+                                        <tr>
+                                            <td class="fw-medium" x-text="item.primary_model || item.requested_model || '—'"></td>
+                                            <td x-text="item.fallback_model || item.resolved_model || '—'"></td>
+                                            <td class="text-end" x-text="item.count || item.times_triggered || 0"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div x-show="!reportFallback || reportFallback.length === 0" class="text-center py-4 text-muted">
+                        <small>{% trans "No fallback usage data available" %}</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Token Consumption -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-cpu"/></svg>
+                        {% trans "Token Consumption by Model" %}
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" @click="loadDailyTokenUsage()" :disabled="reportLoading">
+                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>
+                        {% trans "Refresh" %}
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div x-show="reportDailyTokenUsage && reportDailyTokenUsage.length > 0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-thead border-0">{% trans "Model" %}</th>
+                                        <th class="admin-table-thead border-0">{% trans "Date" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Tokens" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Requests" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(item, idx) in reportDailyTokenUsage" :key="idx">
+                                        <tr>
+                                            <td class="fw-medium"><code class="small" x-text="item.model_key"></code></td>
+                                            <td x-text="item.date"></td>
+                                            <td class="text-end fw-bold" x-text="item.tokens__sum ? Number(item.tokens__sum).toLocaleString() : 0"></td>
+                                            <td class="text-end" x-text="item.requests__sum || 0"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div x-show="!reportDailyTokenUsage || reportDailyTokenUsage.length === 0" class="text-center py-4 text-muted">
+                        <svg class="bi fs-1 d-block mb-2 opacity-25" aria-hidden="true" focusable="false"><use href="#bi-cpu"/></svg>
+                        <small>{% trans "No token consumption data available" %}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function geminiManagement() {
+    return {
+        // Tab state
+        tab: 'rate_limits',
+        loading: false,
+        error: null,
+
+        // Rate Limits
+        rateLimitModels: [],
+        rateLimits: {},
+        metadataAvailable: false,
+        metadataMessage: '',
+        seoAvailable: false,
+        seoMessage: '',
+        rateLimitLastUpdated: '',
+
+        // Models
+        models: [],
+        modelsLoading: false,
+
+        // Reporting
+        reportDays: 30,
+        reportLoading: false,
+        reportSummary: null,
+        reportDailyVolume: [],
+        reportByModel: [],
+        reportResponseTimes: [],
+        reportFallback: [],
+        reportDailyTokenUsage: [],
+
+        init() {
+            this.loadRateLimits();
+        },
+
+        // ─── Rate Limits ────────────────────────────────────────────────
+        async loadRateLimits() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const resp = await fetch('{% url "frontend_api:api_gemini_rate_limits" %}');
+                const data = await resp.json();
+                if (data.success) {
+                    this.rateLimits = data.rate_limits || {};
+                    this.rateLimitModels = data.models || [];
+                    this.metadataAvailable = data.metadata_available;
+                    this.metadataMessage = data.metadata_message;
+                    this.seoAvailable = data.seo_available;
+                    this.seoMessage = data.seo_message;
+                    const firstModelId = this.rateLimitModels.length > 0 ? this.rateLimitModels[0].id : null;
+                    const lastUpdated = firstModelId ? this.rateLimits[firstModelId]?.last_updated : null;
+                    this.rateLimitLastUpdated = lastUpdated ? new Date(lastUpdated).toLocaleString() : '';
+                } else {
+                    this.error = data.error || '{% trans "Failed to load rate limits" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error loading rate limits" %}';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async refreshRateLimits() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const resp = await fetch('{% url "frontend_api:api_gemini_rate_limits" %}?refresh=true');
+                const data = await resp.json();
+                if (data.success) {
+                    this.rateLimits = data.rate_limits || {};
+                    this.rateLimitModels = data.models || [];
+                    this.metadataAvailable = data.metadata_available;
+                    this.metadataMessage = data.metadata_message;
+                    this.seoAvailable = data.seo_available;
+                    this.seoMessage = data.seo_message;
+                    const firstModelId = this.rateLimitModels.length > 0 ? this.rateLimitModels[0].id : null;
+                    const lastUpdated = firstModelId ? this.rateLimits[firstModelId]?.last_updated : null;
+                    this.rateLimitLastUpdated = lastUpdated ? new Date(lastUpdated).toLocaleString() : '';
+                    showToast('{% trans "Rate limits refreshed" %}', 'success');
+                } else {
+                    this.error = data.error || '{% trans "Failed to refresh rate limits" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error refreshing rate limits" %}';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        getRateLimit(modelId) {
+            return this.rateLimits[modelId] || null;
+        },
+
+        getPercent(remaining, limit) {
+            if (!limit || limit <= 0) return 0;
+            return Math.round((remaining / limit) * 100);
+        },
+
+        statusBadge(status) {
+            if (status === 'available') {
+                return `<span class="badge bg-success-subtle text-success rounded-pill"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg> {% trans "Available" %}</span>`;
+            } else if (status === 'limited') {
+                return `<span class="badge bg-warning-subtle text-warning rounded-pill"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-exclamation-triangle"/></svg> {% trans "Limited" %}</span>`;
+            } else if (status === 'exhausted') {
+                return `<span class="badge bg-danger-subtle text-danger rounded-pill"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg> {% trans "Exhausted" %}</span>`;
+            }
+            return `<span class="badge bg-secondary-subtle text-secondary rounded-pill"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-question-circle"/></svg> {% trans "Unknown" %}</span>`;
+        },
+
+        availabilityBadge(available, message) {
+            if (available) {
+                return `<span class="badge bg-success-subtle text-success rounded-pill" title="${message || ''}"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-check-circle"/></svg> {% trans "Available" %}</span>`;
+            }
+            return `<span class="badge bg-danger-subtle text-danger rounded-pill" title="${message || ''}"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-circle"/></svg> {% trans "Unavailable" %}</span>`;
+        },
+
+        // ─── Model Settings ─────────────────────────────────────────────
+        get sortedModels() {
+            return [...this.models].sort((a, b) => a.fallback_priority - b.fallback_priority);
+        },
+
+            editModal: {
+                title: '',
+                saving: false,
+                error: null,
+                targetId: null,
+                fields: {
+                    model_key: '',
+                    display_name: '',
+                    provider: 'google',
+                    is_default: false,
+                    fallback_priority: 0,
+                    limit_per_minute: 5,
+                    limit_per_day: 20,
+                    limit_per_month: '',
+                    tokens_per_minute: '',
+                    tokens_per_day: '',
+                    max_input_tokens: '',
+                    request_timeout_seconds: '',
+                    notes: ''
+                }
+            },
+
+        async loadModels() {
+            this.modelsLoading = true;
+            this.error = null;
+            try {
+                const resp = await fetch('{% url "frontend_api:api_gemini_models" %}');
+                const data = await resp.json();
+                if (data.success) {
+                    this.models = data.models || [];
+                } else {
+                    this.error = data.error || '{% trans "Failed to load models" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error loading models" %}';
+            } finally {
+                this.modelsLoading = false;
+            }
+        },
+
+        openAddModal() {
+            this.editModal.title = '{% trans "Add Model" %}';
+            this.editModal.targetId = null;
+            this.editModal.error = null;
+            this.editModal.fields = {
+                model_key: '',
+                display_name: '',
+                provider: 'google',
+                is_default: false,
+                fallback_priority: this.models.length,
+                limit_per_minute: 5,
+                limit_per_day: 20,
+                limit_per_month: '',
+                tokens_per_minute: '',
+                tokens_per_day: '',
+                max_input_tokens: '',
+                request_timeout_seconds: '',
+                notes: ''
+            };
+            new bootstrap.Modal('#modelEditModal').show();
+        },
+
+        openEditModal(model) {
+            this.editModal.title = '{% trans "Edit Model" %}';
+            this.editModal.targetId = model.id;
+            this.editModal.error = null;
+            this.editModal.fields = {
+                model_key: model.model_key,
+                display_name: model.display_name,
+                provider: model.provider,
+                is_default: model.is_default,
+                fallback_priority: model.fallback_priority,
+                limit_per_minute: model.limit_per_minute,
+                limit_per_day: model.limit_per_day,
+                limit_per_month: model.limit_per_month || '',
+                tokens_per_minute: model.tokens_per_minute ?? '',
+                tokens_per_day: model.tokens_per_day ?? '',
+                max_input_tokens: model.max_input_tokens ?? '',
+                request_timeout_seconds: model.request_timeout_seconds || '',
+                notes: model.notes
+            };
+            new bootstrap.Modal('#modelEditModal').show();
+        },
+
+        async saveEditModal() {
+            this.editModal.saving = true;
+            this.editModal.error = null;
+            try {
+                const f = this.editModal.fields;
+                const payload = {
+                    action: 'save',
+                    model_key: f.model_key,
+                    display_name: f.display_name,
+                    provider: f.provider,
+                    is_default: f.is_default,
+                    fallback_priority: parseInt(f.fallback_priority) || 0,
+                    limit_per_minute: parseInt(f.limit_per_minute) || 5,
+                    limit_per_day: parseInt(f.limit_per_day) || 20,
+                    limit_per_month: f.limit_per_month ? parseInt(f.limit_per_month) : null,
+                    tokens_per_minute: f.tokens_per_minute ? parseInt(f.tokens_per_minute) : null,
+                    tokens_per_day: f.tokens_per_day ? parseInt(f.tokens_per_day) : null,
+                    max_input_tokens: f.max_input_tokens ? parseInt(f.max_input_tokens) : null,
+                    request_timeout_seconds: f.request_timeout_seconds ? parseInt(f.request_timeout_seconds) : null,
+                    notes: f.notes
+                };
+                if (this.editModal.targetId) {
+                    payload.id = this.editModal.targetId;
+                }
+                const resp = await fetch('{% url "frontend_api:api_gemini_models" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    bootstrap.Modal.getInstance('#modelEditModal').hide();
+                    showToast('{% trans "Model saved successfully" %}', 'success');
+                    await this.loadModels();
+                } else {
+                    this.editModal.error = data.error || '{% trans "Failed to save model" %}';
+                }
+            } catch (e) {
+                this.editModal.error = '{% trans "Network error saving model" %}';
+            } finally {
+                this.editModal.saving = false;
+            }
+        },
+
+        async toggleModelEnable(model) {
+            try {
+                const resp = await fetch('{% url "frontend_api:api_gemini_models" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ action: 'toggle_enable', id: model.id })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    model.is_enabled = data.is_enabled;
+                    showToast(data.is_enabled ? '{% trans "Model enabled" %}' : '{% trans "Model disabled" %}', 'success');
+                } else {
+                    this.error = data.error || '{% trans "Failed to toggle model" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error" %}';
+            }
+        },
+
+        async setModelDefault(model) {
+            try {
+                const resp = await fetch('{% url "frontend_api:api_gemini_models" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ action: 'set_default', id: model.id })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    this.models.forEach(m => { m.is_default = m.id === model.id; });
+                    showToast('{% trans "Default model updated" %}', 'success');
+                } else {
+                    this.error = data.error || '{% trans "Failed to set default model" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error" %}';
+            }
+        },
+
+        async toggleModelArchive(model) {
+            try {
+                const resp = await fetch('{% url "frontend_api:api_gemini_models" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ action: 'toggle_archive', id: model.id })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    model.archived_at = data.archived_at;
+                    showToast(model.archived_at ? '{% trans "Model archived" %}' : '{% trans "Model unarchived" %}', 'success');
+                } else {
+                    this.error = data.error || '{% trans "Failed to toggle archive" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error" %}';
+            }
+        },
+
+        async deleteModel(model) {
+            showConfirmation({
+                title: '{% trans "Delete Model" %}',
+                message: '{% trans "Are you sure you want to permanently delete this model setting?" %}',
+                details: `<strong>${model.display_name}</strong> (${model.model_key})`,
+                confirmText: '{% trans "Delete" %}',
+                confirmClass: 'btn-danger',
+                onConfirm: async () => {
+                    try {
+                        const resp = await fetch('{% url "frontend_api:api_gemini_models" %}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ action: 'delete', id: model.id })
+                        });
+                        const data = await resp.json();
+                        if (data.success) {
+                            this.models = this.models.filter(m => m.id !== model.id);
+                            showToast('{% trans "Model deleted" %}', 'success');
+                        } else {
+                            this.error = data.error || '{% trans "Failed to delete model" %}';
+                        }
+                    } catch (e) {
+                        this.error = '{% trans "Network error" %}';
+                    }
+                }
+            });
+        },
+
+        // ─── Reporting ──────────────────────────────────────────────────
+        async loadReporting() {
+            this.reportLoading = true;
+            this.error = null;
+            try {
+                const days = this.reportDays;
+                const [summaryResp, byModelResp, dailyResp, fallbackResp, responseTimesResp, tokenResp] = await Promise.all([
+                    fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=summary&days=${days}`),
+                    fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=total_by_model&days=${days}`),
+                    fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=daily_volume&days=${days}`),
+                    fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=fallback&days=${days}`),
+                    fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=response_times&days=${days}`),
+                    fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=daily_token_usage&days=${days}`),
+                ]);
+
+                const summaryData = await summaryResp.json();
+                const byModelData = await byModelResp.json();
+                const dailyData = await dailyResp.json();
+                const fallbackData = await fallbackResp.json();
+                const responseTimesData = await responseTimesResp.json();
+                const tokenData = await tokenResp.json();
+
+                if (summaryData.success) {
+                    this.reportSummary = summaryData.data;
+                }
+                if (byModelData.success) {
+                    this.reportByModel = byModelData.data;
+                }
+                if (dailyData.success) {
+                    this.reportDailyVolume = dailyData.data;
+                }
+                if (fallbackData.success) {
+                    this.reportFallback = fallbackData.data;
+                }
+                if (responseTimesData.success) {
+                    this.reportResponseTimes = responseTimesData.data;
+                }
+                if (tokenData.success) {
+                    this.reportDailyTokenUsage = tokenData.data || [];
+                }
+
+                // Fallback: if summary has embedded data, extract it
+                if (this.reportSummary && !this.reportDailyVolume && this.reportSummary.daily_volume) {
+                    this.reportDailyVolume = this.reportSummary.daily_volume;
+                }
+                if (this.reportSummary && !this.reportByModel && this.reportSummary.by_model) {
+                    this.reportByModel = this.reportSummary.by_model;
+                }
+                if (this.reportSummary && !this.reportResponseTimes && this.reportSummary.response_times) {
+                    this.reportResponseTimes = this.reportSummary.response_times;
+                }
+
+            } catch (e) {
+                this.error = '{% trans "Network error loading report" %}';
+            } finally {
+                this.reportLoading = false;
+            }
+        },
+
+        async loadDailyTokenUsage() {
+            this.reportLoading = true;
+            this.error = null;
+            try {
+                const days = this.reportDays;
+                const resp = await fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=daily_token_usage&days=${days}`);
+                const data = await resp.json();
+                if (data.success) {
+                    this.reportDailyTokenUsage = data.data || [];
+                } else {
+                    this.error = data.error || '{% trans "Failed to load token usage" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error loading token usage" %}';
+            } finally {
+                this.reportLoading = false;
+            }
+        },
+    };
+}
+</script>
+{% endblock %}

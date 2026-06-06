@@ -1,15 +1,25 @@
-from celery import shared_task
-from django.conf import settings
-from django.apps import apps
-import os
-import shutil
-from pathlib import Path
 import logging
+import os
+import random
+import shutil
 import tempfile
-from apps.health.task_monitor import TaskMonitor
-from apps.media_manager.services.job_tracker import job_advance, job_complete, job_fail, job_start
-from apps.media_manager.tasks import generate_seo_metadata_task
+from datetime import timedelta
+from pathlib import Path
 
+from celery import shared_task
+from django.apps import apps
+from django.conf import settings
+from django.core.cache import cache
+from django.core.files import File
+from django.utils import timezone
+
+from apps.health.task_monitor import TaskMonitor
+from apps.media_manager.models import AudioMeta, PdfMeta, VideoMeta
+from apps.media_manager.services.job_tracker import job_advance, job_complete, job_fail, job_start
+from .media_finalization import generate_seo_metadata_task, finalize_media_processing
+
+from core.storage_backends import R2Service
+from core.storage_backends import R2Service as DjangoR2Service
 from core.utils.media_processing import (
     VideoProcessor, AudioProcessor, PDFProcessor,
     generate_unique_filename, DependencyError
@@ -19,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_local_source_path(file_field, prefix):
-    """Return a local filesystem path for a storage-backed file field."""
     try:
         return file_field.path, None
     except Exception:
@@ -30,32 +39,6 @@ def _resolve_local_source_path(file_field, prefix):
         with file_field.open('rb') as source, open(temp_file.name, 'wb') as target:
             shutil.copyfileobj(source, target)
         return temp_file.name, temp_file.name
-
-@shared_task
-def delete_files_task(paths):
-    """
-    Delete files or folders from the filesystem asynchronously.
-    Accepts a list of absolute file/folder paths.
-    """
-    import shutil
-    deleted = []
-    logger.info(f"[delete_files_task] Starting deletion for {len(paths)} paths: {paths}")
-    for path in paths:
-        try:
-            if os.path.isdir(path):
-                shutil.rmtree(path)
-                logger.info(f"[delete_files_task] Deleted directory: {path}")
-                deleted.append(path)
-            elif os.path.isfile(path):
-                os.remove(path)
-                logger.info(f"[delete_files_task] Deleted file: {path}")
-                deleted.append(path)
-            else:
-                logger.info(f"[delete_files_task] Path does not exist: {path}")
-        except Exception as e:
-            logger.warning(f"[delete_files_task] Failed to delete {path}: {e}")
-    logger.info(f"[delete_files_task] Deletion complete. Deleted: {deleted}")
-    return {'deleted': deleted, 'requested': paths}
 
 
 @shared_task(bind=True, max_retries=3)
@@ -148,7 +131,6 @@ def process_video_to_hls(self, video_meta_id):
                 processor.generate_thumbnail(input_path, temp_thumb_path)
                 
                 if os.path.exists(temp_thumb_path):
-                    from django.core.files import File
                     with open(temp_thumb_path, 'rb') as f:
                         video_meta.content_item.thumbnail.save(thumb_filename, File(f), save=True)
                     
@@ -161,7 +143,6 @@ def process_video_to_hls(self, video_meta_id):
         # --- NEW: Upload thumbnail to R2 if available but not uploaded ---
         if video_meta.content_item.thumbnail and not video_meta.content_item.r2_thumbnail_url:
             try:
-                from core.storage_backends import R2Service
                 r2 = R2Service()
                 r2.upload_thumbnail(video_meta.content_item)
             except Exception as e:
@@ -178,6 +159,7 @@ def process_video_to_hls(self, video_meta_id):
         TaskMonitor.update_progress(self.request.id, 92, "Video processed. Starting AI enrichment and cloud delivery...", "Finalizing")
         
         upload_video_to_r2.delay(str(video_meta.id))
+        generate_seo_metadata_task.delay(str(video_meta.content_item.id))
         logger.info(f"Triggered R2 upload for video: {video_meta.id}")
         
         
@@ -335,6 +317,7 @@ def process_audio_compression(self, audio_meta_id):
         TaskMonitor.update_progress(self.request.id, 92, "Audio processed. Starting AI enrichment and cloud delivery...", "Finalizing")
     
         upload_audio_to_r2.delay(str(audio_meta.id))
+        generate_seo_metadata_task.delay(str(audio_meta.content_item.id))
         logger.info(f"Triggered R2 upload for audio: {audio_meta.id}")
             
         return {
@@ -402,14 +385,10 @@ def _generate_pdf_thumbnail(processor, input_path, pdf_meta_id, content_item):
         processor.generate_thumbnail(input_path, temp_thumb_path)
 
         if os.path.exists(temp_thumb_path) and os.path.getsize(temp_thumb_path) > 0:
-            from django.core.files import File
-
             with open(temp_thumb_path, 'rb') as f:
                 content_item.thumbnail.save(thumb_filename, File(f), save=True)
 
             try:
-                from core.storage_backends import R2Service as DjangoR2Service
-
                 r2_service = DjangoR2Service()
                 r2_service.upload_thumbnail(content_item)
             except Exception as r2_err:
@@ -578,10 +557,6 @@ def cleanup_failed_uploads():
     the current active task has been running, not how long ago the item was
     created.
     """
-    from django.utils import timezone
-    from datetime import timedelta
-    from apps.media_manager.tasks import finalize_media_processing
-
     VideoMeta = apps.get_model('media_manager', 'VideoMeta')
     AudioMeta = apps.get_model('media_manager', 'AudioMeta')
     PdfMeta = apps.get_model('media_manager', 'PdfMeta')
@@ -739,9 +714,6 @@ def upload_video_to_r2(self, video_meta_id):
         video_meta_id: UUID of VideoMeta instance
     """
     try:
-        from core.storage_backends import R2Service
-        from apps.media_manager.models import VideoMeta
-        
         video_meta = VideoMeta.objects.get(id=video_meta_id)
         logger.info(f"Starting R2 upload for video: {video_meta_id}")
         job_start(video_meta.content_item.id, 'r2_upload', self.request.id)
@@ -781,7 +753,6 @@ def upload_video_to_r2(self, video_meta_id):
                     content_item.is_active = True
                     content_item.save(update_fields=['is_active'])
                     logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-                generate_seo_metadata_task.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'failed'
                 video_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
@@ -799,7 +770,6 @@ def upload_video_to_r2(self, video_meta_id):
                     content_item.is_active = True
                     content_item.save(update_fields=['is_active'])
                     logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-                generate_seo_metadata_task.delay(str(content_item.id))
             else:
                 video_meta.r2_upload_status = 'local_only'
                 video_meta.r2_upload_progress = 100  # Mark as complete for local-only storage
@@ -808,6 +778,9 @@ def upload_video_to_r2(self, video_meta_id):
             raise Exception("Original video upload to R2 failed")
         
         video_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+        
+        if video_meta.r2_upload_status == 'completed':
+            finalize_media_processing.delay(str(video_meta.content_item.id))
         
     except VideoMeta.DoesNotExist:
         logger.error(f"VideoMeta {video_meta_id} not found")
@@ -852,9 +825,6 @@ def upload_audio_to_r2(self, audio_meta_id):
         audio_meta_id: UUID of AudioMeta instance
     """
     try:
-        from core.storage_backends import R2Service
-        from apps.media_manager.models import AudioMeta
-        
         audio_meta = AudioMeta.objects.get(id=audio_meta_id)
         logger.info(f"Starting R2 upload for audio: {audio_meta_id}")
         job_start(audio_meta.content_item.id, 'r2_upload', self.request.id)
@@ -886,13 +856,15 @@ def upload_audio_to_r2(self, audio_meta_id):
                 content_item.is_active = True
                 content_item.save(update_fields=['is_active'])
                 logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-            generate_seo_metadata_task.delay(str(content_item.id))
         else:
             audio_meta.r2_upload_status = 'failed'
             audio_meta.r2_upload_progress = 100  # Ensure progress reaches 100% even on failure
             logger.error(f"Failed to upload audio {audio_meta_id} to R2")
         
         audio_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+        
+        if audio_meta.r2_upload_status == 'completed':
+            finalize_media_processing.delay(str(audio_meta.content_item.id))
         
     except AudioMeta.DoesNotExist:
         logger.error(f"AudioMeta {audio_meta_id} not found")
@@ -937,18 +909,11 @@ def upload_pdf_to_r2(self, pdf_meta_id):
     Args:
         pdf_meta_id: UUID of PdfMeta instance
     """
-    from django.core.cache import cache
-    import random
-    
-    # Implement concurrency control for bulk processing
     concurrent_uploads_key = 'r2_pdf_uploads_active'
     max_concurrent_uploads = getattr(settings, 'R2_MAX_CONCURRENT_PDF_UPLOADS', 3)
     slot_acquired = False
     
     try:
-        from core.storage_backends import R2Service
-        from apps.media_manager.models import PdfMeta
-        
         pdf_meta = PdfMeta.objects.get(id=pdf_meta_id)
         logger.info(f"Starting R2 upload for PDF: {pdf_meta_id} (attempt {self.request.retries + 1})")
         logger.info(f"PDF processing status: {pdf_meta.processing_status}, R2 status: {pdf_meta.r2_upload_status}")
@@ -1003,16 +968,19 @@ def upload_pdf_to_r2(self, pdf_meta_id):
             if success:
                 pdf_meta.r2_upload_status = 'completed'
                 pdf_meta.r2_upload_progress = 100
-                logger.info(f"✅ Successfully uploaded PDF {pdf_meta_id} to R2")
-                
-                # Issue 3: Automatic Activation After R2 Upload
+                logger.info(f"Successfully uploaded PDF {pdf_meta_id} to R2")
+
                 content_item = pdf_meta.content_item
                 if not content_item.is_active:
                     content_item.is_active = True
                     content_item.save(update_fields=['is_active'])
                     logger.info(f"Automatically activated ContentItem {content_item.id} after successful R2 upload")
-                generate_seo_metadata_task.delay(str(content_item.id))
-                
+
+                pdf_meta.save(update_fields=['r2_upload_status', 'r2_upload_progress'])
+
+                if pdf_meta.r2_upload_status == 'completed':
+                    finalize_media_processing.delay(str(pdf_meta.content_item.id))
+
                 return {'status': 'success', 'message': f'PDF {pdf_meta_id} uploaded to R2 successfully'}
             else:
                 pdf_meta.r2_upload_status = 'failed'

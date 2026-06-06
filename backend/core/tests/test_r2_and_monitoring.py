@@ -12,6 +12,8 @@ from django.conf import settings
 
 from core.services.r2_storage_service import R2StorageService, get_r2_storage_service
 from apps.health.task_monitor import TaskMonitor
+from core.tasks.media_finalization import generate_seo_metadata_task
+from core.tasks.media_processing import upload_video_to_r2, upload_audio_to_r2, upload_pdf_to_r2
 
 
 class R2StorageServiceTestCase(TestCase):
@@ -230,14 +232,6 @@ class TaskProgressIntegrationTestCase(TestCase):
     """Integration tests for task progress accuracy"""
 
     def test_progress_reaches_100_on_all_paths(self):
-        """Test that all task completion paths reach 100% progress"""
-        from apps.media_manager.tasks import generate_seo_metadata_task
-        from core.tasks.media_processing import (
-            upload_video_to_r2,
-            upload_audio_to_r2,
-            upload_pdf_to_r2
-        )
-
         self.assertTrue(callable(generate_seo_metadata_task))
         self.assertTrue(callable(upload_video_to_r2))
         self.assertTrue(callable(upload_audio_to_r2))

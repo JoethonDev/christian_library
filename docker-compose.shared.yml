@@ -65,7 +65,7 @@ services:
   celery_worker_primary:
     image: christian-library-app:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    command: ["worker", "-Q", "videos,audios,pdfs,default", "-c", "1", "-n", "primary@%h"]
+    command: ["worker", "-Q", "media_processing", "-c", "1", "-n", "primary@%h"]
     env_file: .env
     depends_on:
       db:
@@ -87,7 +87,7 @@ services:
   celery_worker_secondary:
     image: christian-library-app:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    command: ["worker", "-Q", "videos,audios,pdfs,default", "-c", "1", "-n", "secondary@%h"]
+    command: ["worker", "-Q", "media_processing", "-c", "1", "-n", "secondary@%h"]
     env_file: .env
     depends_on:
       db:
@@ -109,7 +109,7 @@ services:
   celery_worker_uploads:
     image: christian-library-app:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    command: ["worker", "-Q", "uploads", "-c", "4", "-n", "uploads@%h"]
+    command: ["worker", "-Q", "uploads", "-c", "5", "-n", "uploads@%h"]
     env_file: .env
     depends_on:
       db:

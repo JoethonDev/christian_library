@@ -105,9 +105,9 @@ CELERY_TASK_ANNOTATIONS = {
     'apps.media_manager.tasks.cleanup_expired_queue_items': {'ignore_result': True},
     'apps.media_manager.tasks.process_pending_queue_items': {'ignore_result': True},
     'apps.media_manager.tasks.aggregate_daily_content_views': {'ignore_result': True},
-    'apps.media_manager.tasks.finalize_media_processing': {'ignore_result': True},
+    'core.tasks.media_finalization.finalize_media_processing': {'ignore_result': True},
     'core.tasks.media_processing.cleanup_failed_uploads': {'ignore_result': True},
-    'core.tasks.media_processing.delete_files_task': {'ignore_result': True},
+    'core.tasks.media_finalization.delete_files_task': {'ignore_result': True},
 }
 
 # Static and media files

@@ -5,7 +5,7 @@ import os
 from django.core.management.base import BaseCommand
 from django.db import models
 from apps.media_manager.models import ContentItem
-from apps.media_manager.tasks import bulk_generate_seo_metadata
+from core.tasks.media_finalization import bulk_generate_seo_metadata
 import logging
 from core.services.gemini_manager import get_gemini_manager
 

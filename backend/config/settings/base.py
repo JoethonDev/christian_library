@@ -135,7 +135,7 @@ LANGUAGES = [
 
 # Gemini AI Configuration
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3-flash-preview')
+GEMINI_MODEL_SELECTION_STRATEGY = 'core.services.gemini_scored_strategy.ScoredModelSelectionStrategy'
 
 LOCALE_PATHS = [
     BASE_DIR / 'locale',
@@ -272,66 +272,64 @@ CELERY_TASK_ANNOTATIONS = {
     'apps.media_manager.tasks.cleanup_expired_queue_items': {'ignore_result': True},
     'apps.media_manager.tasks.process_pending_queue_items': {'ignore_result': True},
     'apps.media_manager.tasks.aggregate_daily_content_views': {'ignore_result': True},
-    'apps.media_manager.tasks.finalize_media_processing': {'ignore_result': True},
+    'core.tasks.media_finalization.finalize_media_processing': {'ignore_result': True},
     'core.tasks.media_processing.cleanup_failed_uploads': {'ignore_result': True},
-    'core.tasks.media_processing.delete_files_task': {'ignore_result': True},
+    'core.tasks.media_finalization.delete_files_task': {'ignore_result': True},
 }
 
 # Celery Task Routing Configuration
-# Reorganized to prevent worker blocking and improve parallel processing
+# === WORKER CONTRACTS (do not violate) ===
+# celery_worker_primary-1 / celery_worker_secondary-1 → ONLY media_processing queue
+#   Start: celery -A config worker -Q media_processing --concurrency=1
+# celery_worker_uploads-1 → ONLY uploads queue  (max 5 concurrent uploads)
+#   Start: celery -A config worker -Q uploads --concurrency=5
+# celery_worker_gemini-1 → ONLY gemini queue  (max 2 concurrent AI calls)
+#   Start: celery -A config worker -Q gemini --concurrency=2
 CELERY_TASK_ROUTES = {
     # ========================================================================
     # GEMINI AI WORKER (queue: 'gemini')
-    # Handles all AI-powered SEO generation tasks with rate limiting
+    # Handles all AI-powered tasks: SEO generation, consumption sync, scheduler
     # ========================================================================
-    'apps.media_manager.tasks.generate_seo_metadata_task': {'queue': 'gemini'},
-    'apps.media_manager.tasks.bulk_generate_seo_metadata': {'queue': 'gemini'},
-    
+    'core.tasks.media_finalization.generate_seo_metadata_task': {'queue': 'gemini'},
+    'core.tasks.media_finalization.bulk_generate_seo_metadata': {'queue': 'gemini'},
+    'core.tasks.gemini_consumption.sync_gemini_consumption': {'queue': 'gemini'},
+    'core.tasks.gemini_scheduler_worker.gemini_scheduler_tick': {'queue': 'gemini'},
+    'core.tasks.gemini_scheduler_worker.gemini_lease_stats_report': {'queue': 'gemini'},
+
     # ========================================================================
     # UPLOADS WORKER (queue: 'uploads')
-    # Dedicated to R2 cloud uploads for all media types
+    # R2 cloud uploads ONLY — no media processing, no AI generation
     # ========================================================================
     'core.tasks.media_processing.upload_video_to_r2': {'queue': 'uploads'},
     'core.tasks.media_processing.upload_audio_to_r2': {'queue': 'uploads'},
     'core.tasks.media_processing.upload_pdf_to_r2': {'queue': 'uploads'},
     'apps.media_manager.tasks.process_upload_queue_item': {'queue': 'uploads'},
-    
+
     # ========================================================================
-    # VIDEOS WORKER (queue: 'videos')
-    # Video-specific processing: HLS encoding, transcoding
+    # MEDIA PROCESSING WORKER (queue: 'media_processing')
+    # Handled by celery_worker_primary-1 / celery_worker_secondary-1
+    # Media processing + finalization ONLY — no R2 uploads, no Gemini calls
     # ========================================================================
-    'core.tasks.media_processing.process_video_to_hls': {'queue': 'videos'},
-    
+    'core.tasks.media_processing.process_video_to_hls': {'queue': 'media_processing'},
+    'core.tasks.media_processing.process_audio_compression': {'queue': 'media_processing'},
+    'core.tasks.media_processing.process_pdf': {'queue': 'media_processing'},
+    'apps.media_manager.tasks.extract_and_index_contentitem': {'queue': 'media_processing'},
+    'apps.media_manager.tasks.extract_document_text': {'queue': 'media_processing'},
+    'core.tasks.media_finalization.finalize_media_processing': {'queue': 'media_processing'},
+    'core.tasks.media_processing.cleanup_failed_uploads': {'queue': 'media_processing'},
+    'core.tasks.media_finalization.delete_files_task': {'queue': 'media_processing'},
+    'apps.media_manager.tasks.aggregate_daily_content_views': {'queue': 'media_processing'},
+
     # ========================================================================
-    # AUDIOS WORKER (queue: 'audios')  
-    # Audio-specific processing: compression, format conversion
-    # ========================================================================
-    'core.tasks.media_processing.process_audio_compression': {'queue': 'audios'},
-    
-    # ========================================================================
-    # PDFS WORKER (queue: 'pdfs')
-    # PDF-specific processing: optimization, text extraction, indexing
-    # ========================================================================
-    'core.tasks.media_processing.process_pdf': {'queue': 'pdfs'},
-    'apps.media_manager.tasks.extract_and_index_contentitem': {'queue': 'pdfs'},
-    'apps.media_manager.tasks.extract_document_text': {'queue': 'pdfs'},
-    
-    # ========================================================================
-    # DEFAULT WORKER (queue: 'default')
-    # Maintenance, cleanup, and general background tasks
+    # DEFAULT QUEUE
+    # Everything else: maintenance, cleanup, fallback
     # ========================================================================
     'apps.media_manager.tasks.cleanup_expired_queue_items': {'queue': 'default'},
     'apps.media_manager.tasks.process_pending_queue_items': {'queue': 'default'},
-    'core.tasks.media_processing.cleanup_failed_uploads': {'queue': 'default'},
-    'core.tasks.media_processing.delete_files_task': {'queue': 'default'},
-    'apps.media_manager.tasks.aggregate_daily_content_views': {'queue': 'default'},
-    'apps.media_manager.tasks.finalize_media_processing': {'queue': 'default'},
-    
-    # Other tasks use default queue
 }
 
 # Define queue configurations
-# Separate queues prevent blocking between different task types
+# Workers MUST be started with --queues=<queue_name> to honor the contract
 CELERY_TASK_DEFAULT_QUEUE = 'default'
 CELERY_TASK_QUEUES = {
     'default': {
@@ -346,17 +344,9 @@ CELERY_TASK_QUEUES = {
         'exchange': 'uploads',
         'routing_key': 'uploads',
     },
-    'videos': {
-        'exchange': 'videos',
-        'routing_key': 'videos',
-    },
-    'audios': {
-        'exchange': 'audios',
-        'routing_key': 'audios',
-    },
-    'pdfs': {
-        'exchange': 'pdfs',
-        'routing_key': 'pdfs',
+    'media_processing': {
+        'exchange': 'media_processing',
+        'routing_key': 'media_processing',
     },
 }
 
@@ -385,6 +375,21 @@ CELERY_BEAT_SCHEDULE = {
     'cleanup-expired-queue-items': {
         'task': 'apps.media_manager.tasks.cleanup_expired_queue_items',
         'schedule': crontab(hour=4, minute=0),  # Run daily at 4:00 AM
+    },
+    'sync-gemini-consumption': {
+        'task': 'core.tasks.gemini_consumption.sync_gemini_consumption',
+        'schedule': 60.0,
+        'options': {'queue': 'gemini'},
+    },
+    'gemini-scheduler-tick': {
+        'task': 'core.tasks.gemini_scheduler_worker.gemini_scheduler_tick',
+        'schedule': 5.0,
+        'options': {'queue': 'gemini'},
+    },
+    'gemini-lease-stats-report': {
+        'task': 'core.tasks.gemini_scheduler_worker.gemini_lease_stats_report',
+        'schedule': 300.0,
+        'options': {'queue': 'gemini'},
     },
 }
 
