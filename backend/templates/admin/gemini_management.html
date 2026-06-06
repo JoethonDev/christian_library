@@ -87,6 +87,28 @@
                                         <div class="progress-bar" role="progressbar" :class="`bg-${model.color}`" :style="`width: ${getPercent(getRateLimit(model.id)?.remaining_requests_day, getRateLimit(model.id)?.limit_per_day)}%`"></div>
                                     </div>
                                 </div>
+                                <template x-if="getRateLimit(model.id)?.tokens_per_minute != null">
+                                    <div class="mt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small class="text-muted fw-medium">{% trans "Tokens/min:" %}</small>
+                                            <small class="fw-bold" x-text="`${getRateLimit(model.id)?.remaining_tokens_minute || 0} / ${getRateLimit(model.id)?.tokens_per_minute || 0}`"></small>
+                                        </div>
+                                        <div class="progress admin-progress-xs">
+                                            <div class="progress-bar bg-success" role="progressbar" :style="`width: ${getPercent(getRateLimit(model.id)?.remaining_tokens_minute, getRateLimit(model.id)?.tokens_per_minute)}%`"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="getRateLimit(model.id)?.tokens_per_day != null">
+                                    <div class="mt-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <small class="text-muted fw-medium">{% trans "Tokens/day:" %}</small>
+                                            <small class="fw-bold" x-text="`${getRateLimit(model.id)?.remaining_tokens_day || 0} / ${getRateLimit(model.id)?.tokens_per_day || 0}`"></small>
+                                        </div>
+                                        <div class="progress admin-progress-xs">
+                                            <div class="progress-bar bg-success" role="progressbar" :style="`width: ${getPercent(getRateLimit(model.id)?.remaining_tokens_day, getRateLimit(model.id)?.tokens_per_day)}%`"></div>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </template>
                         <div x-show="rateLimitModels.length === 0 && !loading" class="text-center py-4 text-muted">
@@ -183,7 +205,9 @@
                                 <th class="admin-table-thead border-0 text-center">{% trans "Enabled" %}</th>
                                 <th class="admin-table-thead border-0 text-center">{% trans "Default" %}</th>
                                 <th class="admin-table-thead border-0 text-center">{% trans "Priority" %}</th>
-                                <th class="admin-table-thead border-0 text-center">{% trans "Limits (min/day)" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Req (min/day)" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Tokens (min/day)" %}</th>
+                                <th class="admin-table-thead border-0 text-center">{% trans "Max Input" %}</th>
                                 <th class="admin-table-thead border-0 text-center">{% trans "Archived" %}</th>
                                 <th class="admin-table-thead text-end pe-4 border-0">{% trans "Actions" %}</th>
                             </tr>
@@ -209,6 +233,13 @@
                                     </td>
                                     <td class="text-center"><span class="badge bg-info-subtle text-info rounded-pill" x-text="model.fallback_priority"></span></td>
                                     <td class="text-center small" x-text="`${model.limit_per_minute} / ${model.limit_per_day}`"></td>
+                                    <td class="text-center small">
+                                        <span x-show="model.tokens_per_minute != null" x-text="`${model.tokens_per_minute} / ${model.tokens_per_day || '∞'}`"></span>
+                                        <span x-show="model.tokens_per_minute == null" class="text-muted">—</span>
+                                    </td>
+                                    <td class="text-center small">
+                                        <span x-text="model.max_input_tokens != null ? model.max_input_tokens.toLocaleString() : '128,000'"></span>
+                                    </td>
                                     <td class="text-center">
                                         <span x-show="model.archived_at" class="badge bg-secondary-subtle text-secondary rounded-pill">{% trans "Archived" %}</span>
                                         <span x-show="!model.archived_at" class="text-muted small">—</span>
@@ -276,6 +307,18 @@
                         <div class="col-md-4">
                             <label class="form-label small fw-semibold">{% trans "Limit Per Month" %}</label>
                             <input type="number" class="form-control" x-model="editModal.fields.limit_per_month" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Tokens Per Minute" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.tokens_per_minute" min="0" placeholder="{% trans 'Leave empty for no limit' %}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Tokens Per Day" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.tokens_per_day" min="0" placeholder="{% trans 'Leave empty for no limit' %}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-semibold">{% trans "Max Input Tokens" %}</label>
+                            <input type="number" class="form-control" x-model="editModal.fields.max_input_tokens" min="0" placeholder="{% trans 'Default: 128000' %}">
                         </div>
                         <div class="col-12">
                             <label class="form-label small fw-semibold">{% trans "Notes" %}</label>
@@ -482,6 +525,50 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Token Consumption -->
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-cpu"/></svg>
+                        {% trans "Token Consumption by Model" %}
+                    </h5>
+                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" @click="loadDailyTokenUsage()" :disabled="reportLoading">
+                        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-clockwise"/></svg>
+                        {% trans "Refresh" %}
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div x-show="reportDailyTokenUsage && reportDailyTokenUsage.length > 0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-table-thead border-0">{% trans "Model" %}</th>
+                                        <th class="admin-table-thead border-0">{% trans "Date" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Tokens" %}</th>
+                                        <th class="admin-table-thead border-0 text-end">{% trans "Requests" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(item, idx) in reportDailyTokenUsage" :key="idx">
+                                        <tr>
+                                            <td class="fw-medium"><code class="small" x-text="item.model_key"></code></td>
+                                            <td x-text="item.date"></td>
+                                            <td class="text-end fw-bold" x-text="item.tokens__sum ? Number(item.tokens__sum).toLocaleString() : 0"></td>
+                                            <td class="text-end" x-text="item.requests__sum || 0"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div x-show="!reportDailyTokenUsage || reportDailyTokenUsage.length === 0" class="text-center py-4 text-muted">
+                        <svg class="bi fs-1 d-block mb-2 opacity-25" aria-hidden="true" focusable="false"><use href="#bi-cpu"/></svg>
+                        <small>{% trans "No token consumption data available" %}</small>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -517,6 +604,7 @@ function geminiManagement() {
         reportByModel: [],
         reportResponseTimes: [],
         reportFallback: [],
+        reportDailyTokenUsage: [],
 
         init() {
             this.loadRateLimits();
@@ -608,24 +696,27 @@ function geminiManagement() {
             return [...this.models].sort((a, b) => a.fallback_priority - b.fallback_priority);
         },
 
-        editModal: {
-            title: '',
-            saving: false,
-            error: null,
-            targetId: null,
-            fields: {
-                model_key: '',
-                display_name: '',
-                provider: 'google',
-                is_default: false,
-                fallback_priority: 0,
-                limit_per_minute: 5,
-                limit_per_day: 20,
-                limit_per_month: '',
-                request_timeout_seconds: '',
-                notes: ''
-            }
-        },
+            editModal: {
+                title: '',
+                saving: false,
+                error: null,
+                targetId: null,
+                fields: {
+                    model_key: '',
+                    display_name: '',
+                    provider: 'google',
+                    is_default: false,
+                    fallback_priority: 0,
+                    limit_per_minute: 5,
+                    limit_per_day: 20,
+                    limit_per_month: '',
+                    tokens_per_minute: '',
+                    tokens_per_day: '',
+                    max_input_tokens: '',
+                    request_timeout_seconds: '',
+                    notes: ''
+                }
+            },
 
         async loadModels() {
             this.modelsLoading = true;
@@ -658,6 +749,9 @@ function geminiManagement() {
                 limit_per_minute: 5,
                 limit_per_day: 20,
                 limit_per_month: '',
+                tokens_per_minute: '',
+                tokens_per_day: '',
+                max_input_tokens: '',
                 request_timeout_seconds: '',
                 notes: ''
             };
@@ -677,6 +771,9 @@ function geminiManagement() {
                 limit_per_minute: model.limit_per_minute,
                 limit_per_day: model.limit_per_day,
                 limit_per_month: model.limit_per_month || '',
+                tokens_per_minute: model.tokens_per_minute ?? '',
+                tokens_per_day: model.tokens_per_day ?? '',
+                max_input_tokens: model.max_input_tokens ?? '',
                 request_timeout_seconds: model.request_timeout_seconds || '',
                 notes: model.notes
             };
@@ -698,6 +795,9 @@ function geminiManagement() {
                     limit_per_minute: parseInt(f.limit_per_minute) || 5,
                     limit_per_day: parseInt(f.limit_per_day) || 20,
                     limit_per_month: f.limit_per_month ? parseInt(f.limit_per_month) : null,
+                    tokens_per_minute: f.tokens_per_minute ? parseInt(f.tokens_per_minute) : null,
+                    tokens_per_day: f.tokens_per_day ? parseInt(f.tokens_per_day) : null,
+                    max_input_tokens: f.max_input_tokens ? parseInt(f.max_input_tokens) : null,
                     request_timeout_seconds: f.request_timeout_seconds ? parseInt(f.request_timeout_seconds) : null,
                     notes: f.notes
                 };
@@ -830,12 +930,13 @@ function geminiManagement() {
             this.error = null;
             try {
                 const days = this.reportDays;
-                const [summaryResp, byModelResp, dailyResp, fallbackResp, responseTimesResp] = await Promise.all([
+                const [summaryResp, byModelResp, dailyResp, fallbackResp, responseTimesResp, tokenResp] = await Promise.all([
                     fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=summary&days=${days}`),
                     fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=total_by_model&days=${days}`),
                     fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=daily_volume&days=${days}`),
                     fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=fallback&days=${days}`),
                     fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=response_times&days=${days}`),
+                    fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=daily_token_usage&days=${days}`),
                 ]);
 
                 const summaryData = await summaryResp.json();
@@ -843,6 +944,7 @@ function geminiManagement() {
                 const dailyData = await dailyResp.json();
                 const fallbackData = await fallbackResp.json();
                 const responseTimesData = await responseTimesResp.json();
+                const tokenData = await tokenResp.json();
 
                 if (summaryData.success) {
                     this.reportSummary = summaryData.data;
@@ -859,6 +961,9 @@ function geminiManagement() {
                 if (responseTimesData.success) {
                     this.reportResponseTimes = responseTimesData.data;
                 }
+                if (tokenData.success) {
+                    this.reportDailyTokenUsage = tokenData.data || [];
+                }
 
                 // Fallback: if summary has embedded data, extract it
                 if (this.reportSummary && !this.reportDailyVolume && this.reportSummary.daily_volume) {
@@ -873,6 +978,25 @@ function geminiManagement() {
 
             } catch (e) {
                 this.error = '{% trans "Network error loading report" %}';
+            } finally {
+                this.reportLoading = false;
+            }
+        },
+
+        async loadDailyTokenUsage() {
+            this.reportLoading = true;
+            this.error = null;
+            try {
+                const days = this.reportDays;
+                const resp = await fetch(`{% url "frontend_api:api_gemini_reporting" %}?type=daily_token_usage&days=${days}`);
+                const data = await resp.json();
+                if (data.success) {
+                    this.reportDailyTokenUsage = data.data || [];
+                } else {
+                    this.error = data.error || '{% trans "Failed to load token usage" %}';
+                }
+            } catch (e) {
+                this.error = '{% trans "Network error loading token usage" %}';
             } finally {
                 this.reportLoading = false;
             }

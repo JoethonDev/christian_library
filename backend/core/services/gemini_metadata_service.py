@@ -84,8 +84,6 @@ class GeminiMetadataService(BaseGeminiService):
                 prompt,
                 uploaded_file,
                 response_schema,
-                system_instruction=prompt,
-                cache_key=f"metadata:{self.default_model}:{content_type}",
                 content_item=content_item,
                 operation_type='metadata',
             )

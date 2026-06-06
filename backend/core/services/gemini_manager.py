@@ -170,7 +170,7 @@ class GeminiManager:
     def check_seo_availability(self) -> Tuple[bool, str]:
         """
         Check if SEO generation is currently available.
-        
+
         Returns:
             Tuple of (is_available: bool, message: str)
         """
@@ -179,11 +179,11 @@ class GeminiManager:
             operation_type='seo'
         )
         return is_available, message
-    
+
     def refresh_rate_limits(self) -> Dict:
         """
         Force refresh rate limit data from Gemini API.
-        
+
         Returns:
             Dict with updated rate limit info for all models
         """

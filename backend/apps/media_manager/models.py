@@ -1336,7 +1336,7 @@ class ContentItem(models.Model):
 
     def generate_seo_metadata_async(self):
         """Trigger async SEO metadata generation via Celery"""
-        from apps.media_manager.tasks import generate_seo_metadata_task
+        from core.tasks.media_finalization import generate_seo_metadata_task
         generate_seo_metadata_task.delay(str(self.id))
 
     def update_seo_from_gemini(self, seo_metadata_dict):
@@ -2696,6 +2696,35 @@ class SiteConfiguration(models.Model):
         return descriptions.get(self.search_sensitivity_mode, descriptions['normal'])
 
 
+class GeminiModelConsumption(models.Model):
+    """
+    Per-model per-minute consumption record.
+    Acts as the authoritative DB source of truth for token/request usage.
+    Updated by workers in real-time (transactional upsert).
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    model_key = models.CharField(max_length=64, db_index=True)
+    date = models.DateField(db_index=True)
+    minute_slot = models.PositiveSmallIntegerField()
+    tokens_consumed = models.IntegerField(default=0)
+    requests_consumed = models.IntegerField(default=0)
+    is_finalized = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Gemini Model Consumption'
+        verbose_name_plural = 'Gemini Model Consumption Records'
+        unique_together = ('model_key', 'date', 'minute_slot')
+        indexes = [
+            models.Index(fields=['model_key', 'date', 'is_finalized']),
+            models.Index(fields=['date', 'minute_slot']),
+        ]
+
+    def __str__(self):
+        return f"{self.model_key} [{self.date}T{self.minute_slot:04d}] tokens={self.tokens_consumed} reqs={self.requests_consumed}"
+
+
 class GeminiModelSetting(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     model_key = models.CharField(max_length=64, unique=True, db_index=True)
@@ -2708,6 +2737,22 @@ class GeminiModelSetting(models.Model):
     limit_per_day = models.IntegerField(default=20)
     limit_per_month = models.IntegerField(null=True, blank=True)
     request_timeout_seconds = models.IntegerField(null=True, blank=True)
+    tokens_per_minute = models.IntegerField(
+        null=True, blank=True,
+        help_text='Maximum input tokens allowed per minute (NULL = no per-minute limit)'
+    )
+    tokens_per_day = models.IntegerField(
+        null=True, blank=True,
+        help_text='Maximum input tokens allowed per day (NULL = no per-day limit)'
+    )
+    max_input_tokens = models.IntegerField(
+        default=128000,
+        help_text='Model context window limit (e.g. 128000 for Gemini 1.5 Pro)'
+    )
+    max_concurrency = models.IntegerField(
+        default=1,
+        help_text='Maximum number of concurrent API requests allowed for this model'
+    )
     notes = models.TextField(blank=True)
     archived_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

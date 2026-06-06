@@ -16,12 +16,12 @@ from core.tasks.media_processing import (
     process_video_to_hls,
 )
 
-from apps.media_manager.tasks import generate_seo_metadata_task
+from core.tasks.media_finalization import generate_seo_metadata_task
 
 from .models import (
     ContentItem, VideoMeta, AudioMeta, PdfMeta, Tag, 
     ContentViewEvent, DailyContentViewSummary, SiteConfiguration,
-    GeminiModelSetting, GeminiGenerationAttempt
+    GeminiModelSetting, GeminiGenerationAttempt, GeminiModelConsumption
 )
 from .forms import ContentItemForm
 
@@ -744,9 +744,38 @@ class SiteConfigurationAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(GeminiModelConsumption)
+class GeminiModelConsumptionAdmin(admin.ModelAdmin):
+    list_display = ['model_key', 'date', 'minute_slot', 'tokens_consumed', 'requests_consumed', 'is_finalized']
+    list_filter = ['model_key', 'date', 'is_finalized']
+    search_fields = ['model_key']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    date_hierarchy = 'date'
+    ordering = ['-date', '-minute_slot']
+
+    fieldsets = (
+        (_('Identity'), {
+            'fields': ('id', 'model_key', 'date', 'minute_slot')
+        }),
+        (_('Usage'), {
+            'fields': ('tokens_consumed', 'requests_consumed', 'is_finalized')
+        }),
+        (_('Timing'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(GeminiModelSetting)
 class GeminiModelSettingAdmin(admin.ModelAdmin):
-    list_display = ['model_key', 'display_name', 'is_enabled', 'is_default', 'fallback_priority', 'limit_per_minute', 'limit_per_day']
+    list_display = ['model_key', 'display_name', 'is_enabled', 'is_default', 'queue_depth_display', 'active_leases_display', 'fallback_priority', 'max_concurrency', 'limit_per_minute']
     list_filter = ['is_enabled', 'is_default', 'provider']
     search_fields = ['model_key', 'display_name', 'notes']
     readonly_fields = ['id', 'created_at', 'updated_at']
@@ -759,7 +788,7 @@ class GeminiModelSettingAdmin(admin.ModelAdmin):
             'fields': ('is_enabled', 'is_default', 'archived_at')
         }),
         (_('Rate Limits'), {
-            'fields': ('limit_per_minute', 'limit_per_day', 'limit_per_month', 'request_timeout_seconds')
+            'fields': ('limit_per_minute', 'limit_per_day', 'limit_per_month', 'tokens_per_minute', 'tokens_per_day', 'max_input_tokens', 'max_concurrency', 'request_timeout_seconds')
         }),
         (_('Fallback'), {
             'fields': ('fallback_priority',)
@@ -770,7 +799,23 @@ class GeminiModelSettingAdmin(admin.ModelAdmin):
         }),
     )
 
-    actions = ['enable_selected', 'disable_selected', 'archive_selected']
+    actions = ['enable_selected', 'disable_selected', 'archive_selected', 'clear_queue_selected']
+
+    def queue_depth_display(self, obj):
+        from core.services.gemini_scheduler_service import get_gemini_scheduler_service
+        count = get_gemini_scheduler_service().pending_count(obj.model_key)
+        if count > 0:
+            return format_html('<span style="color: #e67e22; font-weight: bold;">{}</span>', count)
+        return format_html('<span style="color: green;">0</span>')
+    queue_depth_display.short_description = _('Queue Depth')
+
+    def active_leases_display(self, obj):
+        from core.services.gemini_lease_service import get_gemini_lease_service
+        count = get_gemini_lease_service().active_leases(obj.model_key)
+        max_c = obj.max_concurrency
+        color = 'green' if count < max_c else ('orange' if count == max_c else 'red')
+        return format_html('<span style="color: {};">{}/{}</span>', color, count, max_c)
+    active_leases_display.short_description = _('Active Leases')
 
     def enable_selected(self, request, queryset):
         count = queryset.update(is_enabled=True)
@@ -786,6 +831,15 @@ class GeminiModelSettingAdmin(admin.ModelAdmin):
         count = queryset.update(archived_at=timezone.now())
         messages.success(request, _(f'{count} model(s) archived.'))
     archive_selected.short_description = _('Archive selected models')
+
+    def clear_queue_selected(self, request, queryset):
+        from core.services.gemini_scheduler_service import get_gemini_scheduler_service
+        scheduler = get_gemini_scheduler_service()
+        total = 0
+        for obj in queryset:
+            total += scheduler.clear_queue(obj.model_key)
+        messages.success(request, _(f'{total} queued item(s) cleared.'))
+    clear_queue_selected.short_description = _('Clear queue for selected models')
 
     def save_model(self, request, obj, form, change):
         if obj.is_default:

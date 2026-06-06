@@ -44,7 +44,7 @@ from apps.media_manager.services.lifecycle_audit_service import LifecycleAuditSe
 from apps.media_manager.services.search_settings_service import get_search_settings_service
 from apps.media_manager.services.unified_search_service import get_unified_search_service
 from apps.media_manager.services.upload_service import MediaUploadService
-from apps.media_manager.tasks import generate_seo_metadata_task
+from core.tasks.media_finalization import generate_seo_metadata_task
 from core.services.gemini_manager import get_gemini_manager
 from core.services.gemini_metadata_service import get_gemini_metadata_service
 from core.services.gemini_seo_service import get_gemini_seo_service
@@ -1961,6 +1961,11 @@ def api_gemini_reporting(request):
             'hourly_volume': lambda: reporting.hourly_volume(min(days, 7)),
             'response_times': lambda: reporting.avg_response_time_by_model(days),
             'per_item': lambda: reporting.per_item_history(content_item_id) if content_item_id else [],
+            'daily_token_usage': lambda: reporting.daily_token_usage(days),
+            'minute_token_usage': lambda: reporting.minute_token_usage(
+                request.GET.get('model_key', ''),
+                timezone.now().date()
+            ) if request.GET.get('model_key') else [],
         }
 
         result = report_map.get(report_type, report_map['summary'])()
@@ -1988,6 +1993,9 @@ def api_gemini_models(request):
                 'limit_per_minute': m.limit_per_minute,
                 'limit_per_day': m.limit_per_day,
                 'limit_per_month': m.limit_per_month,
+                'tokens_per_minute': m.tokens_per_minute,
+                'tokens_per_day': m.tokens_per_day,
+                'max_input_tokens': m.max_input_tokens,
                 'request_timeout_seconds': m.request_timeout_seconds,
                 'notes': m.notes,
                 'archived_at': m.archived_at.isoformat() if m.archived_at else None,
@@ -2042,6 +2050,15 @@ def api_gemini_models(request):
                 obj.limit_per_month = body.get('limit_per_month') or None
                 if obj.limit_per_month is not None:
                     obj.limit_per_month = int(obj.limit_per_month)
+                obj.tokens_per_minute = body.get('tokens_per_minute') or None
+                if obj.tokens_per_minute is not None:
+                    obj.tokens_per_minute = int(obj.tokens_per_minute)
+                obj.tokens_per_day = body.get('tokens_per_day') or None
+                if obj.tokens_per_day is not None:
+                    obj.tokens_per_day = int(obj.tokens_per_day)
+                obj.max_input_tokens = body.get('max_input_tokens') or None
+                if obj.max_input_tokens is not None:
+                    obj.max_input_tokens = int(obj.max_input_tokens)
                 obj.request_timeout_seconds = body.get('request_timeout_seconds') or None
                 if obj.request_timeout_seconds is not None:
                     obj.request_timeout_seconds = int(obj.request_timeout_seconds)
@@ -3148,10 +3165,10 @@ def api_job_dispatch(request):
         return JsonResponse({'success': False, 'error': _('content_id is required')}, status=400)
 
     content_item = get_object_or_404(ContentItem, id=content_id)
-    task_id = dispatch_content_item_for_stage(content_item, stage, force=force, action_source='admin:jobs_api')
+    task_id, error_msg = dispatch_content_item_for_stage(content_item, stage, force=force, action_source='admin:jobs_api')
 
     if not task_id:
-        return JsonResponse({'success': False, 'error': _('No matching task could be dispatched')}, status=400)
+        return JsonResponse({'success': False, 'error': _(error_msg or 'No matching task could be dispatched')}, status=400)
 
     LifecycleAuditService.log_event(
         content_item=content_item,

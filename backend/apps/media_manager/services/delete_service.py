@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.db import transaction
 from apps.media_manager.models import ContentItem, VideoMeta, AudioMeta, PdfMeta
-from core.tasks.media_processing import delete_files_task
+from core.tasks.media_finalization import delete_files_task
 
 class MediaProcessingService:
     """

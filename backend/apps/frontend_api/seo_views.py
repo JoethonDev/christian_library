@@ -10,6 +10,7 @@ import json
 import logging
 
 from apps.media_manager.models import ContentItem, SiteConfiguration
+from core.tasks.media_finalization import generate_seo_metadata_task
 
 logger = logging.getLogger(__name__)
 
@@ -205,9 +206,6 @@ def bulk_seo_actions_api(request):
     results = {'success': 0, 'failed': 0, 'messages': []}
     
     if action == 'generate_seo':
-        # Queue SEO generation for selected items
-        from apps.media_manager.tasks import generate_seo_metadata_task
-        
         for content_id in content_ids:
             try:
                 item = ContentItem.objects.get(id=content_id, is_active=True)
