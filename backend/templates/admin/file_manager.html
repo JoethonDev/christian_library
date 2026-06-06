@@ -73,15 +73,54 @@
 </div>
 {% endif %}
 
+{% if search_active %}
+<div class="alert alert-info rounded-3 d-flex align-items-center justify-content-between">
+    <span>
+        <svg class="bi me-2" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+        {% blocktrans with q=search_query count total=search_total %}
+        Found {{ total }} result for "{{ q }}"
+        {% plural %}
+        Found {{ total }} results for "{{ q }}"
+        {% endblocktrans %}
+        {% if search_truncated %}<span class="text-muted">(truncated)</span>{% endif %}
+    </span>
+    <a href="{% url 'frontend_api:file_manager' %}?base={{ base_key }}&path={{ rel_path|urlencode }}"
+       class="btn btn-sm btn-outline-secondary rounded-pill">
+        <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-arrow-left"/></svg>{% trans "Back to browsing" %}
+    </a>
+</div>
+{% endif %}
+
 <!-- Toolbar -->
 <div class="card border-0 shadow-sm rounded-4">
     <div class="card-header bg-transparent border-0 py-3 px-4 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
+        <h6 id="searchCardHeader" class="mb-0 fw-bold text-dark d-flex align-items-center">
+            {% if search_active %}
+            <svg class="bi me-2 text-info" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+            {% trans "Search Results" %}
+            {% else %}
             <svg class="bi me-2 text-primary" aria-hidden="true" focusable="false"><use href="#bi-folder"/></svg>
             {% if rel_path %}{{ rel_path }}{% else %}{% trans "Root" %}{% endif %}
-            <span class="badge bg-secondary ms-2 fw-normal">{{ entries|length }}</span>
+            {% endif %}
+            <span class="badge bg-secondary ms-2 fw-normal" id="entryCount">{{ entries|length }}</span>
         </h6>
         <div class="d-flex gap-2">
+            <form id="searchForm" class="d-flex gap-1" method="get" action="{% url 'frontend_api:file_manager' %}">
+                <input type="hidden" name="base" value="{{ base_key }}">
+                <input type="search" id="fileSearch" name="q" value="{{ search_query }}"
+                       class="form-control form-control-sm rounded-pill" style="width:220px"
+                       placeholder="{% trans 'Search files/folders...' %}"
+                       autocomplete="off">
+                <button type="submit" class="btn btn-sm btn-outline-primary rounded-pill" title="{% trans 'Search' %}">
+                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg>
+                </button>
+                {% if search_active %}
+                <a href="{% url 'frontend_api:file_manager' %}?base={{ base_key }}&path={{ rel_path|urlencode }}"
+                   class="btn btn-sm btn-outline-danger rounded-pill" title="{% trans 'Clear search' %}">
+                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-x-lg"/></svg>
+                </a>
+                {% endif %}
+            </form>
             <button class="btn btn-sm btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#mkdirModal">
                 <svg class="bi me-1" aria-hidden="true" focusable="false"><use href="#bi-folder-plus"/></svg>{% trans "New Folder" %}
             </button>
@@ -100,9 +139,9 @@
                         <th class="admin-table-thead text-end pe-4 border-0">{% trans "Actions" %}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="searchResultsBody">
                     {% for entry in entries %}
-                    <tr>
+                    <tr{% if entry.is_content_file %} class="table-info"{% endif %}>
                         <td class="ps-4">
                             {% if entry.is_dir %}
                             <a href="{% url 'frontend_api:file_manager' %}?base={{ base_key }}&path={{ entry.rel_path|urlencode }}"
@@ -114,6 +153,12 @@
                                 <svg class="bi me-2 text-secondary" aria-hidden="true" focusable="false"><use href="#bi-file-earmark"/></svg>{{ entry.name }}
                             </span>
                             {% endif %}
+                            {% if entry.is_content_file %}
+                            <br><small class="text-muted">
+                                <svg class="bi me-1" aria-hidden="true" focusable="false" style="width:.7em;height:.7em"><use href="#bi-link-45deg"/></svg>
+                                {{ entry.content_type_label }} — {{ entry.content_title|truncatechars:60 }}
+                            </small>
+                            {% endif %}
                         </td>
                         <td class="text-muted small">{{ entry.size|default:"-" }}</td>
                         <td class="text-muted small">{{ entry.modified }}</td>
@@ -124,6 +169,11 @@
                                    title="{% trans 'Download' %}">
                                     <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg>
                                 </a>
+                                <button class="btn btn-sm btn-outline-info rounded-pill px-2"
+                                        onclick="openInfoModal('{{ entry.rel_path|escapejs }}')"
+                                        title="{% trans 'Info' %}">
+                                    <svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg>
+                                </button>
                                 <button class="btn btn-sm btn-outline-secondary rounded-pill px-2"
                                         onclick="openRenameModal('{{ entry.rel_path|escapejs }}', '{{ entry.name|escapejs }}')"
                                         title="{% trans 'Rename' %}">
@@ -222,6 +272,28 @@
     </div>
 </div>
 
+<!-- File Info Modal -->
+<div class="modal fade" id="infoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="infoModalTitle">{% trans "File Info" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3" id="infoModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">{% trans "Loading..." %}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">{% trans "Close" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Delete Confirm Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
@@ -250,6 +322,9 @@ const CSRF = '{{ csrf_token }}';
 const BASE_KEY = '{{ base_key }}';
 const REL_PATH = '{{ rel_path|escapejs }}';
 const ACTION_URL = '{% url "frontend_api:file_manager_action" %}';
+const SEARCH_URL = '{% url "frontend_api:file_manager_search" %}';
+const INFO_URL = '{% url "frontend_api:file_manager_info" %}';
+const FM_URL = '{% url "frontend_api:file_manager" %}';
 
 let _deletePath = '';
 let _renamePath = '';
@@ -318,5 +393,177 @@ function doDelete() {
         else { window.showToast(res.error, 'danger'); }
     });
 }
+
+// ── File Info modal ──────────────────────────────────────────────
+
+async function openInfoModal(relPath) {
+    const titleEl = document.getElementById('infoModalTitle');
+    const bodyEl = document.getElementById('infoModalBody');
+    titleEl.textContent = '{% trans "File Info"|escapejs %}';
+    bodyEl.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">{% trans "Loading..."|escapejs %}</span></div></div>';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('infoModal')).show();
+
+    const params = new URLSearchParams({base: BASE_KEY, path: relPath});
+    try {
+        const resp = await fetch(INFO_URL + '?' + params.toString());
+        const data = await resp.json();
+        if (!data.ok) {
+            bodyEl.innerHTML = '<div class="alert alert-danger rounded-3 mb-0">' + escapeHtml(data.error || 'Unknown error') + '</div>';
+            return;
+        }
+        renderInfo(data, bodyEl, titleEl);
+    } catch (err) {
+        bodyEl.innerHTML = '<div class="alert alert-danger rounded-3 mb-0">{% trans "Failed to load file info."|escapejs %}</div>';
+    }
+}
+
+function renderInfo(data, bodyEl, titleEl) {
+    const isDir = data.is_dir;
+    titleEl.textContent = escapeHtml(data.name) + (isDir ? ' (folder)' : ' (file)');
+
+    let html = '<table class="table table-sm table-borderless mb-0">';
+    const rows = [
+        {label: '{% trans "Name"|escapejs %}', value: escapeHtml(data.name)},
+        {label: '{% trans "Relative Path"|escapejs %}', value: '<code>' + escapeHtml(data.rel_path) + '</code>'},
+        {label: '{% trans "Full Path"|escapejs %}', value: '<code>' + escapeHtml(data.full_path) + '</code>'},
+    ];
+
+    if (!isDir) {
+        rows.push({label: '{% trans "Size"|escapejs %}', value: escapeHtml(data.size_fmt) + ' (' + data.size_bytes.toLocaleString() + ' bytes)'});
+        rows.push({label: '{% trans "MIME Type"|escapejs %}', value: escapeHtml(data.mime_type)});
+        rows.push({label: '{% trans "Extension"|escapejs %}', value: escapeHtml(data.extension)});
+    } else {
+        if (data.child_count >= 0) {
+            rows.push({label: '{% trans "Contains"|escapejs %}', value: data.child_count + ' items (' + data.child_dirs + ' folders, ' + data.child_files + ' files)'});
+        } else {
+            rows.push({label: '{% trans "Contains"|escapejs %}', value: '{% trans "Permission denied"|escapejs %}'});
+        }
+    }
+
+    rows.push({label: '{% trans "Modified"|escapejs %}', value: escapeHtml(data.modified)});
+    rows.push({label: '{% trans "Created"|escapejs %}', value: escapeHtml(data.created)});
+    rows.push({label: '{% trans "Permissions"|escapejs %}', value: '<code>' + escapeHtml(data.permissions) + '</code> (' + escapeHtml(data.mode_octal) + ')'});
+    rows.push({label: '{% trans "Owner"|escapejs %}', value: escapeHtml(data.owner)});
+    rows.push({label: '{% trans "Group"|escapejs %}', value: escapeHtml(data.group)});
+
+    for (const r of rows) {
+        html += '<tr><td class="fw-semibold text-nowrap pe-4" style="width:140px">' + r.label + '</td><td>' + r.value + '</td></tr>';
+    }
+    html += '</table>';
+    bodyEl.innerHTML = html;
+}
+
+// ── Live search with AJAX ────────────────────────────────────────
+
+let _searchController = null;
+
+function debounce(fn, delay) {
+    let timer;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+async function doSearch(query) {
+    const tbody = document.getElementById('searchResultsBody');
+    const entryCount = document.getElementById('entryCount');
+    const searchCardHeader = document.getElementById('searchCardHeader');
+
+    if (!query.trim()) {
+        location.href = FM_URL + '?base=' + BASE_KEY + '&path=' + encodeURIComponent(REL_PATH || '');
+        return;
+    }
+
+    if (query.trim().length < 2) return;
+
+    if (_searchController) _searchController.abort();
+    _searchController = new AbortController();
+
+    const params = new URLSearchParams({base: BASE_KEY, q: query.trim()});
+    try {
+        const resp = await fetch(SEARCH_URL + '?' + params.toString(), {
+            signal: _searchController.signal
+        });
+        const data = await resp.json();
+
+        if (searchCardHeader) searchCardHeader.innerHTML =
+            '<svg class="bi me-2 text-info" aria-hidden="true" focusable="false"><use href="#bi-search"/></svg> ' +
+            '{% trans "Search Results"|escapejs %}';
+
+        if (entryCount) entryCount.textContent = data.total;
+
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!data.entries || data.entries.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = '<td colspan="4" class="text-center py-4 text-muted">' +
+                '{% trans "No results found."|escapejs %}</td>';
+            tbody.appendChild(row);
+            return;
+        }
+
+        for (const entry of data.entries) {
+            const tr = document.createElement('tr');
+            if (entry.is_content_file) tr.className = 'table-info';
+            const escapedName = escapeHtml(entry.name).replace(/'/g, "\\'");
+            const escapedRelPath = (entry.rel_path || '').replace(/'/g, "\\'");
+
+            let nameCell;
+            if (entry.is_dir) {
+                nameCell = '<a href="' + FM_URL + '?base=' + BASE_KEY + '&path=' + encodeURIComponent(entry.rel_path) +
+                    '" class="text-decoration-none fw-semibold">' +
+                    '<svg class="bi me-2 text-warning" aria-hidden="true" focusable="false"><use href="#bi-folder-fill"/></svg>' +
+                    escapeHtml(entry.name) + '</a>';
+            } else {
+                nameCell = '<span><svg class="bi me-2 text-secondary" aria-hidden="true" focusable="false"><use href="#bi-file-earmark"/></svg>' +
+                    escapeHtml(entry.name) + '</span>';
+            }
+
+            if (entry.is_content_file && entry.content_title) {
+                nameCell += '<br><small class="text-muted">' +
+                    '<svg class="bi me-1" aria-hidden="true" focusable="false" style="width:.7em;height:.7em"><use href="#bi-link-45deg"/></svg>' +
+                    escapeHtml(entry.content_type_label || '') + ' — ' +
+                    escapeHtml(entry.content_title.length > 60 ? entry.content_title.substring(0, 60) + '…' : entry.content_title) +
+                    '</small>';
+            }
+
+            const downloadUrl = FM_URL.replace('/files/', '/files/download/') + '?base=' + BASE_KEY + '&path=' + encodeURIComponent(entry.rel_path);
+
+            tr.innerHTML =
+                '<td class="ps-4">' + nameCell + '</td>' +
+                '<td class="text-muted small">' + escapeHtml(entry.size || '-') + '</td>' +
+                '<td class="text-muted small">' + escapeHtml(entry.modified) + '</td>' +
+                '<td class="text-end pe-4"><div class="d-flex gap-1 justify-content-end">' +
+                (!entry.is_dir ? '<a href="' + downloadUrl + '" class="btn btn-sm btn-outline-success rounded-pill px-2" title="{% trans "Download"|escapejs %}"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-download"/></svg></a>' : '') +
+                '<button class="btn btn-sm btn-outline-info rounded-pill px-2" onclick="openInfoModal(\'' + escapedRelPath + '\')" title="{% trans "Info"|escapejs %}"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-info-circle"/></svg></button>' +
+                '<button class="btn btn-sm btn-outline-secondary rounded-pill px-2" onclick="openRenameModal(\'' + escapedRelPath + '\', \'' + escapedName + '\')" title="{% trans "Rename"|escapejs %}"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-pencil"/></svg></button>' +
+                (REL_PATH && !entry.is_dir ? '<button class="btn btn-sm btn-outline-info rounded-pill px-2" onclick="openMoveModal(\'' + escapedRelPath + '\', \'' + escapedName + '\')" title="{% trans "Move"|escapejs %}"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-arrows-move"/></svg></button>' : '') +
+                '<button class="btn btn-sm btn-outline-danger rounded-pill px-2" onclick="confirmDelete(\'' + escapedRelPath + '\', \'' + escapedName + '\', ' + entry.is_dir + ')" title="{% trans "Delete"|escapejs %}"><svg class="bi" aria-hidden="true" focusable="false"><use href="#bi-trash"/></svg></button>' +
+                '</div></td>';
+
+            tbody.appendChild(tr);
+        }
+    } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error('Search failed:', err);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('fileSearch');
+    if (input) {
+        input.addEventListener('input', debounce(function (e) {
+            doSearch(e.target.value);
+        }, 300));
+    }
+});
 </script>
 {% endblock %}

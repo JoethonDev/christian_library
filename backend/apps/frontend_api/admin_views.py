@@ -55,6 +55,14 @@ from core.tasks.media_processing import (
     upload_audio_to_r2,
     upload_pdf_to_r2,
 )
+from apps.admin_django.views_system import (
+    ALLOWED_BASES,
+    execute_file_action,
+    get_file_info,
+    list_directory,
+    resolve_safe_path,
+    search_files,
+)
 from apps.frontend_api.utils.jobs_dashboard import (
     dispatch_content_item_for_stage,
     dispatch_processing_task,
@@ -869,29 +877,174 @@ def system_monitor(request):
 # FILE MANAGER — custom admin dashboard at /dashboard/system/files/
 # ──────────────────────────────────────────────────────────────────
 
+# ──────────────────────────────────────────────────────────────────
+# HELPERS — ContentItem file search (augments filesystem search)
+# ──────────────────────────────────────────────────────────────────
+
+def _make_content_entry(
+    name: str, rel_path: str, content_title: str,
+    content_type_label: str, content_type: str, size: int = 0,
+) -> dict:
+    """Build an entry dict for a ContentItem-linked file."""
+    entry: dict = {
+        "name": name,
+        "is_dir": False,
+        "size": "",
+        "size_bytes": size,
+        "modified": "",
+        "rel_path": rel_path,
+        "content_title": content_title,
+        "content_type_label": content_type_label,
+        "content_type": content_type,
+        "is_content_file": True,
+    }
+    if size:
+        from apps.admin_django.views_system import fmt_bytes
+        entry["size"] = fmt_bytes(size)
+    return entry
+
+
+_CONTENT_FILE_FIELDS = [
+    ("thumbnail", "thumbnail", "Thumbnail"),
+    ("supplementary_document", "document", "Document"),
+]
+
+_META_FILE_FIELDS = [
+    ("videometa", "original_file", "video", "Video"),
+    ("audiometa", "original_file", "audio", "Audio"),
+    ("audiometa", "compressed_file", "audio", "Audio (compressed)"),
+    ("pdfmeta", "original_file", "pdf", "PDF"),
+]
+
+
+def _search_content_files(query: str, max_results: int = 100) -> list[dict]:
+    """
+    Search ContentItems by title and return their associated file entries.
+    Merged into search results so a content titled "test" shows its
+    thumbnail, documents, video/audio/pdf files even if filenames differ.
+    """
+    q = query.strip()
+    if len(q) < 2:
+        return []
+
+    content_qs = ContentItem.objects.filter(
+        Q(title_ar__icontains=q) | Q(title_en__icontains=q)
+    ).only(
+        "id", "title_ar", "title_en", "thumbnail",
+        "supplementary_document", "supplementary_document_name",
+        "supplementary_document_size",
+    ).prefetch_related("videometa", "audiometa", "pdfmeta")[:20]
+
+    results: list[dict] = []
+
+    for item in content_qs:
+        title = item.title_ar or item.title_en or ""
+        if len(results) >= max_results:
+            break
+
+        # Direct ContentItem file fields
+        for field_name, ctype, clabel in _CONTENT_FILE_FIELDS:
+            f = getattr(item, field_name, None)
+            if f and hasattr(f, "name") and f.name:
+                fsize = 0
+                try:
+                    fsize = f.size
+                except Exception:
+                    if field_name == "supplementary_document":
+                        fsize = item.supplementary_document_size or 0
+                results.append(_make_content_entry(
+                    name=os.path.basename(f.name),
+                    rel_path=f.name,
+                    size=fsize,
+                    content_title=title,
+                    content_type_label=clabel,
+                    content_type=ctype,
+                ))
+                if len(results) >= max_results:
+                    break
+
+        if len(results) >= max_results:
+            break
+
+        # Related meta file fields (OneToOneField)
+        for rel_name, field_name, ctype, clabel in _META_FILE_FIELDS:
+            try:
+                meta_obj = getattr(item, rel_name, None)
+            except Exception:
+                meta_obj = None
+            if meta_obj is None:
+                continue
+            f = getattr(meta_obj, field_name, None)
+            if f and hasattr(f, "name") and f.name:
+                fsize = 0
+                try:
+                    fsize = f.size
+                except Exception:
+                    pass
+                results.append(_make_content_entry(
+                    name=os.path.basename(f.name),
+                    rel_path=f.name,
+                    size=fsize,
+                    content_title=title,
+                    content_type_label=clabel,
+                    content_type=ctype,
+                ))
+                if len(results) >= max_results:
+                    break
+
+    return results
+
+
+# ──────────────────────────────────────────────────────────────────
+# FILE MANAGER — custom admin dashboard at /dashboard/system/files/
+# ──────────────────────────────────────────────────────────────────
+
 @staff_member_required
 def file_manager(request):
     """Browse and manage files in media / static / logs directories."""
-    from apps.admin_django.views_system import (
-        ALLOWED_BASES,
-        list_directory,
-    )
     base_key = request.GET.get("base", "media")
     rel_path = request.GET.get("path", "")
+    query = request.GET.get("q", "").strip()
     if base_key not in ALLOWED_BASES:
         base_key = "media"
 
-    listing = list_directory(base_key, rel_path)
-    context = {
-        "base_key": base_key,
-        "rel_path": rel_path,
-        "entries": listing["entries"],
-        "crumbs": listing["crumbs"],
-        "bases": list(ALLOWED_BASES.keys()),
-        "is_root": listing["is_root"],
-        "list_error": listing.get("error"),
-        "current_language": get_language(),
-    }
+    search_active = bool(query)
+
+    if search_active:
+        listing = search_files(base_key, query)
+        content_entries = _search_content_files(query)
+        all_entries = listing["entries"] + content_entries
+        all_entries.sort(key=lambda e: (not e.get("is_content_file", False), not e["is_dir"], e["name"].lower()))
+        crumbs = [{"label": base_key, "path": ""}]
+        context = {
+            "base_key": base_key,
+            "rel_path": rel_path,
+            "entries": all_entries,
+            "crumbs": crumbs,
+            "bases": list(ALLOWED_BASES.keys()),
+            "is_root": True,
+            "list_error": listing.get("error"),
+            "current_language": get_language(),
+            "search_active": True,
+            "search_query": query,
+            "search_total": len(all_entries),
+            "search_truncated": listing.get("truncated", False),
+            "has_content_results": bool(content_entries),
+        }
+    else:
+        listing = list_directory(base_key, rel_path)
+        context = {
+            "base_key": base_key,
+            "rel_path": rel_path,
+            "entries": listing["entries"],
+            "crumbs": listing["crumbs"],
+            "bases": list(ALLOWED_BASES.keys()),
+            "is_root": listing["is_root"],
+            "list_error": listing.get("error"),
+            "current_language": get_language(),
+            "search_active": False,
+            "search_query": "",
+        }
     return render(request, "admin/file_manager.html", context)
 
 
@@ -900,8 +1053,6 @@ def file_manager(request):
 @require_POST
 def file_manager_action(request):
     """AJAX endpoint for file operations (mkdir / delete / rename / move)."""
-    from apps.admin_django.views_system import execute_file_action, ALLOWED_BASES
-
     try:
         data = json.loads(request.body)
     except Exception:
@@ -929,8 +1080,6 @@ def file_manager_action(request):
 @staff_member_required
 def file_manager_download(request):
     """Download a file directly or zip a folder before downloading it."""
-    from apps.admin_django.views_system import ALLOWED_BASES, resolve_safe_path
-
     base_key = request.GET.get("base", "media")
     rel_path = request.GET.get("path", "")
 
@@ -962,6 +1111,51 @@ def file_manager_download(request):
     response["Content-Type"] = mimetypes.guess_type(download_name)[0] or "application/octet-stream"
     response["Content-Length"] = str(target.stat().st_size)
     return response
+
+
+@staff_member_required
+def file_manager_search(request):
+    """AJAX endpoint to search files/folders and ContentItem-linked files."""
+    base_key = request.GET.get("base", "media")
+    query = request.GET.get("q", "").strip()
+
+    if base_key not in ALLOWED_BASES:
+        base_key = "media"
+
+    if not query:
+        return JsonResponse({"entries": [], "total": 0, "base_key": base_key, "query": ""})
+
+    fs_results = search_files(base_key, query)
+    content_entries = _search_content_files(query)
+
+    all_entries = fs_results["entries"] + content_entries
+    all_entries.sort(key=lambda e: (not e.get("is_content_file", False), not e["is_dir"], e["name"].lower()))
+
+    return JsonResponse({
+        "entries": all_entries,
+        "total": len(all_entries),
+        "base_key": base_key,
+        "query": query,
+        "truncated": fs_results.get("truncated", False),
+        "has_content_results": bool(content_entries),
+    })
+
+
+@staff_member_required
+def file_manager_info(request):
+    """AJAX endpoint returning detailed metadata for a file or directory."""
+    base_key = request.GET.get("base", "media")
+    rel_path = request.GET.get("path", "")
+
+    if base_key not in ALLOWED_BASES:
+        return JsonResponse({"ok": False, "error": "Invalid base"}, status=400)
+
+    if not rel_path:
+        return JsonResponse({"ok": False, "error": "Path is required"}, status=400)
+
+    info = get_file_info(base_key, rel_path)
+    status = 200 if info.get("ok") else 400
+    return JsonResponse(info, status=status)
 
 
 @staff_member_required

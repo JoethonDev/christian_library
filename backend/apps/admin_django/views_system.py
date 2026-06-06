@@ -136,6 +136,67 @@ def list_directory(base_key: str, rel_path: str) -> dict:
     }
 
 
+def search_files(base_key: str, query: str, max_results: int = 200, time_budget: float = 2.0) -> dict:
+    """
+    Recursively search for files/folders matching *query* in *base_key*.
+
+    Optimizations:
+    - No pre-sorting of all files (avoids O(n log n) overhead).
+    - Time budget (default 2 s) prevents long scans on huge trees.
+    - Skips hidden directories (names starting with ``.``).
+    - Short queries (< 2 chars) are rejected early.
+    """
+    if base_key not in ALLOWED_BASES:
+        base_key = "media"
+
+    q = query.strip()
+    if len(q) < 2:
+        return {"entries": [], "total": 0, "base_key": base_key, "query": query, "truncated": False}
+
+    base_path = ALLOWED_BASES[base_key]
+    entries: list[dict] = []
+    query_lower = q.lower()
+    deadline = time.monotonic() + time_budget
+
+    try:
+        for entry in base_path.rglob("*"):
+            if time.monotonic() > deadline:
+                break
+            if query_lower in entry.name.lower():
+                try:
+                    rel = entry.relative_to(base_path).as_posix()
+                    stat = entry.stat(follow_symlinks=False)
+                    entries.append({
+                        "name": entry.name,
+                        "is_dir": entry.is_dir(),
+                        "size": _fmt_bytes(stat.st_size) if entry.is_file() else "",
+                        "size_bytes": stat.st_size if entry.is_file() else 0,
+                        "modified": time.strftime("%Y-%m-%d %H:%M", time.localtime(stat.st_mtime)),
+                        "rel_path": rel,
+                    })
+                    if len(entries) >= max_results:
+                        break
+                except (PermissionError, OSError):
+                    continue
+    except PermissionError as exc:
+        entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
+        return {
+            "entries": entries, "total": len(entries),
+            "base_key": base_key, "query": query,
+            "truncated": len(entries) >= max_results, "error": str(exc),
+        }
+
+    entries.sort(key=lambda e: (not e["is_dir"], e["name"].lower()))
+    return {
+        "entries": entries,
+        "total": len(entries),
+        "base_key": base_key,
+        "query": query,
+        "truncated": len(entries) >= max_results,
+        "timed_out": len(entries) >= max_results,
+    }
+
+
 def execute_file_action(action: str, base_key: str, rel_path: str, **kwargs) -> dict:
     """
     Execute a single file operation.
@@ -174,6 +235,69 @@ def delete_orphan(rel_path: str) -> dict:
         return {"ok": True, "message": f"Deleted {target.name}"}
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
+
+
+def get_file_info(base_key: str, rel_path: str) -> dict:
+    """
+    Return detailed metadata for a file or directory.
+    Returns {ok: True, ...info...} or {ok: False, error: str}.
+    """
+    target = _resolve_safe_path(base_key, rel_path)
+    if target is None:
+        return {"ok": False, "error": "Path traversal denied"}
+    if not target.exists():
+        return {"ok": False, "error": "File not found"}
+
+    import stat as stat_module
+
+    try:
+        st = target.stat(follow_symlinks=False)
+    except OSError as exc:
+        return {"ok": False, "error": str(exc)}
+
+    is_dir = target.is_dir()
+    info: dict = {
+        "ok": True,
+        "name": target.name,
+        "rel_path": rel_path,
+        "full_path": str(target.resolve()),
+        "is_dir": is_dir,
+        "size_bytes": st.st_size,
+        "size_fmt": _fmt_bytes(st.st_size) if not is_dir else "",
+        "modified": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(st.st_mtime)),
+        "created": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(st.st_ctime)),
+        "permissions": stat_module.filemode(st.st_mode),
+        "mode_octal": oct(st.st_mode)[-3:],
+        "owner": str(st.st_uid),
+        "group": str(st.st_gid),
+    }
+
+    try:
+        import pwd
+        info["owner"] = pwd.getpwuid(st.st_uid).pw_name
+    except (ImportError, KeyError):
+        pass
+    try:
+        import grp
+        info["group"] = grp.getgrgid(st.st_gid).gr_name
+    except (ImportError, KeyError):
+        pass
+
+    if is_dir:
+        try:
+            children = list(target.iterdir())
+            info["child_count"] = len(children)
+            info["child_dirs"] = sum(1 for c in children if c.is_dir())
+            info["child_files"] = sum(1 for c in children if c.is_file())
+        except PermissionError:
+            info["child_count"] = -1
+    else:
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(target.name)
+        info["mime_type"] = mime_type or "application/octet-stream"
+        info["extension"] = target.suffix.lower() if target.suffix else "(none)"
+
+    return info
 
 
 def get_cache_stats() -> dict:
