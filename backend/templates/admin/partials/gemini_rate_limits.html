@@ -165,15 +165,14 @@
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                const models = [
-                    { id: 'gemini_3_flash', name: 'Gemini 3 Flash', purpose: '{% trans "Primary SEO" %}', color: 'primary', icon: 'lightning-fill' },
-                    { id: 'gemini_2_5_flash', name: 'Gemini 2.5 Flash', purpose: '{% trans "Primary Metadata" %}', color: 'info', icon: 'info-circle-fill' },
-                    { id: 'gemini_2_5_flash_lite', name: 'Gemini 2.5 Flash Lite', purpose: '{% trans "Fallback Layer" %}', color: 'secondary', icon: 'shield-check' }
-                ];
+            const models = data.models || [
+                { id: 'gemini_3_flash', name: 'Gemini 3 Flash', purpose: '{% trans "Default" %}', color: 'primary', icon: 'lightning-fill' },
+            ];
                 
                 let contentHtml = (layout === 'wide') ? renderWide(models, data) : renderCompact(models, data);
                 
-                const lastUpdated = data.rate_limits?.gemini_3_flash?.last_updated || new Date().toISOString();
+                const firstModelId = models.length > 0 ? models[0].id : 'gemini_3_flash';
+                const lastUpdated = data.rate_limits?.[firstModelId]?.last_updated || new Date().toISOString();
                 contentHtml += `
                     <div class="mt-3 pt-3 border-top text-center">
                         <small class="text-muted">

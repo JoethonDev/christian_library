@@ -39,10 +39,19 @@ class BaseGeminiService:
                 default_setting = GeminiModelSetting.objects.get(is_enabled=True, is_default=True)
                 default_model = default_setting.model_key
             except GeminiModelSetting.DoesNotExist:
-                raise RuntimeError(
-                    "No default Gemini model configured. "
-                    "Ensure a GeminiModelSetting with is_default=True and is_enabled=True exists."
-                )
+                first_enabled = GeminiModelSetting.objects.filter(
+                    is_enabled=True, archived_at__isnull=True
+                ).order_by('fallback_priority').first()
+                if first_enabled is not None:
+                    default_model = first_enabled.model_key
+                else:
+                    default_model = None
+
+        if default_model is None:
+            raise RuntimeError(
+                "No default Gemini model configured. "
+                "Ensure a GeminiModelSetting with is_default=True and is_enabled=True exists."
+            )
 
         self.default_model = default_model
         self.client = genai.Client(api_key=api_key)

@@ -34,7 +34,7 @@ from django.http.multipartparser import MultiPartParser
 from apps.frontend_api.admin_services import AdminService
 from apps.media_manager.models import (
     APIUploadQueue, ContentItem, ContentLifecycleAuditLog, ContentViewEvent,
-    DailyContentViewSummary, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
+    DailyContentViewSummary, GeminiModelSetting, ProcessingJob, Tag, VideoMeta, AudioMeta, PdfMeta,
 )
 from apps.media_manager.models import ChunkedUploadSession
 from apps.media_manager.services.api_upload_queue_service import APIUploadQueueService
@@ -72,16 +72,22 @@ staff_member_required = user_passes_test(
     login_url='frontend_api:admin_login',
 )
 
-# Initialize services
+# Lazy service initializers (avoid eager DB access at import time)
+_admin_service_instance = None
+def get_admin_service():
+    global _admin_service_instance
+    if _admin_service_instance is None:
+        _admin_service_instance = AdminService()
+    return _admin_service_instance
+
 content_service = ContentService()
-admin_service = AdminService()
 
 
 @staff_member_required
 def admin_dashboard(request):
     """Main admin dashboard - Optimized to 4 queries total"""
     # Get all dashboard data with optimized service
-    dashboard_data = admin_service.get_dashboard_data()
+    dashboard_data = get_admin_service().get_dashboard_data()
     
     return render(request, 'admin/dashboard.html', dashboard_data)
 
@@ -97,7 +103,7 @@ def content_list(request):
     per_page = int(request.GET.get('limit', 20))
     
     # Get content list using optimized service
-    content_data = admin_service.get_content_list(
+    content_data = get_admin_service().get_content_list(
         content_type=content_type,
         search_query=search_query,
         page=page,
@@ -126,15 +132,15 @@ def content_detail(request, content_id):
     """Content detail page - Single optimized query"""
     try:
         # Get content with all relations in single query
-        content = admin_service.get_content_detail(str(content_id))
+        content = get_admin_service().get_content_detail(str(content_id))
         
         # Handle POST request for status/metadata updates
         if request.method == 'POST':
             # Handle is_active toggle
             if 'toggle_active' in request.POST:
-                success, message = admin_service.toggle_content_status(str(content_id))
+                success, message = get_admin_service().toggle_content_status(str(content_id))
                 if success:
-                    refreshed_content = admin_service.get_content_detail(str(content_id))
+                    refreshed_content = get_admin_service().get_content_detail(str(content_id))
                     LifecycleAuditService.log_event(
                         content_item=refreshed_content,
                         action_type='content_status_toggled',
@@ -309,10 +315,10 @@ def content_detail(request, content_id):
                 messages.success(request, _("Sacred metadata updated successfully"))
             
             # Re-fetch content to reflect changes
-            content = admin_service.get_content_detail(str(content_id))
+            content = get_admin_service().get_content_detail(str(content_id))
 
         # Process for current language
-        processed_content = admin_service.language_processor.process_content_item(
+        processed_content = get_admin_service().language_processor.process_content_item(
             content, get_language()
         )
         
@@ -334,7 +340,7 @@ def content_delete_confirm(request, content_id):
     """Handle content deletion - Optimized with single query check"""
     try:
         # Get content with all relations in single query
-        content = admin_service.get_content_detail(str(content_id))
+        content = get_admin_service().get_content_detail(str(content_id))
         
         if request.method == 'POST':
             # Use existing delete service for actual deletion
@@ -350,7 +356,7 @@ def content_delete_confirm(request, content_id):
         
         # GET request - Show confirmation page
         # Process for current language
-        processed_content = admin_service.language_processor.process_content_item(
+        processed_content = get_admin_service().language_processor.process_content_item(
             content, get_language()
         )
         
@@ -373,7 +379,7 @@ def content_delete_confirm(request, content_id):
 def delete_local_confirm(request, content_id):
     """Handle local file deletion only, preserving R2 and DB record."""
     try:
-        content = admin_service.get_content_detail(str(content_id))
+        content = get_admin_service().get_content_detail(str(content_id))
         
         # Get meta object based on content type
         meta = None
@@ -403,7 +409,7 @@ def delete_local_confirm(request, content_id):
                 return redirect('frontend_api:admin_content_detail', content_id=content_id)
 
         # GET request - Show confirmation page
-        processed_content = admin_service.language_processor.process_content_item(
+        processed_content = get_admin_service().language_processor.process_content_item(
             content, get_language()
         )
         
@@ -680,7 +686,7 @@ def generate_content_metadata(request):
             return JsonResponse({'success': False, 'error': _('Content ID required')})
         
         # Get content item
-        content = admin_service.get_content_detail(content_id)
+        content = get_admin_service().get_content_detail(content_id)
         
         # Use Gemini manager to generate metadata
         meta_obj = content.get_meta_object()
@@ -803,7 +809,7 @@ def _render_media_management(request, media_type):
     }
     filters.update(config['extra_filters'])
 
-    media_data = admin_service.get_type_specific_content(
+    media_data = get_admin_service().get_type_specific_content(
         content_type=media_type,
         page=page,
         per_page=per_page,
@@ -845,7 +851,7 @@ def system_monitor(request):
         get_system_stats,
     )
 
-    system_data = admin_service.get_system_monitor_data()
+    system_data = get_admin_service().get_system_monitor_data()
     
     context = {
         **system_data,
@@ -1036,7 +1042,7 @@ def bulk_operations(request):
                 for cid in content_ids:
                     try:
                         # Fetch the content item first as delete_content expects an object
-                        content = admin_service.get_content_detail(cid)
+                        content = get_admin_service().get_content_detail(cid)
                         success, _delete_message = processing_service.delete_content(content)
                         if success:
                             success_count += 1
@@ -1051,7 +1057,7 @@ def bulk_operations(request):
             return redirect('frontend_api:bulk_operations')
 
     # Get bulk operation data
-    bulk_data = admin_service.get_bulk_operation_data()
+    bulk_data = get_admin_service().get_bulk_operation_data()
     
     context = {
         'bulk_stats': bulk_data,
@@ -1094,7 +1100,7 @@ def api_toggle_content_status(request):
             return JsonResponse({'success': False, 'error': _('Content ID required')})
         
         # Toggle status using optimized service
-        success, message = admin_service.toggle_content_status(content_id)
+        success, message = get_admin_service().toggle_content_status(content_id)
         
         # Get the updated status to return to frontend
         if success:
@@ -1137,7 +1143,7 @@ def api_bulk_generate_seo(request):
 
         for content_id in content_ids:
             try:
-                content = admin_service.get_content_detail(content_id)
+                content = get_admin_service().get_content_detail(content_id)
                 meta_obj = content.get_meta_object()
                 if not meta_obj or not meta_obj.original_file:
                     results.append({'id': content_id, 'success': False, 'error': 'No media file'})
@@ -1220,7 +1226,7 @@ def api_bulk_delete(request):
         for content_id in content_ids:
             try:
                 # Use admin_service to get the object with relations
-                content = admin_service.get_content_detail(content_id)
+                content = get_admin_service().get_content_detail(content_id)
                 success, message = processing_service.delete_content(content)
                 results.append({
                     'id': content_id,
@@ -1902,9 +1908,26 @@ def api_gemini_rate_limits(request):
         metadata_available, metadata_msg = gemini_manager.check_metadata_availability()
         seo_available, seo_msg = gemini_manager.check_seo_availability()
         
+        # Build dynamic model list from DB (replaces hardcoded JS array in template)
+        COLOR_PALETTE = ['primary', 'info', 'secondary', 'dark', 'warning', 'success']
+        ICON_PALETTE = ['lightning-fill', 'info-circle-fill', 'shield-check', 'gear', 'bar-chart', 'activity']
+        models = []
+        for idx, setting in enumerate(GeminiModelSetting.objects.filter(archived_at__isnull=True).order_by('fallback_priority')):
+            model_id = setting.model_key.replace('.', '_').replace('-', '_')
+            position = min(idx, len(COLOR_PALETTE) - 1)
+            purpose = _('Primary Model') if setting.is_default else _('Fallback Layer')
+            models.append({
+                'id': model_id,
+                'name': setting.display_name,
+                'purpose': purpose,
+                'color': COLOR_PALETTE[position],
+                'icon': ICON_PALETTE[position],
+            })
+        
         return JsonResponse({
             'success': True,
             'rate_limits': rate_limits,
+            'models': models,
             'metadata_available': metadata_available,
             'metadata_message': metadata_msg,
             'seo_available': seo_available,
@@ -1916,6 +1939,137 @@ def api_gemini_rate_limits(request):
             'success': False,
             'error': str(e)
         })
+
+
+@staff_member_required
+def api_gemini_reporting(request):
+    """API endpoint for Gemini usage reporting queries"""
+    try:
+        gemini_manager = get_gemini_manager()
+        report_type = request.GET.get('type', 'summary')
+        days = int(request.GET.get('days', 30))
+        content_item_id = request.GET.get('content_item_id')
+
+        reporting = gemini_manager.reporting_service
+
+        report_map = {
+            'summary': lambda: reporting.summary_stats(days),
+            'total_by_model': lambda: reporting.total_calls_by_model(days),
+            'status_by_model': lambda: reporting.status_counts_by_model(days),
+            'fallback': lambda: reporting.fallback_usage(days),
+            'daily_volume': lambda: reporting.daily_volume(days),
+            'hourly_volume': lambda: reporting.hourly_volume(min(days, 7)),
+            'response_times': lambda: reporting.avg_response_time_by_model(days),
+            'per_item': lambda: reporting.per_item_history(content_item_id) if content_item_id else [],
+        }
+
+        result = report_map.get(report_type, report_map['summary'])()
+
+        return JsonResponse({'success': True, 'report_type': report_type, 'data': result})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@staff_member_required
+def api_gemini_models(request):
+    """CRUD API for Gemini model settings"""
+    if request.method == 'GET':
+        models_qs = GeminiModelSetting.objects.all().order_by('fallback_priority')
+        data = []
+        for m in models_qs:
+            data.append({
+                'id': str(m.id),
+                'model_key': m.model_key,
+                'display_name': m.display_name,
+                'provider': m.provider,
+                'is_enabled': m.is_enabled,
+                'is_default': m.is_default,
+                'fallback_priority': m.fallback_priority,
+                'limit_per_minute': m.limit_per_minute,
+                'limit_per_day': m.limit_per_day,
+                'limit_per_month': m.limit_per_month,
+                'request_timeout_seconds': m.request_timeout_seconds,
+                'notes': m.notes,
+                'archived_at': m.archived_at.isoformat() if m.archived_at else None,
+                'created_at': m.created_at.isoformat(),
+            })
+        return JsonResponse({'success': True, 'models': data})
+
+    if request.method == 'POST':
+        try:
+            body = json.loads(request.body)
+            action = body.get('action')
+
+            if action == 'toggle_enable':
+                model_id = body.get('id')
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                obj.is_enabled = not obj.is_enabled
+                obj.save(update_fields=['is_enabled', 'updated_at'])
+                return JsonResponse({'success': True, 'is_enabled': obj.is_enabled})
+
+            if action == 'set_default':
+                model_id = body.get('id')
+                GeminiModelSetting.objects.filter(is_default=True).exclude(id=model_id).update(is_default=False)
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                obj.is_default = True
+                obj.is_enabled = True
+                obj.save(update_fields=['is_default', 'is_enabled', 'updated_at'])
+                return JsonResponse({'success': True, 'is_default': True})
+
+            if action == 'toggle_archive':
+                model_id = body.get('id')
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                if obj.archived_at:
+                    obj.archived_at = None
+                else:
+                    from django.utils import timezone as tz
+                    obj.archived_at = tz.now()
+                obj.save(update_fields=['archived_at', 'updated_at'])
+                return JsonResponse({'success': True, 'archived_at': obj.archived_at.isoformat() if obj.archived_at else None})
+
+            if action == 'save':
+                model_id = body.get('id')
+                if model_id:
+                    obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                else:
+                    obj = GeminiModelSetting()
+                obj.model_key = body.get('model_key', obj.model_key)
+                obj.display_name = body.get('display_name', obj.display_name)
+                obj.provider = body.get('provider', obj.provider)
+                obj.fallback_priority = int(body.get('fallback_priority', obj.fallback_priority))
+                obj.limit_per_minute = int(body.get('limit_per_minute', obj.limit_per_minute))
+                obj.limit_per_day = int(body.get('limit_per_day', obj.limit_per_day))
+                obj.limit_per_month = body.get('limit_per_month') or None
+                if obj.limit_per_month is not None:
+                    obj.limit_per_month = int(obj.limit_per_month)
+                obj.request_timeout_seconds = body.get('request_timeout_seconds') or None
+                if obj.request_timeout_seconds is not None:
+                    obj.request_timeout_seconds = int(obj.request_timeout_seconds)
+                obj.notes = body.get('notes', obj.notes)
+                if body.get('is_default'):
+                    GeminiModelSetting.objects.filter(is_default=True).exclude(pk=obj.pk if obj.pk else None).update(is_default=False)
+                    obj.is_default = True
+                obj.full_clean()
+                obj.save()
+                return JsonResponse({'success': True, 'id': str(obj.id)})
+
+            if action == 'delete':
+                model_id = body.get('id')
+                obj = get_object_or_404(GeminiModelSetting, id=model_id)
+                obj.delete()
+                return JsonResponse({'success': True})
+
+            return JsonResponse({'success': False, 'error': f'Unknown action: {action}'}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+
+
+@staff_member_required
+def admin_gemini_management(request):
+    """Gemini Model Settings & Reporting page"""
+    return render(request, 'admin/gemini_management.html')
 
 
 @staff_member_required

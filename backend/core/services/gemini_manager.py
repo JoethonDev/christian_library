@@ -9,6 +9,7 @@ from apps.media_manager.models import GeminiGenerationAttempt
 from .gemini_metadata_service import get_gemini_metadata_service
 from .gemini_seo_service import get_gemini_seo_service
 from .gemini_rate_limit_service import get_gemini_rate_limit_service
+from .gemini_reporting_service import get_gemini_reporting_service
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class GeminiManager:
         self.metadata_service = get_gemini_metadata_service()
         self.seo_service = get_gemini_seo_service()
         self.rate_limit_service = get_gemini_rate_limit_service()
+        self.reporting_service = get_gemini_reporting_service()
     
     def generate_metadata(self, file_path: str, content_type: str, content_item=None) -> Tuple[bool, Dict]:
         """
