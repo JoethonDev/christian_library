@@ -57,8 +57,6 @@ services:
       - ./docker/nginx/htpasswd:/etc/nginx/htpasswd:ro
       - static_data:/app/staticfiles:ro
       - media_data:/app/media:ro
-    depends_on:
-      - portainer
     networks:
       - frontend
 
@@ -166,15 +164,6 @@ services:
       - backend
       - frontend
 
-  portainer:
-    image: portainer/portainer-ce:latest
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - portainer_data:/data
-    networks:
-      - frontend
-
   migration:
     image: christian-library-app:${IMAGE_TAG:-latest}
     profiles:
@@ -199,14 +188,10 @@ volumes:
   media_data:
   static_data:
   logs_data:
-  portainer_data:
 
 networks:
   backend:
     driver: bridge
   frontend:
-    driver: bridge
-    enable_ipv6: true
-    ipam:
-      config:
-        - subnet: 2001:db8:11::/64
+    external: true
+    name: proxy
